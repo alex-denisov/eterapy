@@ -74,8 +74,6 @@ export default async function TogetherPage({
             {product && <ProductHeroPrice product={product} />}
           </div>
 
-          <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Один вопрос — несколько взглядов.</p>
-
           <div className="mt-3">
             <ProductPrivacyBadge />
           </div>

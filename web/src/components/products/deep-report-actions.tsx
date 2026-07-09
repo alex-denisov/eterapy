@@ -17,7 +17,7 @@ import { appUrl, loginUrl } from "@/lib/subdomain";
 // B442/B444 (M28): «Подробный разбор» — самодостаточная услуга (клиническая
 // формулировка случая «5 P» + problem-solving). Контекст собирается ВНУТРИ услуги
 // (textarea + ленты темы/цели в дизайне Таро), без первичного диалога и без
-// предпросмотра/оглавления. Один платный шаг сразу даёт полный документ 5–10 страниц.
+// предпросмотра/оглавления. Один платный шаг сразу даёт полный подробный документ.
 // Результат — аккордеон по главам; автосейв в Дневник; сессионность по ?resultId=.
 
 const TOPICS = ["работа", "отношения", "семья", "сам(а) с собой", "здоровье", "деньги", "другое"];
@@ -329,7 +329,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   return (
     <div className="soft-card tarot-order-surface" data-testid="deep-report-actions">
       <div className="tarot-head">
-        <p className="soft-eyebrow">структурный разбор · 5–10 страниц</p>
+        <p className="soft-eyebrow">структурный разбор</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}

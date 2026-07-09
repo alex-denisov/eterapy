@@ -255,13 +255,12 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
         </OptionScrollStrip>
 
         <label className="soft-eyebrow tarot-question-label" htmlFor="natal-birth-input">дата, время и место рождения</label>
-        <textarea
+        <input
           id="natal-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 400))}
           placeholder="12.04.1992, 14:35, Москва"
-          rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-line-input"
           disabled={status === "loading"}
           data-testid="natal-birth-input"
         />
@@ -273,7 +272,7 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
           onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
           placeholder={placeholder}
           rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-compact-input"
           disabled={status === "loading"}
           data-testid="natal-question-input"
         />

@@ -127,9 +127,9 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
   },
   "deep-report": {
     family: "synthesis",
-    primaryPromise: "Получите структурный разбор-документ на 5–10 страниц.",
+    primaryPromise: "Получите структурный разбор-документ с выводами, развилками и планом действий.",
     heroVisual: "document-outline",
-    previewTitle: "Документ 5–10 страниц",
+    previewTitle: "Структурный документ-разбор",
     previewBullets: ["карта ситуации", "что удерживает и опоры", "сценарии и маршрут шагов"],
     trustLine: "Разбор виден только владельцу, PDF — в кабинете.",
   },

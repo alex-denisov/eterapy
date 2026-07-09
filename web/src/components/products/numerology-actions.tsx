@@ -258,7 +258,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
           onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
           placeholder={placeholder}
           rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-compact-input"
           disabled={status === "loading"}
           data-testid="numerology-question-input"
         />

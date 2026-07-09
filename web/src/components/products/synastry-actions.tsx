@@ -293,26 +293,24 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="soft-eyebrow tarot-question-label" htmlFor="synastry-user-birth">ваши данные рождения</label>
-            <textarea
+            <input
               id="synastry-user-birth"
               value={userBirth}
               onChange={(e) => setUserBirth(e.target.value.slice(0, 400))}
               placeholder="12.04.1992, 14:35, Москва"
-              rows={2}
-              className="soft-question-input tarot-question-input"
+              className="soft-question-input tarot-question-input tarot-line-input"
               disabled={status === "loading"}
               data-testid="synastry-user-birth"
             />
           </div>
           <div>
             <label className="soft-eyebrow tarot-question-label" htmlFor="synastry-partner-birth">данные партнёра</label>
-            <textarea
+            <input
               id="synastry-partner-birth"
               value={partnerBirth}
               onChange={(e) => setPartnerBirth(e.target.value.slice(0, 400))}
               placeholder="09.11.1990, 08:10, Санкт-Петербург"
-              rows={2}
-              className="soft-question-input tarot-question-input"
+              className="soft-question-input tarot-question-input tarot-line-input"
               disabled={status === "loading"}
               data-testid="synastry-partner-birth"
             />
@@ -326,7 +324,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
           onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
           placeholder={placeholder}
           rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-compact-input"
           disabled={status === "loading"}
           data-testid="synastry-question"
         />

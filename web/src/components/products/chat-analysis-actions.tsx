@@ -245,6 +245,8 @@ function normalizeEmotionChip(label: string): string | null {
   const value = label.trim().toLowerCase();
   if (!value) return null;
   if (/тревож|обеспоко|волн/.test(value)) return "тревога";
+  if (/напряж/.test(value)) return "напряжение";
+  if (/беспомощ|безысход/.test(value)) return "беспомощность";
   if (/обид/.test(value)) return "обида";
   if (/зл|раздраж|агресс/.test(value)) return "злость";
   if (/растер|смущ|непон|потер/.test(value)) return "растерянность";
@@ -256,7 +258,7 @@ function normalizeEmotionChip(label: string): string | null {
   if (/ревн/.test(value)) return "ревность";
   if (/одиноч/.test(value)) return "одиночество";
   if (/удив/.test(value)) return "удивление";
-  if (/делов|инициатив|защит|отстран|ищущ|прям|мягк|границ|рацион|контрол|актив|пассив/.test(value)) return null;
+  if (/делов|инициатив|защит|отстран|ищущ|уточня|прям|мягк|границ|рацион|контрол|актив|пассив|собран|деловит|наступатель|оборон|закрыт/.test(value)) return null;
   return value.length >= 3 ? value.slice(0, 24) : null;
 }
 
@@ -1278,7 +1280,7 @@ export function ChatAnalysisActions() {
           the manual-text field is a quiet fallback behind a toggle. */}
       {tab === "input" && (
         <div data-testid="chat-analysis-input">
-          <div className="soft-card overflow-hidden p-0 transition-colors focus-within:border-[var(--soft-bordeaux)]">
+          <div className="soft-card overflow-hidden p-0 transition-colors">
             {/* primary input = two attach affordances. B462 §3.2: stacked
                 one-per-row on mobile (was a locked 2-col grid → cramped wrapping
                 + tiny tap targets at 390px), side by side from sm: up. */}

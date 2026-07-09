@@ -6,6 +6,7 @@ import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { SectionAccordion } from "@/components/products/section-accordion";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
+import { getProductPriceLabel } from "@/lib/product-prices";
 import { splitSections } from "@/lib/report-sections";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl } from "@/lib/subdomain";
@@ -72,6 +73,7 @@ export function SymbolicResultScaffold({
       icon: Sparkles,
       title: repeat.title,
       description: repeat.description,
+      priceMain: getProductPriceLabel(productKey),
       priceSub: `${creditCost} балла за разбор`,
       ctaLabel: repeat.ctaLabel,
       onClick: onStartNew,

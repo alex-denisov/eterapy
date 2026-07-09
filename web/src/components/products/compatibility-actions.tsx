@@ -98,9 +98,21 @@ export function CompatibilityActions({
     // be the logged-in client's invite entry, so the API returns the viewer role.
     const currentSearch = typeof window !== "undefined" ? window.location.search : "";
     const searchParams = new URLSearchParams(currentSearch);
-    const readingId = inviteToken
+    const urlReadingId = inviteToken
       ? null
       : readingIdFromSearch(searchParams);
+    const readingId =
+      productKey === "pair" && !dialogueId && searchParams.get("scenario") === "compare"
+        ? null
+        : urlReadingId;
+    if (productKey === "pair" && !inviteToken && !dialogueId && !readingId) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setResult(null);
+        setHasEntitlement(false);
+      });
+      return () => { cancelled = true; };
+    }
     const isReadingInvite = Boolean(readingId && productKey === "pair" && searchParams.get("scenario") === "compare");
     const url = inviteToken
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
@@ -135,7 +147,7 @@ export function CompatibilityActions({
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/compatibility", {
         method: "POST",
-        body: JSON.stringify({ dialogueId, type: relationshipType, action: "create_invite" }),
+        body: JSON.stringify({ dialogueId, type: relationshipType, action: "create_invite", productKey }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       const created = payload.result ?? null;
@@ -352,7 +364,7 @@ export function CompatibilityActions({
               М
             </div>
             <p className="mt-3 font-heading text-[1.05rem] font-medium text-[var(--soft-bordeaux)]">Вы</p>
-            <p className="mt-0.5 text-xs text-[var(--soft-ink-soft)]">прошли разбор</p>
+            <p className="mt-0.5 text-xs text-[var(--soft-ink-soft)]">ваша часть готова</p>
           </div>
 
           {/* Plus separator */}

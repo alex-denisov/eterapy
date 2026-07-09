@@ -57,24 +57,6 @@ function HumanDesignVisual({ result }: { result: SymbolicResult }) {
   return (
     <div>
       <HumanDesignBodygraph chart={chart} />
-      <div className="mt-3 grid grid-cols-2 gap-2.5" data-testid="hd-facts">
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">тип</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.typeName}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">стратегия</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.strategy}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">авторитет</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.authorityName}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">профиль</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.profile} · {chart.profileName}</p>
-        </div>
-      </div>
       {!chart.hasExactTime && (
         <p className="mt-3 rounded-[12px] bg-[var(--soft-paper-deep)] p-3 text-xs leading-relaxed text-[var(--soft-bordeaux)]">
           Время рождения не указано — тип посчитан на полдень. Для точного результата добавьте точное время и город.
@@ -207,13 +189,12 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
 
       <div className="tarot-controls">
         <label className="soft-eyebrow tarot-question-label" htmlFor="hd-birth-input">дата, время и место рождения</label>
-        <textarea
+        <input
           id="hd-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 400))}
           placeholder="15.05.1990, 10:30, Москва. Точное время и город важны для верного расчёта."
-          rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-line-input"
           disabled={status === "loading"}
           data-testid="hd-birth-input"
         />
@@ -225,7 +206,7 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
           onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
           placeholder={placeholder}
           rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-compact-input"
           disabled={status === "loading"}
           data-testid="hd-question-input"
         />

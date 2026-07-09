@@ -117,7 +117,7 @@ export function PairSelfViewIntake() {
             onChange={(event) => setWarmth(event.target.value.slice(0, 600))}
             placeholder="Несколько слов…"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input tarot-question-input tarot-compact-input p-3"
             disabled={disabled}
             data-testid="pair-warmth-input"
           />
@@ -129,7 +129,7 @@ export function PairSelfViewIntake() {
             onChange={(event) => setTension(event.target.value.slice(0, 600))}
             placeholder="Несколько слов…"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input tarot-question-input tarot-compact-input p-3"
             disabled={disabled}
             data-testid="pair-tension-input"
           />
@@ -141,7 +141,7 @@ export function PairSelfViewIntake() {
             onChange={(event) => setQuestion(event.target.value.slice(0, 400))}
             placeholder="Если хочется прояснить что-то одно"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input tarot-question-input tarot-compact-input p-3"
             disabled={disabled}
             data-testid="pair-question-input"
           />

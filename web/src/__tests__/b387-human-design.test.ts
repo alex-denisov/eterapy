@@ -100,6 +100,15 @@ describe("эфемериды: сверка headline-значения (Созна
     const arc = ((pSun - dSun + 540) % 360) - 180;
     expect(Math.abs(arc - 88)).toBeLessThan(0.02);
   });
+
+  it("контрольный bodygraph.com-чарт использует true node: 36.1 / 6.1", () => {
+    const { chart } = computeHumanDesignFromText("03.03.1988, 21:00, Chisinau");
+    expect(chart).not.toBeNull();
+    expect(chart!.design.find((a) => a.body === "north_node")).toMatchObject({ gate: 25, line: 1 });
+    expect(chart!.design.find((a) => a.body === "south_node")).toMatchObject({ gate: 46, line: 1 });
+    expect(chart!.personality.find((a) => a.body === "north_node")).toMatchObject({ gate: 36, line: 1 });
+    expect(chart!.personality.find((a) => a.body === "south_node")).toMatchObject({ gate: 6, line: 1 });
+  });
 });
 
 describe("тип = связность графа (та самая «хитрость» методики)", () => {

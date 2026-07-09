@@ -529,8 +529,8 @@ export function SymbolicProductActions({
           value={userInput}
           onChange={(event) => setUserInput(event.target.value)}
           placeholder={tarotPlaceholder}
-          rows={3}
-          className="soft-question-input tarot-question-input"
+          rows={2}
+          className="soft-question-input tarot-question-input tarot-compact-input"
           disabled={status === "loading"}
         />
 
@@ -571,7 +571,6 @@ export function SymbolicProductActions({
         <div data-testid="symbolic-product-actions-tarot">
           <div className="tarot-head">
             <p className="soft-eyebrow">тема и расклад</p>
-            {hasEntitlement && !hasReading && <p className="tarot-access-note">Доступ открыт, можно тянуть карты.</p>}
           </div>
 
           {message && <p className="tarot-order-message">{message}</p>}

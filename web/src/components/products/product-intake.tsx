@@ -180,8 +180,8 @@ export function ProductIntake({
             value={question}
             onChange={(event) => setQuestion(event.target.value.slice(0, 1200))}
             placeholder={placeholder}
-            rows={mode === "light" ? 6 : 8}
-            className="soft-question-input tarot-question-input p-4"
+            rows={mode === "light" ? 3 : 6}
+            className="soft-question-input tarot-question-input tarot-compact-input p-4"
             disabled={disabled}
           />
           <div className="flex flex-wrap items-center gap-3">
@@ -226,8 +226,8 @@ export function ProductIntake({
             value={answer}
             onChange={(event) => setAnswer(event.target.value.slice(0, 1200))}
             placeholder="Ответьте коротко или подробнее — как удобно."
-            rows={5}
-            className="soft-question-input tarot-question-input p-4"
+            rows={3}
+            className="soft-question-input tarot-question-input tarot-compact-input p-4"
             disabled={disabled}
           />
           <div className="flex flex-wrap gap-3">

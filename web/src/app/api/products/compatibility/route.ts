@@ -20,6 +20,7 @@ const postSchema = z.object({
   action: z.literal("create_invite"),
   dialogueId: z.string(),
   type: z.enum(["romantic", "friendship", "business", "family"]),
+  productKey: z.enum(PRODUCT_KEYS).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -53,8 +54,9 @@ export async function POST(request: NextRequest) {
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid payload", 400, context);
 
-  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
   const input = parsed.data;
+  const productKey = input.productKey ?? PRODUCT_KEY;
+  const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
 
   // Make sure the dialogue exists and belongs to the user
   const dialogue = await db.dialogue.findFirst({

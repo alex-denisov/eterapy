@@ -62,7 +62,11 @@ function toMessages(value: Prisma.JsonValue): CompanionMessage[] {
   return value.filter(
     (m): m is CompanionMessage =>
       !!m && typeof m === "object" && typeof (m as CompanionMessage).text === "string",
-  );
+  ).map((message) => (
+    message.role === "companion"
+      ? { ...message, text: sanitizeCompanionReply(message.text) }
+      : message
+  ));
 }
 
 function toState(row: SessionRow): ChatSessionState {
@@ -308,7 +312,7 @@ export async function sendCompanionMessage(input: {
   }
 
   // 5. Генерация ответа компаньона.
-  const reply = await generateCompanionReply({ history: toMessages(row.messages), text, mode, userId: input.userId, requestId: input.requestId });
+  const reply = await generateCompanionReply({ sessionId: row.id, history: toMessages(row.messages), text, mode, userId: input.userId, requestId: input.requestId });
   const chunks = splitIntoMessages(reply);
   const safeChunks = chunks.length > 0 ? chunks : [sanitizeCompanionReply("")];
   const companionMsgs: CompanionMessage[] = safeChunks.map((c) => ({ role: "companion", text: c, at: new Date().toISOString() }));
@@ -322,6 +326,7 @@ export async function sendCompanionMessage(input: {
 }
 
 async function generateCompanionReply(input: {
+  sessionId: string;
   history: CompanionMessage[];
   text: string;
   mode: CompanionMode;
@@ -330,6 +335,7 @@ async function generateCompanionReply(input: {
 }): Promise<string> {
   try {
     const recent = input.history.slice(-MAX_HISTORY_MESSAGES);
+    const memoryNote = await buildClientMemoryNote(input.userId, input.sessionId);
     const response = await aiComplete({
       feature: "companion-chat",
       userId: input.userId,
@@ -337,7 +343,10 @@ async function generateCompanionReply(input: {
       maxTokens: 700,
       temperature: 0.6,
       messages: [
-        { role: "system", content: buildCompanionSystemPrompt(input.mode) },
+        {
+          role: "system",
+          content: [buildCompanionSystemPrompt(input.mode), memoryNote].filter(Boolean).join("\n\n"),
+        },
         ...recent.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.text })),
         { role: "user", content: input.text },
       ],
@@ -346,6 +355,34 @@ async function generateCompanionReply(input: {
   } catch (error) {
     log.warn("companion-chat-fallback", { requestId: input.requestId, error: serializeError(error) });
     return "Я рядом. Расскажите чуть больше — что в этой ситуации беспокоит вас сильнее всего?";
+  }
+}
+
+async function buildClientMemoryNote(userId: string, currentSessionId: string): Promise<string> {
+  try {
+    const sessions = await db.companionChatSession.findMany({
+      where: { userId, id: { not: currentSessionId } },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+      select: { messages: true, updatedAt: true },
+    });
+    const lines = sessions.flatMap((session, index) => {
+      const messages = toMessages(session.messages).filter((message) => message.text.trim()).slice(-8);
+      if (messages.length === 0) return [];
+      const thread = messages
+        .map((message) => `${message.role === "user" ? "Клиент" : "ETerapy"}: ${message.text.replace(/\s+/g, " ").slice(0, 260)}`)
+        .join("\n");
+      return [`Диалог ${index + 1} (${session.updatedAt.toISOString().slice(0, 10)}):\n${thread}`];
+    });
+    if (lines.length === 0) return "";
+    return [
+      "ДОЛГОСРОЧНАЯ ПАМЯТЬ КЛИЕНТА:",
+      "Ниже краткий контекст прошлых чат-сессий этого же пользователя. Используй его тихо: замечай повторяющиеся темы, незавершенные практики и важные факты, но не цитируй память механически и не говори «я помню из базы». Если текущий запрос противоречит памяти, приоритет у текущего сообщения.",
+      lines.join("\n\n").slice(0, 4200),
+    ].join("\n");
+  } catch (error) {
+    log.warn("companion-chat-memory-skip", { error: serializeError(error) });
+    return "";
   }
 }
 

@@ -15,11 +15,15 @@
 
 import {
   Body,
+  EclipticGeoMoon,
   GeoVector,
   MakeTime,
+  NextMoonNode,
+  NodeEventKind,
   Rotation_EQD_ECT,
   Rotation_EQJ_EQD,
   RotateVector,
+  SearchMoonNode,
   SunPosition,
   type AstroTime,
 } from "astronomy-engine";
@@ -53,6 +57,11 @@ function norm360(value: number): number {
   return ((value % 360) + 360) % 360;
 }
 
+function lerpAngle(a: number, b: number, ratio: number): number {
+  const diff = ((b - a + 540) % 360) - 180;
+  return norm360(a + diff * ratio);
+}
+
 // Эклиптическая долгота даты (истинное равноденствие даты) для планеты/Луны.
 function eclipticLongitudeOfDate(time: AstroTime, body: Body): number {
   const eqj = GeoVector(body, time, true); // EQJ, с поправкой на аберрацию (видимое положение)
@@ -75,6 +84,39 @@ function meanNodeLongitude(time: AstroTime): number {
   return norm360(omega);
 }
 
+// Истинный восходящий узел: ищем реальные пересечения Луны с эклиптикой вокруг
+// момента и интерполируем долготу между двумя соседними восходящими узлами.
+// Bodygraph.com и профильные HD-калькуляторы для контрольного чарта 03.03.1988
+// дают именно true node (36.1/6.1), а не mean node (36.2/6.2).
+function trueNodeLongitude(time: AstroTime): number {
+  try {
+    let event = SearchMoonNode(time.AddDays(-40));
+    const ascending = [];
+    for (let i = 0; i < 10; i += 1) {
+      if (event.kind === NodeEventKind.Ascending) ascending.push(event);
+      event = NextMoonNode(event);
+    }
+
+    let previous = null;
+    let next = null;
+    for (const item of ascending) {
+      if (item.time.tt <= time.tt) previous = item;
+      if (item.time.tt > time.tt) {
+        next = item;
+        break;
+      }
+    }
+    if (!previous || !next) return meanNodeLongitude(time);
+
+    const previousLon = norm360(EclipticGeoMoon(previous.time).lon);
+    const nextLon = norm360(EclipticGeoMoon(next.time).lon);
+    const ratio = (time.tt - previous.time.tt) / (next.time.tt - previous.time.tt);
+    return lerpAngle(previousLon, nextLon, ratio);
+  } catch {
+    return meanNodeLongitude(time);
+  }
+}
+
 function bodyLongitude(key: HDBodyKey, time: AstroTime): number {
   switch (key) {
     case "sun":
@@ -82,9 +124,9 @@ function bodyLongitude(key: HDBodyKey, time: AstroTime): number {
     case "earth":
       return norm360(SunPosition(time).elon + 180);
     case "north_node":
-      return meanNodeLongitude(time);
+      return trueNodeLongitude(time);
     case "south_node":
-      return norm360(meanNodeLongitude(time) + 180);
+      return norm360(trueNodeLongitude(time) + 180);
     case "moon":
       return eclipticLongitudeOfDate(time, Body.Moon);
     case "mercury":
