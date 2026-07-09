@@ -74,7 +74,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/products/deep-report": {
     title: "Подробный разбор — ETerapy",
-    description: "Подробный структурный разбор вашей ситуации на 8–12 страниц: что происходит, как это сложилось, что удерживает, на что опереться, сценарии и маршрут небольших шагов.",
+    description: "Подробный структурный разбор вашей ситуации: что происходит, как это сложилось, что удерживает, на что опереться, сценарии и маршрут действий.",
     schemaKind: "Product",
   },
   "/products/chat-analysis": {

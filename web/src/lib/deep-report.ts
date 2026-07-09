@@ -9,7 +9,7 @@ export { DEEP_REPORT_SECTIONS, DEEP_REPORT_SYSTEM_PROMPT };
 // ФОРМУЛИРОВКИ СЛУЧАЯ (case formulation, «5 P»: Presenting / Predisposing /
 // Precipitating / Perpetuating / Protective) + Problem-Solving Therapy для плана.
 // Контекст приходит как свободный текст ситуации (+ опц. заметка из чипов), БЕЗ
-// первичного диалога/checkin. Результат — документ-разбор 5–10 страниц.
+// первичного диалога/checkin. Результат — детальный документ-разбор.
 
 export type DeepReportInput = {
   sourceText: string;
@@ -34,7 +34,7 @@ export function buildDeepReportPreview(sourceText: string): string {
     "",
     ...DEEP_REPORT_SECTIONS.map((title, i) => `${i + 1}. ${title}`),
     "",
-    "Полный документ — 5–10 страниц: с фактической картиной, гипотезами, развилками решения, рисками и планом действий. Можно скачать PDF и сохранить в Дневник.",
+    "Полный документ: фактическая картина, гипотезы, развилки решения, риски и план действий. Можно скачать PDF и сохранить в Дневник.",
   ].join("\n");
 }
 
@@ -55,7 +55,7 @@ export function buildDeepReportTeaser(sourceText: string, generatedText: string)
 }
 
 function normalizeReport(text: string): string {
-  // 5–10 страниц ≈ 2800–4000 слов ≈ ~28k символов; даём запас до 32k.
+  // Полный разбор целится в >=3500 слов; даём запас до 32k символов.
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 32000);
 }
 
