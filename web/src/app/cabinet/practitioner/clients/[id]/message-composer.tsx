@@ -6,8 +6,18 @@ import { toast } from "sonner";
 
 // B478 — composer одностороннего сообщения (mockup -client-messages, owner
 // review #3): textarea + «Вложить» (через /api/files) + «Отправить».
+// R9-4 P2: variant="pcab" — мобильная разметка 1-в-1 из макета (композер-карта
+// .pcab-composer, футер «Вложить»/«Отправить»); обработчики общие.
 
-export function MessageComposer({ clientId, bookingId }: { clientId: string; bookingId?: string }) {
+export function MessageComposer({
+  clientId,
+  bookingId,
+  variant,
+}: {
+  clientId: string;
+  bookingId?: string;
+  variant?: "pcab";
+}) {
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<{ url: string; name: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -62,6 +72,67 @@ export function MessageComposer({ clientId, bookingId }: { clientId: string; boo
       toast.error(error instanceof Error ? error.message : "Не удалось отправить");
       setBusy(false);
     }
+  }
+
+  if (variant === "pcab") {
+    return (
+      <div className="pcab-composer" data-testid="practitioner-message-composer-mobile">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="pcab-ta"
+          placeholder="Написать сообщение или прикрепить материал / задание клиенту…"
+          maxLength={4000}
+        />
+        {attachment && (
+          <span className="pcab-msg-attach" style={{ marginTop: 4 }}>
+            <Paperclip width={12} height={12} aria-hidden="true" />
+            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {attachment.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              aria-label="Убрать вложение"
+              style={{ display: "grid", placeItems: "center", background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}
+            >
+              <X width={12} height={12} aria-hidden="true" />
+            </button>
+          </span>
+        )}
+        <div className="pcab-ta-foot">
+          <button type="button" className="pcab-cbtn ghost" disabled={uploading || busy} onClick={() => fileInputRef.current?.click()}>
+            {uploading ? (
+              <Loader2 width={15} height={15} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Paperclip width={15} height={15} strokeWidth={2} aria-hidden="true" />
+            )}
+            Вложить
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,text/plain"
+            className="hidden"
+            onChange={(e) => uploadFile(e.target.files)}
+          />
+          <button
+            type="button"
+            className="pcab-cbtn send"
+            disabled={busy || uploading}
+            onClick={send}
+            data-testid="practitioner-message-send-mobile"
+          >
+            {busy ? (
+              <Loader2 width={15} height={15} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Send width={15} height={15} strokeWidth={2} aria-hidden="true" />
+            )}
+            Отправить
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
