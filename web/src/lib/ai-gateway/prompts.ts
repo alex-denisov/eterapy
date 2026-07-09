@@ -247,6 +247,28 @@ function syncedDefaultMetadata(prompt: AIPromptConfigView, existing?: AIPromptCo
   };
 }
 
+function isAdminManagedPrompt(existing: AIPromptConfigRow) {
+  const metadata = jsonObject(existing.metadata);
+  return metadata.promptSource === "admin" || typeof metadata.updatedBy === "string";
+}
+
+function shouldSyncDefaultPrompt(prompt: AIPromptConfigView, existing?: AIPromptConfigRow) {
+  if (!existing) return true;
+  if (isAdminManagedPrompt(existing)) return false;
+
+  const metadata = jsonObject(existing.metadata);
+  const codeManaged = metadata.promptSource === "code-default"
+    || typeof metadata.defaultPromptRevision === "string"
+    || existing.promptText === prompt.promptText;
+  if (!codeManaged) return false;
+
+  return existing.title !== prompt.title
+    || existing.productKey !== prompt.productKey
+    || existing.promptText !== prompt.promptText
+    || metadata.defaultPromptRevision !== AI_PROMPT_DEFAULT_REVISION
+    || metadata.promptSource !== "code-default";
+}
+
 function defaultPromptViews(): AIPromptConfigView[] {
   return listDefaultAITaskPolicies().map((policy) => ({
     id: `default:${policy.feature}`,
@@ -272,14 +294,7 @@ async function syncDefaultAIPromptConfigRows(): Promise<{ rows: AIPromptConfigRo
 
   const staleDefaults = defaults.filter((prompt) => {
     const feature = normalizeAIFeatureKey(prompt.feature);
-    const existing = byFeature.get(feature);
-    if (!existing) return true;
-    const metadata = jsonObject(existing.metadata);
-    return existing.title !== prompt.title
-      || existing.productKey !== prompt.productKey
-      || existing.promptText !== prompt.promptText
-      || metadata.defaultPromptRevision !== AI_PROMPT_DEFAULT_REVISION
-      || metadata.promptSource !== "code-default";
+    return shouldSyncDefaultPrompt(prompt, byFeature.get(feature));
   });
 
   if (staleDefaults.length === 0) return { rows, updated: 0 };
@@ -376,6 +391,7 @@ export async function updateAIPromptConfig(actorId: string, input: UpdateAIPromp
       promptText,
       enabled: input.enabled ?? true,
       metadata: {
+        promptSource: "admin",
         updatedBy: actorId,
         defaultPromptAvailable: Boolean(defaultView),
       },
@@ -386,6 +402,7 @@ export async function updateAIPromptConfig(actorId: string, input: UpdateAIPromp
       promptText,
       enabled: input.enabled ?? true,
       metadata: {
+        promptSource: "admin",
         updatedBy: actorId,
         defaultPromptAvailable: Boolean(defaultView),
       },

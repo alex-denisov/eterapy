@@ -124,6 +124,31 @@ describe("AI prompt configs", () => {
     }));
   });
 
+  it("preserves prompts edited from superadmin during default sync", async () => {
+    const editedAt = new Date("2026-07-09T00:00:00.000Z");
+    (mockDb.aIPromptConfig.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "prompt-product-tarot",
+          feature: "product-tarot",
+          title: "Owner Tarot",
+          productKey: "tarot",
+          promptText: "Owner-edited tarot prompt",
+          enabled: true,
+          metadata: { promptSource: "admin", updatedBy: "superadmin-1" },
+          createdAt: editedAt,
+          updatedAt: editedAt,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    await syncDefaultAIPromptConfigs();
+
+    expect(mockDb.aIPromptConfig.upsert).not.toHaveBeenCalledWith(expect.objectContaining({
+      where: { feature: "product-tarot" },
+    }));
+  });
+
   it("uses a Russian fallback prompt for unknown custom features", () => {
     const fallback = defaultPromptTextForFeature("custom-experimental-flow");
 
