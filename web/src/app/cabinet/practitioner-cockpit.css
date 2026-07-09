@@ -1410,3 +1410,473 @@
   background: var(--pc-paper-deep);
   color: var(--pc-ink-faint);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P3 — «Календарь» (mockups practitioner-calendar-schedule /
+   -requests / -availability)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* сегмент на 3 колонки (вкладки календаря; крупнее карточного) */
+.pcab-seg.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 15px;
+}
+.pcab-seg.cols-3 .pcab-seg-item {
+  font-size: 12.5px;
+  padding: 9px 4px;
+}
+.pcab-seg-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+/* недельная лента */
+.pcab-weekstrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-top: 16px;
+}
+.pcab-wday {
+  text-align: center;
+  padding: 7px 0 6px;
+  border-radius: 12px;
+}
+.pcab-wday.is-active {
+  background: var(--pc-bordeaux);
+}
+.pcab-wday .dow {
+  font-size: 10px;
+  color: var(--pc-ink-faint);
+}
+.pcab-wday.is-active .dow {
+  color: #e9c9b6;
+}
+.pcab-wday .dnum {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.pcab-wday.is-active .dnum {
+  color: var(--pc-cream);
+}
+.pcab-wday .ddot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+  margin: 4px auto 0;
+}
+.pcab-wday.is-active .ddot {
+  background: #e9c9b6;
+}
+.pcab-wday .ddot.hide {
+  visibility: hidden;
+}
+
+/* заголовок дня + «Записать» */
+.pcab-dayrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 10px;
+}
+.pcab-dayrow .dt {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-dayrow .cnt {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+.pcab-screen a.pcab-add-btn {
+  color: var(--pc-bordeaux);
+}
+
+/* строка сессии в расписании */
+.pcab-appt {
+  display: flex;
+  gap: 13px;
+  padding: 13px 14px;
+  align-items: center;
+}
+.pcab-appt + .pcab-appt {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-appt-time {
+  flex: none;
+  width: 50px;
+  text-align: center;
+}
+.pcab-appt-time .t1 {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.pcab-appt-time .t2 {
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-appt-bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--pc-paper-deep);
+  flex: none;
+}
+.pcab-appt-bar.soon {
+  background: var(--pc-terracotta);
+}
+.pcab-appt-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-appt-name {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-appt-meta {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-appt-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-appt-status.st-conf {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+}
+.pcab-appt-status.st-soon {
+  color: var(--pc-cream);
+  background: var(--pc-terracotta);
+}
+.pcab-join-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pc-cream);
+  background: var(--pc-bordeaux);
+  border-radius: 9px;
+  padding: 5px 10px;
+  flex: none;
+}
+.pcab-screen a.pcab-join-btn {
+  color: var(--pc-cream);
+}
+
+/* карточка заявки */
+.pcab-rq {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 14px;
+}
+.pcab-rq + .pcab-rq {
+  margin-top: 10px;
+}
+.pcab-rq.change {
+  border-color: #e7d3a6;
+  background: #fcf4e4;
+}
+.pcab-rq-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-rq-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-rq-id {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-rq-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.pcab-rq-when {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rq-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-rq-tag.tag-new {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+}
+.pcab-rq-tag.tag-change {
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+}
+.pcab-rq-slot {
+  margin-top: 11px;
+  padding: 10px 12px;
+  background: var(--pc-paper-deep);
+  border-radius: 11px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-rq.change .pcab-rq-slot {
+  background: #f6e7c9;
+}
+.pcab-rq-slot b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-rq-slot .strike {
+  text-decoration: line-through;
+  color: var(--pc-ink-faint);
+}
+.pcab-rq-hint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 9px;
+  line-height: 1.45;
+}
+/* Экшены заявки: переиспользуем существующие клиентские компоненты
+   (BookingActions / ChangeRequestActions), перекрашивая их кнопки в
+   mockup-кнопки. Обычные (не-important) внеслойные правила бьют
+   tailwind-utilities; для .soft-button (important внутри @layer components)
+   ниже есть слоёный блок. */
+.pcab-rq-actions {
+  margin-top: 12px;
+}
+.pcab-rq-actions > div {
+  display: flex;
+  flex-direction: row-reverse; /* primary справа, как в макете */
+  gap: 8px;
+  width: 100%;
+}
+.pcab-rq-actions button,
+.pcab-rq-actions a {
+  flex: 1;
+  border-radius: 11px;
+  padding: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  min-height: 0;
+}
+/* Не-soft кнопки (BookingActions): первая = примари, остальные = ghost. */
+.pcab-rq-actions > div > button:first-child {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+}
+.pcab-rq-actions > div > button:not(:first-child) {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+}
+@layer components {
+  .soft-app-shell .pcab-rq-actions .soft-button {
+    border-radius: 11px !important;
+    padding: 10px !important;
+    font-size: 12.5px !important;
+    min-height: 0 !important;
+    flex: 1;
+  }
+  .soft-app-shell .pcab-rq-actions .soft-button-primary {
+    background: var(--pc-bordeaux) !important;
+    color: var(--pc-cream) !important;
+    border-color: var(--pc-bordeaux) !important;
+  }
+  .soft-app-shell .pcab-rq-actions .soft-button-ghost {
+    background: var(--pc-paper-card) !important;
+    color: var(--pc-ink-soft) !important;
+    border: 1px solid var(--pc-paper-edge) !important;
+  }
+}
+
+/* «Доступность»: рабочие часы, цены, ссылка */
+.pcab-avday {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.pcab-avday + .pcab-avday {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-avday-name {
+  width: 42px;
+  font-size: 13px;
+  font-weight: 500;
+  flex: none;
+}
+.pcab-avday-hours {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+}
+.pcab-avday-hours.off {
+  color: var(--pc-ink-faint);
+}
+.pcab-toggle {
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  position: relative;
+  flex: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-toggle.off {
+  background: var(--pc-paper-edge);
+}
+.pcab-toggle .knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: left 0.15s ease;
+}
+.pcab-toggle.off .knob {
+  left: 2px;
+}
+.pcab-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-price-row + .pcab-price-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-price-dur {
+  flex: 1;
+  font-size: 13px;
+}
+.pcab-price-dur small {
+  color: var(--pc-ink-faint);
+  font-size: 11.5px;
+}
+.pcab-price-val {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--pc-bordeaux);
+}
+.pcab-price-row.off .pcab-price-dur,
+.pcab-price-row.off .pcab-price-val {
+  color: var(--pc-ink-faint);
+}
+.pcab-linkcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 14px;
+}
+.pcab-linkcard-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-linkcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-linkcard-t {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-linkcard-u {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-copy-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-note {
+  background: var(--pc-paper-deep);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  margin-top: 14px;
+}
+.pcab-note b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-section18 {
+  margin-top: 18px;
+}
