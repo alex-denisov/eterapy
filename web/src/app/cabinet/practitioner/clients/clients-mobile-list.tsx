@@ -81,7 +81,7 @@ export function ClientsMobileList({ rows }: { rows: ClientListRow[] }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Поиск по имени"
           aria-label="Поиск по имени"
-          data-testid="practitioner-clients-search"
+          data-testid="practitioner-clients-search-mobile"
         />
       </label>
 
