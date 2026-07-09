@@ -6,8 +6,10 @@ import { CalendarPlus, Link2 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { mskMonthRange } from "@/lib/practitioner-ai-quota";
+import { loadPractitionerAppbar } from "@/lib/practitioner-appbar";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { ClientsListClient, type ClientListRow } from "./clients-list-client";
+import { PractitionerClientsMobile } from "./clients-mobile";
 
 // B466 — «Клиенты» (mockups -clients-list / -clients-empty): список клиентов
 // практика с поиском и attention-тегами (свежий разбор · новый клиент);
@@ -22,7 +24,7 @@ export default async function PractitionerClientsPage() {
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id! },
-    select: { id: true },
+    select: { id: true, title: true, user: { select: { name: true, email: true } } },
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
@@ -74,8 +76,22 @@ export default async function PractitionerClientsPage() {
     };
   }).sort((a, b) => (b.nextLabel ? 1 : 0) - (a.nextLabel ? 1 : 0) || a.label.localeCompare(b.label, "ru"));
 
+  const appbar = await loadPractitionerAppbar({
+    userId: session.user!.id!,
+    name: practitioner.user.name,
+    email: practitioner.user.email,
+    title: practitioner.title,
+  });
+
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-clients-page">
+    <>
+      <PractitionerClientsMobile
+        appbar={appbar}
+        rows={rows}
+        inviteHref={appUrl("/practitioner/invite")}
+        proposeHref={appUrl("/practitioner/calendar/propose")}
+      />
+      <div className="mx-auto hidden w-full max-w-4xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-clients-page">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="soft-eyebrow">Кабинет практика</p>
@@ -104,6 +120,7 @@ export default async function PractitionerClientsPage() {
       ) : (
         <ClientsListClient rows={rows} />
       )}
-    </div>
+      </div>
+    </>
   );
 }
