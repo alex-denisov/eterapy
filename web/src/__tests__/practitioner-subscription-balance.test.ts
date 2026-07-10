@@ -14,8 +14,10 @@ describe("Practitioner subscription balance flow (B466 Тариф tab)", () => {
 
   it("keeps both payment paths on the Тариф tab (balance + card)", () => {
     const plans = source("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
-    expect(plans).toContain("/api/practitioner/subscriptions/start-from-earnings");
-    expect(plans).toContain('checkoutSource: "practitioner_subscription_card"');
+    // B466 R9-4 P4: эндпоинты оплаты — в общем хуке (десктоп + мобайл); кнопки — в карточках.
+    const actions = source("src/app/cabinet/practitioner/finance/use-tariff-plan-actions.ts");
+    expect(actions).toContain("/api/practitioner/subscriptions/start-from-earnings");
+    expect(actions).toContain('checkoutSource: "practitioner_subscription_card"');
     expect(plans).toContain("С баланса");
     expect(plans).toContain("Картой");
     // Owner 2026-07-06: no free trial anywhere on practitioner plans.

@@ -2589,3 +2589,669 @@
 .pcab-footnote b {
   color: var(--pc-bordeaux);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P4 «Финансы» — Баланс / Тариф / Реквизиты / Отчёты (mockups
+   practitioner-finance-*). Значения 1-в-1 из mockup-CSS; soft-*→pc-*,
+   serif→var(--font-heading) (платформенный шрифт, owner-правило).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Баланс: money hero ─────────────────────────────────────────────── */
+.pcab-money {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 17px;
+  box-shadow: var(--pc-card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.pcab-money::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--pc-bordeaux);
+}
+.pcab-money-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-money-v {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  line-height: 1.05;
+  margin-top: 4px;
+}
+.pcab-money-v small {
+  font-size: 18px;
+}
+.pcab-money-sub {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  margin-top: 8px;
+  line-height: 1.45;
+}
+.pcab-money-sub b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-money-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-payout-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+/* «Удержано» — hold-объяснение, кликабельно → Движение средств */
+.pcab-heldrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  width: 100%;
+  text-align: left;
+}
+.pcab-held-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-held-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-held-t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-held-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+/* итоги 2×2 */
+.pcab-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.pcab-metric {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 12px 13px;
+}
+.pcab-metric-v {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  line-height: 1.1;
+}
+.pcab-metric-v small {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-metric-k {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+/* движение средств (превью на балансе + полный список) */
+.pcab-mv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-mv + .pcab-mv {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mv-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-mv-ic.in {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+.pcab-mv-ic.out {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-mv-ic.hold {
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+}
+.pcab-mv-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-mv-t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-mv-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-mv-amt {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  flex: none;
+}
+.pcab-mv-amt.pos {
+  color: var(--pc-sage-ink);
+}
+.pcab-mv-amt.neg {
+  color: var(--pc-ink-soft);
+}
+.pcab-mv-amt.hold {
+  color: var(--pc-amber-ink);
+}
+.pcab-mv-amt small {
+  display: block;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pc-ink-faint);
+  text-align: right;
+}
+.pcab-byoctag {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 5px;
+  letter-spacing: 0.02em;
+}
+/* доход по месяцам */
+.pcab-mrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.pcab-mrow + .pcab-mrow {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mrow-m {
+  flex: 1;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.pcab-mrow-c {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mrow-v {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-sage-ink);
+}
+
+/* ── Тариф: commission hero ─────────────────────────────────────────── */
+.pcab-comm {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 18px;
+  padding: 15px 16px;
+}
+.pcab-comm-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e9c9b6;
+}
+.pcab-comm-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 8px;
+}
+.pcab-comm-v {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pc-cream);
+}
+.pcab-comm-v small {
+  font-size: 13px;
+  font-weight: 400;
+  color: #e9c9b6;
+}
+.pcab-comm-sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.18);
+}
+.pcab-comm-sub {
+  font-size: 11.5px;
+  color: #e9c9b6;
+  margin-top: 10px;
+  line-height: 1.45;
+}
+/* планы */
+.pcab-plan {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-plan + .pcab-plan {
+  margin-top: 11px;
+}
+.pcab-plan.current {
+  border-color: var(--pc-terracotta);
+}
+.pcab-plan.upsell {
+  border: 1.5px solid var(--pc-bordeaux);
+  box-shadow: 0 10px 24px rgba(110, 43, 43, 0.1);
+  position: relative;
+}
+.pcab-ribbon {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--pc-cream);
+  background: var(--pc-bordeaux);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.pcab-plan-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pcab-plan-name {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.pcab-plan-price {
+  text-align: right;
+  flex: none;
+}
+.pcab-plan-price b {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-plan-price span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-badge-cur {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--pc-terracotta-dark);
+  background: var(--pc-warm);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.pcab-cstrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  padding: 8px 11px;
+  border-radius: 11px;
+  background: var(--pc-paper-deep);
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  flex-wrap: wrap;
+}
+.pcab-cstrip b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-cstrip-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-plan-lead {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin: 12px 0 7px;
+}
+.pcab-feats {
+  display: grid;
+  gap: 6px;
+}
+.pcab-feat {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.35;
+}
+.pcab-feat svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--pc-terracotta-dark);
+}
+.pcab-feat b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-feat.muted {
+  color: var(--pc-ink-faint);
+}
+.pcab-feat.muted svg {
+  color: var(--pc-ink-faint);
+}
+.pcab-plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 13px;
+}
+.pcab-planbtn {
+  border-radius: 11px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+}
+.pcab-planbtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-planbtn-primary {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+}
+.pcab-planbtn-ghost {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+}
+.pcab-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+  flex-wrap: wrap;
+}
+.pcab-manage-info {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-manage-info b {
+  color: var(--pc-ink-soft);
+  font-weight: 600;
+}
+.pcab-manage-link {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+/* привод своих клиентов (byoc) */
+.pcab-byoc {
+  background: var(--pc-amber-bg);
+  border: 1px solid #e7d3a6;
+  border-radius: 16px;
+  padding: 14px 15px;
+  display: flex;
+  gap: 12px;
+}
+.pcab-byoc-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: #ead08c;
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-byoc-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+}
+.pcab-byoc-s {
+  font-size: 12px;
+  color: #7a5f1e;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.pcab-byoc-s b {
+  color: var(--pc-amber-ink);
+  font-weight: 600;
+}
+
+/* ── Реквизиты: способ выплат ───────────────────────────────────────── */
+.pcab-method {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-method-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.pcab-method-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-method-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-method-t {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.pcab-method-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-method-chip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-method-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-method-note {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-screen a.pcab-editlink {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-addcard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  padding: 11px 14px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 14px;
+  background: transparent;
+}
+.pcab-addcard svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+}
+.pcab-okchip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+  margin-left: 6px;
+}
+.pcab-row-ic.sage {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+/* Реквизиты — заблокировано (ИНН не подтверждён) */
+.pcab-fwarn {
+  display: flex;
+  gap: 12px;
+  background: var(--pc-warm);
+  border: 1px solid #e7c9b5;
+  border-radius: 16px;
+  padding: 14px 15px;
+}
+.pcab-fwarn-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ebc7b2;
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-fwarn-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-fwarn-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-fwarn-s {
+  font-size: 12px;
+  color: #7a4a38;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.pcab-screen a.pcab-fwarn-cta {
+  margin-top: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 11px;
+  padding: 10px 15px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-disabledadd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  padding: 11px 14px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 14px;
+  opacity: 0.6;
+}
+.pcab-disabledadd svg {
+  flex: none;
+}
+.pcab-needchip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  background: var(--pc-warm);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+/* Отчёты — download-иконка акта */
+.pcab-dl {
+  color: var(--pc-ink-soft);
+  flex: none;
+  background: var(--pc-paper-deep);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
