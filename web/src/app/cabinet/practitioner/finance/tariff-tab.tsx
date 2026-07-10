@@ -62,11 +62,11 @@ export async function TariffTab({
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <p className="font-heading text-3xl font-semibold">{platformPct}%</p>
+            <p className="font-heading text-3xl font-semibold" style={{ color: "#FBF1E4" }}>{platformPct}%</p>
             <p className="mt-0.5 text-xs opacity-80">клиенты платформы</p>
           </div>
           <div>
-            <p className="font-heading text-3xl font-semibold">{byocPct}%</p>
+            <p className="font-heading text-3xl font-semibold" style={{ color: "#FBF1E4" }}>{byocPct}%</p>
             <p className="mt-0.5 text-xs opacity-80">свои клиенты по ссылке</p>
           </div>
         </div>
