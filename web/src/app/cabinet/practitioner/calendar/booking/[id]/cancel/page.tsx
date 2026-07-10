@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { CancelBookingForm } from "./cancel-form";
+import { CancelMobile } from "./cancel-mobile";
 
 // B484 — отмена сессии практиком (mockup -calendar-cancel): клиенту ВСЕГДА
 // полный возврат; поздние отмены и неявки снижают надёжность и приоритет в
@@ -32,8 +33,22 @@ export default async function PractitionerCancelPage({ params }: { params: Promi
   if (!booking || booking.practitionerId !== practitioner.id) notFound();
   if (!["PENDING", "CONFIRMED"].includes(booking.status)) redirect(appUrl(`/practitioner/calendar/booking/${id}`));
 
+  const clientLabel = booking.client.name ?? booking.client.email ?? "Клиент";
+  const currentLabel = booking.slot
+    ? `${formatMskDayMonth(booking.slot.startAt)}, ${formatMskTime(booking.slot.startAt)}`
+    : "время уточняется";
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-cancel-page">
+    <>
+      {/* R9-4 P3 — мобильная «Отмена сессии» 1-в-1 по макету; десктоп ниже прежний. */}
+      <CancelMobile
+        bookingId={booking.id}
+        clientLabel={clientLabel}
+        currentLabel={currentLabel}
+        priceLabel={`${booking.priceRub.toLocaleString("ru")} ₽`}
+        startAt={booking.slot ? booking.slot.startAt.toISOString() : null}
+      />
+    <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-cancel-page">
       <Link href={appUrl(`/practitioner/calendar/booking/${id}`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Сессия
@@ -77,5 +92,6 @@ export default async function PractitionerCancelPage({ params }: { params: Promi
         Лучше перенести →
       </Link>
     </div>
+    </>
   );
 }
