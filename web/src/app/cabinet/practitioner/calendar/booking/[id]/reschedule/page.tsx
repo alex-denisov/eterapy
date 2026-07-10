@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { RescheduleForm } from "./reschedule-form";
+import { RescheduleMobile } from "./reschedule-mobile";
 
 // B481 — перенос практиком (mockup -calendar-reschedule): практик предлагает
 // новое время → клиент получает уведомление и ПОДТВЕРЖДАЕТ (owner-фикс #2:
@@ -32,8 +33,16 @@ export default async function PractitionerReschedulePage({ params }: { params: P
   if (!booking || booking.practitionerId !== practitioner.id) notFound();
   if (!["PENDING", "CONFIRMED"].includes(booking.status)) redirect(appUrl(`/practitioner/calendar/booking/${id}`));
 
+  const clientLabel = booking.client.name ?? booking.client.email ?? "Клиент";
+  const currentLabel = booking.slot
+    ? `${formatMskDayMonth(booking.slot.startAt)}, ${formatMskTime(booking.slot.startAt)}`
+    : "время уточняется";
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-reschedule-page">
+    <>
+      {/* R9-4 P3 — мобильный «Перенести» 1-в-1 по макету; десктоп ниже прежний. */}
+      <RescheduleMobile bookingId={booking.id} clientLabel={clientLabel} currentLabel={currentLabel} />
+    <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-reschedule-page">
       <Link href={appUrl(`/practitioner/calendar/booking/${id}`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Сессия
@@ -57,5 +66,6 @@ export default async function PractitionerReschedulePage({ params }: { params: P
         Клиент получит уведомление и подтвердит новое время — до подтверждения сессия остаётся на текущем слоте.
       </p>
     </div>
+    </>
   );
 }

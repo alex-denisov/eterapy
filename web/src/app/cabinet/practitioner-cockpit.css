@@ -25,6 +25,9 @@
   --pc-cream: #FBF1E4;
   --pc-warm: #F6E7DD;
   --pc-card-shadow: 0 10px 24px rgba(60, 40, 25, 0.07);
+  /* Опасное действие (отмена сессии — mockup -calendar-cancel). */
+  --pc-danger-bg: #F6E4E0;
+  --pc-danger-edge: #E4B9B0;
 }
 
 /* Экран, который сам владеет мобильным «верхом» (рендерит pcab-appbar или
@@ -2096,4 +2099,433 @@
   border-color: #e6d3a6;
   color: var(--pc-amber-ink);
   font-weight: 700;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   R9-4 P3-детали — экраны Сессия / Записать / Перенести / Отмена
+   (mockups practitioner-calendar-session/-propose/-reschedule/-cancel.html).
+   Значения перенесены из mockup-CSS 1-в-1; soft-*→pc-* токены, serif→font-heading.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── общие поля форм (Записать / Перенести) ─────────────────────────── */
+.pcab-lead {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  margin-top: 14px;
+  line-height: 1.5;
+}
+.pcab-flabel {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  margin: 16px 0 7px;
+  font-weight: 500;
+}
+.pcab-flabel .opt {
+  color: var(--pc-ink-faint);
+  font-weight: 400;
+}
+/* поле-триггер нативного пикера (дата/время): иконка · значение · шеврон */
+.pcab-fieldinput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pcab-fieldinput > .ic {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-fieldinput > .chev {
+  margin-left: auto;
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-fieldinput input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0;
+  font: inherit;
+  color: var(--pc-ink);
+}
+/* полноширинная кнопка (в макетах btn-primary тянется на всю ширину) */
+.pcab-btn.block {
+  width: 100%;
+  flex: none;
+}
+
+/* ── экран «Сессия» (карточка брони) ────────────────────────────────── */
+.pcab-sesscard {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.pcab-sc-when {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-sc-when-ic {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-sc-date {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+}
+.pcab-sc-sub {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  margin-top: 2px;
+}
+.pcab-sc-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--pc-paper-deep);
+  flex-wrap: wrap;
+}
+.pcab-sc-chip {
+  font-size: 11.5px;
+  color: var(--pc-ink-soft);
+  background: var(--pc-paper-deep);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.pcab-sc-chip.status {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  font-weight: 600;
+}
+.pcab-sc-context {
+  margin-top: 13px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+/* join gate (в T-30) */
+.pcab-joinhint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+}
+.pcab-joinhint svg {
+  flex: none;
+}
+/* строка действия с опасным титулом (отмена) */
+.pcab-row-t.danger {
+  color: var(--pc-bordeaux);
+}
+/* AI-разбор сессии */
+.pcab-airow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+  margin-top: 14px;
+}
+.pcab-airow-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-airow-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-airow-t.ready {
+  color: var(--pc-bordeaux);
+}
+.pcab-airow-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ── экран «Записать клиента» ────────────────────────────────────────── */
+.pcab-cpick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 11px 13px;
+}
+.pcab-cpick-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-cpick-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-cpick-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.pcab-cpick-meta {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-cpick-change {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+/* сегмент формата (2 колонки) — переиспользует .pcab-seg-item */
+.pcab-seg2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  background: var(--pc-paper-deep);
+  border-radius: 12px;
+  padding: 3px;
+}
+/* длительность+цена (3 плитки) */
+.pcab-dur3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pcab-dur {
+  text-align: center;
+  padding: 11px 4px;
+  border-radius: 12px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pcab-dur small {
+  display: block;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-dur.active {
+  border-color: var(--pc-bordeaux);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(110, 43, 43, 0.08);
+}
+.pcab-dur.active small {
+  color: var(--pc-terracotta-dark);
+}
+.pcab-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 15px;
+  background: var(--pc-paper-deep);
+  border-radius: 14px;
+}
+.pcab-total-k {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+}
+.pcab-total-v {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-sendnote {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  line-height: 1.45;
+}
+.pcab-sendnote svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-sendnote.calm svg {
+  color: var(--pc-sage-ink);
+}
+
+/* ── экраны «Перенести» / «Отмена» (общая карточка «Сейчас») ─────────── */
+.pcab-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.pcab-current-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-current-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-current-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+/* наглядная замена времени старое → новое */
+.pcab-changearrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.pcab-changearrow .old {
+  color: var(--pc-ink-faint);
+  text-decoration: line-through;
+}
+.pcab-changearrow .new {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 15px;
+}
+
+/* ── экран «Отмена сессии» ───────────────────────────────────────────── */
+.pcab-warn {
+  display: flex;
+  gap: 12px;
+  background: var(--pc-danger-bg);
+  border: 1px solid var(--pc-danger-edge);
+  border-radius: 16px;
+  padding: 14px 15px;
+  margin-top: 14px;
+}
+.pcab-warn-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ecc7be;
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-warn-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-warn-list {
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pcab-warn-list li {
+  font-size: 12px;
+  color: #7a4a3e;
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.pcab-warn-list li + li {
+  margin-top: 4px;
+}
+.pcab-warn-list li::before {
+  content: "•";
+  position: absolute;
+  left: 3px;
+  color: var(--pc-terracotta);
+}
+.pcab-reasons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pcab-rchip {
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-rchip.active {
+  border-color: var(--pc-bordeaux);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-cancel-actions {
+  margin-top: 20px;
+  display: grid;
+  gap: 9px;
+}
+.pcab-btn-danger {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border: none;
+  border-radius: 13px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pcab-btn-danger:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.pcab-footnote {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  text-align: center;
+  margin-top: 12px;
+  line-height: 1.45;
+}
+.pcab-footnote b {
+  color: var(--pc-bordeaux);
 }
