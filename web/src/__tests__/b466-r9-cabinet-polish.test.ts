@@ -5,7 +5,8 @@ const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "
 
 // B466 R9-5 — owner polish batch: plan-export removed, заявки price on one
 // line, client mobile «верх» = bell-only (как у практика), mobile Доступность
-// gets the approved hours-range editor.
+// gets the approved hours-range editor, tariff cards drop the PDF/DOCX
+// export promise (feature not shipped — не обещаем экспорт сессии/аналитики).
 
 describe("B466 R9-5 cabinet polish", () => {
   it("removes the reserved «Экспорт» button from the mobile care-plan", () => {
@@ -41,5 +42,17 @@ describe("B466 R9-5 cabinet polish", () => {
     expect(availability).toContain("/api/schedule");
     expect(availability).toContain("Скопировать Пн на все будни");
     expect(availability).toContain("Будни 10–19"); // preset
+  });
+
+  it("drops the PDF/DOCX export promise from the practitioner tariff cards", () => {
+    const tariffs = source("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
+    // owner: экспорт (сессии/аналитики) не обещаем на карточках тарифов
+    expect(tariffs).not.toContain("экспорт PDF");
+    expect(tariffs).not.toContain("Массовый экспорт");
+    expect(tariffs).not.toContain("DOCX");
+    // per-session analytics perk stays — убрана только формулировка экспорта
+    expect(tariffs).toContain("Аналитика по сессии");
+    // Pro+ card keeps its remaining perks, не выхолощена
+    expect(tariffs).toContain("Приоритет в каталоге");
   });
 });
