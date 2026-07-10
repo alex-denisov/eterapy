@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ExternalLink, Receipt } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { mskMonthRange } from "@/lib/practitioner-ai-quota";
@@ -48,8 +48,99 @@ export default async function FinanceReceiptsPage() {
   const monthTotal = monthRows.reduce((s, b) => s + b.priceRub, 0);
   const isSelfEmployed = practitioner.taxStatus === "SELF_EMPLOYED";
 
+  const receiptWord = monthRows.length === 1 ? "чек" : monthRows.length > 1 && monthRows.length < 5 ? "чека" : "чеков";
+
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-finance-receipts">
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-finance-receipts */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-finance-receipts-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl("/practitioner/finance?tab=reports")} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Чеки · Мой налог</span>
+          <span className="pcab-topbar-spacer" />
+        </div>
+
+        {!isSelfEmployed ? (
+          <>
+            <p className="pcab-lead">
+              Чеки «Мой налог» относятся к статусу самозанятого (НПД). Ваш налоговый статус другой — чеки для клиентов
+              формируются по правилам вашего режима.
+            </p>
+            <Link
+              href={appUrl("/practitioner/finance/tax-status")}
+              className="pcab-chip is-active"
+              style={{ marginTop: 14, display: "inline-block", width: "fit-content" }}
+            >
+              Налоговый статус
+            </Link>
+          </>
+        ) : (
+          <>
+            <div className="pcab-summary" data-testid="receipts-summary-mobile">
+              <span className="pcab-summary-ic">
+                <Receipt size={20} aria-hidden="true" />
+              </span>
+              <span className="pcab-summary-main">
+                <span className="pcab-summary-t">
+                  <span style={{ textTransform: "capitalize" }}>{MONTH_NAME_FMT.format(now)}</span> · {monthRows.length}{" "}
+                  {receiptWord}
+                </span>
+                <span className="pcab-summary-s">на {monthTotal.toLocaleString("ru")} ₽ · НПД, самозанятый</span>
+              </span>
+            </div>
+
+            <section className="pcab-section">
+              <div className="pcab-section-head">
+                <span className="pcab-eyebrow">Последние чеки</span>
+              </div>
+              <div className="pcab-list">
+                {bookings.length === 0 ? (
+                  <div className="pcab-rc">
+                    <span className="pcab-rc-s" style={{ whiteSpace: "normal" }}>
+                      Чеков пока нет — первый появится после первой оплаченной сессии.
+                    </span>
+                  </div>
+                ) : (
+                  bookings.map((b) => (
+                    <div key={b.id} className="pcab-rc">
+                      <span className="pcab-rc-ic">
+                        <Receipt size={17} aria-hidden="true" />
+                      </span>
+                      <span className="pcab-rc-main">
+                        <span className="pcab-rc-t">{b.client.name ?? "Клиент"}</span>
+                        <span className="pcab-rc-s">
+                          {DAY_FMT.format(b.createdAt)} · сессия № {b.id.slice(-6).toUpperCase()}
+                        </span>
+                      </span>
+                      <span className="pcab-rc-right">
+                        <span className="pcab-rc-amt">{b.priceRub.toLocaleString("ru")} ₽</span>
+                        <span className="pcab-rc-st">
+                          <Check size={11} strokeWidth={3} aria-hidden="true" />
+                          сформирован
+                        </span>
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <div className="pcab-note" style={{ marginTop: 16 }}>
+              <b>Как это работает.</b> Платформа как ваш агент формирует чек в «Мой налог» автоматически при оплате
+              клиентом. Отдельно ничего пробивать не нужно — налог начисляет ФНС по данным чеков.
+            </div>
+            <a href="https://lknpd.nalog.ru/" target="_blank" rel="noreferrer" className="pcab-openapp">
+              <ExternalLink size={16} aria-hidden="true" />
+              Открыть в «Мой налог»
+            </a>
+          </>
+        )}
+      </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-finance-receipts">
       <Link href={appUrl("/practitioner/finance?tab=reports")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Финансы
@@ -123,6 +214,7 @@ export default async function FinanceReceiptsPage() {
           </a>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

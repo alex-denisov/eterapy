@@ -3255,3 +3255,531 @@
   display: grid;
   place-items: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P4-детали — sub-routes: Движение средств / Чеки / Налоговый статус
+   (+confirm) / Реквизиты-edit (mockups practitioner-finance-movements /
+   -receipts / -tax-status(+confirm) / -requisites-edit)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* «на удержании» под суммой (движение — hold) */
+.pcab-mv-amt small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+
+/* Чеки — сводная карта месяца */
+.pcab-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 15px;
+}
+.pcab-summary-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-summary-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-summary-t {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-summary-s {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+
+/* Чеки — строка чека (иконка · имя+№ · сумма+статус) */
+.pcab-rc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-rc + .pcab-rc {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-rc-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-rc-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-rc-t {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-rc-s {
+  display: block;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rc-right {
+  text-align: right;
+  flex: none;
+}
+.pcab-rc-amt {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-ink);
+}
+.pcab-rc-st {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Внешняя кнопка «Открыть в приложении» (Мой налог) */
+.pcab-openapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 11px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--pc-bordeaux);
+  font-weight: 500;
+}
+
+/* Форменная подсказка (мелкий текст под полем) */
+.pcab-fhint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* Заметка «через ФНС» / «проходит проверку» под кнопкой */
+.pcab-fnsnote {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  line-height: 1.45;
+}
+.pcab-fnsnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-fnsnote.ok > svg {
+  color: var(--pc-sage-ink);
+}
+
+/* Налоговый статус — карта ФНС в листе подтверждения */
+.pcab-idcard {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.pcab-idrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.pcab-idrow + .pcab-idrow {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-idk {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-idv {
+  font-weight: 500;
+  text-align: right;
+  color: var(--pc-ink);
+}
+.pcab-idbadge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 5px;
+}
+
+/* Лист — вторичная кнопка «Это не я» */
+.pcab-sheet-cancel {
+  width: 100%;
+  margin-top: 9px;
+  background: transparent;
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.pcab-sheet-cancel:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* Реквизиты-edit — dashed заметка «для ИП/юр. лица» */
+.pcab-switchnote {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 13px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 13px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  line-height: 1.45;
+}
+.pcab-switchnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-switchnote b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P5 — «Ещё» hub + sub-screens (mockups practitioner-more-*)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* карточка профиля наверху «Ещё» */
+.pcab-pcard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 16px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-pcard-av {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 18px;
+  flex: none;
+}
+.pcab-pcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-pcard-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-tierchip {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.pcab-pcard-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-pcard-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--pc-amber-ink);
+  margin-top: 5px;
+}
+.pcab-pcard-cta {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-group {
+  margin-top: 18px;
+}
+/* строка hub: заголовок тянется, meta справа перед шевроном */
+.pcab-hrow-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-hrow-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+
+/* ── Отзывы (mockup practitioner-more-reviews) ───────────────────────── */
+.pcab-revsum {
+  display: flex;
+  gap: 16px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-revscore {
+  text-align: center;
+  flex: none;
+}
+.pcab-revnum {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pc-ink);
+}
+.pcab-revstars {
+  color: var(--pc-terracotta);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+.pcab-revcnt {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+.pcab-revbars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: center;
+}
+.pcab-revbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+}
+.pcab-revbar-n {
+  width: 8px;
+  flex: none;
+}
+.pcab-revtrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 6px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+}
+.pcab-revfill {
+  display: block;
+  height: 100%;
+  background: var(--pc-terracotta);
+  border-radius: 6px;
+}
+.pcab-revbar-c {
+  width: 18px;
+  text-align: right;
+  flex: none;
+}
+.pcab-rev {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 14px;
+  margin-top: 10px;
+}
+.pcab-rev-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pcab-rev-av {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-rev-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-rev-when {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rev-stars {
+  flex: none;
+  color: var(--pc-terracotta);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.pcab-rev-text {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  line-height: 1.55;
+  margin-top: 9px;
+}
+
+/* ── Кризис-протокол (mockup practitioner-more-crisis) ───────────────── */
+.pcab-call {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 15px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 16px;
+  padding: 15px;
+}
+.pcab-call-ic {
+  flex: none;
+}
+.pcab-call-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-call-t {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pcab-call-s {
+  display: block;
+  font-size: 11.5px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.pcab-signs {
+  list-style: none;
+  margin: 0;
+  padding: 13px 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+}
+.pcab-sign {
+  position: relative;
+  padding-left: 16px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-sign + .pcab-sign {
+  margin-top: 9px;
+}
+.pcab-sign::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+}
+.pcab-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pcab-step {
+  display: flex;
+  gap: 11px;
+}
+.pcab-step-n {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+}
+.pcab-step-t {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  padding-top: 2px;
+}
+.pcab-step-t b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-contact-num {
+  flex: none;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}

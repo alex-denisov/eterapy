@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CreditCard, Landmark, Loader2, Save, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import type { TaxStatusKey } from "@/lib/practitioner-tax-verification";
 
@@ -23,10 +23,12 @@ export function RequisitesEditForm({
   taxStatus,
   recipientName,
   initial,
+  variant = "desktop",
 }: {
   taxStatus: TaxStatusKey;
   recipientName: string;
   initial: Initial | null;
+  variant?: "desktop" | "pcab";
 }) {
   const isEntity = taxStatus !== "SELF_EMPLOYED";
   const [method, setMethod] = useState<"CARD" | "SBP" | "ENTITY">(
@@ -67,6 +69,111 @@ export function RequisitesEditForm({
       ? `сейчас: счёт ${initial.legalName ?? "юр. лица"} ·· ${initial.accountNumber.slice(-4)}`
       : `сейчас: ${initial.type === "CARD" ? "карта" : "СБП"} ·· ${initial.accountNumber.slice(-4)}`
     : null;
+
+  // ── МОБАЙЛ (mockup practitioner-finance-requisites-edit) ──────────────
+  // Тот же обработчик save и поля, что и десктоп; отличается только разметка.
+  if (variant === "pcab") {
+    return (
+      <form onSubmit={save} data-testid="practitioner-requisites-edit-form-mobile">
+        {!isEntity ? (
+          <>
+            <div className="pcab-seg2" style={{ gridTemplateColumns: "repeat(2, 1fr)", marginTop: 13 }} data-testid="requisites-method-seg-mobile">
+              {(["CARD", "SBP"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`pcab-seg-item${method === key ? " is-active" : ""}`}
+                  onClick={() => setMethod(key)}
+                  aria-pressed={method === key}
+                >
+                  {key === "CARD" ? "Карта (самозанятый)" : "СБП"}
+                </button>
+              ))}
+            </div>
+
+            <div className="pcab-flabel">{method === "CARD" ? "Номер карты" : "Телефон для СБП"}</div>
+            <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+              <span className="ic">
+                <CreditCard size={18} strokeWidth={1.7} aria-hidden="true" />
+              </span>
+              <input
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                inputMode={method === "CARD" ? "numeric" : "tel"}
+                placeholder={saved ?? (method === "CARD" ? "2200 0000 0000 0000" : "+7 900 000-00-00")}
+                aria-label={method === "CARD" ? "Номер карты" : "Телефон для СБП"}
+              />
+            </label>
+
+            <div className="pcab-flabel">
+              Банк <span className="opt">(необязательно)</span>
+            </div>
+            <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Т-Банк" aria-label="Банк" />
+            </label>
+            <p className="pcab-fhint">
+              Получатель: {recipientName || "как в профиле"}. ФИО должно совпадать с вашим подтверждённым налоговым статусом.
+            </p>
+
+            <div className="pcab-switchnote">
+              <Landmark size={17} strokeWidth={1.8} aria-hidden="true" />
+              <span>
+                Для <b>ИП или юр. лица</b> смените налоговый статус — тогда реквизиты станут расчётным счётом: юр. название,
+                КПП, БИК, расчётный и корр. счёт, банк.
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="pcab-lead">Для ИП и юр. лиц выплаты идут на расчётный счёт.</p>
+            <div className="pcab-flabel">Юр. название / ИП</div>
+            <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+              <input value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="ИП Петрова Анна Сергеевна" aria-label="Юр. название / ИП" />
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div className="pcab-flabel">Расчётный счёт</div>
+                <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+                  <input value={account} onChange={(e) => setAccount(e.target.value)} inputMode="numeric" placeholder={saved ?? "20 цифр"} aria-label="Расчётный счёт" />
+                </label>
+              </div>
+              <div>
+                <div className="pcab-flabel">БИК</div>
+                <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+                  <input value={bik} onChange={(e) => setBik(e.target.value)} inputMode="numeric" placeholder="9 цифр" aria-label="БИК" />
+                </label>
+              </div>
+              <div>
+                <div className="pcab-flabel">КПП (для ООО)</div>
+                <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+                  <input value={kpp} onChange={(e) => setKpp(e.target.value)} inputMode="numeric" placeholder="9 цифр или пусто" aria-label="КПП" />
+                </label>
+              </div>
+              <div>
+                <div className="pcab-flabel">Корр. счёт</div>
+                <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+                  <input value={corrAccount} onChange={(e) => setCorrAccount(e.target.value)} inputMode="numeric" placeholder="20 цифр" aria-label="Корр. счёт" />
+                </label>
+              </div>
+            </div>
+            <div className="pcab-flabel">Банк</div>
+            <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Название банка" aria-label="Банк" />
+            </label>
+          </>
+        )}
+
+        <button type="submit" className="pcab-btn block pcab-btn-primary" style={{ marginTop: 18 }} disabled={saving} data-testid="practitioner-requisites-save-mobile">
+          {saving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+          Сохранить реквизиты
+        </button>
+        <div className="pcab-fnsnote ok">
+          <ShieldCheck size={15} aria-hidden="true" />
+          Новые реквизиты проходят проверку. До её завершения выплаты идут на текущий подтверждённый способ.
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={save} className="mt-5 flex flex-col gap-4" data-testid="practitioner-requisites-edit-form">
