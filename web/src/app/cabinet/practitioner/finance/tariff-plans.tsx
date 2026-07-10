@@ -257,7 +257,7 @@ export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, ai
           <Perk strong>{aiIncluded.pro} AI-разборов/мес</Perk>
           <Perk>Транскрипт, резюме, заметки, сообщение клиенту (докупка пакетами при нехватке)</Perk>
           <Perk>1 шаблон заметок под ваше направление · подсказка к плану сопровождения</Perk>
-          <Perk>Аналитика по сессии · экспорт PDF одной сессии</Perk>
+          <Perk>Аналитика по сессии</Perk>
         </ul>
         {tier === "pro" ? (
           renderCurrentPlanFooter()
@@ -299,7 +299,6 @@ export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, ai
           <Perk strong>{aiIncluded.proPlus} AI-разборов/мес вместо {aiIncluded.pro}</Perk>
           <Perk>Шаблоны заметок под ваше направление (SOAP/DAP, GROW…) + свой</Perk>
           <Perk>Живой план сопровождения · дашборд прогресса клиента</Perk>
-          <Perk>Массовый экспорт PDF / DOCX</Perk>
           <Perk>Приоритет в каталоге + бейдж Pro+</Perk>
         </ul>
         {tier === "pro_plus" ? (
