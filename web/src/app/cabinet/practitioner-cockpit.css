@@ -3255,3 +3255,231 @@
   display: grid;
   place-items: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P4-детали — sub-routes: Движение средств / Чеки / Налоговый статус
+   (+confirm) / Реквизиты-edit (mockups practitioner-finance-movements /
+   -receipts / -tax-status(+confirm) / -requisites-edit)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* «на удержании» под суммой (движение — hold) */
+.pcab-mv-amt small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+
+/* Чеки — сводная карта месяца */
+.pcab-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 15px;
+}
+.pcab-summary-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-summary-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-summary-t {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-summary-s {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+
+/* Чеки — строка чека (иконка · имя+№ · сумма+статус) */
+.pcab-rc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-rc + .pcab-rc {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-rc-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-rc-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-rc-t {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-rc-s {
+  display: block;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rc-right {
+  text-align: right;
+  flex: none;
+}
+.pcab-rc-amt {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-ink);
+}
+.pcab-rc-st {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Внешняя кнопка «Открыть в приложении» (Мой налог) */
+.pcab-openapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 11px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--pc-bordeaux);
+  font-weight: 500;
+}
+
+/* Форменная подсказка (мелкий текст под полем) */
+.pcab-fhint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* Заметка «через ФНС» / «проходит проверку» под кнопкой */
+.pcab-fnsnote {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  line-height: 1.45;
+}
+.pcab-fnsnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-fnsnote.ok > svg {
+  color: var(--pc-sage-ink);
+}
+
+/* Налоговый статус — карта ФНС в листе подтверждения */
+.pcab-idcard {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.pcab-idrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.pcab-idrow + .pcab-idrow {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-idk {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-idv {
+  font-weight: 500;
+  text-align: right;
+  color: var(--pc-ink);
+}
+.pcab-idbadge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 5px;
+}
+
+/* Лист — вторичная кнопка «Это не я» */
+.pcab-sheet-cancel {
+  width: 100%;
+  margin-top: 9px;
+  background: transparent;
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.pcab-sheet-cancel:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* Реквизиты-edit — dashed заметка «для ИП/юр. лица» */
+.pcab-switchnote {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 13px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 13px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  line-height: 1.45;
+}
+.pcab-switchnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-switchnote b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}

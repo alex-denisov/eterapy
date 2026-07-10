@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ChevronLeft, Lock } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
@@ -69,7 +69,73 @@ export default async function FinanceMovementsPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-finance-movements">
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-finance-movements (topbar · фильтры · по месяцам) */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-finance-movements-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl("/practitioner/finance")} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Движение средств</span>
+          <span className="pcab-topbar-spacer" />
+        </div>
+
+        <div className="pcab-chips" data-testid="movements-filters-mobile">
+          {FILTERS.map((f) => (
+            <Link
+              key={f.key}
+              href={appUrl(`/practitioner/finance/movements${f.key === "all" ? "" : `?filter=${f.key}`}`)}
+              className={`pcab-chip${filter === f.key ? " is-active" : ""}`}
+              aria-current={filter === f.key ? "true" : undefined}
+            >
+              {f.label}
+            </Link>
+          ))}
+        </div>
+
+        {byMonth.size === 0 ? (
+          <p className="pcab-lead">
+            {filter === "holds"
+              ? "Активных удержаний нет — hold снимается автоматически после периода удержания по тарифу."
+              : "Операций пока нет."}
+          </p>
+        ) : (
+          [...byMonth.entries()].map(([month, rows]) => (
+            <section key={month} className="pcab-section">
+              <div className="pcab-eyebrow" style={{ marginBottom: 8 }}>{month}</div>
+              <div className="pcab-list">
+                {rows.map((m) => (
+                  <div key={m.id} className="pcab-mv">
+                    <span className={`pcab-mv-ic ${m.kind === "earning" ? "in" : m.kind === "hold" ? "hold" : "out"}`}>
+                      {m.kind === "earning" ? (
+                        <ArrowUpRight size={16} aria-hidden="true" />
+                      ) : m.kind === "hold" ? (
+                        <Lock size={15} aria-hidden="true" />
+                      ) : (
+                        <ArrowDownLeft size={16} aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="pcab-mv-main">
+                      <span className="pcab-mv-t">{m.label}</span>
+                      <span className="pcab-mv-s">
+                        {DAY_FMT.format(m.date)} · {m.sublabel}
+                      </span>
+                    </span>
+                    <span className={`pcab-mv-amt ${m.kind === "earning" ? "pos" : m.kind === "hold" ? "hold" : "neg"}`}>
+                      {m.kind === "earning" ? "+" : "−"}
+                      {m.amountRub.toLocaleString("ru")} ₽
+                      {m.kind === "hold" && <small>на удержании</small>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+      </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-finance-movements">
       <Link href={appUrl("/practitioner/finance")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Финансы
@@ -133,6 +199,7 @@ export default async function FinanceMovementsPage({
           </section>
         ))
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Check, Loader2, Shield, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   expectedInnLength,
@@ -27,11 +27,13 @@ export function TaxStatusForm({
   initialInn,
   verified,
   verifiedAtIso,
+  variant = "desktop",
 }: {
   initialStatus: TaxStatusKey;
   initialInn: string;
   verified: boolean;
   verifiedAtIso: string | null;
+  variant?: "desktop" | "pcab";
 }) {
   const [status, setStatus] = useState<TaxStatusKey>(initialStatus);
   const [inn, setInn] = useState(initialInn);
@@ -81,6 +83,125 @@ export function TaxStatusForm({
       toast.error(error instanceof Error ? error.message : "Не удалось подтвердить статус");
       setBusy(false);
     }
+  }
+
+  // ── МОБАЙЛ (mockup practitioner-finance-tax-status/-confirm) ──────────
+  // Те же обработчики lookup/confirm, что и десктоп; отличается только разметка.
+  if (variant === "pcab") {
+    return (
+      <div data-testid="practitioner-tax-status-form-mobile">
+        {confirmed && !identity ? (
+          <div className="pcab-summary" style={{ marginTop: 14 }} data-testid="practitioner-tax-status-verified-mobile">
+            <span className="pcab-summary-ic">
+              <BadgeCheck size={20} aria-hidden="true" />
+            </span>
+            <span className="pcab-summary-main">
+              <span className="pcab-summary-t">{TAX_STATUS_LABELS[initialStatus]} · подтверждён</span>
+              <span className="pcab-summary-s">ИНН {initialInn} · проверен автоматически (ФНС)</span>
+            </span>
+            <button type="button" className="pcab-cpick-change" onClick={() => setConfirmed(false)}>
+              Изменить
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="pcab-flabel">Ваш статус</div>
+            <div className="pcab-seg2" style={{ gridTemplateColumns: "repeat(3, 1fr)" }} data-testid="tax-status-seg-mobile">
+              {STATUSES.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`pcab-seg-item${status === key ? " is-active" : ""}`}
+                  onClick={() => { setStatus(key); setIdentity(null); }}
+                  aria-pressed={status === key}
+                >
+                  {key === "SELF_EMPLOYED" ? "Самозанятый" : key === "INDIVIDUAL_ENTREPRENEUR" ? "ИП" : "Юр. лицо"}
+                </button>
+              ))}
+            </div>
+
+            <div className="pcab-flabel">
+              ИНН <span style={{ color: "var(--pc-terracotta-dark)" }}>*</span>
+            </div>
+            <label className="pcab-fieldinput" style={{ cursor: "text" }}>
+              <input
+                value={inn}
+                onChange={(e) => { setInn(e.target.value.replace(/[^\d\s]/g, "")); setIdentity(null); }}
+                inputMode="numeric"
+                maxLength={expected + 3}
+                placeholder={expected === 12 ? "12 цифр" : "10 цифр"}
+                style={{ letterSpacing: "0.06em", fontSize: 17 }}
+                aria-label="ИНН"
+                data-testid="practitioner-tax-inn-input-mobile"
+              />
+            </label>
+            <p className="pcab-fhint">Обязательно. 12 цифр — для самозанятого и ИП, 10 — для юр. лица. Только цифры.</p>
+
+            <button
+              type="button"
+              className="pcab-btn block pcab-btn-primary"
+              style={{ marginTop: 18 }}
+              disabled={busy || inn.replace(/\s+/g, "").length !== expected}
+              onClick={lookup}
+              data-testid="practitioner-tax-verify-mobile"
+            >
+              {busy && !identity ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <ShieldCheck size={16} aria-hidden="true" />}
+              Проверить и подтвердить
+            </button>
+            <div className="pcab-fnsnote">
+              <Shield size={15} aria-hidden="true" />
+              Проверка автоматическая через ФНС. Статус станет «подтверждён» только после вашего подтверждения ниже.
+            </div>
+          </>
+        )}
+
+        {/* Лист «Это действительно Вы?» */}
+        {identity && (
+          <div className="pcab-sheet-wrap" data-testid="practitioner-tax-confirm-mobile">
+            <button type="button" className="pcab-sheet-scrim" aria-label="Закрыть" onClick={() => setIdentity(null)} />
+            <div className="pcab-sheet" role="dialog" aria-modal="true" aria-label="Подтверждение личности">
+              <div className="pcab-grabber" aria-hidden="true" />
+              <div className="pcab-sheet-title" style={{ textAlign: "center" }}>Это действительно Вы?</div>
+              <div className="pcab-sheet-sub" style={{ textAlign: "center" }}>По данным ФНС этот ИНН оформлен на:</div>
+              <div className="pcab-idcard">
+                <div className="pcab-idrow">
+                  <span className="pcab-idk">{status === "LEGAL_ENTITY" ? "Наименование" : "ФИО"}</span>
+                  <span className="pcab-idv">{identity.displayName}</span>
+                </div>
+                <div className="pcab-idrow">
+                  <span className="pcab-idk">Статус</span>
+                  <span className="pcab-idv">
+                    {identity.statusLabel}
+                    <span className="pcab-idbadge">активен</span>
+                  </span>
+                </div>
+                <div className="pcab-idrow">
+                  <span className="pcab-idk">ИНН</span>
+                  <span className="pcab-idv" style={{ fontVariantNumeric: "tabular-nums" }}>{identity.inn}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="pcab-sheet-save"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                disabled={busy}
+                onClick={confirm}
+                data-testid="practitioner-tax-confirm-yes-mobile"
+              >
+                {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Check size={16} strokeWidth={2.2} aria-hidden="true" />}
+                Да, это я — подтвердить
+              </button>
+              <button type="button" className="pcab-sheet-cancel" disabled={busy} onClick={() => setIdentity(null)}>
+                Это не я
+              </button>
+              <div className="pcab-sheet-hint">
+                Подтверждая, вы соглашаетесь, что статус и ИНН верны. Только после этого реквизиты сохраняются как проверенные.
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (confirmed && !identity) {
