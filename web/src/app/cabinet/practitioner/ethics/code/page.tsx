@@ -2,12 +2,14 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 
 // B466 — «Этический кодекс» (mockup -more-ethics-code): полный документ,
-// открываемый повторно (owner review #3).
+// открываемый повторно (owner review #3). Мобайл 1-в-1 по макету, но БЕЗ
+// кнопки «Скачать» (owner R9: без встроенного вьюера/скачивания PDF) — топбар
+// закрыт spacer'ом. Контент — канонические принципы (не выдуманные пункты).
 
 const PRINCIPLES = [
   "Не давать ложных обещаний результата и не манипулировать страхами клиента.",
@@ -25,29 +27,67 @@ export default async function PractitionerEthicsCodePage() {
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-ethics-code-page">
-      <Link href={appUrl("/practitioner/ethics")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-        <ArrowLeft className="h-4 w-4" />
-        Этика и безопасность
-      </Link>
-      <p className="soft-eyebrow mt-4">Документ</p>
-      <h1 className="soft-h1 mt-2">Этический кодекс</h1>
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-more-ethics-code (без «Скачать» — owner R9) */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-ethics-code-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl("/practitioner/ethics")} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Документ</span>
+          <span className="pcab-topbar-spacer" />
+        </div>
 
-      <div className="soft-card mt-5 space-y-4 p-5">
-        <p className="font-semibold text-[var(--soft-bordeaux)]">Принципы работы специалиста ETerapy</p>
-        <ul className="space-y-3 text-sm text-[var(--soft-ink-soft)]">
-          {PRINCIPLES.map((rule) => (
-            <li key={rule} className="flex items-start gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--soft-terracotta)]" />
-              {rule}
-            </li>
+        <div className="pcab-doc-head">
+          <div className="pcab-doc-title">Этический кодекс</div>
+          <div className="pcab-doc-meta">Для специалистов ETerapy · принят при регистрации</div>
+        </div>
+
+        <div className="pcab-doc-body">
+          {PRINCIPLES.map((rule, i) => (
+            <div key={rule} className="pcab-clause">
+              <span className="pcab-clause-n">{i + 1}</span>
+              <span className="pcab-clause-t">{rule}</span>
+            </div>
           ))}
-        </ul>
-        <p className="border-t border-[var(--soft-paper-deep)] pt-3 text-xs text-[var(--soft-ink-faint)]">
-          Подписав этот кодекс при регистрации, вы подтвердили согласие со всеми его пунктами. Нарушения ведут к
-          приостановке профиля.
-        </p>
+        </div>
+
+        <div className="pcab-summary" style={{ marginTop: 14 }}>
+          <span className="pcab-summary-ic">
+            <CheckCircle2 size={20} aria-hidden="true" />
+          </span>
+          <span className="pcab-summary-main">
+            <span className="pcab-summary-t">Вы приняли кодекс</span>
+            <span className="pcab-summary-s">Согласие подтверждено при регистрации · нарушения ведут к приостановке профиля.</span>
+          </span>
+        </div>
       </div>
-    </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ethics-code-page">
+        <Link href={appUrl("/practitioner/ethics")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+          <ArrowLeft className="h-4 w-4" />
+          Этика и безопасность
+        </Link>
+        <p className="soft-eyebrow mt-4">Документ</p>
+        <h1 className="soft-h1 mt-2">Этический кодекс</h1>
+
+        <div className="soft-card mt-5 space-y-4 p-5">
+          <p className="font-semibold text-[var(--soft-bordeaux)]">Принципы работы специалиста ETerapy</p>
+          <ul className="space-y-3 text-sm text-[var(--soft-ink-soft)]">
+            {PRINCIPLES.map((rule) => (
+              <li key={rule} className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--soft-terracotta)]" />
+                {rule}
+              </li>
+            ))}
+          </ul>
+          <p className="border-t border-[var(--soft-paper-deep)] pt-3 text-xs text-[var(--soft-ink-faint)]">
+            Подписав этот кодекс при регистрации, вы подтвердили согласие со всеми его пунктами. Нарушения ведут к
+            приостановке профиля.
+          </p>
+        </div>
+      </div>
+    </>
   );
 }

@@ -3783,3 +3783,120 @@
   font-weight: 600;
   color: var(--pc-bordeaux);
 }
+
+/* ── B466 R9 «Ещё» ─ Документ · этический кодекс (mockup -more-ethics-code).
+   Прокручиваемый документ клаузами; кнопка «Скачать» из макета НЕ отгружена
+   (owner R9: без встроенного вьюера / скачивания PDF). ─────────────────── */
+.pcab-doc-head {
+  margin-top: 14px;
+}
+.pcab-doc-title {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  color: var(--pc-ink);
+}
+.pcab-doc-meta {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 5px;
+}
+.pcab-doc-body {
+  margin-top: 14px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 16px;
+}
+.pcab-clause {
+  display: flex;
+  gap: 11px;
+}
+.pcab-clause + .pcab-clause {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-clause-n {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pcab-clause-t {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.6;
+  padding-top: 2px;
+}
+
+/* ── B466 R9 «Ещё» ─ Приглашения · бордо-геро со ставками (mockup
+   -more-invite). Реюз pcab-linkcard/-copy-btn/-stats/-stat/-steps ниже. ── */
+.pcab-inv-hero {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 20px;
+  padding: 18px;
+  margin-top: 16px;
+}
+.pcab-inv-hero-t {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  line-height: 1.2;
+}
+.pcab-inv-hero-s {
+  font-size: 12.5px;
+  color: #e9c9b6;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.pcab-inv-rate {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.pcab-rate-box {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.pcab-rate-v {
+  font-family: var(--font-heading);
+  font-size: 22px;
+}
+.pcab-rate-k {
+  font-size: 10.5px;
+  color: #e9c9b6;
+  margin-top: 2px;
+}
+.pcab-inv-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pcab-inv-actions .pcab-btn {
+  flex: 1;
+}
+.pcab-inv-steps {
+  margin-top: 16px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 4px 14px;
+}
+.pcab-inv-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+.pcab-inv-step + .pcab-inv-step {
+  border-top: 1px solid var(--pc-paper-deep);
+}
