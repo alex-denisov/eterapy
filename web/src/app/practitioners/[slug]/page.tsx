@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { PractitionerStatus } from "@prisma/client";
 import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
 import { effectiveCategories, categoryLabel } from "@/lib/practitioner-taxonomy";
+import { offeredFormatOptions } from "@/lib/session-formats";
 import { practitionerHelpChips } from "@/lib/practitioner-chips";
 import { assertPractitionerBookingAllowed } from "@/lib/practitioner-compliance";
 import { SlotPicker } from "./slot-picker";
@@ -108,6 +109,10 @@ export default async function PractitionerPage({
     specialties: p.specialties as string[],
     tags: p.tags,
   }).filter((c) => !badgeKeys.has(c.trim().toLowerCase()));
+  // B466/B480: форматы сессий — показываем, только если практик предлагает что-то
+  // помимо индивидуальной (иначе это очевидный шум).
+  const formatOptions = offeredFormatOptions(p.formats);
+  const showFormats = formatOptions.some((f) => f.id !== "individual");
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
@@ -208,6 +213,14 @@ export default async function PractitionerPage({
                   {p.title} · работает онлайн
                   {p.languages && p.languages.length > 0 && ` · ${p.languages.join(", ")}`}
                 </div>
+                {showFormats && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm" data-testid="practitioner-formats">
+                    <span className="text-[var(--soft-ink-faint)]">Форматы:</span>
+                    {formatOptions.map((f) => (
+                      <span key={f.id} className="soft-badge">{f.label}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                   {displayRating && (
                     <>

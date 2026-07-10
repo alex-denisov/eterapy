@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
+import { sessionFormatLabel } from "@/lib/session-formats";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { RescheduleForm } from "./reschedule-form";
 import { RescheduleMobile } from "./reschedule-mobile";
@@ -37,11 +38,22 @@ export default async function PractitionerReschedulePage({ params }: { params: P
   const currentLabel = booking.slot
     ? `${formatMskDayMonth(booking.slot.startAt)}, ${formatMskTime(booking.slot.startAt)}`
     : "время уточняется";
+  const formatLabel = sessionFormatLabel(booking.format);
+  const durationMin = booking.slot
+    ? Math.round((booking.slot.endAt.getTime() - booking.slot.startAt.getTime()) / 60000)
+    : 50;
 
   return (
     <>
       {/* R9-4 P3 — мобильный «Перенести» 1-в-1 по макету; десктоп ниже прежний. */}
-      <RescheduleMobile bookingId={booking.id} clientLabel={clientLabel} currentLabel={currentLabel} />
+      <RescheduleMobile
+        bookingId={booking.id}
+        practitionerId={practitioner.id}
+        durationMin={durationMin}
+        clientLabel={clientLabel}
+        currentLabel={currentLabel}
+        formatLabel={formatLabel}
+      />
     <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-reschedule-page">
       <Link href={appUrl(`/practitioner/calendar/booking/${id}`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />

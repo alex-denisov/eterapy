@@ -74,6 +74,7 @@ export default async function PractitionerProfilePage() {
             directions: practitioner.directions,
             specialties: practitioner.specialties as string[],
             tags: practitioner.tags,
+            formats: practitioner.formats,
             languages: practitioner.languages,
           }}
           practitionerId={practitioner.id}

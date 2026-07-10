@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { canJoinBooking } from "@/lib/booking-actions";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
+import { sessionFormatLabel } from "@/lib/session-formats";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { PractitionerBookingMobile } from "./booking-mobile";
 
@@ -34,7 +35,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
   const { id } = await params;
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id! },
-    select: { id: true },
+    select: { id: true, aiAutoAnalyze: true },
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
@@ -95,6 +96,9 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
       }`
     : null;
   const analysisReady = booking.status === "COMPLETED" && Boolean(booking.videoSession?.summaryText);
+  const formatLabel = sessionFormatLabel(booking.format);
+  // B466/B434: per-session разбор — эффективное значение (null → глобальный дефолт).
+  const aiAnalysisEnabled = booking.aiAnalysisEnabled ?? practitioner.aiAutoAnalyze;
 
   return (
     <>
@@ -111,6 +115,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
         endAt={booking.slot ? booking.slot.endAt.toISOString() : null}
         durationMin={durationMin}
         priceRub={booking.priceRub}
+        formatLabel={formatLabel}
         statusLabel={STATUS_LABELS[booking.status] ?? booking.status}
         status={booking.status}
         meetingContext={booking.meetingContext ?? null}
@@ -119,6 +124,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
         hasOpenRequest={Boolean(openRequest)}
         openRequestNote={openRequestNote}
         analysisReady={analysisReady}
+        aiAnalysisEnabled={aiAnalysisEnabled}
       />
     <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-booking-page">
       <Link href={appUrl("/practitioner/calendar")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
@@ -133,7 +139,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
         <dl className="divide-y divide-[var(--soft-paper-deep)]">
           {[
             ["Когда", booking.slot ? `${formatMskDayMonth(booking.slot.startAt)} · ${formatMskTime(booking.slot.startAt)} – ${formatMskTime(booking.slot.endAt)}` : "Время уточняется"],
-            ["Формат", `Индивидуальная сессия · ${durationMin} мин`],
+            ["Формат", `${formatLabel} сессия · ${durationMin} мин`],
             ["Стоимость", `${booking.priceRub.toLocaleString("ru")} ₽`],
             ["Статус", STATUS_LABELS[booking.status] ?? booking.status],
           ].map(([k, v]) => (

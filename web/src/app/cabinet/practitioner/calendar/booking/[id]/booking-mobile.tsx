@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
 import { appUrl } from "@/lib/subdomain";
+import { BookingAiToggle } from "./booking-ai-toggle";
 
 // B466 R9-4 P3 — мобильная «Сессия» (карточка брони) 1-в-1 по mockup
 // practitioner-calendar-session.html: topbar → герой клиента → карточка сессии
@@ -35,6 +36,7 @@ export interface BookingMobileProps {
   endAt: string | null;
   durationMin: number;
   priceRub: number;
+  formatLabel: string;
   statusLabel: string;
   status: string;
   meetingContext: string | null;
@@ -43,6 +45,7 @@ export interface BookingMobileProps {
   hasOpenRequest: boolean;
   openRequestNote: string | null;
   analysisReady: boolean;
+  aiAnalysisEnabled: boolean;
 }
 
 export function PractitionerBookingMobile(props: BookingMobileProps) {
@@ -57,6 +60,7 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
     endAt,
     durationMin,
     priceRub,
+    formatLabel,
     statusLabel,
     status,
     meetingContext,
@@ -65,6 +69,7 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
     hasOpenRequest,
     openRequestNote,
     analysisReady,
+    aiAnalysisEnabled,
   } = props;
 
   const start = startAt ? new Date(startAt) : null;
@@ -107,7 +112,7 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
             клиент с {sinceLabel} · {ordinal}-я сессия
           </div>
           <div className="pcab-client-tags">
-            <span className="pcab-ctag">Индивидуальная</span>
+            <span className="pcab-ctag">{formatLabel}</span>
           </div>
         </div>
       </div>
@@ -130,7 +135,7 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
           </div>
         </div>
         <div className="pcab-sc-meta">
-          <span className="pcab-sc-chip">Индивидуальная</span>
+          <span className="pcab-sc-chip">{formatLabel}</span>
           <span className="pcab-sc-chip">{durationMin} мин</span>
           <span className="pcab-sc-chip">{priceRub.toLocaleString("ru")} ₽</span>
           <span className={`pcab-sc-chip${POSITIVE.has(status) ? " status" : ""}`}>{statusLabel}</span>
@@ -214,7 +219,8 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
         </div>
       )}
 
-      {/* AI-разбор сессии */}
+      {/* AI-разбор сессии: готов → открыть; предстоит → рабочий тумблер on/off;
+          прочее (нет разбора) → короткая заметка */}
       {analysisReady ? (
         <Link
           href={appUrl(`/practitioner/sessions/${bookingId}`)}
@@ -227,12 +233,16 @@ export function PractitionerBookingMobile(props: BookingMobileProps) {
           </div>
           <ChevronRight className="pcab-chev" width={18} height={18} aria-hidden="true" />
         </Link>
+      ) : upcoming || status === "IN_PROGRESS" ? (
+        <BookingAiToggle bookingId={bookingId} initialEnabled={aiAnalysisEnabled} />
       ) : (
         <div className="pcab-airow" data-testid="practitioner-booking-mobile-analysis">
           <div className="pcab-airow-main">
             <div className="pcab-airow-t">AI-разбор этой сессии</div>
             <div className="pcab-airow-s">
-              Резюме, заметки и транскрипт появятся после завершения — в рамках месячной квоты разборов.
+              {aiAnalysisEnabled
+                ? "Разбор для этой сессии не сформирован."
+                : "Разбор для этой сессии был выключен."}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { storeFile } from "@/lib/file-storage";
 import { logAudit } from "@/lib/audit";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -27,6 +28,7 @@ export async function PATCH(req: NextRequest) {
       directions:  JSON.parse(formData.get("directions") as string ?? "[]"),
       specialties: JSON.parse(formData.get("specialties") as string ?? "[]"),
       tags:        JSON.parse(formData.get("tags") as string ?? "[]"),
+      formats:     JSON.parse(formData.get("formats") as string ?? "[]"),
       languages:   JSON.parse(formData.get("languages") as string ?? "[]"),
     };
     const avatarFile = formData.get("avatar") as File | null;
@@ -54,6 +56,7 @@ export async function PATCH(req: NextRequest) {
       ...(Array.isArray(data.directions) ? { directions:  data.directions as string[] }  : {}),
       ...(Array.isArray(data.specialties) ? { specialties: { set: data.specialties as never[] } } : {}),
       ...(Array.isArray(data.tags)        ? { tags:        data.tags as string[] }        : {}),
+      ...(Array.isArray(data.formats)     ? { formats:     normalizeOfferedFormats(data.formats) } : {}),
       ...(Array.isArray(data.languages)   ? { languages:   data.languages as string[] }   : {}),
     },
   });

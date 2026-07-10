@@ -162,11 +162,11 @@ export async function POST(req: NextRequest) {
 
     // B480: принятие предложения специалиста («Записать») — время и цена
     // берутся ИЗ предложения (серверные данные, клиентские не доверяем).
-    let proposal: { id: string; startAt: Date; durationMin: number; priceRub: number } | null = null;
+    let proposal: { id: string; startAt: Date; durationMin: number; priceRub: number; format: string | null } | null = null;
     if (proposalId) {
       const found = await db.bookingProposal.findUnique({
         where: { id: String(proposalId) },
-        select: { id: true, clientId: true, practitionerId: true, status: true, startAt: true, durationMin: true, priceRub: true },
+        select: { id: true, clientId: true, practitionerId: true, status: true, startAt: true, durationMin: true, priceRub: true, format: true },
       });
       if (!found || found.clientId !== session.user.id || found.practitionerId !== practitionerId || found.status !== "PENDING") {
         return NextResponse.json({ error: "Предложение не найдено или уже неактуально" }, { status: 409 });
@@ -337,6 +337,8 @@ export async function POST(req: NextRequest) {
           slotId: resolvedSlotId,
           status: BookingStatus.PENDING,
           priceRub,
+          // B466/B480: формат берём из предложения практика (иначе individual по умолчанию).
+          ...(proposal?.format ? { format: proposal.format } : {}),
           meetingContext: cleanMeetingContext,
           source: byocCommission.source,
           referrerPractitionerId: byocCommission.referrerPractitionerId,

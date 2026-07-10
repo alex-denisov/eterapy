@@ -55,6 +55,7 @@ export interface AdminUserRow {
     directions: string[];
     specialties: Specialty[];
     tags: string[];
+    formats: string[];
     pricePerSession: number;
     sessionDuration: number;
     priceRates: Array<{ durationMin: number; priceRub: number; enabled: boolean }>;

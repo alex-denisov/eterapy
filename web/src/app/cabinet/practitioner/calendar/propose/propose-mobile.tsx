@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Calendar, ChevronLeft, ChevronRight, Loader2, Send, X } from "lucide-react";
+import { Bell, Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { appUrl } from "@/lib/subdomain";
+import { offeredFormatOptions } from "@/lib/session-formats";
 
 // B466 R9-4 P3 — мобильный «Записать клиента» 1-в-1 по mockup
 // practitioner-calendar-propose.html: клиент (шторка выбора) · формат ·
-// дата/время (нативный пикер) · длительность+цена · итог · отправить.
-// Тот же эндпоинт, что и десктоп: POST /api/practitioner/proposals.
-// Парные сессии на платформе пока не поддержаны — сегмент показан по макету,
-// но выбор «Парная» отражает это тостом (owner-review).
+// дата/время (нативный пикер) · длительность+цена · комментарий · итог ·
+// отправить. Тот же эндпоинт, что и десктоп: POST /api/practitioner/proposals.
+// B480 (2026-07-10): форматы сессий реальны — сегмент показывает форматы,
+// которые практик предлагает (individual/couple/family), выбор уходит в бронь.
 
 interface Client {
   id: string;
@@ -35,12 +36,15 @@ function initialsOf(label: string): string {
 export function ProposeMobile({
   clients,
   rates,
+  formats,
   preselectedClientId,
 }: {
   clients: Client[];
   rates: Rate[];
+  formats: string[];
   preselectedClientId: string | null;
 }) {
+  const formatOptions = offeredFormatOptions(formats);
   const [clientId, setClientId] = useState(
     preselectedClientId && clients.some((c) => c.id === preselectedClientId)
       ? preselectedClientId
@@ -48,6 +52,9 @@ export function ProposeMobile({
   );
   const [when, setWhen] = useState("");
   const [durationMin, setDurationMin] = useState(rates[0]?.durationMin ?? 50);
+  const [format, setFormat] = useState(formatOptions[0]?.id ?? "individual");
+  const [message, setMessage] = useState("");
+  const [commentOpen, setCommentOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -65,7 +72,7 @@ export function ProposeMobile({
       const res = await fetch("/api/practitioner/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, startAt: startAt.toISOString(), durationMin, message: "" }),
+        body: JSON.stringify({ clientId, startAt: startAt.toISOString(), durationMin, format, message: message.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : "Не удалось отправить предложение");
@@ -106,17 +113,24 @@ export function ProposeMobile({
         )}
       </div>
 
-      {/* Формат */}
+      {/* Формат — форматы, которые практик предлагает (B480) */}
       <div className="pcab-flabel">Формат</div>
-      <div className="pcab-seg2">
-        <button type="button" className="pcab-seg-item is-active">Индивидуальная</button>
-        <button
-          type="button"
-          className="pcab-seg-item"
-          onClick={() => toast("Парные сессии — скоро. Пока доступны индивидуальные.")}
-        >
-          Парная
-        </button>
+      <div
+        className="pcab-seg2"
+        style={{ gridTemplateColumns: `repeat(${formatOptions.length}, 1fr)` }}
+        data-testid="propose-formats"
+      >
+        {formatOptions.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={`pcab-seg-item${format === f.id ? " is-active" : ""}`}
+            onClick={() => setFormat(f.id)}
+            aria-pressed={format === f.id}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* Дата и время */}
@@ -151,6 +165,35 @@ export function ProposeMobile({
           </button>
         ))}
       </div>
+
+      {/* Комментарий клиенту — необязательный, свёрнут по умолчанию (owner 07-10) */}
+      {!commentOpen ? (
+        <button
+          type="button"
+          className="pcab-addcomment"
+          onClick={() => setCommentOpen(true)}
+          data-testid="propose-comment-toggle"
+        >
+          <Plus width={15} height={15} strokeWidth={2} aria-hidden="true" />
+          Добавить комментарий клиенту
+        </button>
+      ) : (
+        <>
+          <div className="pcab-flabel">
+            Комментарий клиенту <span className="opt">(необязательно)</span>
+          </div>
+          <textarea
+            className="pcab-commentarea"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Например: продолжим работу с темой прошлой сессии"
+            rows={3}
+            maxLength={500}
+            data-testid="propose-comment"
+            autoFocus
+          />
+        </>
+      )}
 
       <div className="pcab-total">
         <span className="pcab-total-k">Клиент оплатит</span>

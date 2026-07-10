@@ -13,6 +13,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { notify } from "@/lib/notifications";
 import { log } from "@/lib/logger";
+import { normalizeBookingFormat } from "@/lib/session-formats";
 
 const FMT_DAY = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 const FMT_TIME = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, user: { select: { name: true } } },
+    select: { id: true, formats: true, user: { select: { name: true } } },
   });
   if (!practitioner) return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
 
@@ -33,6 +34,8 @@ export async function POST(req: NextRequest) {
   const startAt = body?.startAt ? new Date(body.startAt) : null;
   const durationMin = Number(body?.durationMin);
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 500) || null : null;
+  // B466/B480: формат сессии — только из предлагаемых практиком (иначе individual).
+  const format = normalizeBookingFormat(body?.format, practitioner.formats);
 
   if (!clientId) return NextResponse.json({ error: "Выберите клиента" }, { status: 400 });
   if (!startAt || Number.isNaN(startAt.getTime()) || startAt.getTime() <= Date.now()) {
@@ -76,6 +79,7 @@ export async function POST(req: NextRequest) {
       durationMin,
       priceRub: rate.priceRub,
       message,
+      format,
     },
   });
 
