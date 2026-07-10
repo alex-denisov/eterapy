@@ -3,22 +3,26 @@
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import { offeredFormatOptions } from "@/lib/session-formats";
 
-// B480 — форма «Записать»: клиент · дата/время (МСК) · длительность (цена из
-// тарифной сетки, read-only) · комментарий → предложение клиенту.
+// B480 — форма «Записать»: клиент · формат · дата/время (МСК) · длительность
+// (цена из тарифной сетки, read-only) · комментарий → предложение клиенту.
 
 interface Props {
   clients: Array<{ id: string; label: string }>;
   rates: Array<{ durationMin: number; priceRub: number }>;
+  formats: string[];
   preselectedClientId: string | null;
 }
 
-export function ProposeForm({ clients, rates, preselectedClientId }: Props) {
+export function ProposeForm({ clients, rates, formats, preselectedClientId }: Props) {
+  const formatOptions = offeredFormatOptions(formats);
   const [clientId, setClientId] = useState(
     preselectedClientId && clients.some((c) => c.id === preselectedClientId) ? preselectedClientId : clients[0]?.id ?? "",
   );
   const [when, setWhen] = useState("");
   const [durationMin, setDurationMin] = useState(rates[0]?.durationMin ?? 50);
+  const [format, setFormat] = useState(formatOptions[0]?.id ?? "individual");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +40,7 @@ export function ProposeForm({ clients, rates, preselectedClientId }: Props) {
       const res = await fetch("/api/practitioner/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, startAt: startAt.toISOString(), durationMin, message }),
+        body: JSON.stringify({ clientId, startAt: startAt.toISOString(), durationMin, format, message }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : "Не удалось отправить предложение");
@@ -64,6 +68,28 @@ export function ProposeForm({ clients, rates, preselectedClientId }: Props) {
             <option key={c.id} value={c.id}>{c.label}</option>
           ))}
         </select>
+
+        {formatOptions.length > 1 && (
+          <>
+            <p className="mt-4 text-xs font-semibold text-[var(--soft-bordeaux)]">Формат сессии</p>
+            <div className="mt-1.5 flex flex-wrap gap-2" data-testid="practitioner-propose-formats">
+              {formatOptions.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFormat(f.id)}
+                  className={`rounded-full border px-3.5 py-2 text-sm transition-colors ${
+                    format === f.id
+                      ? "soft-select-pill border-transparent font-medium"
+                      : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink-soft)]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <label className="mt-4 block text-xs font-semibold text-[var(--soft-bordeaux)]" htmlFor="propose-when">
           Дата и время (МСК)

@@ -18,7 +18,9 @@ import {
   PERMISSION_GROUPS,
 } from "./user-display";
 import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
+import { SessionFormatsField } from "@/components/practitioner/session-formats-field";
 import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 
 interface UserEditModalProps {
   row: AdminUserRow;
@@ -83,6 +85,8 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [categories, setCategories] = useState<string[]>(pr ? pr.categories : []);
   const [directions, setDirections] = useState<string[]>(pr ? pr.directions : []);
   const [tasks, setTasks] = useState<string[]>(pr ? pr.tags : []);
+  // B466/B480: предлагаемые форматы сессий (individual/couple/family)
+  const [formats, setFormats] = useState<string[]>(pr ? normalizeOfferedFormats(pr.formats) : []);
   // V3: session pricing as toggleable presets (PriceRate) — one row per standard
   // duration, each with an enable checkbox + price, instead of a single value.
   const [rates, setRates] = useState(() => {
@@ -252,6 +256,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
         const derivedSpecialties = specialtiesForDirections(directions);
         if (JSON.stringify([...derivedSpecialties].sort()) !== JSON.stringify([...pr.specialties].sort())) ppatch.specialties = derivedSpecialties;
         if (JSON.stringify(tasks) !== JSON.stringify(pr.tags)) ppatch.tags = tasks;
+        if (JSON.stringify([...formats].sort()) !== JSON.stringify([...normalizeOfferedFormats(pr.formats)].sort())) ppatch.formats = formats;
         if (Object.keys(ppatch).length > 0) {
           await patchJson(`/api/admin/practitioners/${pr.id}/profile`, ppatch);
         }
@@ -700,6 +705,9 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                     setTasks(next.tasks);
                   }}
                 />
+              </div>
+              <div className="mt-3">
+                <SessionFormatsField dense value={formats} onChange={setFormats} />
               </div>
             </section>
           )}

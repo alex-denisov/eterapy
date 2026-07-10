@@ -2319,6 +2319,66 @@
   border-radius: 12px;
   padding: 3px;
 }
+/* B480: свёрнутый триггер «Добавить комментарий» + раскрытое поле */
+.pcab-addcomment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.pcab-commentarea {
+  width: 100%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pc-ink);
+  resize: vertical;
+  min-height: 78px;
+  font-family: inherit;
+}
+.pcab-commentarea:focus {
+  outline: none;
+  border-color: var(--pc-bordeaux);
+}
+/* B481: сетка свободных слотов выбранного дня (mockup .slots/.slot) —
+   API возвращает только СВОБОДНЫЕ слоты, поэтому busy-состояние не нужно. */
+.pcab-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.pcab-slot {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 11px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-slot.active {
+  background: var(--pc-bordeaux);
+  color: #fbf1e4;
+  border-color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-slots-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+}
 /* длительность+цена (3 плитки) */
 .pcab-dur3 {
   display: grid;

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 import { ProposeForm } from "./propose-form";
 import { ProposeMobile } from "./propose-mobile";
 
@@ -24,9 +25,11 @@ export default async function PractitionerProposePage({
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id! },
-    select: { id: true },
+    select: { id: true, formats: true },
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
+
+  const offeredFormats = normalizeOfferedFormats(practitioner.formats);
 
   const [clientRows, rates] = await Promise.all([
     db.booking.findMany({
@@ -69,7 +72,7 @@ export default async function PractitionerProposePage({
           </div>
         </div>
       ) : (
-        <ProposeMobile clients={clients} rates={rates} preselectedClientId={preselectedClientId ?? null} />
+        <ProposeMobile clients={clients} rates={rates} formats={offeredFormats} preselectedClientId={preselectedClientId ?? null} />
       )}
     <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-propose-page">
       <Link href={appUrl("/practitioner/calendar")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
@@ -96,7 +99,7 @@ export default async function PractitionerProposePage({
           </p>
         </section>
       ) : (
-        <ProposeForm clients={clients} rates={rates} preselectedClientId={preselectedClientId ?? null} />
+        <ProposeForm clients={clients} rates={rates} formats={offeredFormats} preselectedClientId={preselectedClientId ?? null} />
       )}
     </div>
     </>

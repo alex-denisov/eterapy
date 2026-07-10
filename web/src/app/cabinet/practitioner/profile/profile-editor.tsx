@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
+import { SessionFormatsField } from "@/components/practitioner/session-formats-field";
 import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 
 interface InitialData {
   name: string;
@@ -19,6 +21,7 @@ interface InitialData {
   directions: string[];
   specialties: string[];
   tags: string[];
+  formats: string[];
   languages: string[];
 }
 
@@ -40,6 +43,7 @@ export function PractitionerProfileEditor({
   const [categories, setCategories] = useState<string[]>(initialData.categories);
   const [directions, setDirections] = useState<string[]>(initialData.directions);
   const [tasks, setTasks] = useState<string[]>(initialData.tags);
+  const [formats, setFormats] = useState<string[]>(normalizeOfferedFormats(initialData.formats));
   const [languages] = useState<string[]>(initialData.languages.length ? initialData.languages : ["Русский"]);
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -66,6 +70,7 @@ export function PractitionerProfileEditor({
       // esoteric directions stay mirrored onto the Specialty enum for legacy surfaces
       formData.append("specialties", JSON.stringify(specialtiesForDirections(directions)));
       formData.append("tags", JSON.stringify(tasks));
+      formData.append("formats", JSON.stringify(formats));
       formData.append("languages", JSON.stringify(languages));
       if (avatarFile) formData.append("avatar", avatarFile);
 
@@ -164,6 +169,9 @@ export function PractitionerProfileEditor({
               setTasks(next.tasks);
             }}
           />
+          <div className="mt-5 border-t border-border/30 pt-5">
+            <SessionFormatsField value={formats} onChange={setFormats} />
+          </div>
         </div>
       </div>
 

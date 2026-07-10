@@ -95,9 +95,12 @@ describe("R9-4 P3 — «Сессия» (booking/[id]) mobile 1-в-1", () => {
     expect(v).toContain("pcab-row-ic warm");
   });
 
-  it("does NOT render a fake per-session AI toggle — routes control to «Разборы и AI»", () => {
+  // owner 2026-07-10: per-session AI on/off must be a REAL function now — the
+  // mobile session mounts the working toggle (BookingAiToggle) and still links
+  // to «Разборы и AI» for the quota. (Deviation resolution — see b466-r9-p3-deviations.)
+  it("mounts the REAL per-session AI toggle and still links to «Разборы и AI»", () => {
     const v = mobile();
-    expect(v).not.toContain("pcab-toggle");
+    expect(v).toContain("BookingAiToggle");
     expect(v).toContain("/practitioner/ai-usage");
   });
 });
@@ -118,21 +121,25 @@ describe("R9-4 P3 — «Записать клиента» (propose) mobile 1-в-
     expect(mobile()).toContain("/api/practitioner/proposals");
   });
 
-  it("renders the mockup blocks: client-pick sheet, format segment, duration grid, total, send-note", () => {
+  it("renders the mockup blocks: client-pick sheet, real format segment, duration grid, total, send-note", () => {
     const v = mobile();
     expect(v).toContain("pcab-cpick");
     expect(v).toContain("pcab-seg2");
-    expect(v).toContain("Индивидуальная");
-    expect(v).toContain("Парная");
+    // owner 2026-07-10: сегмент теперь ведётся реальными форматами практика
+    expect(v).toContain("offeredFormatOptions(formats)");
+    expect(v).toContain('data-testid="propose-formats"');
     expect(v).toContain("propose-durations");
     expect(v).toContain("Клиент оплатит");
     expect(v).toContain("Отправить предложение");
   });
 
-  it("has NO comment field (mockup omits it) and pairs are flagged as not-yet-available", () => {
+  // owner 2026-07-10: добавить необязательный сворачиваемый комментарий; парные
+  // сессии — реальный формат (без тоста «скоро»). (Deviation resolution.)
+  it("has a collapsible optional comment and real formats (no «скоро» toast)", () => {
     const v = mobile();
-    expect(v).not.toContain("Комментарий");
-    expect(v).toContain("Парные сессии");
+    expect(v).toContain('data-testid="propose-comment-toggle"');
+    expect(v).toContain("Добавить комментарий клиенту");
+    expect(v).not.toContain("Парные сессии — скоро");
   });
 });
 
