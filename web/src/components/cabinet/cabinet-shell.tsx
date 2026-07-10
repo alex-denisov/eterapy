@@ -27,6 +27,7 @@ import {
   LOGOUT_LABEL,
 } from "@/lib/nav-model";
 import { NAV_ICONS } from "@/components/nav/nav-icons";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface NavItem {
   href: string;
@@ -445,6 +446,32 @@ export function CabinetShell({
       {/* Main — reserve the bottom bar height + the iPhone home-indicator inset
           so no content hides behind the frosted tab bar (audit A2). */}
       <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+        {/* B466 R9-5 — клиентский мобильный «верх» 1-в-1 с практиком: публичный
+            nav-хедер на мобиле скрыт (data-cabinet-mobile-top), а сверху экрана —
+            свой минимальный appbar (аватар + имя/тариф + колокольчик). Десктоп не
+            тронут (md:hidden), у практика — свои per-screen appbar'ы. */}
+        {isClient && (
+          <div
+            data-cabinet-mobile-top
+            data-testid="client-mobile-appbar"
+            className="mb-5 flex items-center gap-3 md:hidden"
+          >
+            <div
+              className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-base font-semibold"
+              style={{ fontFamily: "var(--font-heading-v4)" }}
+              aria-hidden="true"
+            >
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--soft-ink)]">
+                {user?.name ?? "Мой кабинет"}
+              </p>
+              <p className="truncate text-xs text-[var(--soft-ink-faint)]">{displaySubLabel}</p>
+            </div>
+            <NotificationBell variant="header" />
+          </div>
+        )}
         {children}
       </main>
       </div>
