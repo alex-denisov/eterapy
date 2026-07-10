@@ -55,4 +55,15 @@ describe("B466 R9-5 cabinet polish", () => {
     // Pro+ card keeps its remaining perks, не выхолощена
     expect(tariffs).toContain("Приоритет в каталоге");
   });
+
+  it("commission-hero big % carry an explicit cream color on the bordeaux banner (no dark-on-dark)", () => {
+    const tariffTab = source("src/app/cabinet/practitioner/finance/tariff-tab.tsx");
+    // hero = cream section text over a bordeaux gradient
+    expect(tariffTab).toContain("linear-gradient(135deg, var(--soft-bordeaux)");
+    // every big-number <p> must set an explicit light color — font-heading otherwise
+    // inherits dark ink and paints bordeaux-on-bordeaux (same bug class as R9-1/2/3 CTA)
+    const heroNums = tariffTab.match(/font-heading text-3xl font-semibold[^>]*>/g) ?? [];
+    expect(heroNums.length).toBeGreaterThanOrEqual(2);
+    for (const tag of heroNums) expect(tag).toContain('color: "#FBF1E4"');
+  });
 });
