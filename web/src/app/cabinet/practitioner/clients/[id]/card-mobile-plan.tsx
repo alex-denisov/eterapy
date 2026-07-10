@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Pencil, Target, TrendingUp } from "lucide-react";
+import { Pencil, Target, TrendingUp } from "lucide-react";
 import db from "@/lib/db";
 import { parseCarePlanGoals } from "@/lib/care-plan";
 import { appUrl } from "@/lib/subdomain";
@@ -7,8 +7,7 @@ import { appUrl } from "@/lib/subdomain";
 // B466 R9-4 P2 — вкладка «План» мобильной карточки клиента, 1-в-1 по
 // docs/Design/mockups/practitioner-client-plan.html (и therapy-plan.html):
 // ai-note → цели с прогресс-барами → методы (× и «+ метод» ведут в
-// редактирование) → фокус следующей сессии → actionbar (Экспорт PRO+ —
-// зарезервирован, пока disabled · Редактировать план).
+// редактирование) → фокус следующей сессии → actionbar (Редактировать план).
 
 function SparkGlyph({ size = 13 }: { size?: number }) {
   return (
@@ -154,20 +153,8 @@ export async function CardMobilePlan({
         </>
       )}
 
-      {/* actionbar: Экспорт (PRO+, зарезервирован) + Редактировать план */}
+      {/* actionbar: Редактировать план (экспорт убран — решение владельца) */}
       <div className="pcab-actionbar">
-        <button
-          type="button"
-          className="pcab-abtn pcab-abtn-ghost"
-          aria-disabled="true"
-          disabled
-          title="Экспорт плана появится в тарифе Pro+"
-          style={{ opacity: 0.7 }}
-        >
-          <span className="pcab-protag">PRO+</span>
-          <Download width={16} height={16} strokeWidth={2} aria-hidden="true" />
-          Экспорт
-        </button>
         <Link href={editHref} className="pcab-abtn pcab-abtn-primary" data-testid="client-plan-edit-link-mobile">
           <Pencil width={16} height={16} strokeWidth={2} aria-hidden="true" />
           Редактировать план

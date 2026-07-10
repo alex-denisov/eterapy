@@ -213,7 +213,7 @@ export async function CalendarScheduleMobile({ practitionerId }: { practitionerI
                     <div className={`pcab-appt-bar${live || b.id === nextId ? " soon" : ""}`} />
                     <Link href={appUrl(`/practitioner/calendar/booking/${b.id}`)} className="pcab-appt-main">
                       <div className="pcab-appt-name">{b.client.name ?? b.client.email ?? "Клиент"}</div>
-                      <div className="pcab-appt-meta">Индивидуальная · {b.priceRub.toLocaleString("ru")} ₽</div>
+                      <div className="pcab-appt-meta">Индивидуальная · <span className="whitespace-nowrap">{b.priceRub.toLocaleString("ru")} ₽</span></div>
                     </Link>
                     {joinable ? (
                       <a href={`/session/${b.id}`} className="pcab-join-btn">
