@@ -11,6 +11,7 @@ import { OptionScrollStrip, OptionChoice } from "@/components/products/option-sc
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { SectionAccordion } from "@/components/products/section-accordion";
 import { splitSections } from "@/lib/report-sections";
+import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 
@@ -253,7 +254,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
 
   // ── Result view: заголовок + recap + аккордеон по главам + воронка ──────
   if (result?.resultText) {
-    const normalizedResultText = normalizeDeepReportHeadings(result.resultText);
+    const normalizedResultText = normalizeDeepReportHeadings(stripEmbeddedResultDisclaimers(result.resultText));
     const sections = splitSections(normalizedResultText);
     const cat = [topic, goal].filter(Boolean).join(" · ");
     return (

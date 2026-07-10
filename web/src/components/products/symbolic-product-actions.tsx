@@ -9,6 +9,7 @@ import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { ServiceTriage, type TriagePrimary } from "@/components/products/service-triage";
 import { pointsWord } from "@/lib/points";
+import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { sanitizeTarotReading } from "@/lib/tarot-reading-format";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { useInputDraft } from "@/lib/use-input-draft";
@@ -620,7 +621,7 @@ export function SymbolicProductActions({
                     показаны выше). sanitize убирает у старых раскладов дубль
                     «прямое/перевёрнутое положение» строкой и вопросы к себе. */}
                 <SoftMarkdown
-                  content={sanitizeTarotReading(result.resultText)}
+                  content={sanitizeTarotReading(stripEmbeddedResultDisclaimers(result.resultText))}
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
                 />
                 {/* #6: расклад уже сохранён в Дневник автоматически (savedAt в API),
@@ -753,7 +754,7 @@ export function SymbolicProductActions({
           {result?.resultText ? (
             <>
               <SoftMarkdown
-                content={result.resultText}
+                content={stripEmbeddedResultDisclaimers(result.resultText)}
                 className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
               />
               <div className="mt-5 flex flex-wrap gap-3">

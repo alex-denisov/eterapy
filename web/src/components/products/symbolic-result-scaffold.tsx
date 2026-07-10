@@ -8,6 +8,7 @@ import { SectionAccordion } from "@/components/products/section-accordion";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { getProductPriceLabel } from "@/lib/product-prices";
 import { splitSections } from "@/lib/report-sections";
+import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl } from "@/lib/subdomain";
 
@@ -61,7 +62,7 @@ export function SymbolicResultScaffold({
   onStartNew: () => void;
 }) {
   const [recapOpen, setRecapOpen] = useState(false);
-  const normalizedResultText = normalizeLegacySymbolicHeadings(productKey, resultText);
+  const normalizedResultText = stripEmbeddedResultDisclaimers(normalizeLegacySymbolicHeadings(productKey, resultText));
   const sections = splitSections(normalizedResultText);
 
   const topicKey = dialogueTopicFromChip(topic);
