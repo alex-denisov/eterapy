@@ -102,7 +102,7 @@ describe("B450 — natal-chart tarot-parity rework", () => {
     });
 
     it("never saves or charges a heuristic for mandatory-LLM products (503, no charge)", () => {
-      expect(route).toContain('MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart"');
+      expect(route).toContain('MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart"');
       expect(route).toContain('(generated.metadata as { source?: string }).source !== "ai"');
       expect(route).toContain("503");
     });

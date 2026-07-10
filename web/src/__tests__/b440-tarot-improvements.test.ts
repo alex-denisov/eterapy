@@ -75,6 +75,9 @@ describe("B440 tarot page fixes (#1–#6)", () => {
     it("raises the tarot token budget for a fuller reading", () => {
       const lib = source("src/lib/symbolic-products.ts");
       expect(lib).toContain('tarot: 3200');
+      expect(lib).toContain("input.cards?.length === 1 ? 2_000 : 3_000");
+      const route = source("src/app/api/products/symbolic/route.ts");
+      expect(route).toContain('MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot"');
     });
 
     it("the recommendations endpoint returns repeat CTA + other service + esoteric specialist", () => {

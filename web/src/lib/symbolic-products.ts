@@ -532,7 +532,7 @@ function symbolicQualityIssue(input: {
   numerology: NumerologyPortrait | null;
 }) {
   const minimumChars: Partial<Record<SymbolicProductKey, number>> = {
-    tarot: input.cards && input.cards.length >= 10 ? 7_500 : input.cards?.length === 1 ? 2_000 : 3_800,
+    tarot: input.cards && input.cards.length >= 10 ? 6_500 : input.cards?.length === 1 ? 2_000 : 3_000,
     "natal-chart": 5_500,
     numerology: 5_000,
     "human-design": 4_800,

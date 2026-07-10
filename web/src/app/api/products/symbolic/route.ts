@@ -39,7 +39,7 @@ const postSchema = z.object({
 // Наборы расширяются по мере миграции остальных символических услуг на паттерн Таро.
 const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
 const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
-const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
+const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
 
 function serializeResult(result: {
   id: string;
