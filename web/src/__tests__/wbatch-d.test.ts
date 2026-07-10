@@ -6,10 +6,12 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "ut
 describe("W6 — practitioner subscription: 2 pay buttons + working purchase", () => {
   // B466: покупка тарифа живёт на «Финансы → Тариф» (tariff-plans).
   const client = read("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
+  // B466 R9-4 P4: обработчики (в т.ч. ошибка нехватки) — в общем хуке (десктоп + мобайл).
+  const actions = read("src/app/cabinet/practitioner/finance/use-tariff-plan-actions.ts");
   it("offers exactly «С баланса» (with insufficient error) and «Картой»", () => {
     expect(client).toContain("С баланса");
     expect(client).toContain("Картой");
-    expect(client).toContain("Недостаточно средств на балансе");
+    expect(actions).toContain("Недостаточно средств на балансе");
     // the confusing third «Баланс кабинета» button is gone
     expect(client).not.toContain("Баланс кабинета");
     expect(client).not.toContain("startFromCabinetBalance");
