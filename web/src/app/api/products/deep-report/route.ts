@@ -118,6 +118,14 @@ export async function POST(request: NextRequest) {
   // Одна полноценная генерация детального документа на полном тексте ситуации
   // и заметке темы/цели (виден в суперадминке как один LLM-вызов).
   const full = await generateDeepReport({ sourceText, contextNote, userId, requestId: context.requestId });
+  if ((full.metadata as { source?: string }).source !== "ai") {
+    return errorWithRequestContext(
+      "AI_UNAVAILABLE",
+      "Не получилось собрать полный подробный разбор — попробуйте ещё раз. Баллы не списаны.",
+      503,
+      context,
+    );
+  }
   const title = buildDeepReportTitle(sourceText);
   const baseMetadata: Prisma.InputJsonObject = {
     source: "generate",

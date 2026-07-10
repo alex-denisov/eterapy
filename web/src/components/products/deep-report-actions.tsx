@@ -10,7 +10,7 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { SectionAccordion } from "@/components/products/section-accordion";
-import { splitSections } from "@/lib/report-sections";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl, loginUrl } from "@/lib/subdomain";
@@ -83,7 +83,7 @@ function parseContextNote(note?: string | null): { topic: string | null; goal: s
 }
 
 function normalizeDeepReportHeadings(text: string): string {
-  return text
+  return normalizeResultSectionHeadings("deep-report", text)
     .replace(/^##\s+Бережное резюме(?:\s+и\s+с\s+кем\s+продолжить)?\s*$/gim, "## Когда подключать специалиста")
     .replace(/^##\s+Бережные шаги(?:\s+на\s+ближайшее\s+время)?\s*$/gim, "## План действий на 7–14 дней");
 }
@@ -259,7 +259,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
     const cat = [topic, goal].filter(Boolean).join(" · ");
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-actions">
-        <div className="tarot-head">
+        <div className="product-order-head">
           <p className="soft-eyebrow">структурный разбор ситуации</p>
         </div>
         <h2 className="soft-h3 mt-1">Ваш подробный разбор</h2>
@@ -268,18 +268,18 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
 
         {/* Свёрнутый блок с заданным вопросом и категориями (как у Таро). */}
         <details
-          className="tarot-controls-collapsed mt-4"
+          className="product-controls-collapsed mt-4"
           data-testid="deep-report-recap"
           open={recapOpen}
           onToggle={(e) => setRecapOpen((e.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>
-            <span className="tarot-collapsed-q">
+            <span className="product-collapsed-question">
               {sourceText.trim() ? `Вопрос: ${sourceText.trim()}` : "Ваш запрос и категории"}
             </span>
-            <span className="tarot-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
+            <span className="product-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
           </summary>
-          <dl className="tarot-recap">
+          <dl className="product-recap">
             {sourceText.trim() && (
               <div>
                 <dt>Запрос</dt>
@@ -328,15 +328,15 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card tarot-order-surface" data-testid="deep-report-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="deep-report-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">структурный разбор</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём это">
+      <div className="product-controls">
+        <OptionScrollStrip ariaLabel="Сфера разбора" label="сфера разбора" hint="Так разбор точнее расставит приоритеты и рабочие гипотезы.">
           {TOPICS.map((t) => (
             <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
               onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
@@ -345,7 +345,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
           ))}
         </OptionScrollStrip>
 
-        <OptionScrollStrip ariaLabel="Что хотите получить">
+        <OptionScrollStrip ariaLabel="Что хотите получить" label="результат разбора" hint="Выберите главный результат, который нужен вам по итогам документа.">
           {GOALS.map((g) => (
             <OptionChoice key={g} active={goal === g} disabled={status === "loading"}
               onClick={() => setGoal(goal === g ? null : g)}>
@@ -354,19 +354,19 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
           ))}
         </OptionScrollStrip>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="deep-report-input">опишите ситуацию подробно</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="deep-report-input">опишите ситуацию подробно</label>
         <textarea
           id="deep-report-input"
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value.slice(0, 8000))}
           placeholder={placeholder}
           rows={3}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input product-question-input"
           disabled={status === "loading"}
           data-testid="deep-report-input"
         />
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={generateReport} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="deep-report-start">
               {status === "loading" ? "Собираем разбор…" : "Сформировать разбор"}

@@ -41,29 +41,30 @@ describe("B450 — natal-chart tarot-parity rework", () => {
   describe("expert astrologer prompt", () => {
     const natal = defaultPromptTextForFeature("product-natal-chart");
 
-    it("speaks as a practicing humanistic astrologer, language-of-themes not fate", () => {
+    it("speaks as a practicing astrologer without fatal promises", () => {
       expect(natal).toContain("астролог ETerapy с 20+ годами практики");
       expect(natal).toContain("дома, аспекты, стихии, модальности");
-      expect(natal).toContain("не выноси приговор судьбы");
+      expect(natal).toContain("такова судьба");
     });
 
-    it("anchors strictly on the real Sun sign and forbids inventing Moon/Ascendant signs", () => {
-      expect(natal).toContain("знак Солнца");
-      expect(natal).toContain("не называй конкретный знак Луны/Асцендента/домов как факт");
+    it("anchors on all runtime-calculated planetary positions and never invents angles", () => {
+      expect(natal).toContain("положения планет");
+      expect(natal).toContain("Не выдумывай дома или Асцендент");
     });
 
     it("mandates the exact astrology ## chapters the accordion renders", () => {
       expect(natal).toContain("## Главная конфигурация карты");
       expect(natal).toContain("## Солнце, стихия и модальность");
-      expect(natal).toContain("## Луна, Асцендент и личные планеты как темы");
+      expect(natal).toContain("## Луна, Асцендент и личные планеты");
       expect(natal).toContain("## Дома и сферы жизни");
       expect(natal).toContain("## Аспекты: где напряжение и где ресурс");
-      expect(natal).toContain("## Как работать с этой картой дальше");
+      expect(natal).toContain("## Персональный синтез карты");
+      expect(natal).toContain("## Как читать эту карту в жизни");
     });
 
     it("forbids fate promises and preserves calculated facts", () => {
-      expect(natal).toContain("Не меняй расчетные факты");
-      expect(natal).toContain("Не обещай события");
+      expect(natal).toContain("не меняй их");
+      expect(natal).toContain("без гарантированных обещаний будущего");
     });
   });
 
@@ -111,7 +112,7 @@ describe("B450 — natal-chart tarot-parity rework", () => {
     const natal = source("src/components/products/natal-chart-actions.tsx");
 
     it("intake is tool-first with paid controls and no free-fragment / badges / inline PDF", () => {
-      expect(natal).toContain("tarot-order-surface");
+      expect(natal).toContain("product-order-surface");
       expect(natal).toContain("ProductPurchaseControls");
       expect(natal).not.toContain("бесплатный фрагмент");
       expect(natal).not.toContain("Сначала бесплатный");

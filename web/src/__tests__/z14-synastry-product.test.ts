@@ -87,13 +87,23 @@ describe("Z14 synastry product", () => {
   });
 
   it("generates a non-fatalistic synastry result through AI with a safe fallback", async () => {
-    mockAiComplete.mockResolvedValueOnce({
+    const calculatedFacts = "Овен Телец Близнецы Рак Лев Дева Весы Скорпион Стрелец Козерог Водолей Рыбы ".repeat(20);
+    mockAiComplete.mockResolvedValue({
       text: [
-        "Совместимость по звёздам",
-        "",
-        "Главное совпадение: оба быстрее успокаиваются, когда разговор становится конкретным.",
-        "Главное различие: один ищет паузу, другой — немедленное подтверждение близости.",
-        "Практический шаг: договориться о короткой фразе, которая означает «я рядом, но мне нужно время».",
+        "## Общий рисунок связи",
+        calculatedFacts,
+        "## Притяжение и ресурс пары",
+        calculatedFacts,
+        "## Где возникают трения",
+        calculatedFacts,
+        "## Разные темпы и ожидания",
+        calculatedFacts,
+        "## Коммуникация и конфликт",
+        calculatedFacts,
+        "## Главная динамика вашей пары",
+        calculatedFacts,
+        "## Что показывает карта отношений",
+        calculatedFacts,
       ].join("\n"),
       provider: "openai" as never,
       model: "gpt-test",
@@ -110,7 +120,7 @@ describe("Z14 synastry product", () => {
       requestId: "req-1",
     });
 
-    expect(generated.text).toContain("Главное совпадение");
+    expect(generated.text).toContain("Главная динамика вашей пары");
     expect(generated.metadata).toEqual(expect.objectContaining({ source: "ai", provider: "openai" }));
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
       feature: "product-synastry",

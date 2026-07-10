@@ -251,18 +251,25 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
           </ul>
         )}
         <div className="mt-5 grid gap-3">
-          <input
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Как вас подписать (необязательно)"
-            className="soft-question-input py-3 text-base"
-          />
-          <textarea
-            value={answerText}
-            onChange={(event) => setAnswerText(event.target.value)}
-            placeholder="Что вы видите в этой ситуации?"
-            className="soft-question-input tarot-question-input min-h-32 py-3"
-          />
+          <label className="grid gap-1.5">
+            <span className="soft-eyebrow product-question-label">как вас подписать</span>
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Например: Анна"
+              className="soft-question-input product-line-input py-3 text-base"
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="soft-eyebrow product-question-label">ваш взгляд на ситуацию</span>
+            <textarea
+              value={answerText}
+              onChange={(event) => setAnswerText(event.target.value)}
+              placeholder="Что вы видите в этой ситуации?"
+              rows={2}
+              className="soft-question-input product-question-input product-compact-input py-3"
+            />
+          </label>
           <Button
             onClick={submitAnswer}
             disabled={status === "loading" || answerText.trim().length < 10}
@@ -297,13 +304,17 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
             <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
             <span>Ваш текст увидит только система. Приглашённый получит нейтральные вопросы, а не ваши детали.</span>
           </div>
-          <textarea
-            value={situation}
-            onChange={(event) => setSituation(event.target.value)}
-            placeholder="Что происходит и что хочется прояснить чужим, свежим взглядом?"
-            className="soft-question-input tarot-question-input min-h-28 py-3"
-            data-testid="together-situation-input"
-          />
+          <label className="grid gap-1.5">
+            <span className="soft-eyebrow product-question-label">ситуация для свежего взгляда</span>
+            <textarea
+              value={situation}
+              onChange={(event) => setSituation(event.target.value)}
+              placeholder="Что происходит и что хочется прояснить чужим, свежим взглядом?"
+              rows={2}
+              className="soft-question-input product-question-input product-compact-input py-3"
+              data-testid="together-situation-input"
+            />
+          </label>
           <Button
             onClick={createOutside}
             disabled={status === "loading" || situation.trim().length < 10}

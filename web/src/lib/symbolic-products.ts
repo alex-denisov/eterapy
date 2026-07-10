@@ -1,12 +1,14 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
-import { buildNatalWheel, type NatalWheel } from "@/lib/esoteric-chart";
-import { computeNumerology, numerologyFactsForAI } from "@/lib/numerology";
+import type { NatalWheel } from "@/lib/esoteric-chart";
+import { buildNatalEphemerisWheel, textMentionsZodiacSign } from "@/lib/natal-ephemeris";
+import { computeNumerology, numerologyFactsForAI, type NumerologyPortrait } from "@/lib/numerology";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { analyzeSurname, surnameFactsForAI, type SurnameStory } from "@/lib/surname-story";
 import { log, serializeError } from "@/lib/logger";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { TAROT_DECK, type TarotCard } from "@/lib/tarot-deck";
 
 // Данные колоды + поиск карты по имени живут в client-safe `@/lib/tarot-deck`
@@ -255,8 +257,12 @@ export function buildSymbolicProductTeaser(input: {
   ].join("\n");
 }
 
-function normalize(text: string) {
+function normalizeInput(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
+}
+
+function normalizeResult(text: string) {
+  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 30_000);
 }
 
 function extractRepeatedTheme(text: string) {
@@ -331,13 +337,21 @@ function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userIn
 // а не выдумывал. Передаём в системный промт как «вот что точно посчитано».
 function humanDesignFactsForAI(chart: HumanDesignChart): string {
   const defined = chart.centers.filter((c) => c.defined).map((c) => c.name).join(", ") || "нет определённых центров";
+  const open = chart.centers.filter((c) => !c.defined).map((c) => c.name).join(", ") || "нет открытых центров";
   const channels = chart.definedChannels.map((c) => `${c.gates[0]}-${c.gates[1]}`).join(", ") || "нет";
+  const column = (activations: HumanDesignChart["personality"]) => activations
+    .map((activation) => `${activation.label} ${activation.gate}.${activation.line}`)
+    .join("; ");
   return [
     "ТОЧНО РАССЧИТАНО (не меняй и не выдумывай эти факты):",
     `Тип: ${chart.typeName}. Стратегия: ${chart.strategy}. Внутренний авторитет: ${chart.authorityName}.`,
     `Профиль: ${chart.profile} (${chart.profileName}). Определение: ${chart.definition}.`,
     `Определённые центры: ${defined}.`,
+    `Открытые центры: ${open}.`,
     `Определённые каналы: ${channels}.`,
+    `Все активные ворота: ${chart.activeGates.join(", ")}.`,
+    `Колонка Личность: ${column(chart.personality)}.`,
+    `Колонка Дизайн: ${column(chart.design)}.`,
     `Подпись: ${chart.signature}. Тема не-я: ${chart.notSelf}.`,
     chart.hasExactTime ? "Указано точное время рождения." : "Время рождения не указано — считай тип как ориентир и прямо укажи, что точность ограничена.",
     "Объясни ИМЕННО эти тип/стратегию/авторитет/профиль/каналы человеческим языком. Результат должен быть связан с конкретным бодиграфом, а не быть общей статьей о Human Design.",
@@ -404,14 +418,146 @@ function natalFactsForAI(wheel: NatalWheel, userInput: string): string {
     ? "активная (ян)"
     : "воспринимающая (инь)";
   const hasTime = /\b\d{1,2}[:.]\d{2}\b/.test(userInput);
+  const placements = wheel.placements
+    .map((placement) => `${placement.label}: ${placement.degreeInSign.toFixed(1)}° ${placement.signName}`)
+    .join("; ");
+  const houses = wheel.houses?.map((house) => `${house.number} дом — ${house.signName} ${house.cusp.toFixed(1)}°`).join("; ") ?? "не рассчитаны";
   return [
-    "ТОЧНО ПОСЧИТАНО ПО ДАТЕ РОЖДЕНИЯ (не меняй эти факты):",
+    "ТОЧНО ПОСЧИТАНО ПО ЭФЕМЕРИДАМ (не меняй эти факты):",
     `Солнце в знаке ${wheel.sunSign.name} (${wheel.sunSign.glyph}). Стихия: ${wheel.sunSign.element}. Модальность: ${modality}. Полярность: ${polarity}.`,
-    hasTime
-      ? "Время рождения в запросе есть — не пиши, будто времени нет. Если точные дома/ASC не переданы отдельными расчетными фактами, не называй их как вычисленный факт; раскрывай как тематический слой карты."
-      : "Точное время рождения НЕ указано: Луну и Восходящий знак раскрывай как темы, не называя конкретный знак фактом; прямо укажи, что для точного расчёта нужны время и место рождения.",
-    "Опирайся на знак Солнца, стихию и модальность как на каркас и обязательно свяжи разбор с реальным вопросом и сферой человека. Не вставляй общие дисклеймеры в текст результата.",
+    `Положения: ${placements}.`,
+    wheel.ascendant && wheel.ascendantDegree !== null && wheel.ascendantDegree !== undefined
+      ? `Асцендент: ${wheel.ascendantDegree.toFixed(1)}° ${wheel.ascendant.name}. Равнодомные куспиды: ${houses}.`
+      : hasTime
+        ? "Время рождения передано, но координаты города не распознаны: не утверждай конкретный ASC и дома. Все положения десяти планет рассчитаны точно и должны быть разобраны."
+        : "Точное время рождения не указано: не утверждай конкретный ASC и дома. Положения десяти планет на полдень рассчитаны и должны быть разобраны с оговоркой только для быстро движущейся Луны.",
+    "Каждый раздел связывай с этими конкретными положениями. Не вставляй общие дисклеймеры в текст результата.",
   ].join("\n");
+}
+
+function numerologyMatches(text: string, portrait: NumerologyPortrait) {
+  const required = [
+    `Число пути ${portrait.lifePath}`,
+    portrait.expression === null ? null : `Число выражения ${portrait.expression}`,
+    portrait.soulUrge === null ? null : `Число души ${portrait.soulUrge}`,
+  ].filter((value): value is string => Boolean(value));
+  return required.every((value) => text.toLowerCase().includes(value.toLowerCase()));
+}
+
+function symbolicSectionHeadings(input: {
+  productKey: SymbolicProductKey;
+  cards: TarotCard[] | null;
+  numerology: NumerologyPortrait | null;
+}): string[] | null {
+  if (input.productKey === "tarot" && input.cards) {
+    return [
+      "Картина расклада",
+      ...input.cards.map((card) => `${card.position}: ${card.name}`),
+      "Связь карт и скрытая линия",
+      "Ответ расклада",
+      "Вероятная динамика",
+      "Предупреждение карт",
+    ];
+  }
+  if (input.productKey === "natal-chart") {
+    return ["Главная конфигурация карты", "Солнце, стихия и модальность", "Луна, Асцендент и личные планеты", "Дома и сферы жизни", "Аспекты: где напряжение и где ресурс", "Персональный синтез карты", "Как читать эту карту в жизни"];
+  }
+  if (input.productKey === "numerology" && input.numerology) {
+    return [
+      "Карта чисел",
+      `Число пути ${input.numerology.lifePath} — главный вектор`,
+      ...(input.numerology.expression === null ? [] : [`Число выражения ${input.numerology.expression} — как вы проявляетесь`]),
+      ...(input.numerology.soulUrge === null ? [] : [`Число души ${input.numerology.soulUrge} — что вами движет`]),
+      "Сильные стороны и теневая сторона",
+      "Повторяющийся сценарий",
+      "Синтез числового портрета",
+      "Практический ориентир на ближайшее время",
+    ];
+  }
+  if (input.productKey === "human-design") {
+    return ["Тип и стратегия", "Внутренний авторитет", "Профиль и роль", "Центры: где определенность и где восприимчивость", "Каналы и ворота", "Тема не-я и сигналы сбоя", "Синтез вашего бодиграфа", "Как применять дизайн"];
+  }
+  if (input.productKey === "surname-story") {
+    return ["Что говорит форма фамилии", "Вероятные корни и версии происхождения", "География и исторический контекст", "Профессия, статус или прозвище предка", "Известные ассоциации и тёмные версии", "Факты, версии и границы достоверности", "Что проверить в семейной истории", "Итог исследования фамилии"];
+  }
+  return null;
+}
+
+function headingKey(value: string) {
+  return value
+    .replace(/^\d{1,2}[.)]\s*/, "")
+    .replace(/[–-]/g, "—")
+    .replace(/\s+/g, " ")
+    .replace(/[.:;]+$/, "")
+    .trim()
+    .toLocaleLowerCase("ru");
+}
+
+function mergeSymbolicSections(productKey: string, headings: string[], texts: string[]) {
+  const wanted = new Map(headings.map((heading) => [headingKey(heading), heading]));
+  const bodies = new Map<string, string>();
+  for (const text of texts) {
+    const normalized = normalizeResultSectionHeadings(productKey, normalizeResult(text));
+    for (const section of splitSections(normalized)) {
+      const canonical = wanted.get(headingKey(section.title));
+      if (!canonical || !section.body.trim()) continue;
+      const existing = bodies.get(canonical) ?? "";
+      if (section.body.trim().length > existing.length) bodies.set(canonical, section.body.trim());
+    }
+  }
+  return headings
+    .filter((heading) => bodies.has(heading))
+    .map((heading) => `## ${heading}\n\n${bodies.get(heading)}`)
+    .join("\n\n");
+}
+
+function weakestSymbolicHeadings(headings: string[], text: string, limit = 4) {
+  const sizes = new Map(splitSections(text).map((section) => [headingKey(section.title), section.body.length]));
+  return [...headings]
+    .sort((a, b) => (sizes.get(headingKey(a)) ?? -1) - (sizes.get(headingKey(b)) ?? -1))
+    .slice(0, limit);
+}
+
+function segmentedRequestId(requestId: string | undefined, suffix: string) {
+  return requestId ? `${requestId}:${suffix}` : undefined;
+}
+
+function symbolicQualityIssue(input: {
+  productKey: SymbolicProductKey;
+  text: string;
+  cards: TarotCard[] | null;
+  wheel: NatalWheel | null;
+  chart: HumanDesignChart | null;
+  surname: SurnameStory | null;
+  numerology: NumerologyPortrait | null;
+}) {
+  const minimumChars: Partial<Record<SymbolicProductKey, number>> = {
+    tarot: input.cards && input.cards.length >= 10 ? 7_500 : input.cards?.length === 1 ? 2_000 : 3_800,
+    "natal-chart": 5_500,
+    numerology: 5_000,
+    "human-design": 4_800,
+    "surname-story": 5_000,
+  };
+  if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
+  if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
+  if (input.productKey === "numerology" && input.numerology && !numerologyMatches(input.text, input.numerology)) {
+    return "числа в заголовках не совпадают с рассчитанным портретом";
+  }
+  if (input.productKey === "human-design" && input.chart) {
+    const headings = ["Тип и стратегия", "Внутренний авторитет", "Профиль и роль", "Центры:", "Каналы и ворота", "Тема не-я", "Синтез вашего бодиграфа", "Как применять дизайн"];
+    if (!headings.every((heading) => input.text.includes(`## ${heading}`))) return "нет обязательных разделов бодиграфа";
+    if (!input.text.includes(input.chart.typeName) || !input.text.includes(input.chart.profile)) return "интерпретация не цитирует рассчитанный бодиграф";
+  }
+  if (input.productKey === "tarot" && input.cards) {
+    const missingCard = input.cards.find((card) => !input.text.includes(card.name) || !input.text.includes(card.position));
+    if (missingCard) return `нет трактовки карты ${missingCard.name} в позиции ${missingCard.position}`;
+  }
+  if (input.productKey === "natal-chart" && input.wheel) {
+    const distinctSigns = [...new Set(input.wheel.placements.map((placement) => placement.signName))];
+    if (distinctSigns.filter((sign) => textMentionsZodiacSign(input.text, sign)).length < Math.min(4, distinctSigns.length)) return "текст не опирается на рассчитанные положения планет";
+  }
+  if (input.productKey === "surname-story" && input.surname && !input.text.includes(input.surname.surname)) return "текст не называет исследуемую фамилию";
+  return null;
 }
 
 // B450/B451: бюджет токенов на услугу для запроса в шлюз. Эффективный кап всё равно
@@ -437,13 +583,21 @@ export async function generateSymbolicProductResult(input: {
   // #12: tarot draws real cards; cards are stored in metadata so the
   // page can render the actual cards, and the AI interprets exactly these cards.
   const tarotSpread = input.productKey === "tarot" ? resolveTarotSpread(input.tarotSpread) : null;
-  const tarotTheme = input.productKey === "tarot" ? normalize(input.tarotTheme ?? "").slice(0, 80) : "";
+  const tarotTheme = input.productKey === "tarot" ? normalizeInput(input.tarotTheme ?? "").slice(0, 80) : "";
   const cards = input.productKey === "tarot"
-    ? drawTarotSpread(`${input.userId}:${tarotSpread?.key}:${tarotTheme}:${normalize(input.userInput)}`, tarotSpread?.positions)
+    ? drawTarotSpread(`${input.userId}:${tarotSpread?.key}:${tarotTheme}:${normalizeInput(input.userInput)}`, tarotSpread?.positions)
     : null;
   // B388: натальная карта получает детерминированное структурное колесо в metadata,
   // чтобы страница услуги и PDF рендерили визуал, совпадающий с интерпретацией.
-  const wheel = input.productKey === "natal-chart" ? buildNatalWheel(normalize(input.userInput)) : null;
+  const wheel = input.productKey === "natal-chart"
+    ? (() => {
+      try {
+        return buildNatalEphemerisWheel(normalizeInput(input.userInput));
+      } catch {
+        return null;
+      }
+    })()
+    : null;
   // B387: «Дизайн человека» — детерминированный чарт по реальным эфемеридам;
   // храним в metadata (для бодиграфа на странице/в PDF) и передаём в AI как факты.
   const hdChart = input.productKey === "human-design" ? computeHumanDesignFromText(input.userInput).chart : null;
@@ -470,6 +624,10 @@ export async function generateSymbolicProductResult(input: {
         ? surnameStoryFallback(surnameStory)
         : heuristicSymbolicResult(input);
 
+  if (input.productKey === "natal-chart" && !wheel) {
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable", ...cardsMeta } };
+  }
+
   try {
     // B362/Механика 7: каждый символический продукт должен использовать СВОЙ
     // промт (product-tarot / product-natal-chart / product-numerology / …),
@@ -480,54 +638,117 @@ export async function generateSymbolicProductResult(input: {
     const feature = `product-${input.productKey}`;
     const baseSystemPrompt = defaultPromptTextForFeature(feature);
     const tarotCardsNote = cards
-      ? `\n\nЭто расклад "${tarotSpread?.label ?? "Таро"}" из ${cards.length} карт (${cards.map((card) => card.position).join(" / ")}). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте реального вопроса пользователя${tarotTheme ? ` (мягкий фокус-оттенок: "${tarotTheme}" — не ограничение сферы вопроса)` : ""}.`
+      ? `\n\nЭто расклад "${tarotSpread?.label ?? "Таро"}" из ${cards.length} карт (${cards.map((card) => card.position).join(" / ")}). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте реального вопроса${tarotTheme ? ` (тематический фокус: "${tarotTheme}" — не ограничение сферы вопроса)` : ""}.`
       : "";
     const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
     const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
-    const natalNote = wheel ? `\n\n${natalFactsForAI(wheel, normalize(input.userInput))}` : "";
+    const natalNote = wheel ? `\n\n${natalFactsForAI(wheel, normalizeInput(input.userInput))}` : "";
     const numeroNote = numerology ? `\n\n${numerologyFactsForAI(numerology)}` : "";
 
-    const response = await aiComplete({
-      feature,
-      userId: input.userId,
-      requestId: input.requestId,
-      // #6/#1: расклад Таро должен быть полноценным — на странице нет PDF, человек
-      // читает весь разбор тут же. Даём больше места: 3-5 предложений на каждую
-      // карту (до 10 карт в Кельтском кресте) + «Общий смысл».
-      maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
-      temperature: 0.5,
-      messages: [
-        {
-          role: "system",
-          content: baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote,
-        },
-        {
-          role: "user",
-          content: [
-            `Product: ${definition?.title ?? input.productKey}`,
-            tarotSpread ? `Расклад: ${tarotSpread.label}.` : "",
-            tarotTheme ? `Мягкий фокус-оттенок (не ограничение сферы вопроса): ${tarotTheme}.` : "",
-            cards ? `Выпавшие карты: ${cards.map((c) => `${c.position} — ${c.name}${c.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
-            `User input: ${normalize(input.userInput) || "Пользователь хочет символический разбор."}`,
-          ].filter(Boolean).join("\n"),
-        },
-      ],
-    });
+    const systemPrompt = baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote;
+    const userContext = [
+      `Услуга: ${definition?.title ?? input.productKey}.`,
+      tarotSpread ? `Расклад: ${tarotSpread.label}.` : "",
+      tarotTheme ? `Тематический фокус: ${tarotTheme}.` : "",
+      cards ? `Выпавшие карты: ${cards.map((card) => `${card.position} — ${card.name}${card.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
+      `Данные для разбора: ${normalizeInput(input.userInput) || "Нужен полный персональный разбор."}`,
+    ].filter(Boolean).join("\n");
+    const headings = symbolicSectionHeadings({ productKey: input.productKey, cards, numerology });
+    const responses = [] as Awaited<ReturnType<typeof aiComplete>>[];
+    let text = "";
 
-    const text = normalize(response.text);
-    if (text.length < 220) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response", ...cardsMeta } };
+    if (headings && headings.length > 1) {
+      const midpoint = Math.ceil(headings.length / 2);
+      const groups = [headings.slice(0, midpoint), headings.slice(midpoint)];
+      const parts = await Promise.all(groups.map((group, index) => aiComplete({
+        feature,
+        userId: input.userId,
+        requestId: segmentedRequestId(input.requestId, `part-${index + 1}`),
+        maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
+        temperature: 0.45,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              "Собери одну часть большого результата. Верни ТОЛЬКО перечисленные ниже разделы и не добавляй остальные.",
+              "Каждый заголовок напиши дословно с `##`; внутри дай 3 содержательных абзаца по конкретным фактам, без вступления и заключения вне разделов.",
+              ...group.map((heading) => `## ${heading}`),
+              userContext,
+            ].join("\n"),
+          },
+        ],
+      })));
+      responses.push(...parts);
+      text = mergeSymbolicSections(input.productKey, headings, responses.map((response) => response.text));
+
+      let issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+      if (issue) {
+        const repairHeadings = weakestSymbolicHeadings(headings, text);
+        const repair = await aiComplete({
+          feature,
+          userId: input.userId,
+          requestId: segmentedRequestId(input.requestId, "repair"),
+          maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
+          temperature: 0.3,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                `Дополни только слабые или отсутствующие разделы полного результата. Причина повторной генерации: ${issue}.`,
+                "Верни только эти заголовки дословно с `##`. Каждый раздел — 3–4 конкретных абзаца; не добавляй другие разделы.",
+                ...repairHeadings.map((heading) => `## ${heading}`),
+                userContext,
+              ].join("\n"),
+            },
+          ],
+        });
+        responses.push(repair);
+        text = mergeSymbolicSections(input.productKey, headings, responses.map((response) => response.text));
+        issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+      }
+    } else {
+      const response = await aiComplete({
+        feature,
+        userId: input.userId,
+        requestId: segmentedRequestId(input.requestId, "full"),
+        maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
+        temperature: 0.5,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContext },
+        ],
+      });
+      responses.push(response);
+      text = normalizeResult(response.text);
     }
+
+    const qualityIssue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+    if (qualityIssue) {
+      log.warn("symbolic-product-quality-failed", {
+        requestId: input.requestId,
+        productKey: input.productKey,
+        qualityIssue,
+        resultLength: text.length,
+      });
+      return { text: fallback, metadata: { source: "heuristic", fallbackReason: `quality_failed:${qualityIssue}`, ...cardsMeta } };
+    }
+
+    const primaryResponse = responses[0];
 
     return {
       text,
       metadata: {
         source: "ai",
-        provider: response.provider,
-        model: response.model,
-        tokensIn: response.tokensIn,
-        tokensOut: response.tokensOut,
-        latencyMs: response.latencyMs,
+        provider: primaryResponse.provider,
+        model: primaryResponse.model,
+        providers: [...new Set(responses.map((response) => response.provider))],
+        models: [...new Set(responses.map((response) => response.model))],
+        generationParts: responses.length,
+        tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
+        tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
+        latencyMs: responses.reduce((sum, response) => sum + response.latencyMs, 0),
         ...cardsMeta,
       },
     };

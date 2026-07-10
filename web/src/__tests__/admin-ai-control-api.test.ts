@@ -21,7 +21,7 @@ jest.mock("@/lib/db", () => ({
   default: {
     aIProviderConfig: { findMany: jest.fn(), upsert: jest.fn() },
     aIRoutingPolicy: { findMany: jest.fn(), upsert: jest.fn() },
-    aIPromptConfig: { findMany: jest.fn(), upsert: jest.fn() },
+    aIPromptConfig: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn(), upsert: jest.fn() },
     aIRequest: { findMany: jest.fn() },
     aIProviderCredential: { findMany: jest.fn() },
     aIProviderModel: { findMany: jest.fn() },
@@ -59,6 +59,14 @@ describe("admin AI control API", () => {
     (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIRoutingPolicy.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIPromptConfig.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIPromptConfig.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIPromptConfig.create as jest.Mock).mockImplementation(async ({ data }) => ({
+      id: `prompt-${data.feature}`,
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    (mockDb.aIPromptConfig.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (mockDb.aIPromptConfig.upsert as jest.Mock).mockImplementation(async ({ create, update, where }) => ({
       id: `prompt-${where.feature}`,
       ...create,

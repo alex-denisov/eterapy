@@ -206,24 +206,24 @@ function ScrollStrip({ children, ariaLabel }: { children: ReactNode; ariaLabel: 
   }
 
   return (
-    <div className="tarot-strip">
+    <div className="product-option-strip">
       {canLeft && (
         <button
           type="button"
-          className="tarot-strip-arrow tarot-strip-arrow-left"
+          className="product-option-strip-arrow product-option-strip-arrow-left"
           onClick={() => scrollByDir(-1)}
           aria-label="Прокрутить влево"
         >
           <ChevronLeft className="size-4" aria-hidden="true" />
         </button>
       )}
-      <div ref={ref} className="tarot-strip-track" role="group" aria-label={ariaLabel} onScroll={update}>
+      <div ref={ref} className="product-option-strip-track" role="group" aria-label={ariaLabel} onScroll={update}>
         {children}
       </div>
       {canRight && (
         <button
           type="button"
-          className="tarot-strip-arrow tarot-strip-arrow-right"
+          className="product-option-strip-arrow product-option-strip-arrow-right"
           onClick={() => scrollByDir(1)}
           aria-label="Прокрутить вправо"
         >
@@ -492,13 +492,13 @@ export function SymbolicProductActions({
     // Блок управления: тема → расклад (компактная прокручиваемая лента, #2) →
     // вопрос → действие. После расклада он сворачивается в раскрываемый элемент.
     const controls = (
-      <div className="tarot-controls">
+      <div className="product-controls">
         <ScrollStrip ariaLabel="Категория вопроса">
           {TAROT_THEMES.map((theme) => (
             <button
               key={theme.key}
               type="button"
-              className={theme.label === tarotTheme ? "tarot-choice tarot-choice-active" : "tarot-choice"}
+              className={theme.label === tarotTheme ? "product-option-choice product-option-choice-active" : "product-option-choice"}
               onClick={() => { setTarotTheme(theme.label); setExampleIdx(0); }}
               aria-pressed={theme.label === tarotTheme}
               disabled={status === "loading"}
@@ -513,7 +513,7 @@ export function SymbolicProductActions({
             <button
               key={option.key}
               type="button"
-              className={option.key === tarotSpread ? "tarot-spread-choice tarot-choice-active" : "tarot-spread-choice"}
+              className={option.key === tarotSpread ? "tarot-spread-choice product-option-choice-active" : "tarot-spread-choice"}
               onClick={() => setTarotSpread(option.key)}
               aria-pressed={option.key === tarotSpread}
               title={option.helper}
@@ -524,18 +524,18 @@ export function SymbolicProductActions({
           ))}
         </ScrollStrip>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="symbolic-input-tarot">{promptLabel}</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="symbolic-input-tarot">{promptLabel}</label>
         <textarea
           id="symbolic-input-tarot"
           value={userInput}
           onChange={(event) => setUserInput(event.target.value)}
           placeholder={tarotPlaceholder}
           rows={2}
-          className="soft-question-input tarot-question-input tarot-compact-input"
+          className="soft-question-input product-question-input product-compact-input"
           disabled={status === "loading"}
         />
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button
               type="button"
@@ -568,9 +568,9 @@ export function SymbolicProductActions({
     );
 
     return (
-      <div className="soft-card tarot-order-surface" data-testid="tarot-product-actions">
+      <div className="soft-card product-order-surface" data-testid="tarot-product-actions">
         <div data-testid="symbolic-product-actions-tarot">
-          <div className="tarot-head">
+          <div className="product-order-head">
             <p className="soft-eyebrow">тема и расклад</p>
           </div>
 
@@ -580,18 +580,18 @@ export function SymbolicProductActions({
               чтения (показать/скрыть) — изменить их уже нельзя, услуга заказана. */}
           {hasReading ? (
             <details
-              className="tarot-controls-collapsed"
-              data-testid="tarot-recap"
+              className="product-controls-collapsed"
+              data-testid="product-recap"
               open={recapOpen}
               onToggle={(event) => setRecapOpen((event.currentTarget as HTMLDetailsElement).open)}
             >
               <summary>
-                <span className="tarot-collapsed-q">
+                <span className="product-collapsed-question">
                   {userInput.trim() ? `Вопрос: ${userInput.trim()}` : "Тема, вопрос и расклад"}
                 </span>
-                <span className="tarot-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
+                <span className="product-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
               </summary>
-              <dl className="tarot-recap">
+              <dl className="product-recap">
                 <div>
                   <dt>Тема</dt>
                   <dd>{tarotMeta?.theme ?? tarotTheme}</dd>

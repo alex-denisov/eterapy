@@ -15,7 +15,7 @@ export type InlineToken =
 export type MarkdownBlock =
   | { type: "heading"; level: number; tokens: InlineToken[] }
   | { type: "paragraph"; tokens: InlineToken[] }
-  | { type: "list"; ordered: boolean; items: InlineToken[][] };
+  | { type: "list"; ordered: boolean; start?: number; items: InlineToken[][] };
 
 const INLINE_PATTERN = /(\*\*[^*]+\*\*|`[^`\n]+`|\*[^*\n]+\*|_[^_\n]+_)/g;
 
@@ -44,13 +44,33 @@ export function parseInline(text: string): InlineToken[] {
   return tokens.length > 0 ? tokens : [{ type: "text", text }];
 }
 
+export function normalizeMarkdownLists(markdown: string): string {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .flatMap((rawLine) => {
+      let line = rawLine.replace(/^\s*[•–—]\s+/, "- ");
+      const orderedMarkers = [...line.matchAll(/(?:^|\s)\d{1,2}[.)]\s+/g)];
+      const bulletMarkers = [...line.matchAll(/(?:^|\s)[•-]\s+/g)];
+      if (orderedMarkers.length + bulletMarkers.length < 2) return [line];
+
+      line = line
+        .replace(/\s+(?=\d{1,2}[.)]\s+)/g, "\n")
+        .replace(/\s+(?=[•-]\s+)/g, "\n")
+        .replace(/^•\s+/gm, "- ");
+      return line.split("\n");
+    })
+    .join("\n");
+}
+
 export function parseMarkdownBlocks(markdown: string | null | undefined): MarkdownBlock[] {
   if (!markdown) return [];
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const lines = normalizeMarkdownLists(markdown).split("\n");
 
   const blocks: MarkdownBlock[] = [];
   let paragraph: string[] = [];
-  let list: { ordered: boolean; items: string[] } | null = null;
+  let list: { ordered: boolean; start?: number; items: string[] } | null = null;
+  let orderedItemsInSection = 0;
 
   const flushParagraph = () => {
     if (paragraph.length > 0) {
@@ -63,8 +83,10 @@ export function parseMarkdownBlocks(markdown: string | null | undefined): Markdo
       blocks.push({
         type: "list",
         ordered: list.ordered,
+        ...(list.ordered ? { start: list.start } : {}),
         items: list.items.map((item) => parseInline(item)),
       });
+      if (list.ordered) orderedItemsInSection += list.items.length;
       list = null;
     }
   };
@@ -87,6 +109,7 @@ export function parseMarkdownBlocks(markdown: string | null | undefined): Markdo
         level: Math.min(heading[1].length + 1, 5),
         tokens: parseInline(heading[2]),
       });
+      orderedItemsInSection = 0;
       continue;
     }
 
@@ -106,7 +129,7 @@ export function parseMarkdownBlocks(markdown: string | null | undefined): Markdo
       flushParagraph();
       if (!list || !list.ordered) {
         flushList();
-        list = { ordered: true, items: [] };
+        list = { ordered: true, start: orderedItemsInSection + 1, items: [] };
       }
       list.items.push(ordered[1]);
       continue;

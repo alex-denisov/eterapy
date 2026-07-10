@@ -221,11 +221,11 @@ export function ZodiacWheel({ wheel }: { wheel: NatalWheel }) {
           {wheel.sunSign.name}
         </text>
         <text x={WHEEL_CX} y={WHEEL_CY + 27} textAnchor="middle" fontSize="8" fill="var(--soft-muted,#7a7068)">
-          ASC {wheel.ascendant.glyph} {wheel.ascendant.name}
+          {wheel.ascendant ? `ASC ${wheel.ascendant.glyph} ${wheel.ascendant.name}` : "ASC —"}
         </text>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-[var(--soft-muted,#7a7068)]">
-        12 домов · 10 планет · аспекты · Солнце в {wheel.sunSign.name} · ASC {wheel.ascendant.name}
+        12 домов · 10 планет · аспекты · Солнце в {wheel.sunSign.name}{wheel.ascendant ? ` · ASC ${wheel.ascendant.name}` : ""}
       </figcaption>
     </figure>
   );
@@ -248,7 +248,7 @@ export function SynastryWheel({ wheel }: { wheel: SynastryWheel }) {
         </text>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-[var(--soft-muted,#7a7068)]">
-        bi-wheel: внешний круг — первый человек, внутренний — второй · зелёные линии ресурс, пунктир/бордо — напряжение
+        bi-wheel: внешний круг — вы, внутренний — партнёр · зелёные линии ресурс, пунктир/бордо — напряжение
       </figcaption>
     </figure>
   );

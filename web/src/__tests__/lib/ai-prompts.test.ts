@@ -3,6 +3,7 @@ import {
   applyAIPromptOverride,
   defaultPromptTextForFeature,
   listAIPromptConfigs,
+  mergeAIPromptOverride,
   serializeAIMessagesForAdmin,
   syncDefaultAIPromptConfigs,
 } from "@/lib/ai-gateway/prompts";
@@ -13,6 +14,8 @@ jest.mock("@/lib/db", () => ({
     aIPromptConfig: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
       upsert: jest.fn(),
     },
   },
@@ -31,6 +34,13 @@ describe("AI prompt configs", () => {
     jest.clearAllMocks();
     (mockDb.aIPromptConfig.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIPromptConfig.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIPromptConfig.create as jest.Mock).mockImplementation(async ({ data }) => ({
+      id: `prompt-${data.feature}`,
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    (mockDb.aIPromptConfig.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (mockDb.aIPromptConfig.upsert as jest.Mock).mockImplementation(async ({ create, update, where }) => ({
       id: `prompt-${where.feature}`,
       ...create,
@@ -89,6 +99,23 @@ describe("AI prompt configs", () => {
     });
   });
 
+  it("preserves runtime-calculated facts after an admin-managed prompt", () => {
+    const feature = "product-numerology";
+    const runtime = `${defaultPromptTextForFeature(feature)}\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.`;
+
+    expect(mergeAIPromptOverride(feature, runtime, "Owner numerology prompt")).toBe(
+      "Owner numerology prompt\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.",
+    );
+  });
+
+  it("keeps runtime facts inside the explicit defaultPrompt placeholder", () => {
+    const feature = "companion-chat";
+    const runtime = `${defaultPromptTextForFeature(feature)}\n\nДОЛГОСРОЧНАЯ ПАМЯТЬ КЛИЕНТА: важный факт.`;
+
+    expect(mergeAIPromptOverride(feature, runtime, "Before\n{{defaultPrompt}}\nAfter"))
+      .toContain("ДОЛГОСРОЧНАЯ ПАМЯТЬ КЛИЕНТА: важный факт.");
+  });
+
   it("syncs stale database prompts to the current Russian default revision without re-enabling disabled prompts", async () => {
     const staleUpdatedAt = new Date("2026-06-01T00:00:00.000Z");
     (mockDb.aIPromptConfig.findMany as jest.Mock)
@@ -106,12 +133,27 @@ describe("AI prompt configs", () => {
         },
       ])
       .mockResolvedValueOnce([]);
+    (mockDb.aIPromptConfig.findUnique as jest.Mock).mockImplementation(async ({ where }) => (
+      where.feature === "product-tarot"
+        ? {
+          id: "prompt-product-tarot",
+          feature: "product-tarot",
+          title: "Old Tarot",
+          productKey: "tarot",
+          promptText: "You are ETerapy. Return ONLY valid JSON.",
+          enabled: false,
+          metadata: { defaultPromptRevision: "old" },
+          createdAt: staleUpdatedAt,
+          updatedAt: staleUpdatedAt,
+        }
+        : null
+    ));
 
     await syncDefaultAIPromptConfigs();
 
-    expect(mockDb.aIPromptConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      where: { feature: "product-tarot" },
-      update: expect.objectContaining({
+    expect(mockDb.aIPromptConfig.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "prompt-product-tarot", updatedAt: staleUpdatedAt },
+      data: expect.objectContaining({
         title: "Расклад Таро",
         productKey: "tarot",
         promptText: defaultPromptTextForFeature("product-tarot"),
@@ -144,8 +186,47 @@ describe("AI prompt configs", () => {
 
     await syncDefaultAIPromptConfigs();
 
-    expect(mockDb.aIPromptConfig.upsert).not.toHaveBeenCalledWith(expect.objectContaining({
-      where: { feature: "product-tarot" },
+    expect(mockDb.aIPromptConfig.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: "prompt-product-tarot" }),
+    }));
+  });
+
+  it("does not overwrite an admin prompt saved after a stale sync snapshot", async () => {
+    const staleAt = new Date("2026-07-09T00:00:00.000Z");
+    const adminAt = new Date("2026-07-10T00:00:00.000Z");
+    (mockDb.aIPromptConfig.findMany as jest.Mock)
+      .mockResolvedValueOnce([{
+        id: "prompt-product-tarot",
+        feature: "product-tarot",
+        title: "Old code default",
+        productKey: "tarot",
+        promptText: "Old default",
+        enabled: true,
+        metadata: { defaultPromptRevision: "old", promptSource: "code-default" },
+        createdAt: staleAt,
+        updatedAt: staleAt,
+      }])
+      .mockResolvedValueOnce([]);
+    (mockDb.aIPromptConfig.findUnique as jest.Mock).mockImplementation(async ({ where }) => (
+      where.feature === "product-tarot"
+        ? {
+          id: "prompt-product-tarot",
+          feature: "product-tarot",
+          title: "Owner Tarot",
+          productKey: "tarot",
+          promptText: "Owner-edited tarot prompt",
+          enabled: true,
+          metadata: { promptSource: "admin", updatedBy: "superadmin-1" },
+          createdAt: staleAt,
+          updatedAt: adminAt,
+        }
+        : null
+    ));
+
+    await syncDefaultAIPromptConfigs();
+
+    expect(mockDb.aIPromptConfig.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: "prompt-product-tarot" }),
     }));
   });
 

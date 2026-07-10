@@ -86,8 +86,8 @@ describe("B462 — deep design-review polish batch", () => {
     const css = source("app/v4-soft.css");
 
     it("keeps the tarot/natal/HD order surface from looking like a validation error", () => {
-      expect(css).toMatch(/\.tarot-order-surface:focus-within\s*\{/);
-      const block = css.slice(css.indexOf(".tarot-order-surface:focus-within"));
+      expect(css).toMatch(/\.product-order-surface:focus-within\s*\{/);
+      const block = css.slice(css.indexOf(".product-order-surface:focus-within"));
       expect(block.slice(0, 220)).not.toContain("--soft-terracotta");
       expect(block.slice(0, 220)).toContain("--soft-paper-edge");
       expect(block.slice(0, 220)).toContain("--soft-shadow-sm");
@@ -97,7 +97,7 @@ describe("B462 — deep design-review polish batch", () => {
       // Regression guard: the surface's base styles live inside min-width:768 /
       // max-width:760 media blocks. The focus-within override must sit BEFORE
       // the first @media so mobile product forms do not get the old red tint.
-      expect(css.indexOf(".tarot-order-surface:focus-within")).toBeLessThan(css.indexOf("@media"));
+      expect(css.indexOf(".product-order-surface:focus-within")).toBeLessThan(css.indexOf("@media"));
     });
   });
 

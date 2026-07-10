@@ -181,14 +181,14 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
   const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card tarot-order-surface" data-testid="family-scenarios-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="family-scenarios-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">род · семейные сценарии</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
+      <div className="product-controls">
         <OptionScrollStrip ariaLabel="О чём это">
           {TOPICS.map((t) => (
             <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
@@ -198,26 +198,26 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
           ))}
         </OptionScrollStrip>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="family-input">что повторяется в вашей семье и роду</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="family-input">что повторяется в вашей семье и роду</label>
         <textarea
           id="family-input"
           value={pattern}
           onChange={(e) => setPattern(e.target.value.slice(0, 4000))}
           placeholder={placeholder}
           rows={3}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input product-question-input"
           disabled={status === "loading"}
           data-testid="family-input"
         />
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="family-question-input">ваш вопрос (необязательно)</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="family-question-input">ваш вопрос (необязательно)</label>
         <textarea
           id="family-question-input"
           value={question}
           onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
           placeholder="Например: какой сценарий я не хочу передавать дальше?"
           rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input product-question-input"
           disabled={status === "loading"}
           data-testid="family-question-input"
         />
@@ -226,7 +226,7 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
           <FamilyTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="family-start">
               {status === "loading" ? "Собираем карту…" : "Открыть семейные сценарии"}

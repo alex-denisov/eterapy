@@ -38,7 +38,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
       ["product-human-design", ["Дизайна человека", "## Тип и стратегия", "## Как применять дизайн"]],
       ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Что проверить в семейной истории"]],
       ["product-family-scenarios", ["системной семейной терапии", "## Что вы описали — узор повторов", "## Бережные шаги на ближайшее время"]],
-      ["product-synastry", ["астролог по синастрии", "## Общий рисунок связи", "## Что проверить в реальном разговоре"]],
+      ["product-synastry", ["астролог по синастрии", "## Общий рисунок связи", "## Главная динамика вашей пары"]],
     ];
     it.each(cases)("%s is expert-level and structured", (feature, markers) => {
       const prompt = defaultPromptTextForFeature(feature);
@@ -47,7 +47,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     });
 
     it("synastry never returns a verdict", () => {
-      expect(defaultPromptTextForFeature("product-synastry")).toContain("не выноси приговор");
+      expect(defaultPromptTextForFeature("product-synastry")).toMatch(/не выноси приговор/i);
     });
   });
 
@@ -126,8 +126,8 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     });
 
     it("uses compact one-line inputs for numerology and surname fields", () => {
-      expect(source("src/components/products/numerology-actions.tsx")).toContain("tarot-line-input");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("tarot-line-input");
+      expect(source("src/components/products/numerology-actions.tsx")).toContain("product-line-input");
+      expect(source("src/components/products/surname-story-actions.tsx")).toContain("product-line-input");
     });
   });
 

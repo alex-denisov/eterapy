@@ -38,12 +38,12 @@ describe("B456 — /products calm catalog redesign", () => {
     expect(catalog).toContain("/checkin");
   });
 
-  it("keeps the five calm section labels and the esoteric subtitle", () => {
+  it("keeps the five calm section labels without the redundant esoteric subtitle", () => {
     expect(catalog).toContain("С чего начать");
     expect(catalog).toContain("Разобраться самостоятельно");
     expect(catalog).toContain("Вместе");
     expect(catalog).toContain("Эзотерика");
-    expect(catalog).toContain("символический взгляд");
+    expect(catalog).not.toContain("символический взгляд");
     expect(catalog).toContain("Поговорить с человеком");
   });
 

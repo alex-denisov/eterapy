@@ -6,6 +6,9 @@ import {
   companionSafeguard,
   detectBotProbe,
   sanitizeCompanionReply,
+  startsWithAutomaticUnderstanding,
+  countCompanionQuestions,
+  limitCompanionQuestions,
   splitIntoMessages,
   typingDelayMs,
   BOT_PROBE_DEFLECTION,
@@ -65,6 +68,28 @@ describe("предохранители компаньона", () => {
     expect(sanitizeCompanionReply("")).toBe(BOT_PROBE_DEFLECTION);
   });
 
+  it("распознаёт автоматический старт «Понимаю» с кириллической границей", () => {
+    expect(startsWithAutomaticUnderstanding("Понимаю, насколько вам больно.")).toBe(true);
+    expect(startsWithAutomaticUnderstanding("Я понимаю: это неприятно.")).toBe(true);
+    expect(startsWithAutomaticUnderstanding("Понимающий взгляд иногда помогает.")).toBe(false);
+    expect(startsWithAutomaticUnderstanding("Здесь вас публично унизили.")).toBe(false);
+  });
+
+  it("считает вопросительную конструкцию вопросом даже без вопросительного знака", () => {
+    expect(countCompanionQuestions("Что именно сказал начальник? Это один вопрос.")).toBe(1);
+    expect(countCompanionQuestions("Что именно сказал начальник? Как вы думаете, зачем он это сделал.")).toBe(2);
+    expect(countCompanionQuestions("Назовите точные слова начальника. Затем отделим факт от вашей оценки.")).toBe(0);
+  });
+
+  it("детерминированно удаляет все вопросительные предложения после первого", () => {
+    const limited = limitCompanionQuestions("Что именно сказал начальник? Это поможет отделить факт от оценки. Как вы думаете, зачем он это сделал.");
+    expect(countCompanionQuestions(limited)).toBe(1);
+    expect(limited).toContain("Что именно сказал начальник?");
+    expect(limited).toContain("Это поможет отделить факт от оценки.");
+    expect(limited).not.toContain("Как вы думаете");
+    expect(countCompanionQuestions(sanitizeCompanionReply("Что произошло? Почему это повторяется? Назовите один факт."))).toBe(1);
+  });
+
   it("системный промт несёт ключевые правила во всех режимах", () => {
     for (const mode of ["stay", "explore", "question"] as const) {
       const prompt = buildCompanionSystemPrompt(mode);
@@ -72,17 +97,19 @@ describe("предохранители компаньона", () => {
       expect(prompt).toMatch(/не раскрывай свою природу/i);
       expect(prompt).toMatch(/диагноз/i);
       expect(prompt).toMatch(/срочн|экстренн/i);
+      expect(prompt).toMatch(/не начинай.*понимаю/i);
     }
   });
 
-  it("ритм печати: задержка в разумных границах, длинный ответ дробится", () => {
+  it("ритм печати: задержка в разумных границах, ответ не превращается в шквал пузырей", () => {
     expect(typingDelayMs("")).toBeGreaterThanOrEqual(1000);
     expect(typingDelayMs("ы".repeat(5000))).toBeLessThanOrEqual(9000);
     const longReply = "Первое довольно длинное предложение про то, что вы чувствуете прямо сейчас. "
       + "Второе предложение, которое помогает мягко прояснить ситуацию и не торопиться с выводами. "
       + "Третье предложение, предлагающее один маленький посильный шаг на ближайшее время.";
     const parts = splitIntoMessages(longReply);
-    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.length).toBeLessThanOrEqual(2);
+    expect(parts.length).toBeGreaterThanOrEqual(1);
     expect(parts.join(" ")).toContain("Первое довольно длинное предложение");
   });
 });

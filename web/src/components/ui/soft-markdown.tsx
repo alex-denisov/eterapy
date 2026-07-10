@@ -51,6 +51,7 @@ export function SoftMarkdown({
           return (
             <ListTag
               key={i}
+              {...(block.ordered && block.start ? { start: block.start } : {})}
               className={cn(
                 "space-y-1.5 pl-5",
                 block.ordered ? "list-decimal" : "list-disc",

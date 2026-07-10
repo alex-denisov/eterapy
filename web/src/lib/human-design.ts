@@ -351,6 +351,7 @@ const CITY_OFFSETS: Array<{ match: RegExp; offset: number }> = [
   { match: /калининград/i, offset: 2 },
   { match: /москв|санкт|петербург|питер|спб|минск|мск/i, offset: 3 },
   { match: /киев|kyiv|kiev|одесс/i, offset: 2 },
+  { match: /кишин[её]в|chisinau|chișinău/i, offset: 3 },
   { match: /самар|ижевск/i, offset: 4 },
   { match: /екатеринбург|уфа|челябинск|пермь/i, offset: 5 },
   { match: /омск/i, offset: 6 },

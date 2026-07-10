@@ -41,6 +41,22 @@ describe("markdown parser (T17)", () => {
       expect(blocks[0]).toMatchObject({ type: "list", ordered: true });
     });
 
+    it("turns an inline model-generated sequence into a real ordered list", () => {
+      const blocks = parseMarkdownBlocks("Гипотезы: 1. Первая версия. 1. Вторая версия. 1. Третья версия.");
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toMatchObject({ type: "paragraph" });
+      expect(blocks[1]).toMatchObject({ type: "list", ordered: true, start: 1 });
+      if (blocks[1].type === "list") expect(blocks[1].items).toHaveLength(3);
+    });
+
+    it("continues ordered numbering across bullet sublists inside one section", () => {
+      const blocks = parseMarkdownBlocks("## Развилки\n1. Первый путь\n- плюс\n- риск\n1. Второй путь");
+      const ordered = blocks.filter((block) => block.type === "list" && block.ordered);
+      expect(ordered).toHaveLength(2);
+      expect(ordered[0]).toMatchObject({ start: 1 });
+      expect(ordered[1]).toMatchObject({ start: 2 });
+    });
+
     it("treats blank-line separated text as distinct paragraphs", () => {
       const blocks = parseMarkdownBlocks("First para.\n\nSecond para.");
       expect(blocks).toHaveLength(2);

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { DEEP_REPORT_SECTIONS, DEEP_REPORT_SYSTEM_PROMPT } from "@/lib/deep-report-prompt";
 import { log, serializeError } from "@/lib/logger";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 
 export { DEEP_REPORT_SECTIONS, DEEP_REPORT_SYSTEM_PROMPT };
 
@@ -55,8 +56,9 @@ export function buildDeepReportTeaser(sourceText: string, generatedText: string)
 }
 
 function normalizeReport(text: string): string {
-  // Полный разбор целится в >=3500 слов; даём запас до 32k символов.
-  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 32000);
+  // A 3000–4500-word Russian report can exceed 32k characters. Preserve the
+  // complete validated document instead of silently truncating its final sections.
+  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 60_000);
 }
 
 export function heuristicDeepReport(sourceText: string): string {
@@ -100,39 +102,69 @@ export async function generateDeepReport(input: DeepReportInput): Promise<{ text
   const fallback = heuristicDeepReport(input.sourceText);
 
   try {
-    const response = await aiComplete({
-      feature: "product-deep-report",
-      userId: input.userId,
-      requestId: input.requestId,
-      maxTokens: 11000,
-      temperature: 0.55,
-      messages: [
-        { role: "system", content: DEEP_REPORT_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            input.contextNote ? `Контекст:\n${input.contextNote}` : "",
-            "Ситуация для подробного разбора (разбери её глубоко и по всем восьми разделам):",
-            input.sourceText.slice(0, 8000),
-          ].filter(Boolean).join("\n"),
-        },
-      ],
-    });
+    const sectionGroups = DEEP_REPORT_SECTIONS.map((title) => [title] as const);
+    const parts = await Promise.all(sectionGroups.map(async (titles, partIndex) => {
+      const generatePart = (repairReason?: string) => aiComplete({
+        feature: "product-deep-report",
+        userId: input.userId,
+        requestId: input.requestId ? `${input.requestId}:part-${partIndex + 1}${repairReason ? ":repair" : ""}` : undefined,
+        maxTokens: 4200,
+        temperature: repairReason ? 0.4 : 0.52,
+        messages: [
+          { role: "system", content: DEEP_REPORT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              repairReason === "раздел короче 350 слов"
+                ? "Предыдущий текст раздела уже сохранён. Напиши к нему самостоятельное ДОПОЛНЕНИЕ на 220–320 новых слов: добавь новые конкретные наблюдения, примеры и инструкции, не повторяй уже сказанное. Сохрани тот же заголовок."
+                : repairReason
+                  ? `Предыдущая версия не прошла проверку: ${repairReason}. Перепиши раздел полностью.`
+                  : "",
+              input.contextNote ? `Контекст:\n${input.contextNote}` : "",
+              "Ситуация для подробного разбора:",
+              input.sourceText.slice(0, 8000),
+              `Сейчас напиши ТОЛЬКО этот раздел: ## ${titles[0]}.`,
+              "Раздел должен содержать 400–550 слов, 5–7 содержательных абзацев, конкретные детали исходной ситуации и полностью расписанные практические рекомендации. Не добавляй остальные разделы.",
+            ].filter(Boolean).join("\n\n"),
+          },
+        ],
+      });
 
-    const text = normalizeReport(response.text);
-    if (text.length < 800) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response" } };
+      let response = await generatePart();
+      const responses = [response];
+      let extracted = extractDeepReportPart(response.text, titles);
+      let issue = deepReportPartIssue(extracted, titles);
+      if (issue) {
+        const previousIssue = issue;
+        response = await generatePart(previousIssue);
+        responses.push(response);
+        const repaired = extractDeepReportPart(response.text, titles);
+        extracted = previousIssue === "раздел короче 350 слов"
+          ? mergeDeepReportSection(titles[0], extracted, repaired)
+          : repaired;
+        issue = deepReportPartIssue(extracted, titles);
+      }
+      if (issue) throw new Error(`deep-report-part-${partIndex + 1}:${issue}`);
+      return { text: extracted, responses };
+    }));
+
+    const text = normalizeReport(parts.map((part) => part.text).join("\n\n"));
+    if (wordCount(text) < 2_800 || DEEP_REPORT_SECTIONS.some((title) => !text.includes(`## ${title}`))) {
+      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "assembled_report_failed_quality" } };
     }
 
+    const responses = parts.flatMap((part) => part.responses);
     return {
       text,
       metadata: {
         source: "ai",
-        provider: response.provider,
-        model: response.model,
-        tokensIn: response.tokensIn,
-        tokensOut: response.tokensOut,
-        latencyMs: response.latencyMs,
+        provider: responses[0].provider,
+        model: [...new Set(responses.map((response) => response.model))].join(","),
+        tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
+        tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
+        latencyMs: Math.max(...responses.map((response) => response.latencyMs)),
+        parts: parts.length,
+        generationCalls: responses.length,
       },
     };
   } catch (error) {
@@ -142,4 +174,33 @@ export async function generateDeepReport(input: DeepReportInput): Promise<{ text
     });
     return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
   }
+}
+
+function wordCount(text: string) {
+  return text.trim().split(/\s+/u).filter(Boolean).length;
+}
+
+function extractDeepReportPart(text: string, titles: readonly string[]) {
+  const normalized = normalizeResultSectionHeadings("deep-report", text);
+  const sections = splitSections(normalized);
+  return titles.map((title) => {
+    const section = sections.find((candidate) => candidate.title.toLowerCase() === title.toLowerCase());
+    return section ? `## ${title}\n${section.body}` : "";
+  }).filter(Boolean).join("\n\n");
+}
+
+function mergeDeepReportSection(title: string, first: string, supplement: string) {
+  const bodies = [first, supplement].map((text) => {
+    const normalized = normalizeResultSectionHeadings("deep-report", text);
+    return splitSections(normalized).find((section) => section.title.toLowerCase() === title.toLowerCase())?.body.trim() ?? "";
+  }).filter(Boolean);
+  return bodies.length > 0 ? `## ${title}\n${bodies.join("\n\n")}` : "";
+}
+
+function deepReportPartIssue(text: string, titles: readonly string[]): string | null {
+  if (titles.some((title) => !text.includes(`## ${title}`))) return "нет одного из обязательных заголовков";
+  if (/\b(?:клиент|пользователь|заявитель)\b/iu.test(text)) return "автор описывает заказчика в третьем лице";
+  if (/\b(?:почитайте|поищите книгу|изучите литературу)\b/iu.test(text)) return "рекомендация отправляет читать вместо полной инструкции";
+  if (wordCount(text) < 350) return "раздел короче 350 слов";
+  return null;
 }

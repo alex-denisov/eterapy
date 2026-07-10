@@ -7,6 +7,7 @@ import db from "@/lib/db";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { getSubscriptionPlanLabel } from "@/lib/billing-labels";
+import { getClarityCreditBalances } from "@/lib/clarity-credits";
 import { PageContainer } from "@/components/ui/page-container";
 import { UsersControlPanel, type AdminUserRow } from "./users-control-panel";
 
@@ -135,14 +136,15 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
 async function addExactCountFilters(where: Prisma.UserWhereInput, params: SearchParams) {
   const credits = parseExactNumber(params.credits);
   if (credits !== null) {
-    const creditRows = await db.clarityCreditLedgerEntry.groupBy({
-      by: ["userId"],
+    const creditRows = await db.clarityCreditLedgerEntry.findMany({
       where: { status: { in: ["pending", "confirmed"] } },
-      _sum: { amount: true },
+      select: { userId: true },
+      distinct: ["userId"],
     });
-    const matchingIds = creditRows
-      .filter((row) => (row._sum.amount ?? 0) === credits)
-      .map((row) => row.userId);
+    const creditBalances = await getClarityCreditBalances(creditRows.map((row) => row.userId));
+    const matchingIds = [...creditBalances]
+      .filter(([, balance]) => balance === credits)
+      .map(([userId]) => userId);
     addAnd(where, credits === 0
       ? {
         role: Role.CLIENT,
@@ -422,16 +424,10 @@ export default async function AdminUsersPage(props: {
     permissionsByUser.set(row.moderatorId, list);
   }
 
-  // T4: clarity-credit balance per client (active pending+confirmed ledger sum).
+  // Use the same open-lot calculation as spending and admin adjustments. A raw
+  // ledger sum includes expired grants and makes a requested target appear larger.
   const clientIds = users.filter((u) => u.role === Role.CLIENT).map((u) => u.id);
-  const creditSums = clientIds.length > 0
-    ? await db.clarityCreditLedgerEntry.groupBy({
-      by: ["userId"],
-      where: { userId: { in: clientIds }, status: { in: ["pending", "confirmed"] } },
-      _sum: { amount: true },
-    })
-    : [];
-  const creditByUser = new Map(creditSums.map((row) => [row.userId, row._sum.amount ?? 0]));
+  const creditByUser = await getClarityCreditBalances(clientIds);
 
   const [fraudEvents, referralRisks] = clientIds.length > 0
     ? await Promise.all([

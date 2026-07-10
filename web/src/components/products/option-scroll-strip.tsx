@@ -3,12 +3,18 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// Горизонтально прокручиваемая лента выбора в дизайне Таро (.tarot-strip /
-// .tarot-strip-track / .tarot-choice). Вынесена для переиспользования в услугах
-// «Переосмысление» и «Подробный разбор», чтобы блоки выбора темы и характера
-// вопроса выглядели идентично таро. Стрелка появляется только если есть куда
-// скроллить; клик плавно сдвигает ленту.
-export function OptionScrollStrip({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) {
+// Shared horizontally scrollable selector for compact product controls.
+export function OptionScrollStrip({
+  children,
+  ariaLabel,
+  label,
+  hint,
+}: {
+  children: ReactNode;
+  ariaLabel: string;
+  label?: string;
+  hint?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -36,35 +42,43 @@ export function OptionScrollStrip({ children, ariaLabel }: { children: ReactNode
   }
 
   return (
-    <div className="tarot-strip">
-      {canLeft && (
-        <button
-          type="button"
-          className="tarot-strip-arrow tarot-strip-arrow-left"
-          onClick={() => scrollByDir(-1)}
-          aria-label="Прокрутить влево"
-        >
-          <ChevronLeft className="size-4" aria-hidden="true" />
-        </button>
+    <div className={label ? "product-option-group" : undefined}>
+      {label && (
+        <div className="mb-2">
+          <p className="soft-eyebrow product-question-label !mt-0">{label}</p>
+          {hint && <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{hint}</p>}
+        </div>
       )}
-      <div ref={ref} className="tarot-strip-track" role="group" aria-label={ariaLabel} onScroll={update}>
-        {children}
+      <div className="product-option-strip">
+        {canLeft && (
+          <button
+            type="button"
+            className="product-option-strip-arrow product-option-strip-arrow-left"
+            onClick={() => scrollByDir(-1)}
+            aria-label="Прокрутить влево"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </button>
+        )}
+        <div ref={ref} className="product-option-strip-track" role="group" aria-label={ariaLabel} onScroll={update}>
+          {children}
+        </div>
+        {canRight && (
+          <button
+            type="button"
+            className="product-option-strip-arrow product-option-strip-arrow-right"
+            onClick={() => scrollByDir(1)}
+            aria-label="Прокрутить вправо"
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
-      {canRight && (
-        <button
-          type="button"
-          className="tarot-strip-arrow tarot-strip-arrow-right"
-          onClick={() => scrollByDir(1)}
-          aria-label="Прокрутить вправо"
-        >
-          <ChevronRight className="size-4" aria-hidden="true" />
-        </button>
-      )}
     </div>
   );
 }
 
-// Одна кнопка-чип ленты в дизайне Таро (.tarot-choice / .tarot-choice-active).
+// One chip inside a shared option strip.
 export function OptionChoice({
   active,
   onClick,
@@ -81,7 +95,7 @@ export function OptionChoice({
   return (
     <button
       type="button"
-      className={active ? "tarot-choice tarot-choice-active" : "tarot-choice"}
+      className={active ? "product-option-choice product-option-choice-active" : "product-option-choice"}
       onClick={onClick}
       aria-pressed={active}
       disabled={disabled}

@@ -307,7 +307,7 @@ describe("B087/B088 chat analysis product", () => {
       const { container } = render(React.createElement(ChatAnalysisActions));
       expect(await screen.findByTestId("chat-analysis-result")).toBeInTheDocument();
       expect(screen.getByText("Здесь есть попытка сблизиться без ясной договоренности.")).toBeInTheDocument();
-      expect(container.querySelector('[data-testid="chat-analysis-result-shell"]')).toHaveClass("tarot-order-surface");
+      expect(container.querySelector('[data-testid="chat-analysis-result-shell"]')).toHaveClass("product-order-surface");
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/products/chat-analysis/analysis-1", expect.anything()));
     } finally {
       global.fetch = originalFetch;

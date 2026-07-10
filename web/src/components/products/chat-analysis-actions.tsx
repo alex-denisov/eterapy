@@ -6,6 +6,7 @@ import { ArrowRight, Check, CheckCheck, CircleHelp, Compass, Copy, FileText, Fil
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { OptionChoice, OptionScrollStrip } from "@/components/products/option-scroll-strip";
 import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { pointsWord } from "@/lib/points";
@@ -1484,51 +1485,37 @@ export function ChatAnalysisActions() {
             <p className="font-heading text-[1.04rem] text-[var(--soft-ink-strong)]">Контекст для точного разбора</p>
 
             <div className="mt-3.5 flex flex-col gap-3.5">
+              <OptionScrollStrip
+                ariaLabel="Кто собеседник"
+                label="кто собеседник"
+                hint="Это помогает правильно читать роли, дистанцию и допустимый тон ответа."
+              >
+                {CONTACTS.map((c) => (
+                  <OptionChoice key={c} active={contact === c} onClick={() => setContact(contact === c ? null : c)}>
+                    {c}
+                  </OptionChoice>
+                ))}
+              </OptionScrollStrip>
+              <OptionScrollStrip
+                ariaLabel="Что вы сейчас чувствуете"
+                label="что вы сейчас чувствуете"
+                hint="Выберите настоящее чувство, а не стиль переписки или предполагаемое намерение."
+              >
+                {emotionOptions.map((e) => (
+                  <OptionChoice key={e} active={emotion === e} onClick={() => setEmotion(emotion === e ? null : e)}>
+                    {e}
+                  </OptionChoice>
+                ))}
+              </OptionScrollStrip>
               <div>
-                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Кто собеседник?</label>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {CONTACTS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setContact(contact === c ? null : c)}
-                      className={`rounded-full px-2.5 py-1 text-[12.5px] transition ${
-                        contact === c
-                          ? "bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-                          : "bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)] hover:bg-[var(--soft-paper-edge)]"
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Что вы сейчас чувствуете?</label>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {emotionOptions.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => setEmotion(emotion === e ? null : e)}
-                      className={`rounded-full px-2.5 py-1 text-[12.5px] transition ${
-                        emotion === e
-                          ? "bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-                          : "bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)] hover:bg-[var(--soft-paper-edge)]"
-                      }`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Что хочется получить от разбора?</label>
+                <label className="soft-eyebrow product-question-label" htmlFor="chat-analysis-goal">что хочется получить от разбора</label>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">Напишите конкретный результат: понять паузу, проверить свою трактовку или подготовить ответ.</p>
                 <textarea
+                  id="chat-analysis-goal"
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
-                  placeholder="Понять, почему меня это так задевает. И как ответить, чтобы не было хуже."
-                  className="soft-question-input mt-2"
+                  placeholder="Например: понять, почему Паша перестал отвечать после отъезда, и выбрать сообщение без давления."
+                  className="soft-question-input product-question-input product-compact-input mt-2"
                   rows={2}
                 />
               </div>
@@ -1566,13 +1553,13 @@ export function ChatAnalysisActions() {
 
       {/* tab 3: result */}
       {tab === "result" && result && (
-        <div className="soft-card tarot-order-surface chat-analysis-result-shell" data-testid="chat-analysis-result-shell">
-          <div className="tarot-head">
+        <div className="soft-card product-order-surface chat-analysis-result-shell" data-testid="chat-analysis-result-shell">
+          <div className="product-order-head">
             <p className="soft-eyebrow">разбор готов</p>
           </div>
 
           {sourceText.trim() && (
-            <section className="tarot-controls-collapsed" data-testid="chat-analysis-recap" data-state={showResultSource ? "open" : "closed"}>
+            <section className="product-controls-collapsed" data-testid="chat-analysis-recap" data-state={showResultSource ? "open" : "closed"}>
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 rounded-[0.9rem] px-[0.85rem] py-[0.6rem] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--soft-terracotta)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--soft-paper-card)]"
@@ -1580,11 +1567,11 @@ export function ChatAnalysisActions() {
                 data-testid="chat-analysis-recap-toggle"
                 onClick={() => setShowResultSource((open) => !open)}
               >
-                <span className="tarot-collapsed-q">Переписка и контекст</span>
-                <span className="tarot-collapsed-hint">{showResultSource ? "скрыть" : "показать"}</span>
+                <span className="product-collapsed-question">Переписка и контекст</span>
+                <span className="product-collapsed-hint">{showResultSource ? "скрыть" : "показать"}</span>
               </button>
               {showResultSource && (
-                <dl className="tarot-recap">
+                <dl className="product-recap">
                   <div>
                     <dt>Источник</dt>
                     <dd>

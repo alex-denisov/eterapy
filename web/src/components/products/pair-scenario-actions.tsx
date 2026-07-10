@@ -75,8 +75,8 @@ export function PairScenarioActions({
               role="tab"
               aria-selected={isActive}
               onClick={() => setActive(scenario.key)}
-              className={`tarot-choice flex-1 inline-flex items-center justify-center gap-2 ${
-                isActive ? "tarot-choice-active" : ""
+              className={`product-option-choice flex-1 inline-flex items-center justify-center gap-2 ${
+                isActive ? "product-option-choice-active" : ""
               }`}
               data-testid={`pair-scenario-pill-${scenario.key}`}
               data-active={isActive}

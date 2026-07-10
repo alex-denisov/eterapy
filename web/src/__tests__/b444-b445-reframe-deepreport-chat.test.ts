@@ -49,7 +49,7 @@ describe("B444 reframe/deep-report self-contained, tarot-style intake", () => {
   const deep = source("src/components/products/deep-report-actions.tsx");
 
   it("reframe intake adopts the tarot surface and drops the free preview + PDF + badge", () => {
-    expect(reframe).toContain("tarot-order-surface");
+    expect(reframe).toContain("product-order-surface");
     expect(reframe).toContain("OptionScrollStrip");
     expect(reframe).toContain('action: "generate"');
     expect(reframe).not.toContain('action: "preview"');
@@ -65,7 +65,7 @@ describe("B444 reframe/deep-report self-contained, tarot-style intake", () => {
   });
 
   it("deep-report intake drops the TOC preview + badge + PDF and uses an accordion result", () => {
-    expect(deep).toContain("tarot-order-surface");
+    expect(deep).toContain("product-order-surface");
     expect(deep).toContain("OptionScrollStrip");
     expect(deep).not.toContain("оглавление полного разбора");
     expect(deep).not.toContain("Скачать PDF");

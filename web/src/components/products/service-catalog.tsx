@@ -84,10 +84,9 @@ const GROUPS: ServiceGroup[] = [
     id: "esoteric",
     nav: "Эзотерика",
     title: "Эзотерика",
-    subtitle: "символический взгляд",
     layout: "grid",
     cards: [
-      { id: "tarot-d", title: "Расклад Таро", desc: "Бережная интерпретация расклада", price: price("tarot"), href: "/products/tarot", icon: Moon },
+      { id: "tarot-d", title: "Расклад Таро", desc: "Гадательное чтение выпавших карт", price: price("tarot"), href: "/products/tarot", icon: Moon },
       { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор карты", price: price("natal-chart"), href: "/products/natal-chart", icon: Compass },
       { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом", price: price("synastry"), href: "/products/synastry", icon: Compass },
       { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор", price: price("numerology"), href: "/products/numerology", icon: Sparkles },

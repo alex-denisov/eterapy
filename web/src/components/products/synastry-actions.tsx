@@ -41,22 +41,6 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 
 const TOPICS = ["сближение", "доверие", "ссоры", "будущее", "быт", "кризис"];
 
-const EXAMPLES_BY_TOPIC: Record<string, string[]> = {
-  "сближение": ["Почему нам то тепло, то снова дистанция?"],
-  "доверие": ["Как нам вернуть доверие после трудного периода?"],
-  "ссоры": ["Почему мы часто ссоримся перед важными решениями?"],
-  "будущее": ["Куда мы движемся как пара и совпадают ли наши ритмы?"],
-  "быт": ["Как нам делить быт и не копить раздражение?"],
-  "кризис": ["Мы в кризисе — что нам помогает услышать друг друга?"],
-};
-const EXAMPLES_DEFAULT = [
-  "Например: почему мы часто ссоримся перед важными решениями?",
-  "Опишите, что хотите понять как пара — разбор свяжет карты с вашим вопросом.",
-];
-function examplesForTopic(topic: string | null): string[] {
-  return (topic && EXAMPLES_BY_TOPIC[topic]) || EXAMPLES_DEFAULT;
-}
-
 function extractSynastryWheel(result: SymbolicResult | null): SynastryWheelData | null {
   const md = result?.metadata;
   if (!md || typeof md !== "object") return null;
@@ -76,11 +60,11 @@ function SynastryVisual({ result }: { result: SymbolicResult }) {
       <SynastryWheel wheel={wheel} />
       <div className="mt-3 grid grid-cols-2 gap-2.5" data-testid="synastry-facts">
         <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">солнце · первый</p>
+          <p className="soft-eyebrow text-[0.6rem]">ваше солнце</p>
           <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{wheel.a.sunSign.name}</p>
         </div>
         <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">солнце · второй</p>
+          <p className="soft-eyebrow text-[0.6rem]">солнце партнёра</p>
           <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{wheel.b.sunSign.name}</p>
         </div>
       </div>
@@ -108,14 +92,13 @@ export function SynastryResultView({
   creditCost,
 }: {
   result: SymbolicResult;
-  recap: { userBirth: string; partnerBirth: string; question: string; topic: string | null };
+  recap: { userBirth: string; partnerBirth: string; topic: string | null };
   onStartNew: () => void;
   creditCost: number;
 }) {
   const recapRows = [
     recap.userBirth.trim() ? { label: "Ваши данные", value: recap.userBirth.trim() } : null,
     recap.partnerBirth.trim() ? { label: "Данные партнёра", value: recap.partnerBirth.trim() } : null,
-    recap.question.trim() ? { label: "Вопрос пары", value: recap.question.trim() } : null,
     recap.topic ? { label: "О чём", value: recap.topic } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
 
@@ -124,13 +107,13 @@ export function SynastryResultView({
       productKey="synastry"
       eyebrow="совместимость по звёздам"
       heading="Ваша карта пары"
-      recapSummary={recap.question.trim() ? `Вопрос: ${recap.question.trim()}` : "Данные пары и вопрос"}
+      recapSummary="Данные вашей пары"
       recapRows={recapRows}
       visual={<SynastryVisual result={result} />}
       resultText={result.resultText ?? ""}
       topic={recap.topic}
       creditCost={creditCost}
-      repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор пары", description: "Свежая совместимость по новым данным или вопросу.", ctaLabel: "Начать" }}
+      repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор пары", description: "Свежая совместимость по новым данным и выбранному фокусу.", ctaLabel: "Начать" }}
       onStartNew={onStartNew}
     />
   );
@@ -144,20 +127,17 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
   const [result, setResult] = useState<SymbolicResult | null>(null);
   const [userBirth, setUserBirth] = useState("");
   const [partnerBirth, setPartnerBirth] = useState("");
-  const [question, setQuestion] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [exampleIdx, setExampleIdx] = useState(0);
 
   // #3: ввод обоих участников переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
     "synastry",
-    { userBirth, partnerBirth, question, topic },
+    { userBirth, partnerBirth, topic },
     (draft) => {
       if (typeof draft.userBirth === "string") setUserBirth(draft.userBirth);
       if (typeof draft.partnerBirth === "string") setPartnerBirth(draft.partnerBirth);
-      if (typeof draft.question === "string") setQuestion(draft.question);
       if (typeof draft.topic === "string") setTopic(draft.topic);
     },
     { active: !result },
@@ -173,11 +153,11 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
       .then((payload) => {
         if (cancelled || !payload.result) return;
         setResult(payload.result);
-        const md = payload.result.metadata as { userBirthData?: unknown; partnerBirthData?: unknown; question?: unknown } | undefined;
+        const md = payload.result.metadata as { userBirthData?: unknown; partnerBirthData?: unknown; topic?: unknown } | undefined;
         if (md) {
           if (typeof md.userBirthData === "string") setUserBirth(md.userBirthData);
           if (typeof md.partnerBirthData === "string") setPartnerBirth(md.partnerBirthData);
-          if (typeof md.question === "string") setQuestion(md.question);
+          if (typeof md.topic === "string") setTopic(md.topic);
         }
       })
       .catch(() => undefined);
@@ -192,12 +172,6 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [authStatus]);
-
-  useEffect(() => {
-    if (result) return;
-    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
-    return () => window.clearInterval(id);
-  }, [result]);
 
   async function generate() {
     if (!isAuthenticated) {
@@ -214,7 +188,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/synastry", {
         method: "POST",
-        body: JSON.stringify({ userBirthData: userBirth, partnerBirthData: partnerBirth, question: question.trim() || undefined }),
+        body: JSON.stringify({ userBirthData: userBirth, partnerBirthData: partnerBirth, topic: topic ?? undefined }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       const next = payload.result ?? null;
@@ -246,7 +220,6 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
     setResult(null);
     setUserBirth("");
     setPartnerBirth("");
-    setQuestion("");
     setTopic(null);
     setMessage(null);
     setStatus("idle");
@@ -262,29 +235,26 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
     return (
       <SynastryResultView
         result={result}
-        recap={{ userBirth, partnerBirth, question, topic }}
+        recap={{ userBirth, partnerBirth, topic }}
         onStartNew={startNew}
         creditCost={creditCost}
       />
     );
   }
 
-  const placeholderExamples = examplesForTopic(topic);
-  const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
-
   return (
-    <div className="soft-card tarot-order-surface" data-testid="synastry-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="synastry-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">совместимость по звёздам · язык пары</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём вопрос пары">
+      <div className="product-controls">
+        <OptionScrollStrip ariaLabel="Фокус совместимости" label="фокус совместимости" hint="Выберите слой отношений, который нужно прочитать подробнее по двум картам.">
           {TOPICS.map((t) => (
             <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
-              onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
+              onClick={() => setTopic(topic === t ? null : t)}>
               {t}
             </OptionChoice>
           ))}
@@ -292,48 +262,36 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="soft-eyebrow tarot-question-label" htmlFor="synastry-user-birth">ваши данные рождения</label>
+            <label className="soft-eyebrow product-question-label" htmlFor="synastry-user-birth">ваши данные рождения</label>
             <input
               id="synastry-user-birth"
               value={userBirth}
               onChange={(e) => setUserBirth(e.target.value.slice(0, 400))}
               placeholder="12.04.1992, 14:35, Москва"
-              className="soft-question-input tarot-question-input tarot-line-input"
+              className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
               data-testid="synastry-user-birth"
             />
           </div>
           <div>
-            <label className="soft-eyebrow tarot-question-label" htmlFor="synastry-partner-birth">данные партнёра</label>
+            <label className="soft-eyebrow product-question-label" htmlFor="synastry-partner-birth">данные партнёра</label>
             <input
               id="synastry-partner-birth"
               value={partnerBirth}
               onChange={(e) => setPartnerBirth(e.target.value.slice(0, 400))}
               placeholder="09.11.1990, 08:10, Санкт-Петербург"
-              className="soft-question-input tarot-question-input tarot-line-input"
+              className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
               data-testid="synastry-partner-birth"
             />
           </div>
         </div>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="synastry-question">вопрос пары (необязательно)</label>
-        <textarea
-          id="synastry-question"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
-          placeholder={placeholder}
-          rows={2}
-          className="soft-question-input tarot-question-input tarot-compact-input"
-          disabled={status === "loading"}
-          data-testid="synastry-question"
-        />
-
         <div className="mt-1">
           <SynastryTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={generate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="synastry-start">
               {status === "loading" ? "Собираем карту пары…" : "Открыть совместимость"}

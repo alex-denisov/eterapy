@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -18,24 +18,6 @@ export type NumerologyResult = SymbolicResult;
 
 const TOPICS = ["самопознание", "работа", "отношения", "любовь", "семья", "деньги", "перемены", "предназначение"];
 
-const EXAMPLES_BY_TOPIC: Record<string, string[]> = {
-  "самопознание": ["Хочу понять свой повторяющийся ритм и сильную сторону."],
-  "работа": ["Куда мне приложить силы, чтобы не идти против себя?"],
-  "отношения": ["Какой сценарий я повторяю в отношениях?"],
-  "любовь": ["Что мне важно понять про себя в близости?"],
-  "семья": ["Какую роль я несу в семье по привычке?"],
-  "деньги": ["Какой у меня ритм с деньгами и где он сбивается?"],
-  "перемены": ["Сейчас год перемен или год опоры — на что ориентироваться?"],
-  "предназначение": ["В чём мой путь и где я по-настоящему живой(ая)?"],
-};
-const EXAMPLES_DEFAULT = [
-  "Например: какой повторяющийся ритм во мне и куда он ведёт?",
-  "Опишите, что хотите прояснить — портрет свяжет числа с вашим вопросом.",
-];
-function examplesForTopic(topic: string | null): string[] {
-  return (topic && EXAMPLES_BY_TOPIC[topic]) || EXAMPLES_DEFAULT;
-}
-
 export function extractNumerology(result: SymbolicResult | null): NumerologyPortrait | null {
   const md = result?.metadata;
   if (!md || typeof md !== "object") return null;
@@ -47,21 +29,19 @@ export function extractNumerology(result: SymbolicResult | null): NumerologyPort
   return raw as NumerologyPortrait;
 }
 
-function composeUserInput(name: string, birth: string, question: string, topic: string | null): string {
+function composeUserInput(name: string, birth: string, topic: string | null): string {
   return [
     `Имя: ${name.trim()}`,
     `Дата рождения: ${birth.trim()}`,
-    question.trim() ? `Вопрос: ${question.trim()}` : "",
     topic ? `Сфера: ${topic}` : "",
   ].filter(Boolean).join("\n");
 }
 
-function parseInput(userInput?: string | null): { name: string; birth: string; question: string; topic: string | null } {
-  if (!userInput) return { name: "", birth: "", question: "", topic: null };
+function parseInput(userInput?: string | null): { name: string; birth: string; topic: string | null } {
+  if (!userInput) return { name: "", birth: "", topic: null };
   return {
     name: userInput.match(/Имя:\s*(.+)/)?.[1]?.trim() ?? "",
     birth: userInput.match(/Дата рождения:\s*(.+)/)?.[1]?.trim() ?? "",
-    question: userInput.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
     topic: userInput.match(/Сфера:\s*(.+)/)?.[1]?.trim() ?? null,
   };
 }
@@ -116,7 +96,7 @@ export function NumerologyResultView({
   creditCost,
 }: {
   result: SymbolicResult;
-  recap: { name: string; birth: string; question: string; topic: string | null };
+  recap: { name: string; birth: string; topic: string | null };
   onStartNew: () => void;
   creditCost: number;
 }) {
@@ -124,7 +104,6 @@ export function NumerologyResultView({
   const recapRows = [
     recap.name.trim() ? { label: "Имя", value: recap.name.trim() } : null,
     recap.birth.trim() ? { label: "Дата рождения", value: recap.birth.trim() } : null,
-    recap.question.trim() ? { label: "Вопрос", value: recap.question.trim() } : null,
     recap.topic ? { label: "Сфера", value: recap.topic } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
 
@@ -133,13 +112,13 @@ export function NumerologyResultView({
       productKey="numerology"
       eyebrow="числовой портрет"
       heading="Ваш числовой портрет"
-      recapSummary={recap.question.trim() ? `Вопрос: ${recap.question.trim()}` : "Ваши данные и вопрос"}
+      recapSummary="Имя и дата рождения"
       recapRows={recapRows}
       visual={portrait ? <NumerologyChart portrait={portrait} /> : undefined}
       resultText={result.resultText ?? ""}
       topic={recap.topic}
       creditCost={creditCost}
-      repeat={{ ribbon: "посчитать ещё", title: "Сделать новый портрет", description: "Свежий числовой разбор по новым данным или вопросу.", ctaLabel: "Начать" }}
+      repeat={{ ribbon: "посчитать ещё", title: "Сделать новый портрет", description: "Свежий числовой разбор по новым данным и выбранному фокусу.", ctaLabel: "Начать" }}
       onStartNew={onStartNew}
     />
   );
@@ -148,44 +127,34 @@ export function NumerologyResultView({
 export function NumerologyActions({ creditCost }: { creditCost: number }) {
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
-  const [question, setQuestion] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
-  const [exampleIdx, setExampleIdx] = useState(0);
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("numerology", (userInput) => {
       const parsed = parseInput(userInput);
       setName(parsed.name);
       setBirth(parsed.birth);
-      setQuestion(parsed.question);
       setTopic(parsed.topic);
     });
 
   // #3: ввод переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
     "numerology",
-    { name, birth, question, topic },
+    { name, birth, topic },
     (draft) => {
       if (typeof draft.name === "string") setName(draft.name);
       if (typeof draft.birth === "string") setBirth(draft.birth);
-      if (typeof draft.question === "string") setQuestion(draft.question);
       if (typeof draft.topic === "string") setTopic(draft.topic);
     },
     { active: !result },
   );
-
-  useEffect(() => {
-    if (result) return;
-    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
-    return () => window.clearInterval(id);
-  }, [result]);
 
   function handleGenerate() {
     if (name.trim().length < 2 || birth.trim().length < 4) {
       setMessage("Укажите имя и дату рождения — по ним считаются ваши числа.");
       return;
     }
-    void generate(composeUserInput(name, birth, question, topic));
+    void generate(composeUserInput(name, birth, topic));
   }
 
   function startNew() {
@@ -193,7 +162,6 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
     clearDraft();
     setName("");
     setBirth("");
-    setQuestion("");
     setTopic(null);
   }
 
@@ -201,73 +169,58 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
     return (
       <NumerologyResultView
         result={result}
-        recap={{ name, birth, question, topic }}
+        recap={{ name, birth, topic }}
         onStartNew={startNew}
         creditCost={creditCost}
       />
     );
   }
 
-  const placeholderExamples = examplesForTopic(topic);
-  const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
-
   return (
-    <div className="soft-card tarot-order-surface" data-testid="numerology-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="numerology-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">нумерология · язык чисел</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём хотите понять">
+      <div className="product-controls">
+        <OptionScrollStrip ariaLabel="Фокус числового портрета" label="фокус числового портрета" hint="Выберите сферу, в которой особенно важно прочитать сочетание ваших чисел.">
           {TOPICS.map((t) => (
             <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
-              onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
+              onClick={() => setTopic(topic === t ? null : t)}>
               {t}
             </OptionChoice>
           ))}
         </OptionScrollStrip>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="numerology-name-input">полное имя</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="numerology-name-input">полное имя</label>
         <input
           id="numerology-name-input"
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 120))}
           placeholder="Анна"
-          className="soft-question-input tarot-question-input tarot-line-input"
+          className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="numerology-name-input"
         />
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="numerology-birth-input">дата рождения</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="numerology-birth-input">дата рождения</label>
         <input
           id="numerology-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 60))}
           placeholder="12.04.1992"
-          className="soft-question-input tarot-question-input tarot-line-input"
+          className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="numerology-birth-input"
-        />
-
-        <label className="soft-eyebrow tarot-question-label" htmlFor="numerology-question-input">ваш вопрос (необязательно)</label>
-        <textarea
-          id="numerology-question-input"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
-          placeholder={placeholder}
-          rows={2}
-          className="soft-question-input tarot-question-input tarot-compact-input"
-          disabled={status === "loading"}
-          data-testid="numerology-question-input"
         />
 
         <div className="mt-1">
           <NumerologyTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="numerology-start">
               {status === "loading" ? "Считаем числа…" : "Открыть числовой портрет"}

@@ -14,7 +14,7 @@ const PRODUCT_KEY = "synastry";
 const postSchema = z.object({
   userBirthData: z.string().min(4).max(1200),
   partnerBirthData: z.string().min(4).max(1200),
-  question: z.string().max(2000).optional(),
+  topic: z.string().max(80).optional(),
 });
 
 function serializeResult(result: {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   const generated = await generateSynastryResult({
     userBirthData: parsed.data.userBirthData,
     partnerBirthData: parsed.data.partnerBirthData,
-    question: parsed.data.question,
+    focus: parsed.data.topic,
     userId,
     requestId: context.requestId,
   });
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           userBirthData: parsed.data.userBirthData,
           partnerBirthData: parsed.data.partnerBirthData,
-          question: parsed.data.question ?? null,
+          topic: parsed.data.topic ?? null,
           generationMetadata: generated.metadata,
         } as Prisma.InputJsonObject,
       },

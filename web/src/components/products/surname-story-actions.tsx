@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -15,11 +15,6 @@ import type { SurnameStory } from "@/lib/surname-story";
 
 export type SurnameResult = SymbolicResult;
 
-const EXAMPLES_DEFAULT = [
-  "Например: откуда могла прийти моя фамилия и что она говорит о роде?",
-  "Опишите, что хотите проверить: происхождение, географию, занятие предков или семейную легенду.",
-];
-
 export function extractSurnameStory(result: SymbolicResult | null): SurnameStory | null {
   const md = result?.metadata;
   if (!md || typeof md !== "object") return null;
@@ -32,21 +27,12 @@ export function extractSurnameStory(result: SymbolicResult | null): SurnameStory
   return raw as SurnameStory;
 }
 
-function composeUserInput(surname: string, question: string, topic: string | null): string {
-  return [
-    surname.trim(),
-    question.trim() ? `Вопрос: ${question.trim()}` : "",
-    topic ? `Сфера: ${topic}` : "",
-  ].filter(Boolean).join("\n");
+function composeUserInput(surname: string): string {
+  return surname.trim();
 }
 
-function parseInput(userInput?: string | null): { surname: string; question: string; topic: string | null } {
-  if (!userInput) return { surname: "", question: "", topic: null };
-  return {
-    surname: userInput.split("\n")[0]?.trim() ?? "",
-    question: userInput.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
-    topic: userInput.match(/Сфера:\s*(.+)/)?.[1]?.trim() ?? null,
-  };
+function parseInput(userInput?: string | null): { surname: string } {
+  return { surname: userInput?.split("\n")[0]?.trim() ?? "" };
 }
 
 function SurnameLineageVisual({ story }: { story: SurnameStory }) {
@@ -128,15 +114,13 @@ export function SurnameStoryResultView({
   creditCost,
 }: {
   result: SymbolicResult;
-  recap: { surname: string; question: string; topic: string | null };
+  recap: { surname: string };
   onStartNew: () => void;
   creditCost: number;
 }) {
   const story = extractSurnameStory(result);
   const recapRows = [
     recap.surname.trim() ? { label: "Фамилия", value: recap.surname.trim() } : null,
-    recap.question.trim() ? { label: "Вопрос", value: recap.question.trim() } : null,
-    recap.topic ? { label: "Сфера", value: recap.topic } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
 
   return (
@@ -144,13 +128,13 @@ export function SurnameStoryResultView({
       productKey="surname-story"
       eyebrow="история фамилии"
       heading="История вашей фамилии"
-      recapSummary={recap.surname.trim() ? `Фамилия: ${recap.surname.trim()}` : "Ваша фамилия и вопрос"}
+      recapSummary={recap.surname.trim() ? `Фамилия: ${recap.surname.trim()}` : "Ваша фамилия"}
       recapRows={recapRows}
       visual={story ? <SurnameLineageVisual story={story} /> : undefined}
       resultText={result.resultText ?? ""}
-      topic={recap.topic}
+      topic={null}
       creditCost={creditCost}
-      repeat={{ ribbon: "разобрать ещё", title: "Разобрать другую фамилию", description: "Свежий родовой разбор по новой фамилии или вопросу.", ctaLabel: "Начать" }}
+      repeat={{ ribbon: "разобрать ещё", title: "Разобрать другую фамилию", description: "Новое исследование происхождения и истории фамилии.", ctaLabel: "Начать" }}
       onStartNew={onStartNew}
     />
   );
@@ -158,102 +142,73 @@ export function SurnameStoryResultView({
 
 export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
   const [surname, setSurname] = useState("");
-  const [question, setQuestion] = useState("");
-  const [topic, setTopic] = useState<string | null>(null);
-  const [exampleIdx, setExampleIdx] = useState(0);
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("surname-story", (userInput) => {
       const parsed = parseInput(userInput);
       setSurname(parsed.surname);
-      setQuestion(parsed.question);
-      setTopic(parsed.topic);
     });
 
   // #3: ввод переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
     "surname-story",
-    { surname, question, topic },
+    { surname },
     (draft) => {
       if (typeof draft.surname === "string") setSurname(draft.surname);
-      if (typeof draft.question === "string") setQuestion(draft.question);
-      if (typeof draft.topic === "string") setTopic(draft.topic);
     },
     { active: !result },
   );
-
-  useEffect(() => {
-    if (result) return;
-    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
-    return () => window.clearInterval(id);
-  }, [result]);
 
   function handleGenerate() {
     if (surname.trim().length < 2) {
       setMessage("Напишите свою фамилию — по её форме строится разбор.");
       return;
     }
-    void generate(composeUserInput(surname, question, topic));
+    void generate(composeUserInput(surname));
   }
 
   function startNew() {
     reset();
     clearDraft();
     setSurname("");
-    setQuestion("");
-    setTopic(null);
   }
 
   if (result?.resultText) {
     return (
       <SurnameStoryResultView
         result={result}
-        recap={{ surname, question, topic }}
+        recap={{ surname }}
         onStartNew={startNew}
         creditCost={creditCost}
       />
     );
   }
 
-  const placeholder = EXAMPLES_DEFAULT[exampleIdx % EXAMPLES_DEFAULT.length];
-
   return (
-    <div className="soft-card tarot-order-surface" data-testid="surname-story-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="surname-story-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">род · история фамилии</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <label className="soft-eyebrow tarot-question-label" htmlFor="surname-input">ваша фамилия</label>
+      <div className="product-controls">
+        <label className="soft-eyebrow product-question-label" htmlFor="surname-input">ваша фамилия</label>
         <input
           id="surname-input"
           value={surname}
           onChange={(e) => setSurname(e.target.value.slice(0, 80))}
           placeholder="Кузнецов, Ковальчук, Соколова…"
-          className="soft-question-input tarot-question-input tarot-line-input"
+          className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="surname-input"
-        />
-
-        <label className="soft-eyebrow tarot-question-label" htmlFor="surname-question-input">ваш вопрос (необязательно)</label>
-        <textarea
-          id="surname-question-input"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
-          placeholder={placeholder}
-          rows={2}
-          className="soft-question-input tarot-question-input tarot-compact-input"
-          disabled={status === "loading"}
-          data-testid="surname-question-input"
         />
 
         <div className="mt-1">
           <SurnameTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="surname-start">
               {status === "loading" ? "Читаем фамилию…" : "Открыть историю фамилии"}

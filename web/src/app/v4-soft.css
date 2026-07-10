@@ -169,11 +169,11 @@
   /* Digital product cards keep their chrome stable while inner controls receive
      focus. The former terracotta focus-within ring looked like a validation
      error on product forms and result accordions. */
-  .tarot-order-surface {
+  .product-order-surface {
     transition: border-color 160ms ease, box-shadow 160ms ease;
   }
 
-  .tarot-order-surface:focus-within {
+  .product-order-surface:focus-within {
     border-color: var(--soft-paper-edge);
     box-shadow: var(--soft-shadow-sm);
   }
@@ -876,7 +876,7 @@
     box-shadow: none !important;
   }
 
-  .soft-question-input.tarot-line-input {
+  .soft-question-input.product-line-input {
     min-height: 2.75rem;
     height: 2.75rem;
     resize: none;
@@ -885,7 +885,7 @@
     line-height: 1.2;
   }
 
-  .soft-question-input.tarot-compact-input {
+  .soft-question-input.product-compact-input {
     min-height: 3.25rem;
     font-family: var(--font-sans);
     font-size: 1rem;
@@ -2146,7 +2146,7 @@
     text-transform: uppercase;
   }
 
-  .tarot-order-surface {
+  .product-order-surface {
     padding: clamp(0.9rem, 2.3vw, 1.2rem);
   }
 
@@ -2182,7 +2182,7 @@
     margin-top: 0.8rem;
   }
 
-  .tarot-choice,
+  .product-option-choice,
   .tarot-spread-choice {
     min-height: 2.1rem;
     border: 1px solid var(--soft-paper-edge);
@@ -2195,7 +2195,7 @@
     transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
   }
 
-  .tarot-choice {
+  .product-option-choice {
     padding: 0.42rem 0.72rem;
   }
 
@@ -2205,7 +2205,7 @@
     white-space: nowrap;
   }
 
-  .tarot-choice-active {
+  .product-option-choice-active {
     border-color: color-mix(in srgb, var(--soft-terracotta-dark) 42%, var(--soft-paper-edge));
     background: color-mix(in srgb, var(--soft-terracotta) 16%, var(--soft-paper-card));
     color: var(--soft-bordeaux);
@@ -2214,7 +2214,7 @@
 
   /* #2/#4/#5: компактная прокручиваемая лента раскладов со стрелками,
      сворачивание формы после расклада, зона раскрытия карт. */
-  .tarot-head {
+  .product-order-head {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -2222,16 +2222,24 @@
     gap: 0.5rem;
   }
 
-  .tarot-controls {
+  .product-controls {
     margin-top: 0.2rem;
   }
 
-  .tarot-strip {
+  .product-option-strip {
     position: relative;
     margin-top: 0.8rem;
   }
 
-  .tarot-strip-track {
+  .product-option-group {
+    margin-top: 0.85rem;
+  }
+
+  .product-option-group .product-option-strip {
+    margin-top: 0;
+  }
+
+  .product-option-strip-track {
     display: flex;
     flex-wrap: nowrap;
     gap: 0.42rem;
@@ -2242,18 +2250,18 @@
     padding: 2px 0;
   }
 
-  .tarot-strip-track::-webkit-scrollbar {
+  .product-option-strip-track::-webkit-scrollbar {
     display: none;
   }
 
   /* Любые кнопки выбора внутри ленты не сжимаются и не переносятся — лента
      прокручивается по горизонтали (и темы, и расклады). */
-  .tarot-strip-track > button {
+  .product-option-strip-track > button {
     flex: 0 0 auto;
     white-space: nowrap;
   }
 
-  .tarot-strip-arrow {
+  .product-option-strip-arrow {
     position: absolute;
     top: 50%;
     z-index: 2;
@@ -2269,22 +2277,22 @@
     transform: translateY(-50%);
   }
 
-  .tarot-strip-arrow-left {
+  .product-option-strip-arrow-left {
     left: -0.35rem;
   }
 
-  .tarot-strip-arrow-right {
+  .product-option-strip-arrow-right {
     right: -0.35rem;
   }
 
-  .tarot-controls-collapsed {
+  .product-controls-collapsed {
     margin-top: 0.5rem;
     border: 1px solid var(--soft-paper-edge);
     border-radius: 0.9rem;
     background: color-mix(in srgb, var(--soft-paper-card) 70%, transparent);
   }
 
-  .tarot-controls-collapsed > summary {
+  .product-controls-collapsed > summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2294,11 +2302,11 @@
     list-style: none;
   }
 
-  .tarot-controls-collapsed > summary::-webkit-details-marker {
+  .product-controls-collapsed > summary::-webkit-details-marker {
     display: none;
   }
 
-  .tarot-collapsed-q {
+  .product-collapsed-question {
     overflow: hidden;
     color: var(--soft-ink);
     font-size: 0.9rem;
@@ -2307,33 +2315,33 @@
     white-space: nowrap;
   }
 
-  .tarot-collapsed-hint {
+  .product-collapsed-hint {
     flex-shrink: 0;
     color: var(--soft-terracotta-dark);
     font-size: 0.78rem;
     font-weight: 650;
   }
 
-  .tarot-controls-collapsed .tarot-controls {
+  .product-controls-collapsed .product-controls {
     padding: 0 0.85rem 0.85rem;
   }
 
   /* #2: read-only recap of theme / spread / question on the result. */
-  .tarot-recap {
+  .product-recap {
     display: grid;
     gap: 0.5rem;
     margin: 0;
     padding: 0 0.85rem 0.85rem;
   }
 
-  .tarot-recap > div {
+  .product-recap > div {
     display: grid;
     grid-template-columns: 5.5rem 1fr;
     gap: 0.5rem;
     align-items: start;
   }
 
-  .tarot-recap dt {
+  .product-recap dt {
     color: var(--soft-terracotta-dark);
     font-size: 0.72rem;
     font-weight: 650;
@@ -2341,7 +2349,7 @@
     text-transform: uppercase;
   }
 
-  .tarot-recap dd {
+  .product-recap dd {
     margin: 0;
     color: var(--soft-ink);
     font-size: 0.88rem;
@@ -2468,19 +2476,19 @@
     white-space: nowrap;
   }
 
-  .tarot-question-label {
+  .product-question-label {
     display: block;
     margin-top: 0.9rem;
   }
 
-  .tarot-question-input {
+  .product-question-input {
     min-height: 4.25rem;
     margin-top: 0.32rem;
     font-size: clamp(1.02rem, 1.5vw, 1.18rem);
     line-height: 1.35;
   }
 
-  .tarot-action-row {
+  .product-action-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2495,7 +2503,7 @@
     font-weight: 650;
   }
 
-  .tarot-action-row > *:first-child {
+  .product-action-row > *:first-child {
     min-width: min(100%, 14rem);
   }
 
@@ -2991,7 +2999,7 @@
       gap: 0.58rem;
     }
 
-    .tarot-order-surface {
+    .product-order-surface {
       padding: 0.78rem;
     }
 
@@ -3012,7 +3020,7 @@
       scroll-snap-type: x proximity;
     }
 
-    .tarot-choice {
+    .product-option-choice {
       min-height: 1.92rem;
       padding: 0.35rem 0.58rem;
       white-space: nowrap;
@@ -3025,11 +3033,11 @@
       scroll-snap-align: start;
     }
 
-    .tarot-question-label {
+    .product-question-label {
       margin-top: 0.58rem;
     }
 
-    .tarot-question-input {
+    .product-question-input {
       min-height: 3.1rem;
       font-size: 1rem;
     }
@@ -3101,7 +3109,7 @@
       line-height: 0.78rem;
     }
 
-    .tarot-action-row {
+    .product-action-row {
       gap: 0.48rem;
       margin-top: 0.46rem;
     }
