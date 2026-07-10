@@ -57,6 +57,30 @@ function HubRow({
   );
 }
 
+// Мобильная строка «Ещё» (mockup .row): иконка · заголовок(flex) · meta · шеврон.
+function HubRowMobile({
+  href,
+  icon,
+  tone,
+  label,
+  meta,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  tone?: "warm" | "sage";
+  label: string;
+  meta?: string;
+}) {
+  return (
+    <Link href={href} className="pcab-row" data-testid="more-row-mobile">
+      <span className={`pcab-row-ic${tone ? ` ${tone}` : ""}`}>{icon}</span>
+      <span className="pcab-hrow-t">{label}</span>
+      {meta && <span className="pcab-hrow-meta">{meta}</span>}
+      <ChevronRight className="pcab-chev" size={18} aria-hidden="true" />
+    </Link>
+  );
+}
+
 export default async function PractitionerMorePage() {
   const session = await auth();
   if (!session) redirect(loginUrl());
@@ -96,8 +120,64 @@ export default async function PractitionerMorePage() {
     ? `${categoryLabel(practitioner.categories[0])}${practitioner.directions.length > 0 ? ` · ${practitioner.directions.length}` : ""}`
     : undefined;
 
+  const reviewWord = practitioner.reviewCount === 1 ? "отзыв" : practitioner.reviewCount < 5 ? "отзыва" : "отзывов";
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-more-hub */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-more-mobile">
+        <div style={{ marginTop: 2 }}>
+          <div className="pcab-eyebrow">Кабинет практика</div>
+          <h1 className="pcab-greeting">Ещё</h1>
+        </div>
+
+        <Link href={appUrl("/practitioner/profile")} className="pcab-pcard" data-testid="more-profile-card-mobile">
+          <span className="pcab-pcard-av">{initials || "?"}</span>
+          <span className="pcab-pcard-main">
+            <span className="pcab-pcard-name">
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+              {practitioner.verified && (
+                <BadgeCheck size={16} style={{ color: "var(--pc-sage-ink)", flex: "none" }} aria-label="Верифицирован" />
+              )}
+              <span className="pcab-tierchip">{practitionerTierBadge(tier)}</span>
+            </span>
+            {practitioner.title && <span className="pcab-pcard-sub">{practitioner.title}</span>}
+            {rating && (
+              <span className="pcab-pcard-rating">
+                <Star size={13} style={{ fill: "currentColor" }} aria-hidden="true" />
+                {rating} · {practitioner.reviewCount} {reviewWord}
+              </span>
+            )}
+          </span>
+          <span className="pcab-pcard-cta">Профиль</span>
+        </Link>
+
+        <section className="pcab-group">
+          <div className="pcab-eyebrow" style={{ marginBottom: 9 }}>Практика</div>
+          <div className="pcab-list">
+            <HubRowMobile href={appUrl("/practitioner/ai-usage")} icon={<Sparkles size={18} aria-hidden="true" />} tone="warm" label="Разборы и AI" meta={quota ? `${quota.usedThisMonth} из ${quota.included}` : undefined} />
+            <HubRowMobile href={appUrl("/practitioner/services")} icon={<SlidersHorizontal size={18} aria-hidden="true" />} label="Услуги и направления" meta={servicesMeta} />
+            <HubRowMobile href={appUrl("/practitioner/reviews")} icon={<Star size={18} aria-hidden="true" />} tone="warm" label="Отзывы" meta={rating ? `${rating} · ${practitioner.reviewCount}` : "пока нет"} />
+            <HubRowMobile href={appUrl("/practitioner/invite")} icon={<Gift size={18} aria-hidden="true" />} tone="sage" label="Приглашения" meta="свои клиенты" />
+          </div>
+        </section>
+
+        <section className="pcab-group">
+          <div className="pcab-eyebrow" style={{ marginBottom: 9 }}>Аккаунт</div>
+          <div className="pcab-list">
+            <HubRowMobile href={appUrl("/practitioner/ethics")} icon={<Shield size={18} aria-hidden="true" />} label="Этика и безопасность" />
+            <HubRowMobile href={appUrl("/practitioner/settings")} icon={<Settings size={18} aria-hidden="true" />} label="Настройки" />
+            <HubRowMobile href={appUrl("/support")} icon={<CircleHelp size={18} aria-hidden="true" />} label="Помощь и поддержка" />
+            <a href={logoutUrl()} className="pcab-row" data-testid="more-logout-mobile">
+              <span className="pcab-row-ic warm"><LogOut size={18} aria-hidden="true" /></span>
+              <span className="pcab-hrow-t" style={{ color: "var(--pc-bordeaux)" }}>Выйти</span>
+            </a>
+          </div>
+        </section>
+      </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }}>
       <p className="soft-eyebrow">Кабинет практика</p>
       <h1 className="soft-h1 mt-2">Ещё</h1>
 
@@ -203,6 +283,7 @@ export default async function PractitionerMorePage() {
           </a>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }
