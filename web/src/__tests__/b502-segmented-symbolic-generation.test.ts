@@ -53,4 +53,32 @@ describe("B502 segmented symbolic generation", () => {
       expect(system?.content).toEqual(expect.stringContaining("Число души (по гласным имени): 4"));
     }
   });
+
+  it("generates a three-card Tarot reading in four small reliable parts", async () => {
+    const result = await generateSymbolicProductResult({
+      productKey: "tarot",
+      userInput: "Какая динамика ожидает меня при переходе на новую работу?",
+      tarotSpread: "three",
+      tarotTheme: "Работа и призвание",
+      userId: "user-tarot",
+      requestId: "req-tarot",
+    });
+
+    expect(result.metadata).toEqual(expect.objectContaining({
+      source: "ai",
+      generationParts: 4,
+      cards: expect.arrayContaining([expect.objectContaining({ name: expect.any(String), position: expect.any(String) })]),
+    }));
+    expect(result.text).toContain("## Картина расклада");
+    expect(result.text).toContain("## Связь карт и скрытая линия");
+    expect(result.text).toContain("## Ответ расклада");
+    expect(result.text).toContain("## Предупреждение карт");
+    expect(mockAiComplete).toHaveBeenCalledTimes(4);
+    expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
+      "req-tarot:part-1",
+      "req-tarot:part-2",
+      "req-tarot:part-3",
+      "req-tarot:part-4",
+    ]);
+  });
 });

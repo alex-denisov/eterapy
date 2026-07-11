@@ -658,8 +658,11 @@ export async function generateSymbolicProductResult(input: {
     let text = "";
 
     if (headings && headings.length > 1) {
-      const midpoint = Math.ceil(headings.length / 2);
-      const groups = [headings.slice(0, midpoint), headings.slice(midpoint)];
+      const groupSize = input.productKey === "tarot" ? 2 : Math.ceil(headings.length / 2);
+      const groups = Array.from(
+        { length: Math.ceil(headings.length / groupSize) },
+        (_, index) => headings.slice(index * groupSize, (index + 1) * groupSize),
+      );
       const parts = await Promise.all(groups.map((group, index) => aiComplete({
         feature,
         userId: input.userId,
