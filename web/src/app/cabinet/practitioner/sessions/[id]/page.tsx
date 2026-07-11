@@ -10,6 +10,7 @@ import { appUrl, loginUrl } from "@/lib/subdomain";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { MessageSegment } from "./message-segment";
 import { RegenerateNotesButton } from "./regenerate-notes-button";
+import { SessionMobile } from "./session-mobile";
 
 // B466 — AI-ассистент сессии (mockups -session-ai-assistant/-notes/
 // -transcript/-client-message): сегменты Резюме · Заметки · Транскрипт ·
@@ -64,9 +65,32 @@ export default async function PractitionerSessionAnalysisPage({
   const clientLabel = booking.client.name ?? booking.client.email ?? "Клиент";
   const retentionDays = daysLeft(vs?.summaryExpiresAt ?? vs?.transcriptExpiresAt ?? null);
   const processing = vs && !vs.summaryText && ["processing", "requested"].includes(vs.serverSttStatus);
+  const dateLabel = booking.slot
+    ? `${formatMskDayMonth(booking.slot.startAt)} · ${formatMskTime(booking.slot.startAt)}–${formatMskTime(booking.slot.endAt)}`
+    : formatMskDayMonth(booking.createdAt);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-session-analysis">
+    <>
+      {/* МОБАЙЛ — 1-в-1 mockups practitioner-session-* (pcab-native, реальные данные) */}
+      <SessionMobile
+        bookingId={booking.id}
+        clientId={booking.client.id}
+        clientLabel={clientLabel}
+        seg={seg}
+        dateLabel={dateLabel}
+        retentionDays={retentionDays}
+        processing={!!processing}
+        hasVs={!!vs}
+        summaryText={vs?.summaryText ?? null}
+        notesText={vs?.practitionerNotesText ?? null}
+        transcriptText={vs?.transcriptText ?? null}
+        followupDraft={vs?.clientFollowupDraft ?? ""}
+        vsId={vs?.id ?? null}
+        transcriptWords={vs?.transcriptText ? vs.transcriptText.split(/\s+/).length : 0}
+      />
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-session-analysis">
       <Link href={appUrl(`/practitioner/clients/${booking.client.id}?tab=sessions`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Сессии клиента
@@ -193,6 +217,7 @@ export default async function PractitionerSessionAnalysisPage({
           )}
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
