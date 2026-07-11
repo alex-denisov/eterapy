@@ -73,6 +73,7 @@ describe("B502 segmented symbolic generation", () => {
     expect(result.text).toContain("## Связь карт и скрытая линия");
     expect(result.text).toContain("## Ответ расклада");
     expect(result.text).toContain("## Предупреждение карт");
+    expect(result.text.match(/^## /gm)).toHaveLength(8);
     expect(mockAiComplete).toHaveBeenCalledTimes(4);
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-tarot:part-1",

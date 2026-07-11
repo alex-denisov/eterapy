@@ -549,6 +549,8 @@ function symbolicQualityIssue(input: {
     if (!input.text.includes(input.chart.typeName) || !input.text.includes(input.chart.profile)) return "интерпретация не цитирует рассчитанный бодиграф";
   }
   if (input.productKey === "tarot" && input.cards) {
+    const requiredHeadings = symbolicSectionHeadings({ productKey: "tarot", cards: input.cards, numerology: null }) ?? [];
+    if (requiredHeadings.some((heading) => !input.text.includes(`## ${heading}`))) return "нет обязательных разделов расклада";
     const missingCard = input.cards.find((card) => !input.text.includes(card.name) || !input.text.includes(card.position));
     if (missingCard) return `нет трактовки карты ${missingCard.name} в позиции ${missingCard.position}`;
   }
