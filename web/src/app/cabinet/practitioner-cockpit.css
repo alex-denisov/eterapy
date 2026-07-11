@@ -3903,8 +3903,8 @@
 
 /* ─────────────────────────────────────────────────────────────────────
    Профиль (mockup practitioner-more-profile) — публичные данные практика.
-   Значения 1-в-1 из mockup-CSS, soft-* → pc-*. Реюз pcab-flabel/-fieldinput/
-   -chips/-chip/-list/-row*/-topbar* для полей и nav-строки.
+   Значения 1-в-1 из mockup-CSS, soft-x -> pc-x. Реюз pcab-flabel, -fieldinput,
+   -chips, -chip, -list, -row, -topbar для полей и nav-строки.
    ───────────────────────────────────────────────────────────────────── */
 .pcab-save-link {
   font-size: 13px;
