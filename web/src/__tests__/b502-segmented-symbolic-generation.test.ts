@@ -123,4 +123,34 @@ describe("B502 segmented symbolic generation", () => {
       "req-tarot-repair:part-4-repair",
     ]);
   });
+
+  it("normalizes a model heading that was emitted inline after section prose", async () => {
+    mockAiComplete.mockImplementation(async (request) => {
+      const userMessage = request.messages.find((message) => message.role === "user");
+      const content = typeof userMessage?.content === "string" ? userMessage.content : "";
+      const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
+      const body = "Подробная трактовка символа, позиции и связи с вопросом о работе. ".repeat(24);
+      return {
+        text: headings.map((heading) => `## ${heading}\n${body}`).join(" "),
+        provider: "yandex" as never,
+        model: "yandexgpt/latest",
+        tokensIn: 500,
+        tokensOut: 900,
+        latencyMs: 120,
+      };
+    });
+
+    const result = await generateSymbolicProductResult({
+      productKey: "tarot",
+      userInput: "Что показывает переход на новую работу?",
+      tarotSpread: "three",
+      tarotTheme: "Работа и призвание",
+      userId: "user-tarot-inline",
+      requestId: "req-tarot-inline",
+    });
+
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 4 }));
+    expect(result.text.match(/^## /gm)).toHaveLength(8);
+    expect(mockAiComplete).toHaveBeenCalledTimes(4);
+  });
 });

@@ -497,7 +497,10 @@ function mergeSymbolicSections(productKey: string, headings: string[], texts: st
   const wanted = new Map(headings.map((heading) => [headingKey(heading), heading]));
   const bodies = new Map<string, string>();
   for (const text of texts) {
-    const normalized = normalizeResultSectionHeadings(productKey, normalizeResult(text));
+    const normalized = normalizeResultSectionHeadings(
+      productKey,
+      normalizeResult(text).replace(/([^\n])\s+(##\s+)/g, "$1\n\n$2"),
+    );
     for (const section of splitSections(normalized)) {
       const canonical = wanted.get(headingKey(section.title));
       if (!canonical || !section.body.trim()) continue;
@@ -550,7 +553,8 @@ function symbolicQualityIssue(input: {
   }
   if (input.productKey === "tarot" && input.cards) {
     const requiredHeadings = symbolicSectionHeadings({ productKey: "tarot", cards: input.cards, numerology: null }) ?? [];
-    if (requiredHeadings.some((heading) => !input.text.includes(`## ${heading}`))) return "нет обязательных разделов расклада";
+    const actualHeadings = new Set(splitSections(input.text).map((section) => headingKey(section.title)));
+    if (requiredHeadings.some((heading) => !actualHeadings.has(headingKey(heading)))) return "нет обязательных разделов расклада";
     const missingCard = input.cards.find((card) => !input.text.includes(card.name) || !input.text.includes(card.position));
     if (missingCard) return `нет трактовки карты ${missingCard.name} в позиции ${missingCard.position}`;
   }
