@@ -12,6 +12,7 @@ import {
   practitionerWidgetSnippet,
 } from "@/lib/practitioner-links";
 import { ActiveTariffsEditor } from "./active-tariffs-editor";
+import { PractitionerServicesEditorMobile } from "./services-editor-mobile";
 
 export default async function PractitionerServicesPage() {
   const session = await auth();
@@ -55,7 +56,22 @@ export default async function PractitionerServicesPage() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl">
+    <>
+      {/* МОБАЙЛ — 1-в-1 mockup practitioner-more-services: pcab-редактор
+          таксономии (специализация → направления → темы) + форматов. Тарифы/
+          цены здесь НЕ показываем — они в «Календарь → Доступность». */}
+      <PractitionerServicesEditorMobile
+        backHref={appUrl("/practitioner/more")}
+        initialData={{
+          categories: practitioner.categories,
+          directions: practitioner.directions,
+          tags: practitioner.tags,
+          formats: practitioner.formats,
+        }}
+      />
+
+      {/* ДЕСКТОП — тарифы + acquisition kit (ждёт новых десктоп-макетов R9-5) */}
+      <div className="hidden p-6 md:block md:p-8 max-w-5xl" data-testid="practitioner-services-desktop">
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="soft-eyebrow">услуги практика</p>
@@ -184,6 +200,7 @@ export default async function PractitionerServicesPage() {
         Вы управляете показом форматов клиентам прямо здесь — переключателем. Цена встречи устанавливается
         платформой и не меняется практиком, чтобы защитить уже созданные записи и витрину.
       </div>
-    </div>
+      </div>
+    </>
   );
 }
