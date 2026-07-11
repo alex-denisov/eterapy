@@ -4551,3 +4551,198 @@
   gap: 8px;
   margin-top: 10px;
 }
+
+/* B466 R9 P5 — AI-ассистент сессии (mockups practitioner-session-*). */
+.pcab-sess {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.pcab-sess-body {
+  min-width: 0;
+  flex: 1;
+}
+.pcab-sess-name {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.pcab-sess-meta {
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-sess-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pcab-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-mini.sage {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+.pcab-mini.calm {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-seg-card {
+  margin-top: 16px;
+  padding: 16px;
+}
+.pcab-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pcab-h-sec {
+  font-size: 15px;
+  font-weight: 600;
+}
+.pcab-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-md {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--pc-ink-soft);
+}
+.pcab-md :first-child {
+  margin-top: 0;
+}
+.pcab-md :last-child {
+  margin-bottom: 0;
+}
+.pcab-saved {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 16px;
+}
+.pcab-transcript {
+  max-height: 58vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  padding: 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pc-ink-soft);
+}
+.pcab-msg-wrap {
+  margin-top: 16px;
+}
+.pcab-msg-cap {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pc-ink-faint);
+  margin: 0;
+}
+.pcab-msg-tonerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pcab-msg-tonelabel {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-msg-ta {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  background: var(--pc-paper-card);
+  padding: 12px;
+  margin-top: 12px;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--pc-ink);
+  outline: none;
+}
+.pcab-msg-ta::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-msg-attach {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 8px 11px;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+}
+.pcab-msg-attach-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-msg-attach button {
+  background: none;
+  border: none;
+  color: var(--pc-ink-faint);
+  cursor: pointer;
+  flex: none;
+  display: inline-flex;
+}
+.pcab-msg-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+}
+.pcab-msg-sent {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 22px 16px;
+  text-align: center;
+  margin-top: 16px;
+}
+.pcab-msg-sent-t {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  margin: 0;
+}
+.pcab-msg-sent-s {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pc-ink-soft);
+  margin: 8px auto 0;
+}
