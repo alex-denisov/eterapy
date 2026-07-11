@@ -4150,3 +4150,404 @@
 .pcab-toggle:disabled {
   cursor: default;
 }
+
+/* B466 R9 P5 — экран «Настройки» (mockup practitioner-more-settings). */
+.pcab-set-eyebrow {
+  display: block;
+  margin: 18px 0 9px;
+}
+.pcab-tgcard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 14px;
+}
+.pcab-tgcard-ic {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e4f3fc;
+  color: #2aabee;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-tgcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-tgcard-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-tgcard-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-tgcard-btn {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fbf1e4;
+  background: #2aabee;
+  border: none;
+  border-radius: 11px;
+  padding: 9px 14px;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-tgcard-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-tgcard-unlink {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 8px 12px;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-set-hint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+.pcab-mx {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.pcab-mx-head {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pc-paper-deep);
+}
+.pcab-mx-lbl {
+  flex: 1;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mx-col {
+  width: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  color: var(--pc-ink-soft);
+}
+.pcab-mx-col.dim {
+  color: var(--pc-ink-faint);
+  opacity: 0.5;
+}
+.pcab-mx-loading {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mx-row {
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+}
+.pcab-mx-row + .pcab-mx-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mx-rowlbl {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-mx-t {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-mx-s {
+  display: block;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-mx-cell {
+  width: 44px;
+  display: grid;
+  place-items: center;
+}
+.pcab-cb {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-cb.on {
+  background: var(--pc-bordeaux);
+  border-color: var(--pc-bordeaux);
+  color: #fbf1e4;
+}
+.pcab-cb.dim {
+  opacity: 0.3;
+  cursor: default;
+}
+.pcab-set-rowval {
+  font-size: 13px;
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-set-rowbtn {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.pcab-set-pwd {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 4px 14px 14px;
+}
+.pcab-set-input {
+  width: 100%;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  background: var(--pc-paper);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pc-ink);
+  outline: none;
+}
+.pcab-set-input::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-set-logout {
+  color: var(--pc-bordeaux);
+}
+.pcab-set-logout .pcab-row-t {
+  color: var(--pc-bordeaux);
+  font-weight: 500;
+}
+.pcab-set-ver {
+  text-align: center;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 16px;
+}
+
+/* B466 R9 P5 — экран «Разборы и AI» (mockup practitioner-ai-usage). */
+.pcab-quota {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 17px;
+  margin-top: 16px;
+  box-shadow: 0 10px 24px rgba(60, 40, 25, 0.07);
+}
+.pcab-quota-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-quota-v {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  line-height: 1.05;
+  margin-top: 4px;
+}
+.pcab-quota-v small {
+  font-size: 15px;
+  color: var(--pc-ink-soft);
+}
+.pcab-track {
+  height: 9px;
+  border-radius: 9px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+  margin-top: 11px;
+}
+.pcab-fill {
+  height: 100%;
+  background: var(--pc-bordeaux);
+  border-radius: 9px;
+}
+.pcab-quota-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+}
+.pcab-quota-foot b {
+  color: var(--pc-ink-soft);
+  font-weight: 600;
+}
+.pcab-toggle-lg {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  position: relative;
+  flex: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-toggle-lg.off {
+  background: var(--pc-paper-edge);
+}
+.pcab-toggle-lg .knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: left 0.15s ease;
+}
+.pcab-toggle-lg.off .knob {
+  left: 2px;
+}
+.pcab-defrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+}
+.pcab-defrow-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-defrow-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-defrow-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.pcab-aiu-ssn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-aiu-ssn + .pcab-aiu-ssn {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-aiu-ssn-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-aiu-ssn-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-aiu-ssn-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-aiu-empty {
+  padding: 16px 14px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-packs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pcab-pack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  border-radius: 13px;
+  padding: 12px 4px;
+  position: relative;
+  cursor: pointer;
+}
+.pcab-pack:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-pack.best {
+  border-color: var(--pc-terracotta);
+}
+.pcab-pack-n {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-pack-p {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+}
+.pcab-pack-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  color: #fbf1e4;
+  background: var(--pc-terracotta);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-aiu-confirm {
+  margin-top: 10px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-terracotta);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.pcab-aiu-confirm-t {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-aiu-confirm-t b {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-aiu-confirm-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
