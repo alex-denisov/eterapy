@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { PractitionerSettingsClient } from "../profile/practitioner-settings-client";
+import { PractitionerSettingsMobile } from "./settings-mobile";
 
 // B466 — «Настройки» (account; mockup -more-settings): уведомления с матрицей
 // событие × Email/Telegram/В приложении + привязка Telegram, безопасность
@@ -32,14 +33,28 @@ export default async function PractitionerAccountSettingsPage() {
     && !pwd.startsWith("tg:")
     && !pwd.startsWith("telegram:");
 
+  const telegramStatus = {
+    linked: !!practitioner.user.telegramId,
+    username: practitioner.user.telegramUsername ?? null,
+  };
+
   return (
-    <PractitionerSettingsClient
-      email={practitioner.user.email}
-      telegramStatus={{
-        linked: !!practitioner.user.telegramId,
-        username: practitioner.user.telegramUsername ?? null,
-      }}
-      hasPassword={hasPassword}
-    />
+    <>
+      {/* МОБАЙЛ — 1-в-1 mockup practitioner-more-settings (pcab-native) */}
+      <PractitionerSettingsMobile
+        telegramStatus={telegramStatus}
+        hasPassword={hasPassword}
+        backHref={appUrl("/practitioner/more")}
+      />
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="hidden md:block" data-testid="practitioner-settings-desktop">
+        <PractitionerSettingsClient
+          email={practitioner.user.email}
+          telegramStatus={telegramStatus}
+          hasPassword={hasPassword}
+        />
+      </div>
+    </>
   );
 }
