@@ -82,4 +82,45 @@ describe("B502 segmented symbolic generation", () => {
       "req-tarot:part-4",
     ]);
   });
+
+  it("retries each Tarot segment that omitted one of its required headings", async () => {
+    mockAiComplete.mockImplementation(async (request) => {
+      const userMessage = request.messages.find((message) => message.role === "user");
+      const content = typeof userMessage?.content === "string" ? userMessage.content : "";
+      const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
+      const selected = request.requestId?.endsWith("-repair") ? headings : headings.slice(0, 1);
+      const body = "Конкретная трактовка карты, её символов, позиции и связи с вопросом о работе. ".repeat(18);
+      return {
+        text: selected.map((heading) => `## ${heading}\n\n${body}\n\n${body}\n\n${body}`).join("\n\n"),
+        provider: "yandex" as never,
+        model: "yandexgpt/latest",
+        tokensIn: 500,
+        tokensOut: 900,
+        latencyMs: 120,
+      };
+    });
+
+    const result = await generateSymbolicProductResult({
+      productKey: "tarot",
+      userInput: "Что показывает переход на новую работу?",
+      tarotSpread: "three",
+      tarotTheme: "Работа и призвание",
+      userId: "user-tarot-repair",
+      requestId: "req-tarot-repair",
+    });
+
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 8 }));
+    expect(result.text.match(/^## /gm)).toHaveLength(8);
+    expect(mockAiComplete).toHaveBeenCalledTimes(8);
+    expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
+      "req-tarot-repair:part-1",
+      "req-tarot-repair:part-2",
+      "req-tarot-repair:part-3",
+      "req-tarot-repair:part-4",
+      "req-tarot-repair:part-1-repair",
+      "req-tarot-repair:part-2-repair",
+      "req-tarot-repair:part-3-repair",
+      "req-tarot-repair:part-4-repair",
+    ]);
+  });
 });

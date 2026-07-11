@@ -665,26 +665,36 @@ export async function generateSymbolicProductResult(input: {
         { length: Math.ceil(headings.length / groupSize) },
         (_, index) => headings.slice(index * groupSize, (index + 1) * groupSize),
       );
-      const parts = await Promise.all(groups.map((group, index) => aiComplete({
+      const generateSegment = (group: string[], index: number, repair = false) => aiComplete({
         feature,
         userId: input.userId,
-        requestId: segmentedRequestId(input.requestId, `part-${index + 1}`),
+        requestId: segmentedRequestId(input.requestId, `part-${index + 1}${repair ? "-repair" : ""}`),
         maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
-        temperature: 0.45,
+        temperature: repair ? 0.3 : 0.45,
         messages: [
           { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
-              "Собери одну часть большого результата. Верни ТОЛЬКО перечисленные ниже разделы и не добавляй остальные.",
+              repair
+                ? "Предыдущая часть пропустила обязательный заголовок. Перепиши эту часть полностью и верни ВСЕ перечисленные разделы."
+                : "Собери одну часть большого результата. Верни ТОЛЬКО перечисленные ниже разделы и не добавляй остальные.",
               "Каждый заголовок напиши дословно с `##`; внутри дай 3 содержательных абзаца по конкретным фактам, без вступления и заключения вне разделов.",
               ...group.map((heading) => `## ${heading}`),
               userContext,
             ].join("\n"),
           },
         ],
-      })));
+      });
+      const parts = await Promise.all(groups.map((group, index) => generateSegment(group, index)));
       responses.push(...parts);
+      const segmentRepairs = await Promise.all(groups.map((group, index) => {
+        const assembled = mergeSymbolicSections(input.productKey, group, [parts[index].text]);
+        return group.every((heading) => assembled.includes(`## ${heading}`))
+          ? null
+          : generateSegment(group, index, true);
+      }));
+      responses.push(...segmentRepairs.filter((response): response is Awaited<ReturnType<typeof aiComplete>> => Boolean(response)));
       text = mergeSymbolicSections(input.productKey, headings, responses.map((response) => response.text));
 
       let issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
