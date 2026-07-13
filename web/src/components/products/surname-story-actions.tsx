@@ -8,6 +8,15 @@ import { SymbolicResultScaffold } from "@/components/products/symbolic-result-sc
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { SurnameStory } from "@/lib/surname-story";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+
+const SURNAME_NAME_EXAMPLES = ["Анна", "Мария", "Елена"];
+const SURNAME_EXAMPLES = ["Кузнецова", "Соколова", "Ковальчук"];
+const SURNAME_QUESTION_EXAMPLES = [
+  "Как звучание имени и фамилии влияет на первое впечатление?",
+  "Какие версии происхождения стоит проверить в семейных документах?",
+  "Какие варианты написания искать в архивах и за рубежом?",
+];
 
 // B451: «История фамилии» — самодостаточная услуга по паттерну Таро/reframe.
 // Форма/происхождение фамилии распознаются детерминированно (server), разбор опирается
@@ -39,67 +48,114 @@ function parseInput(userInput?: string | null): { name: string; surname: string;
   };
 }
 
+function surnameParts(surname: string) {
+  const lower = surname.toLocaleLowerCase("ru");
+  const suffix = lower.match(/(швили|иани|ович|евич|цкая|ская|енко|чук|ёва|ева|ова|дзе|янц|ский|цкий|ина|ына|ю?к|ко|ых|их|ич|ёв|ев|ов|ян|ын|ин)$/u)?.[0] ?? "";
+  return {
+    stem: suffix ? surname.slice(0, Math.max(1, surname.length - suffix.length)) : surname,
+    suffix: suffix ? surname.slice(surname.length - suffix.length) : "без явного форманта",
+  };
+}
+
+function latinize(value: string) {
+  const map: Record<string, string> = {
+    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "zh", з: "z", и: "i", й: "y",
+    к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
+    х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+  };
+  return value.toLocaleLowerCase("ru").split("").map((letter) => map[letter] ?? letter).join("")
+    .replace(/^./u, (letter) => letter.toUpperCase());
+}
+
+function nameRhythm(name: string | undefined, surname: string) {
+  if (!name?.trim()) return "Добавьте имя, чтобы увидеть ритм полного сочетания";
+  const fullName = `${name.trim()} ${surname}`;
+  const vowelCount = (fullName.match(/[аеёиоуыэюяaeiouy]/giu) ?? []).length;
+  return `${fullName.length - 1} букв · около ${Math.max(2, vowelCount)} слоговых ударов`;
+}
+
 export function SurnameLineageVisual({ story, name }: { story: SurnameStory; name?: string }) {
   const displayName = [name?.trim(), story.surname].filter(Boolean).join(" ");
   const monogram = `${name?.trim()?.[0] ?? ""}${story.surname[0] ?? ""}`.toUpperCase();
-  const evidenceLabel = story.evidence ? "есть словарные следы" : "версии требуют проверки";
+  const parts = surnameParts(story.surname);
+  const evidenceLabel = story.evidence ? "словарный или документальный след" : "гипотеза по форме фамилии";
+  const latin = latinize(story.surname);
+  const traces = [
+    { label: "Как устроено слово", value: `${parts.stem} · ${parts.suffix}`, status: "морфологический след", tone: "sage" },
+    { label: "Ведущая версия", value: story.originLabel, status: story.evidence ? "есть источниковая подсказка" : "версия для проверки", tone: "terra" },
+    { label: "Историческая среда", value: story.regionHint ?? "нужен ранний семейный регион", status: "не доказывает географию семьи", tone: "gold" },
+    { label: "Звучание полного имени", value: nameRhythm(name, story.surname), status: "символическое восприятие", tone: "blue" },
+    { label: "Вариант для поиска", value: latin, status: "латиница для архивов и документов", tone: "sage" },
+  ];
   return (
-    <figure data-testid="surname-identity-map" aria-label={`Карта имени ${displayName || story.surname}`}>
-      <div className="overflow-hidden rounded-[22px] bg-[var(--soft-paper-card)] p-4 shadow-[0_24px_64px_rgba(91,64,45,0.10)] sm:p-6">
-        <svg viewBox="0 0 520 320" role="img" aria-label={`Личное досье имени ${displayName || story.surname}`} className="block w-full">
-          <defs>
-            <radialGradient id="name-map-wash" cx="50%" cy="42%" r="68%">
-              <stop offset="0" stopColor="#F3DDC5" stopOpacity="0.8" />
-              <stop offset="1" stopColor="#FBF6EE" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <rect x="0" y="0" width="520" height="320" rx="24" fill="url(#name-map-wash)" />
-          <ellipse cx="260" cy="160" rx="198" ry="112" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1" />
-          <ellipse cx="260" cy="160" rx="152" ry="78" fill="none" stroke="var(--soft-terracotta-dark)" strokeOpacity="0.42" strokeWidth="1.2" strokeDasharray="4 7" />
-          <path d="M92 160 C152 112 186 90 260 84 C334 90 368 112 428 160" fill="none" stroke="var(--soft-sage)" strokeOpacity="0.6" strokeWidth="1.4" />
-          <path d="M92 160 C152 208 186 230 260 236 C334 230 368 208 428 160" fill="none" stroke="var(--soft-terracotta-dark)" strokeOpacity="0.55" strokeWidth="1.4" />
-          <circle cx="260" cy="160" r="58" fill="var(--soft-paper)" stroke="var(--soft-paper-edge)" />
-          <text x="260" y="148" textAnchor="middle" fontFamily="var(--font-heading)" fontSize="42" fill="var(--soft-bordeaux)">{monogram || "ИФ"}</text>
-          <text x="260" y="177" textAnchor="middle" fontSize="11" fill="var(--soft-ink-soft)">{displayName.slice(0, 34) || story.surname}</text>
-          <text x="260" y="197" textAnchor="middle" fontSize="8.5" letterSpacing="1.5" fill="var(--soft-ink-faint)">ЛИЧНОЕ ДОСЬЕ</text>
-          {[
-            { x: 92, y: 160, title: "Форма", value: story.originLabel },
-            { x: 260, y: 48, title: "Корень", value: story.rootHint ?? "рабочая версия" },
-            { x: 428, y: 160, title: "География", value: story.regionHint ?? "нужен семейный регион" },
-            { x: 260, y: 272, title: "Достоверность", value: evidenceLabel },
-          ].map((node) => (
-            <g key={node.title}>
-              <circle cx={node.x} cy={node.y} r="31" fill="var(--soft-paper-deep)" stroke="var(--soft-paper-edge)" />
-              <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--soft-bordeaux)">{node.title}</text>
-              <text x={node.x} y={node.y + 10} textAnchor="middle" fontSize="7.5" fill="var(--soft-ink-soft)">{node.value.length > 22 ? `${node.value.slice(0, 20)}…` : node.value}</text>
-            </g>
-          ))}
+    <figure data-testid="surname-identity-map" aria-label={`Атлас имени ${displayName || story.surname}`}>
+      <div className="relative overflow-hidden rounded-[22px] bg-[var(--soft-paper-card)] p-4 shadow-[0_24px_64px_rgba(91,64,45,0.10)] sm:p-7">
+        <svg viewBox="0 0 760 420" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full opacity-70">
+          <defs><radialGradient id="surname-atlas-wash" cx="28%" cy="18%" r="82%"><stop offset="0" stopColor="#F2D3B5" stopOpacity=".72" /><stop offset=".55" stopColor="#E6E5C8" stopOpacity=".28" /><stop offset="1" stopColor="#FBF6EE" stopOpacity="0" /></radialGradient></defs>
+          <rect width="760" height="420" fill="url(#surname-atlas-wash)" />
+          <path d="M52 330 C160 242 228 294 318 190 S520 56 710 120" fill="none" stroke="#C98267" strokeOpacity=".24" strokeWidth="2" />
+          <path d="M16 220 C160 152 250 212 378 124 S594 96 748 32" fill="none" stroke="#7E9A7A" strokeOpacity=".22" strokeWidth="1.4" strokeDasharray="5 9" />
+          <circle cx="642" cy="332" r="76" fill="none" stroke="#AA8A54" strokeOpacity=".18" /><circle cx="642" cy="332" r="53" fill="none" stroke="#AA8A54" strokeOpacity=".18" />
         </svg>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-testid="surname-facts">
-          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">факт</p><p className="mt-1 text-sm text-[var(--soft-ink)]">форма и словообразование</p></div>
-          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">версия</p><p className="mt-1 text-sm text-[var(--soft-ink)]">происхождение и география</p></div>
-          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">зеркало</p><p className="mt-1 text-sm text-[var(--soft-ink)]">звучание и черты характера</p></div>
+
+        <div className="relative grid gap-5">
+          <div className="flex flex-col items-center rounded-[20px] bg-[color-mix(in_srgb,var(--soft-paper)_86%,transparent)] px-5 py-6 text-center shadow-[0_14px_36px_rgba(91,64,45,0.08)]">
+            <div className="grid size-24 place-items-center rounded-full border border-[var(--soft-terracotta)] bg-[var(--soft-paper-card)] font-heading text-4xl text-[var(--soft-bordeaux)] shadow-[inset_0_0_0_7px_var(--soft-paper-deep)]">{monogram || "ИФ"}</div>
+            <p className="soft-eyebrow mt-4">атлас имени</p>
+            <p className="mt-1 break-words font-heading text-2xl leading-tight text-[var(--soft-bordeaux)]">{displayName || story.surname}</p>
+            <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--soft-paper-deep)] px-3 py-2 text-sm text-[var(--soft-ink)]">
+              <span className="font-semibold">{parts.stem}</span><span className="text-[var(--soft-ink-faint)]">·</span><span>{parts.suffix}</span>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">основа · фамильный формант</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2" data-testid="surname-atlas-traces">
+            {traces.map((trace, index) => (
+              <div key={trace.label} className={`surname-atlas-trace surname-atlas-trace-${trace.tone} rounded-[17px] bg-[color-mix(in_srgb,var(--soft-paper-card)_90%,transparent)] p-4 shadow-[0_12px_32px_rgba(91,64,45,0.07)] ${index === traces.length - 1 ? "sm:col-span-2" : ""}`}>
+                <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-current" aria-hidden="true" /><p className="soft-eyebrow text-[0.62rem]">{trace.label}</p></div>
+                <p className="mt-2 break-words font-heading text-[1.08rem] leading-snug text-[var(--soft-ink)]">{trace.value}</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">{trace.status}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative mt-5 flex flex-wrap gap-x-4 gap-y-2 rounded-[14px] bg-[color-mix(in_srgb,var(--soft-paper-deep)_80%,transparent)] px-4 py-3 text-[11px] text-[var(--soft-ink-soft)]" aria-label="Статусы сведений">
+          <span><b className="text-[var(--soft-sage)]">●</b> след в форме</span><span><b className="text-[var(--soft-terracotta-dark)]">●</b> вероятная версия</span><span><b className="text-[#A27F3F]">●</b> требует семейной проверки</span><span><b className="text-[#607F9B]">●</b> символическое чтение</span>
+        </div>
+
+        <div className="relative mt-3 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2.5" data-testid="surname-facts">
+          {[
+            ["Что видно в написании", `Основа «${parts.stem}» и формант «${parts.suffix}»`],
+            ["Главный след", `${story.originLabel} · ${evidenceLabel}`],
+            ["Как звучит полное имя", nameRhythm(name, story.surname)],
+            ["С чего начать проверку", story.evidence?.historicalMentions?.[0] ?? `Найти самый ранний семейный регион и варианты «${latin}»`],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">{label}</p><p className="mt-1 break-words text-sm leading-relaxed text-[var(--soft-ink)]">{value}</p></div>
+          ))}
         </div>
       </div>
     </figure>
   );
 }
 
-function SurnameTeaser() {
+function SurnameTeaser({ name, surname }: { name: string; surname: string }) {
+  const enteredSurname = surname.trim();
+  const parts = surnameParts(enteredSurname || "Фамилия");
+  const monogram = `${name.trim()[0] ?? ""}${enteredSurname[0] ?? ""}`.toUpperCase() || "ИФ";
   return (
     <div
-      className="rounded-[16px] border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-center"
+      className="relative overflow-hidden rounded-[18px] bg-[var(--soft-paper-card)] p-4 shadow-[0_14px_36px_rgba(91,64,45,0.07)]"
       data-testid="surname-teaser"
-      aria-hidden="true"
     >
-      <svg viewBox="0 0 320 150" className="mx-auto block w-full max-w-[260px]">
-        <path d="M54 120 C98 64, 137 62, 160 34 C185 63, 224 64, 266 120" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="2" strokeDasharray="4 5" strokeLinecap="round" />
-        {([[54, 120], [160, 34], [266, 120]] as Array<[number, number]>).map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="20" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="3 4" />
-        ))}
-        <text x="160" y="38" textAnchor="middle" dominantBaseline="central" fontSize="20" fill="var(--soft-ink-faint)">?</text>
-      </svg>
-      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">история рода появится здесь после оплаты</p>
+      <svg viewBox="0 0 520 150" className="pointer-events-none absolute inset-0 h-full w-full opacity-50" aria-hidden="true"><path d="M12 118 C110 42 176 116 260 45 S412 72 508 18" fill="none" stroke="#C98267" strokeOpacity=".35" strokeWidth="2" /><circle cx="448" cy="118" r="48" fill="none" stroke="#7E9A7A" strokeOpacity=".32" /></svg>
+      <div className="relative flex items-center gap-4">
+        <div className="grid size-16 shrink-0 place-items-center rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] font-heading text-2xl text-[var(--soft-bordeaux)]">{monogram}</div>
+        <div className="min-w-0 text-left">
+          <p className="soft-eyebrow">персональный атлас имени</p>
+          {enteredSurname ? <><p className="mt-1 break-words font-heading text-lg text-[var(--soft-ink)]">{parts.stem} · {parts.suffix}</p><p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">В полном атласе: версии происхождения, звучание, латиница и маршрут проверки.</p></> : <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">Введите одну фамилию: атлас соберёт её по пяти слоям.</p>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -126,7 +182,7 @@ export function SurnameStoryResultView({
     <SymbolicResultScaffold
       productKey="surname-story"
       eyebrow="имя + фамилия"
-      heading="Паспорт вашего имени"
+      heading="Атлас имени и фамилии"
       recapSummary={recap.surname.trim() ? `Фамилия: ${recap.surname.trim()}` : "Ваша фамилия"}
       recapRows={recapRows}
       visual={story ? <SurnameLineageVisual story={story} name={recap.name} /> : undefined}
@@ -143,6 +199,9 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [question, setQuestion] = useState("");
+  const namePlaceholder = useRotatingPlaceholder(SURNAME_NAME_EXAMPLES, "surname-name");
+  const surnamePlaceholder = useRotatingPlaceholder(SURNAME_EXAMPLES, "surname");
+  const questionPlaceholder = useRotatingPlaceholder(SURNAME_QUESTION_EXAMPLES, "surname-question");
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("surname-story", (userInput) => {
@@ -201,30 +260,30 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
 
       <div className="product-controls">
         <label className="soft-eyebrow product-question-label" htmlFor="surname-name-input">ваше имя</label>
-        <input id="surname-name-input" value={name} onChange={(e) => setName(e.target.value.slice(0, 80))} placeholder="Алексей" className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} data-testid="surname-name-input" />
+        <input id="surname-name-input" value={name} onChange={(e) => setName(e.target.value.slice(0, 80))} placeholder={namePlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} data-testid="surname-name-input" />
 
         <label className="soft-eyebrow product-question-label" htmlFor="surname-input">ваша фамилия</label>
         <input
           id="surname-input"
           value={surname}
           onChange={(e) => setSurname(e.target.value.slice(0, 80))}
-          placeholder="Кузнецов, Ковальчук, Соколова…"
+          placeholder={surnamePlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="surname-input"
         />
 
         <label className="soft-eyebrow product-question-label" htmlFor="surname-question-input">что хотите узнать, необязательно</label>
-        <textarea id="surname-question-input" value={question} onChange={(e) => setQuestion(e.target.value.slice(0, 500))} placeholder="Например: какое впечатление создаёт сочетание имени и фамилии?" className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
+        <textarea id="surname-question-input" value={question} onChange={(e) => setQuestion(e.target.value.slice(0, 500))} placeholder={questionPlaceholder} className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
 
         <div className="mt-1">
-          <SurnameTeaser />
+          <SurnameTeaser name={name} surname={surname} />
         </div>
 
         <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="surname-start">
-              {status === "loading" ? "Собираем паспорт имени…" : "Открыть имя и фамилию"}
+              {status === "loading" ? "Собираем атлас имени…" : "Открыть имя и фамилию"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (

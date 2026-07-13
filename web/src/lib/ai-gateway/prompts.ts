@@ -532,6 +532,7 @@ export function mergeAIPromptOverride(
   configuredPrompt: string,
 ) {
   const codeDefault = defaultPromptTextForFeature(feature);
+  const isSymbolicProduct = codeDefault.includes(SYMBOLIC_BASE_RULES);
   let merged: string;
   if (configuredPrompt.includes("{{defaultPrompt}}")) {
     merged = configuredPrompt.replaceAll("{{defaultPrompt}}", runtimeSystemPrompt);
@@ -539,9 +540,15 @@ export function mergeAIPromptOverride(
     const runtimeSuffix = runtimeSystemPrompt.startsWith(codeDefault)
       ? runtimeSystemPrompt.slice(codeDefault.length)
       : "";
-    merged = `${configuredPrompt}${runtimeSuffix}`;
+    // Admin copy may tune voice, but it must never erase the current product
+    // structure, calculated-fact rules or direct-answer contract. Legacy stage
+    // rows predate {{defaultPrompt}}, so symbolic products compose the complete
+    // runtime prompt after the configured overlay.
+    merged = isSymbolicProduct
+      ? `${configuredPrompt}\n\n${runtimeSystemPrompt}`
+      : `${configuredPrompt}${runtimeSuffix}`;
   }
-  const symbolicContract = codeDefault.includes(SYMBOLIC_BASE_RULES)
+  const symbolicContract = isSymbolicProduct
     ? [SYMBOLIC_BASE_RULES, DIRECT_SYMBOLIC_ANSWER_CONTRACT]
         .filter((rule) => !merged.includes(rule))
         .join("\n\n")

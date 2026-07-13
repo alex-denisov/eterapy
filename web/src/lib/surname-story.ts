@@ -65,6 +65,10 @@ const STOP_WORDS = new Set([
   "девичья", "род", "рода", "это", "была", "был", "наша", "наш", "имя", "зовут",
 ]);
 
+export function surnameValueFromStructuredInput(input: string) {
+  return input.match(/^Фамилия:\s*(.+)$/imu)?.[1]?.trim() ?? input;
+}
+
 // Достать фамилию из свободного ввода: кириллическое слово длиной ≥3, не стоп-слово.
 // Сперва ищем токен с узнаваемым фамильным суффиксом, иначе — самый длинный токен.
 export function parseSurnameInput(raw: string): string | null {

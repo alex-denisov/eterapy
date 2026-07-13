@@ -1,8 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import Link from "next/link";
-import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
+import { MessageSquareText, Sparkles } from "lucide-react";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { SectionAccordion } from "@/components/products/section-accordion";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
@@ -10,7 +9,6 @@ import { getProductPriceLabel } from "@/lib/product-prices";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
-import { appUrl } from "@/lib/subdomain";
 
 // B451: общий результирующий экран символической услуги (паттерн Таро/reframe):
 // заголовок + свёрнутый запрос (recap) + визуализация + навигация-аккордеон по
@@ -26,6 +24,23 @@ const LEGACY_FINAL_SECTION_TITLES: Record<string, string> = {
   "human-design": "Как применять дизайн",
   "surname-story": "Что проверить в семейной истории",
 };
+
+const DIRECT_ANSWER_TITLES: Record<string, string> = {
+  tarot: "Вердикт расклада",
+  "natal-chart": "Главный вывод карты",
+  synastry: "Главный вывод о вашей связи",
+  numerology: "Главный вывод матрицы",
+  horary: "Ответ на поставленный вопрос",
+  "tarot-numerology": "Ключевой вывод ваших арканов",
+  "human-design": "Главный ключ вашего дизайна",
+  "surname-story": "Ключ к вашему имени и фамилии",
+};
+
+export function presentSymbolicSectionTitle(productKey: string, title: string) {
+  return /^Прямой ответ\s*$/iu.test(title.trim())
+    ? DIRECT_ANSWER_TITLES[productKey] ?? "Главный вывод"
+    : title;
+}
 
 function normalizeLegacySymbolicHeadings(productKey: string, text: string): string {
   const replacement = LEGACY_FINAL_SECTION_TITLES[productKey];
@@ -65,7 +80,10 @@ export function SymbolicResultScaffold({
   const normalizedResultText = stripEmbeddedResultDisclaimers(
     normalizeResultSectionHeadings(productKey, normalizeLegacySymbolicHeadings(productKey, resultText)),
   );
-  const sections = splitSections(normalizedResultText);
+  const sections = splitSections(normalizedResultText).map((section) => ({
+    ...section,
+    title: presentSymbolicSectionTitle(productKey, section.title),
+  }));
 
   const topicKey = dialogueTopicFromChip(topic);
   const triagePrimary: TriagePrimary[] = [
@@ -147,12 +165,6 @@ export function SymbolicResultScaffold({
         specialistHref="/practitioners"
       />
 
-      <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
-        <BookOpen className="size-3.5" aria-hidden="true" />
-        <span>Разбор сохранён в</span>
-        <Link href={appUrl("/diary")} className="font-medium text-[var(--soft-ink-soft)] underline-offset-2 hover:underline">дневнике</Link>
-        <span>— там его можно перечитать, скачать PDF или удалить.</span>
-      </p>
     </div>
   );
 }

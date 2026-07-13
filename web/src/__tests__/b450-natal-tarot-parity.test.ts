@@ -127,7 +127,7 @@ describe("B450 — natal-chart tarot-parity rework", () => {
       expect(scaffold).toContain("SectionAccordion");
       expect(scaffold).toContain("ServiceTriage");
       expect(scaffold).toContain("-recap");
-      expect(scaffold).toContain("дневник");
+      expect(scaffold).not.toContain("Разбор сохранён в");
     });
 
     it("is session-scoped via ?reading= and handles 402/503 in the shared hook", () => {

@@ -44,8 +44,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   const { id } = await params;
+  const expectedProductKey = request.nextUrl.searchParams.get("productKey");
+  if (expectedProductKey && !SYMBOLIC_PRODUCT_KEYS.includes(expectedProductKey as (typeof SYMBOLIC_PRODUCT_KEYS)[number])) {
+    return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+  }
+  const productKey = expectedProductKey as (typeof SYMBOLIC_PRODUCT_KEYS)[number] | null;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: { in: [...SYMBOLIC_PRODUCT_KEYS] }, deletedAt: null },
+    where: {
+      id,
+      userId,
+      productKey: productKey ?? { in: [...SYMBOLIC_PRODUCT_KEYS] },
+      deletedAt: null,
+    },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
   return jsonWithRequestContext(
