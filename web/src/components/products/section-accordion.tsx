@@ -9,7 +9,8 @@ function sectionPreview(body: string) {
   return body
     .replace(/^#{1,6}\s+.*$/gm, "")
     .replace(/[*_`>\[\]]/g, "")
-    .replace(/^[-+]\s+/gm, "")
+    .replace(/^\s*(?:[-+•]|\d{1,3}[.)])\s*$/gm, "")
+    .replace(/^\s*(?:[-+•]|\d{1,3}[.)])\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim()
     .split(/(?<=[.!?])\s+/)[0]

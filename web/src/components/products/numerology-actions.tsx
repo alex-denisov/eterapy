@@ -10,6 +10,7 @@ import { useSymbolicService, type SymbolicResult } from "@/components/products/u
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NumerologyPortrait } from "@/lib/numerology";
 import type { DestinyMatrix } from "@/lib/destiny-matrix";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 // B451: «Числовой портрет» — самодостаточная услуга по паттерну Таро/reframe.
 // Ядровые числа (путь/выражение/душа) считаются детерминированно (lib/numerology),
@@ -18,6 +19,8 @@ import type { DestinyMatrix } from "@/lib/destiny-matrix";
 export type NumerologyResult = SymbolicResult;
 
 const TOPICS = ["самопознание", "работа", "отношения", "любовь", "семья", "деньги", "перемены", "предназначение"];
+const NUMEROLOGY_NAME_EXAMPLES = ["Анна Петрова", "Мария Соколова", "Елена Ковальчук"];
+const NUMEROLOGY_BIRTH_EXAMPLES = ["12.04.1992", "03.11.1988", "27.06.1995"];
 
 export function extractNumerology(result: SymbolicResult | null): NumerologyPortrait | null {
   const md = result?.metadata;
@@ -228,6 +231,8 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+  const namePlaceholder = useRotatingPlaceholder(NUMEROLOGY_NAME_EXAMPLES, topic ?? "all");
+  const birthPlaceholder = useRotatingPlaceholder(NUMEROLOGY_BIRTH_EXAMPLES, topic ?? "all");
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("numerology", (userInput) => {
@@ -299,7 +304,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
           id="numerology-name-input"
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 120))}
-          placeholder="Анна"
+          placeholder={namePlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="numerology-name-input"
@@ -310,7 +315,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
           id="numerology-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 60))}
-          placeholder="12.04.1992"
+          placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="numerology-birth-input"

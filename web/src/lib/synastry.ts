@@ -151,8 +151,10 @@ export async function generateSynastryResult(input: {
       `Фокус совместимости: ${normalizeInput(input.focus ?? input.question ?? "") || "полная динамика пары"}`,
       `Слой отношений: ${relationshipLayer}.`,
     ].join("\n");
-    const midpoint = Math.ceil(SYNASTRY_HEADINGS.length / 2);
-    const groups = [SYNASTRY_HEADINGS.slice(0, midpoint), SYNASTRY_HEADINGS.slice(midpoint)];
+    const groups = Array.from(
+      { length: Math.ceil(SYNASTRY_HEADINGS.length / 3) },
+      (_, index) => SYNASTRY_HEADINGS.slice(index * 3, (index + 1) * 3),
+    );
     const responses = await Promise.all(groups.map((headings, index) => aiComplete({
       feature: "product-synastry",
       userId: input.userId,
@@ -166,6 +168,9 @@ export async function generateSynastryResult(input: {
           content: [
             "Собери одну часть большого разбора синастрии. Верни ТОЛЬКО перечисленные разделы и не добавляй остальные.",
             "Каждый заголовок напиши дословно с `##`; внутри дай 3 содержательных абзаца с конкретными положениями и аспектами.",
+            headings.includes("Прямой ответ")
+              ? "Раздел `## Прямой ответ` должен содержать минимум 500 знаков и прямой вывод по выбранному слою отношений."
+              : "",
             ...headings.map((heading) => `## ${heading}`),
             context,
           ].join("\n"),
@@ -178,6 +183,12 @@ export async function generateSynastryResult(input: {
       if (text.length < 5_000) return "результат слишком короткий";
       if (/(?:первый|второй)\s+человек|\b(?:пользователь|клиент|заявитель)\b/iu.test(text)) return "неверное обращение к заказчику";
       if (!SYNASTRY_HEADINGS.every((heading) => text.includes(`## ${heading}`))) return "нет обязательных разделов";
+      const sections = splitSections(text);
+      const weakSection = sections.find((section) => (
+        SYNASTRY_HEADINGS.some((heading) => headingKey(heading) === headingKey(section.title))
+        && section.body.replace(/^#{1,6}\s*$/gmu, "").trim().length < (headingKey(section.title) === headingKey("Прямой ответ") ? 350 : 180)
+      ));
+      if (weakSection) return `неполный раздел ${weakSection.title}`;
       const signs = [...new Set([...wheel.a.placements, ...wheel.b.placements].map((placement) => placement.signName))];
       if (signs.filter((sign) => textMentionsZodiacSign(text, sign)).length < Math.min(5, signs.length)) return "текст не опирается на рассчитанные положения";
       return null;
@@ -198,6 +209,9 @@ export async function generateSynastryResult(input: {
             content: [
               `Дополни только слабые или отсутствующие разделы. Причина: ${issue}.`,
               "Верни только эти заголовки дословно с `##`; каждый раздел — 3–4 конкретных абзаца. Обращайся «вы», второго участника называй «партнёр».",
+              repairHeadings.includes("Прямой ответ")
+                ? "Для `## Прямой ответ` дай минимум 500 знаков и недвусмысленный вывод по выбранному слою отношений."
+                : "",
               ...repairHeadings.map((heading) => `## ${heading}`),
               context,
             ].join("\n"),

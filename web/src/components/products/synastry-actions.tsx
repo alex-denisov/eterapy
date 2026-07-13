@@ -11,6 +11,7 @@ import { SynastryWheel } from "@/components/products/esoteric-chart-visuals";
 import { redirectToLogin, readingIdFromUrl, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 // B451: «Совместимость по звёздам» — самодостаточная парная услуга по паттерну
 // Таро/reframe (свой роут /api/products/synastry, двое участников). Колесо пары
@@ -47,6 +48,16 @@ const RELATIONSHIP_LAYERS = [
   { value: "manager-report", label: "Руководитель и сотрудник" },
   { value: "founder-specialist", label: "Основатель и ключевой специалист" },
 ] as const;
+const SYNASTRY_USER_EXAMPLES = [
+  "12.04.1992, 14:35, Москва",
+  "03.11.1988, 08:10, Санкт-Петербург",
+  "27.06.1995, 21:20, Казань",
+];
+const SYNASTRY_PARTNER_EXAMPLES = [
+  "09.11.1990, 08:10, Санкт-Петербург",
+  "18.02.1991, 17:45, Самара",
+  "05.12.1993, 11:30, Новосибирск",
+];
 
 function extractSynastryWheel(result: SymbolicResult | null): SynastryWheelData | null {
   const md = result?.metadata;
@@ -139,6 +150,9 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
   const [relationshipLayer, setRelationshipLayer] = useState("personal");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const placeholderKey = `${relationshipLayer}:${topic ?? "all"}`;
+  const userBirthPlaceholder = useRotatingPlaceholder(SYNASTRY_USER_EXAMPLES, placeholderKey);
+  const partnerBirthPlaceholder = useRotatingPlaceholder(SYNASTRY_PARTNER_EXAMPLES, placeholderKey);
 
   // #3: ввод обоих участников переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
@@ -155,14 +169,25 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
 
   // Сессионность: восстановить разбор по ?reading=<id>.
   useEffect(() => {
-    if (authStatus !== "authenticated") return;
     const readingId = readingIdFromUrl();
     if (!readingId) return;
+    if (authStatus === "unauthenticated") {
+      redirectToLogin();
+      return;
+    }
+    if (authStatus !== "authenticated") return;
     let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setStatus("loading");
+        setMessage(null);
+      }
+    });
     jsonRequest<{ result?: SymbolicResult }>(`/api/products/synastry/${readingId}`)
       .then((payload) => {
         if (cancelled || !payload.result) return;
         setResult(payload.result);
+        setStatus("idle");
         const md = payload.result.metadata as { userBirthData?: unknown; partnerBirthData?: unknown; topic?: unknown; relationshipLayer?: unknown } | undefined;
         if (md) {
           if (typeof md.userBirthData === "string") setUserBirth(md.userBirthData);
@@ -171,7 +196,14 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
           if (typeof md.relationshipLayer === "string") setRelationshipLayer(md.relationshipLayer);
         }
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (cancelled) return;
+        const typed = error as Error & { status?: number };
+        setMessage(typed.status === 404
+          ? "Этот разбор пары не найден или недоступен в текущем аккаунте."
+          : typed.message || "Не удалось открыть сохранённый разбор пары.");
+        setStatus("error");
+      });
     return () => { cancelled = true; };
   }, [authStatus]);
 
@@ -288,7 +320,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
               id="synastry-user-birth"
               value={userBirth}
               onChange={(e) => setUserBirth(e.target.value.slice(0, 400))}
-              placeholder="12.04.1992, 14:35, Москва"
+              placeholder={userBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
               data-testid="synastry-user-birth"
@@ -300,7 +332,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
               id="synastry-partner-birth"
               value={partnerBirth}
               onChange={(e) => setPartnerBirth(e.target.value.slice(0, 400))}
-              placeholder="09.11.1990, 08:10, Санкт-Петербург"
+              placeholder={partnerBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
               data-testid="synastry-partner-birth"

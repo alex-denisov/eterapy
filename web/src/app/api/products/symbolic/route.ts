@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { parseStrictBirthDate } from "@/lib/destiny-matrix";
+import { canResolveAstrologicalLocation } from "@/lib/natal-ephemeris";
 import { classifyProductSafety } from "@/lib/product-safety";
 import {
   SYMBOLIC_PRODUCT_DEFINITIONS,
@@ -127,6 +128,14 @@ export async function POST(request: NextRequest) {
   }
   if (productKey === "horary" && (!/Вопрос:\s*\S/iu.test(rawInput) || !/Место:\s*\S/iu.test(rawInput))) {
     return errorWithRequestContext("VALIDATION_ERROR", "Для хорарной карты нужны один точный вопрос и текущее место", 400, context);
+  }
+  if (productKey === "horary" && !canResolveAstrologicalLocation(rawInput)) {
+    return errorWithRequestContext(
+      "LOCATION_NOT_RESOLVED",
+      "Не удалось определить координаты места. Укажите ближайший крупный город или координаты в формате 55.7558, 37.6173.",
+      400,
+      context,
+    );
   }
   const safety = await classifyProductSafety({
     text: rawInput,

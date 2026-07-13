@@ -48,6 +48,17 @@ const CITY_COORDINATES: Array<{ match: RegExp; latitude: number; longitude: numb
   { match: /кишин[её]в|chisinau|chișinău/i, latitude: 47.0105, longitude: 28.8638 },
   { match: /москв|moscow/i, latitude: 55.7558, longitude: 37.6173 },
   { match: /санкт[-\s]?петербург|петербург|спб|saint petersburg/i, latitude: 59.9343, longitude: 30.3351 },
+  { match: /казан|kazan/i, latitude: 55.7961, longitude: 49.1064 },
+  { match: /екатеринбург|yekaterinburg/i, latitude: 56.8389, longitude: 60.6057 },
+  { match: /новосибирск|novosibirsk/i, latitude: 55.0084, longitude: 82.9357 },
+  { match: /самар|samara/i, latitude: 53.1959, longitude: 50.1008 },
+  { match: /нижн(?:ий|его)\s+новгород|nizhny novgorod/i, latitude: 56.2965, longitude: 43.9361 },
+  { match: /ростов(?:-на-дону)?|rostov/i, latitude: 47.2357, longitude: 39.7015 },
+  { match: /краснодар|krasnodar/i, latitude: 45.0355, longitude: 38.9753 },
+  { match: /сочи|sochi/i, latitude: 43.6028, longitude: 39.7342 },
+  { match: /уф[аы]|ufa/i, latitude: 54.7388, longitude: 55.9721 },
+  { match: /перм[ьи]|perm/i, latitude: 58.0105, longitude: 56.2502 },
+  { match: /владивосток|vladivostok/i, latitude: 43.1155, longitude: 131.8855 },
   { match: /минск|minsk/i, latitude: 53.9006, longitude: 27.5590 },
   { match: /киев|kyiv|kiev/i, latitude: 50.4501, longitude: 30.5234 },
   { match: /одесс|odesa|odessa/i, latitude: 46.4825, longitude: 30.7233 },
@@ -118,7 +129,20 @@ function placementsAt(time: AstroTime): ChartPlacement[] {
 }
 
 function resolveCoordinates(input: string) {
-  return CITY_COORDINATES.find((city) => city.match.test(input)) ?? null;
+  const location = input.match(/^Место:\s*(.+)$/imu)?.[1]?.trim() ?? input;
+  const explicit = location.match(/(-?\d{1,2}(?:[.,]\d+)?)\s*[,;/]\s*(-?\d{1,3}(?:[.,]\d+)?)/u);
+  if (explicit) {
+    const latitude = Number(explicit[1].replace(",", "."));
+    const longitude = Number(explicit[2].replace(",", "."));
+    if (Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
+      return { latitude, longitude };
+    }
+  }
+  return CITY_COORDINATES.find((city) => city.match.test(location)) ?? null;
+}
+
+export function canResolveAstrologicalLocation(input: string) {
+  return Boolean(resolveCoordinates(input));
 }
 
 function ascendantLongitude(time: AstroTime, latitude: number, longitude: number) {

@@ -2380,6 +2380,11 @@
     padding-top: 0.9rem;
   }
 
+  .surname-atlas-trace-sage { color: var(--soft-sage, #6f8b6c); }
+  .surname-atlas-trace-terra { color: var(--soft-terracotta-dark); }
+  .surname-atlas-trace-gold { color: #a27f3f; }
+  .surname-atlas-trace-blue { color: #607f9b; }
+
   .tarot-autosaved-note {
     display: inline-flex;
     align-items: center;

@@ -13,6 +13,7 @@ import type { SymbolicProductKey } from "@/lib/symbolic-products";
 
 export type SymbolicResult = {
   id: string;
+  productKey?: string;
   status: string;
   title: string;
   previewText: string | null;
@@ -75,20 +76,43 @@ export function useSymbolicService(
 
   // Сессионность: восстановить конкретный результат по ?reading=<id> (как у Таро).
   useEffect(() => {
-    if (authStatus !== "authenticated") return;
     const readingId = readingIdFromUrl();
     if (!readingId) return;
+    if (authStatus === "unauthenticated") {
+      redirectToLogin();
+      return;
+    }
+    if (authStatus !== "authenticated") return;
     let cancelled = false;
-    jsonRequest<ApiPayload>(`/api/products/symbolic/${readingId}`)
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setStatus("loading");
+        setMessage(null);
+      }
+    });
+    jsonRequest<ApiPayload>(`/api/products/symbolic/${readingId}?productKey=${encodeURIComponent(productKey)}`)
       .then((payload) => {
         if (cancelled || !payload.result) return;
+        if (payload.result.productKey && payload.result.productKey !== productKey) {
+          setMessage("Этот разбор относится к другой услуге и не может быть открыт на этой странице.");
+          setStatus("error");
+          return;
+        }
         setResult(payload.result);
+        setStatus("idle");
         const md = payload.result.metadata as { userInput?: unknown } | undefined;
         if (md && typeof md.userInput === "string") onRestoreRef.current?.(md.userInput);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (cancelled) return;
+        const typed = error as Error & { status?: number };
+        setMessage(typed.status === 404
+          ? "Этот разбор не найден или недоступен в текущем аккаунте."
+          : typed.message || "Не удалось открыть сохранённый разбор.");
+        setStatus("error");
+      });
     return () => { cancelled = true; };
-  }, [authStatus]);
+  }, [authStatus, productKey]);
 
   // Узнаём доступ на свежем экране (без ?reading=), чтобы показать прямой CTA.
   useEffect(() => {

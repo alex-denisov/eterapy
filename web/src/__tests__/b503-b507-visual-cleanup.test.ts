@@ -9,7 +9,7 @@ describe("B503–B507 local visual cleanup", () => {
     const numerology = source("src/components/products/numerology-actions.tsx");
 
     expect(surname).not.toContain("форма, версия, география и проверка");
-    expect(surname).toContain("grid-cols-[repeat(auto-fit,minmax(150px,1fr))]");
+    expect(surname).toContain("grid-cols-[repeat(auto-fit,minmax(180px,1fr))]");
     expect(numerology).not.toContain("число пути · выражения · души — язык повторов и ритма, не прогноз");
   });
 
