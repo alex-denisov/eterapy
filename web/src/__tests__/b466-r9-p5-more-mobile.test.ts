@@ -43,7 +43,8 @@ describe("R9 P5 — Отзывы (reviews)", () => {
     expect(src).toContain("data-pcab-top");
     expect(src).toContain("pcab-revsum");
     expect(src).toContain("pcab-revfill"); // распределение оценок
-    expect(src).toContain("pcab-rev-text");
+    // B466 R9-5: карточки отзывов вынесены в reviews-list.tsx (пагинация по 5 + «Ещё»).
+    expect(source(`${PRAC}/reviews/reviews-list.tsx`)).toContain("pcab-rev-text");
     expect(src).toMatch(/hidden[^"]*md:block/);
     expect(src).toContain('data-testid="practitioner-reviews-page"'); // прежний десктоп-testid
   });

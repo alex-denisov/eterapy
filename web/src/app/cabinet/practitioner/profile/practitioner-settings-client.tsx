@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { appUrl, logoutUrl } from "@/lib/subdomain";
+import { RU_TIMEZONES } from "@/lib/timezones";
 
 // B347 / Интерфейс 14 → B466 R9-5: аккаунт-настройки практика (mockup
 // practitioner-desktop-settings-v2): суб-табы Аккаунт · Уведомления · Интерфейс
@@ -40,13 +41,37 @@ export function PractitionerSettingsClient({
   email,
   telegramStatus,
   hasPassword,
+  timezone: initialTimezone,
 }: {
   name: string;
   email: string;
   telegramStatus: TelegramStatus;
   hasPassword: boolean;
+  timezone: string;
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("account");
+  const [timezone, setTimezone] = useState(initialTimezone);
+  const [savingTz, setSavingTz] = useState(false);
+
+  async function saveTimezone(next: string) {
+    const prev = timezone;
+    setTimezone(next);
+    setSavingTz(true);
+    try {
+      const res = await fetch("/api/notifications/timezone", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone: next }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Часовой пояс сохранён");
+    } catch {
+      toast.error("Не удалось сохранить часовой пояс");
+      setTimezone(prev);
+    } finally {
+      setSavingTz(false);
+    }
+  }
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
 
   const [currentPwd, setCurrentPwd] = useState("");
@@ -179,11 +204,22 @@ export function PractitionerSettingsClient({
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Часовой пояс</label>
-              <div className="rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2.5 text-[14px] text-[var(--soft-ink-soft)]">Москва · GMT+3</div>
+              <select
+                value={timezone}
+                onChange={(e) => saveTimezone(e.target.value)}
+                disabled={savingTz}
+                className="w-full rounded-[10px] border border-[var(--soft-paper-edge)] bg-white px-3 py-2.5 text-[14px] disabled:opacity-60"
+                data-testid="practitioner-timezone-select"
+              >
+                {RU_TIMEZONES.every((t) => t.value !== timezone) && <option value={timezone}>{timezone}</option>}
+                {RU_TIMEZONES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
             </div>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-            Пока доступен только русский язык. Время сессий и напоминаний показывается по московскому времени (GMT+3).
+            Часовой пояс определяет время сессий, напоминаний и «Тихих часов». Язык интерфейса — пока только русский.
           </p>
         </div>
       )}

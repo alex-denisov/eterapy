@@ -9,6 +9,7 @@ import {
   type UserRole,
 } from "@/lib/notification-events";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { RU_TIMEZONES } from "@/lib/timezones";
 
 type Channel = "EMAIL" | "TELEGRAM" | "WEB";
 
@@ -390,13 +391,18 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           </label>
           <label className="text-xs text-muted-foreground/70">
             Часовой пояс
-            <input
-              type="text"
+            <select
               value={quietHours.timezone}
               onChange={e => setQuietHours(prev => ({ ...prev, timezone: e.target.value }))}
               className="mt-1 block w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm"
-              placeholder="Europe/Moscow"
-            />
+            >
+              {RU_TIMEZONES.every((t) => t.value !== quietHours.timezone) && (
+                <option value={quietHours.timezone}>{quietHours.timezone}</option>
+              )}
+              {RU_TIMEZONES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
           </label>
         </div>
       </div>

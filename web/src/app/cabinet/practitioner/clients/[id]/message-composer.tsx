@@ -141,7 +141,7 @@ export function MessageComposer({
         value={text}
         onChange={(e) => setText(e.target.value)}
         className="soft-input min-h-24 w-full resize-y p-3 text-sm leading-relaxed"
-        placeholder="Материал или бережное сообщение клиенту…"
+        placeholder="Материал или сообщение клиенту…"
         maxLength={4000}
       />
       {attachment && (

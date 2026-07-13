@@ -14,6 +14,26 @@ const DAY_FMT = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow",
 });
 
+// B466 R9-5 — человекочитаемые русские подписи риск-сигналов (owner: не
+// показывать сырые ключи вроде «many_bookings_same_client»).
+const RISK_FLAG_LABELS: Record<string, string> = {
+  external_payment_signal: "Признаки оплаты вне платформы",
+  compliance_promise_or_pressure: "Обещания результата или давление",
+  practitioner_not_verified: "Специалист не верифицирован",
+  practitioner_self_booking: "Самозапись специалиста",
+  many_bookings_same_client: "Много записей от одного клиента",
+  many_bookings_same_ip_day: "Много записей с одного IP за день",
+  many_bookings_same_device_day: "Много записей с одного устройства за день",
+  same_ip_as_creator: "Тот же IP, что у пригласившего",
+  same_device_as_creator: "То же устройство, что у пригласившего",
+  practitioner_high_risk: "Высокий риск-профиль специалиста",
+  high_dispute_refund_velocity: "Частые споры и возвраты",
+};
+
+function riskFlagLabel(flag: string): string {
+  return RISK_FLAG_LABELS[flag] ?? flag.replace(/_/g, " ");
+}
+
 export async function RequestsTab({ practitionerId }: { practitionerId: string }) {
   const [pending, changeRequests] = await Promise.all([
     db.booking.findMany({
@@ -63,9 +83,14 @@ export async function RequestsTab({ practitionerId }: { practitionerId: string }
                         {" · "}{durationMinutes} мин · {b.priceRub.toLocaleString("ru-RU")} ₽
                       </p>
                       {b.riskFlags.length > 0 && (
-                        <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
-                          Сигналы: {b.riskFlags.slice(0, 4).join(", ")}
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-[var(--soft-ink-faint)]">Сигналы:</span>
+                          {b.riskFlags.slice(0, 4).map((flag) => (
+                            <span key={flag} className="rounded-md px-1.5 py-px text-[11px]" style={{ background: "var(--soft-lilac-bg,#EAE4F0)", color: "var(--soft-lilac-ink,#5B4A73)" }}>
+                              {riskFlagLabel(flag)}
+                            </span>
+                          ))}
+                        </div>
                       )}
                       {b.meetingContext && (
                         <div

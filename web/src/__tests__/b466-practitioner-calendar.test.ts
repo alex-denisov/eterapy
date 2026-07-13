@@ -16,7 +16,9 @@ describe("B466 practitioner «Календарь»", () => {
   it("availability keeps prices read-only — only duration toggles (owner fix #1)", () => {
     const availability = source("src/app/cabinet/practitioner/calendar/availability-client.tsx");
     expect(availability).toContain("PriceRatesViewer");
-    expect(availability).toContain("Стоимость здесь не редактируется");
+    // B466 R9-5: цены остаются read-only (только тумблеры длительностей); текст
+    // переформулирован при десктоп-рестайле «Доступности».
+    expect(availability).toContain("Стоимость закреплена за длительностью");
   });
 
   it("gates «Войти» to the 30-minute window on the booking card", () => {

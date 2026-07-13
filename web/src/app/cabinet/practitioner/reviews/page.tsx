@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { PractitionerReviewsList, type ReviewItem } from "./reviews-list";
 
 export default async function PractitionerReviewsPage() {
   const session = await auth();
@@ -34,6 +35,17 @@ export default async function PractitionerReviewsPage() {
   const dist = [5, 4, 3, 2, 1].map((star) => ({ star, n: published.filter((r) => r.rating === star).length }));
   const distMax = Math.max(1, ...dist.map((d) => d.n));
   const reviewWord = practitioner.reviewCount === 1 ? "отзыв" : practitioner.reviewCount < 5 ? "отзыва" : "отзывов";
+
+  const reviewItems: ReviewItem[] = practitioner.reviews.map((r) => ({
+    id: r.id,
+    authorName: r.author?.name ?? null,
+    rating: r.rating,
+    text: r.text,
+    status: r.status,
+    createdAtIso: r.createdAt.toISOString(),
+    riskScore: r.riskScore,
+    riskFlags: r.riskFlags,
+  }));
 
   return (
     <>
@@ -73,30 +85,7 @@ export default async function PractitionerReviewsPage() {
             <div className="pcab-section-head" style={{ marginTop: 18, marginBottom: 4 }}>
               <span className="pcab-eyebrow">Последние отзывы</span>
             </div>
-            {practitioner.reviews.map((r) => (
-              <div key={r.id} className="pcab-rev">
-                <div className="pcab-rev-top">
-                  <span className="pcab-rev-av" aria-hidden="true">{(r.author?.name ?? "К")[0]}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="pcab-rev-name">
-                      {r.author?.name ?? "Клиент"}
-                      {r.status !== "PUBLISHED" && (
-                        <span className="pcab-needchip" style={{ marginLeft: 6 }}>{r.status === "REVIEW" ? "на проверке" : "скрыт"}</span>
-                      )}
-                    </div>
-                    <div className="pcab-rev-when">
-                      {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" })}
-                    </div>
-                  </div>
-                  <div className="pcab-rev-stars" aria-label={`${r.rating} из 5`}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} style={{ opacity: i < r.rating ? 1 : 0.22 }}>★</span>
-                    ))}
-                  </div>
-                </div>
-                {r.text && <div className="pcab-rev-text">{r.text}</div>}
-              </div>
-            ))}
+            <PractitionerReviewsList reviews={reviewItems} variant="pcab" />
           </>
         )}
       </div>
@@ -119,41 +108,7 @@ export default async function PractitionerReviewsPage() {
             {/* Список отзывов */}
             <div className="soft-card p-5 sm:p-6" data-testid="practitioner-review-list">
               <p className="soft-eyebrow mb-4">{practitioner.reviewCount} {reviewWord}</p>
-              <div className="space-y-5">
-                {practitioner.reviews.map((r) => (
-                  <div key={r.id} className="border-b border-[var(--soft-paper-deep)] pb-5 last:border-0 last:pb-0">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--soft-paper-deep)] text-[12px] font-semibold text-[var(--soft-bordeaux)]">
-                        {reviewInitials(r.author?.name)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 text-[14px] font-medium">
-                          <span className="truncate">{r.author?.name ?? "Клиент"}</span>
-                          {r.status !== "PUBLISHED" && (
-                            <span className="shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold" style={{ background: "var(--soft-lilac-bg, #EAE4F0)", color: "var(--soft-lilac-ink, #5B4A73)" }}>
-                              {r.status === "REVIEW" ? "на проверке" : "скрыт"}
-                            </span>
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
-                          {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" })}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-0.5" aria-label={`${r.rating} из 5`}>
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <span key={i} className="text-[14px]" style={{ color: i < r.rating ? "#D8A24A" : "var(--soft-paper-deep)" }}>★</span>
-                        ))}
-                      </div>
-                    </div>
-                    {r.text && <p className="mt-2.5 text-[13.5px] leading-relaxed text-[var(--soft-ink-soft)]">{r.text}</p>}
-                    {(r.riskScore > 0 || r.riskFlags.length > 0) && (
-                      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
-                        Модерация: {r.riskScore}/100{r.riskFlags.length > 0 ? ` · ${r.riskFlags.slice(0, 3).join(", ")}` : ""}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <PractitionerReviewsList reviews={reviewItems} variant="desktop" />
             </div>
 
             {/* Сводка + как это работает */}
@@ -191,16 +146,5 @@ export default async function PractitionerReviewsPage() {
         )}
       </div>
     </>
-  );
-}
-
-function reviewInitials(name: string | null | undefined): string {
-  if (!name) return "К";
-  return (
-    name
-      .split(" ")
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("") || "К"
   );
 }

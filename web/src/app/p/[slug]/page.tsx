@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Pick<Params, "params">): Prom
   if (!practitioner) return { title: "Личная ссылка практика — ETerapy" };
   return {
     title: `${practitioner.user.name}: личная ссылка для записи — ETerapy`,
-    description: "Познакомьтесь с практиком, получите короткий AI-контекст и выберите удобное время.",
+    description: "Познакомьтесь со специалистом, получите бесплатный короткий разбор и выберите удобное время.",
     alternates: { canonical: mainUrl(`/p/${slug}`) },
     robots: { index: false, follow: false },
   };
@@ -77,13 +77,13 @@ export default async function PractitionerByocLanding({ params, searchParams }: 
             </div>
             <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-white/80 p-4">
               <Sparkles className="mb-2 h-5 w-5 text-[var(--soft-bordeaux)]" />
-              <p className="text-sm text-[var(--soft-ink-soft)]">AI-контекст</p>
-              <p className="text-xs text-[var(--soft-ink-faint)]">перед первой записью</p>
+              <p className="text-sm text-[var(--soft-ink-soft)]">Бесплатный разбор</p>
+              <p className="text-xs text-[var(--soft-ink-faint)]">короткий, перед записью</p>
             </div>
             <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-white/80 p-4">
               <ShieldCheck className="mb-2 h-5 w-5 text-[var(--soft-bordeaux)]" />
-              <p className="text-sm text-[var(--soft-ink-soft)]">Оплата и эскроу</p>
-              <p className="text-xs text-[var(--soft-ink-faint)]">через ETerapy</p>
+              <p className="text-sm text-[var(--soft-ink-soft)]">Безопасная оплата</p>
+              <p className="text-xs text-[var(--soft-ink-faint)]">онлайн через ETerapy</p>
             </div>
           </div>
         </div>
@@ -96,12 +96,12 @@ export default async function PractitionerByocLanding({ params, searchParams }: 
             <Link href={profileHref} className="soft-button soft-button-primary justify-center">
               Выбрать время
             </Link>
-            <Link href={mainUrl(`/p/${practitioner.slug}/precheck?source=byoc`)} className="soft-button soft-button-secondary justify-center">
-              Короткий предразбор
+            <Link href={mainUrl(`/p/${practitioner.slug}/precheck?source=byoc`)} className="soft-button soft-button-ghost justify-center">
+              Бесплатный короткий разбор
             </Link>
           </div>
           <p className="mt-5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-            Цена для клиента не меняется. Личная ссылка только фиксирует источник клиента и помогает практику платить меньшую инфраструктурную комиссию.
+            Это личная ссылка вашего специалиста, чтобы записаться напрямую. Цена для вас та же, а оплата проходит безопасно через ETerapy.
           </p>
         </aside>
       </section>
