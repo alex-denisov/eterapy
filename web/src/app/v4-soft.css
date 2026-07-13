@@ -169,11 +169,11 @@
   /* Digital product cards keep their chrome stable while inner controls receive
      focus. The former terracotta focus-within ring looked like a validation
      error on product forms and result accordions. */
-  .tarot-order-surface {
+  .product-order-surface {
     transition: border-color 160ms ease, box-shadow 160ms ease;
   }
 
-  .tarot-order-surface:focus-within {
+  .product-order-surface:focus-within {
     border-color: var(--soft-paper-edge);
     box-shadow: var(--soft-shadow-sm);
   }
@@ -876,13 +876,20 @@
     box-shadow: none !important;
   }
 
-  .soft-question-input.tarot-line-input {
+  .soft-question-input.product-line-input {
     min-height: 2.75rem;
     height: 2.75rem;
     resize: none;
     font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.2;
+  }
+
+  .soft-question-input.product-compact-input {
+    min-height: 3.25rem;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.38;
   }
 
   .soft-input {
@@ -1058,7 +1065,7 @@
   .soft-dialogue-chat {
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: 0.85rem;
   }
 
   .soft-msg-row {
@@ -1104,9 +1111,9 @@
     width: fit-content;
     max-width: min(36rem, 100%);
     border-radius: 1.35rem;
-    padding: 1rem 1.1rem;
-    font-size: 0.96rem;
-    line-height: 1.58;
+    padding: 0.82rem 0.95rem;
+    font-size: 0.95rem;
+    line-height: 1.48;
     box-shadow: var(--soft-shadow-sm);
   }
 
@@ -1135,8 +1142,9 @@
     min-height: 1.6rem;
     max-height: 6.5rem;
     overflow-y: auto;
-    font-size: 1.02rem;
-    line-height: 1.5;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.48;
   }
 
   /* Compact composer toolbar: small buttons, tight spacing, no heavy divider. */
@@ -2138,7 +2146,7 @@
     text-transform: uppercase;
   }
 
-  .tarot-order-surface {
+  .product-order-surface {
     padding: clamp(0.9rem, 2.3vw, 1.2rem);
   }
 
@@ -2174,7 +2182,7 @@
     margin-top: 0.8rem;
   }
 
-  .tarot-choice,
+  .product-option-choice,
   .tarot-spread-choice {
     min-height: 2.1rem;
     border: 1px solid var(--soft-paper-edge);
@@ -2187,7 +2195,7 @@
     transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
   }
 
-  .tarot-choice {
+  .product-option-choice {
     padding: 0.42rem 0.72rem;
   }
 
@@ -2197,7 +2205,7 @@
     white-space: nowrap;
   }
 
-  .tarot-choice-active {
+  .product-option-choice-active {
     border-color: color-mix(in srgb, var(--soft-terracotta-dark) 42%, var(--soft-paper-edge));
     background: color-mix(in srgb, var(--soft-terracotta) 16%, var(--soft-paper-card));
     color: var(--soft-bordeaux);
@@ -2206,7 +2214,7 @@
 
   /* #2/#4/#5: компактная прокручиваемая лента раскладов со стрелками,
      сворачивание формы после расклада, зона раскрытия карт. */
-  .tarot-head {
+  .product-order-head {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -2214,16 +2222,24 @@
     gap: 0.5rem;
   }
 
-  .tarot-controls {
+  .product-controls {
     margin-top: 0.2rem;
   }
 
-  .tarot-strip {
+  .product-option-strip {
     position: relative;
     margin-top: 0.8rem;
   }
 
-  .tarot-strip-track {
+  .product-option-group {
+    margin-top: 0.85rem;
+  }
+
+  .product-option-group .product-option-strip {
+    margin-top: 0;
+  }
+
+  .product-option-strip-track {
     display: flex;
     flex-wrap: nowrap;
     gap: 0.42rem;
@@ -2234,18 +2250,18 @@
     padding: 2px 0;
   }
 
-  .tarot-strip-track::-webkit-scrollbar {
+  .product-option-strip-track::-webkit-scrollbar {
     display: none;
   }
 
   /* Любые кнопки выбора внутри ленты не сжимаются и не переносятся — лента
      прокручивается по горизонтали (и темы, и расклады). */
-  .tarot-strip-track > button {
+  .product-option-strip-track > button {
     flex: 0 0 auto;
     white-space: nowrap;
   }
 
-  .tarot-strip-arrow {
+  .product-option-strip-arrow {
     position: absolute;
     top: 50%;
     z-index: 2;
@@ -2261,22 +2277,22 @@
     transform: translateY(-50%);
   }
 
-  .tarot-strip-arrow-left {
+  .product-option-strip-arrow-left {
     left: -0.35rem;
   }
 
-  .tarot-strip-arrow-right {
+  .product-option-strip-arrow-right {
     right: -0.35rem;
   }
 
-  .tarot-controls-collapsed {
+  .product-controls-collapsed {
     margin-top: 0.5rem;
     border: 1px solid var(--soft-paper-edge);
     border-radius: 0.9rem;
     background: color-mix(in srgb, var(--soft-paper-card) 70%, transparent);
   }
 
-  .tarot-controls-collapsed > summary {
+  .product-controls-collapsed > summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2286,11 +2302,11 @@
     list-style: none;
   }
 
-  .tarot-controls-collapsed > summary::-webkit-details-marker {
+  .product-controls-collapsed > summary::-webkit-details-marker {
     display: none;
   }
 
-  .tarot-collapsed-q {
+  .product-collapsed-question {
     overflow: hidden;
     color: var(--soft-ink);
     font-size: 0.9rem;
@@ -2299,33 +2315,33 @@
     white-space: nowrap;
   }
 
-  .tarot-collapsed-hint {
+  .product-collapsed-hint {
     flex-shrink: 0;
     color: var(--soft-terracotta-dark);
     font-size: 0.78rem;
     font-weight: 650;
   }
 
-  .tarot-controls-collapsed .tarot-controls {
+  .product-controls-collapsed .product-controls {
     padding: 0 0.85rem 0.85rem;
   }
 
   /* #2: read-only recap of theme / spread / question on the result. */
-  .tarot-recap {
+  .product-recap {
     display: grid;
     gap: 0.5rem;
     margin: 0;
     padding: 0 0.85rem 0.85rem;
   }
 
-  .tarot-recap > div {
+  .product-recap > div {
     display: grid;
     grid-template-columns: 5.5rem 1fr;
     gap: 0.5rem;
     align-items: start;
   }
 
-  .tarot-recap dt {
+  .product-recap dt {
     color: var(--soft-terracotta-dark);
     font-size: 0.72rem;
     font-weight: 650;
@@ -2333,7 +2349,7 @@
     text-transform: uppercase;
   }
 
-  .tarot-recap dd {
+  .product-recap dd {
     margin: 0;
     color: var(--soft-ink);
     font-size: 0.88rem;
@@ -2460,19 +2476,19 @@
     white-space: nowrap;
   }
 
-  .tarot-question-label {
+  .product-question-label {
     display: block;
     margin-top: 0.9rem;
   }
 
-  .tarot-question-input {
-    min-height: 5.25rem;
+  .product-question-input {
+    min-height: 4.25rem;
     margin-top: 0.32rem;
     font-size: clamp(1.02rem, 1.5vw, 1.18rem);
     line-height: 1.35;
   }
 
-  .tarot-action-row {
+  .product-action-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2487,7 +2503,7 @@
     font-weight: 650;
   }
 
-  .tarot-action-row > *:first-child {
+  .product-action-row > *:first-child {
     min-width: min(100%, 14rem);
   }
 
@@ -2734,6 +2750,178 @@
     margin-top: 0.9rem;
   }
 
+  .hd-bodygraph {
+    margin: 0;
+  }
+
+  .hd-bodygraph-card {
+    border: 1px solid color-mix(in srgb, var(--soft-paper-edge) 86%, white);
+    border-radius: 1.25rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--soft-paper-card) 92%, white), color-mix(in srgb, var(--soft-paper-deep) 78%, white));
+    padding: clamp(0.75rem, 2.5vw, 1.35rem);
+  }
+
+  .hd-bodygraph-grid {
+    display: grid;
+    width: min(100%, 43rem);
+    grid-template-columns: minmax(4.8rem, 5.75rem) minmax(13rem, 1fr) minmax(4.8rem, 5.75rem);
+    align-items: start;
+    justify-content: center;
+    gap: clamp(0.25rem, 1.4vw, 0.9rem);
+    margin: 0 auto;
+  }
+
+  .hd-bodygraph-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-top: 2.15rem;
+  }
+
+  .hd-bodygraph-col-label {
+    margin-bottom: 0.3rem;
+    color: var(--soft-ink);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+
+  .hd-bodygraph-badge {
+    display: flex;
+    width: 100%;
+    min-height: 1.34rem;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.24rem 0.44rem;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .hd-bodygraph-badge-design {
+    background: #e69138;
+  }
+
+  .hd-bodygraph-badge-personality {
+    flex-direction: row-reverse;
+    background: #5d5448;
+  }
+
+  .hd-bodygraph-planet-icon {
+    display: block;
+    width: 0.82rem;
+    height: 0.82rem;
+    flex: 0 0 0.82rem;
+    opacity: 0.94;
+  }
+
+  .hd-bodygraph-gate {
+    min-width: 0;
+    flex: 1;
+    letter-spacing: 0.02em;
+  }
+
+  .hd-bodygraph-fixing {
+    width: 0.55rem;
+    flex: 0 0 0.55rem;
+  }
+
+  .hd-bodygraph-svg-col {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hd-bodygraph-svg {
+    width: 100%;
+  }
+
+  .hd-bodygraph-svg svg {
+    display: block;
+    width: 100%;
+    max-width: 20.65rem;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .hd-bodygraph-vars {
+    position: absolute;
+    z-index: 2;
+    top: 0.45rem;
+    left: 50%;
+    display: flex;
+    width: min(12.5rem, 66%);
+    justify-content: space-between;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .hd-bodygraph-vars-left,
+  .hd-bodygraph-vars-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .hd-bodygraph-var-item {
+    display: flex;
+    align-items: center;
+    gap: 0.32rem;
+    color: #15110f;
+    font-size: 0.8rem;
+    font-weight: 750;
+    line-height: 1;
+  }
+
+  .hd-bodygraph-var-arrow {
+    position: relative;
+    top: 0.06rem;
+    width: 0.62rem;
+    height: 1.06rem;
+    flex: 0 0 0.62rem;
+  }
+
+  .hd-bodygraph-var-arrow.reverse {
+    transform: scaleX(-1);
+  }
+
+  .hd-bodygraph-var-num {
+    position: relative;
+    top: 0.31rem;
+    display: inline-block;
+    width: 1.88rem;
+    height: 1.88rem;
+    border: 1px solid #15110f;
+    border-radius: 0.38rem;
+    background: #fff;
+    color: #15110f;
+    font-size: 1.22rem;
+    font-weight: 550;
+    line-height: 1.82rem;
+    text-align: center;
+  }
+
+  .hd-bodygraph-var-num sub {
+    position: absolute;
+    right: -0.38rem;
+    bottom: -0.44rem;
+    display: inline-block;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 999px;
+    background: #15110f;
+    color: #fff;
+    font-size: 0.56rem;
+    font-weight: 500;
+    line-height: 0.95rem;
+  }
+
   .tarot-meta-pill {
     display: inline-flex;
     min-height: 1.65rem;
@@ -2811,7 +2999,7 @@
       gap: 0.58rem;
     }
 
-    .tarot-order-surface {
+    .product-order-surface {
       padding: 0.78rem;
     }
 
@@ -2832,7 +3020,7 @@
       scroll-snap-type: x proximity;
     }
 
-    .tarot-choice {
+    .product-option-choice {
       min-height: 1.92rem;
       padding: 0.35rem 0.58rem;
       white-space: nowrap;
@@ -2845,16 +3033,83 @@
       scroll-snap-align: start;
     }
 
-    .tarot-question-label {
+    .product-question-label {
       margin-top: 0.58rem;
     }
 
-    .tarot-question-input {
-      min-height: 3.4rem;
+    .product-question-input {
+      min-height: 3.1rem;
       font-size: 1rem;
     }
 
-    .tarot-action-row {
+    .hd-bodygraph-card {
+      padding: 0.62rem 0.34rem 0.78rem;
+    }
+
+    .hd-bodygraph-grid {
+      grid-template-columns: minmax(4.55rem, 4.75rem) minmax(10.9rem, 1fr) minmax(4.55rem, 4.75rem);
+      gap: 0.2rem;
+    }
+
+    .hd-bodygraph-col {
+      gap: 0.18rem;
+      padding-top: 1.95rem;
+    }
+
+    .hd-bodygraph-col-label {
+      font-size: 0.56rem;
+    }
+
+    .hd-bodygraph-badge {
+      min-height: 1.12rem;
+      gap: 0.18rem;
+      padding: 0.18rem 0.25rem;
+      font-size: 0.58rem;
+    }
+
+    .hd-bodygraph-planet-icon {
+      width: 0.68rem;
+      height: 0.68rem;
+      flex-basis: 0.68rem;
+    }
+
+    .hd-bodygraph-fixing {
+      width: 0.32rem;
+      flex-basis: 0.32rem;
+    }
+
+    .hd-bodygraph-svg svg {
+      max-width: 15.2rem;
+    }
+
+    .hd-bodygraph-vars {
+      top: 0.34rem;
+      width: 10.65rem;
+    }
+
+    .hd-bodygraph-vars-left,
+    .hd-bodygraph-vars-right {
+      gap: 0.92rem;
+    }
+
+    .hd-bodygraph-var-num {
+      width: 1.55rem;
+      height: 1.55rem;
+      border-radius: 0.32rem;
+      font-size: 1.05rem;
+      line-height: 1.5rem;
+    }
+
+    .hd-bodygraph-var-num sub {
+      right: -0.3rem;
+      bottom: -0.38rem;
+      width: 0.78rem;
+      height: 0.78rem;
+      font-size: 0.48rem;
+      line-height: 0.78rem;
+    }
+
+    .product-action-row {
       gap: 0.48rem;
       margin-top: 0.46rem;
     }

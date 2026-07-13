@@ -74,7 +74,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/products/deep-report": {
     title: "Подробный разбор — ETerapy",
-    description: "Подробный структурный разбор вашей ситуации на 8–12 страниц: что происходит, как это сложилось, что удерживает, на что опереться, сценарии и маршрут небольших шагов.",
+    description: "Подробный структурный разбор вашей ситуации: что происходит, как это сложилось, что удерживает, на что опереться, сценарии и маршрут действий.",
     schemaKind: "Product",
   },
   "/products/chat-analysis": {
@@ -103,8 +103,18 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/numerology": {
-    title: "Числовой портрет — продукт ETerapy",
-    description: "Нумерологический разбор имени и даты как карта вопросов, циклов и повторяющихся тем.",
+    title: "Матрица судьбы — продукт ETerapy",
+    description: "Матрица 22 энергий по дате рождения: предназначения, родовые линии, отношения, деньги, возрастные периоды и символическая карта энергий.",
+    schemaKind: "Product",
+  },
+  "/products/horary": {
+    title: "Хорарная астрология — ответ на вопрос — ETerapy",
+    description: "Карта момента для одного точного вопроса: прямой эзотерический ответ, сигнификаторы, Луна, аспекты и противоречия.",
+    schemaKind: "Product",
+  },
+  "/products/tarot-numerology": {
+    title: "Арканы рождения по дате — карты Таро — ETerapy",
+    description: "Карты рождения Таро по дате: постоянная пара Старших арканов — карта рождения и карта души — без случайной вытяжки.",
     schemaKind: "Product",
   },
   "/products/family-scenarios": {
@@ -118,8 +128,8 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/surname-story": {
-    title: "История фамилии — узнать происхождение бесплатно — ETerapy",
-    description: "Что говорит форма вашей фамилии: происхождение, регион, занятие предков — коротко и бесплатно. Полный родовой разбор за баллы: версии, контекст и следы для проверки.",
+    title: "Тайна имени и фамилии — происхождение и звучание — ETerapy",
+    description: "Личное досье имени и фамилии: происхождение, география, варианты латиницы, фоносемантика и честно обозначенный символический портрет.",
     schemaKind: "Product",
   },
   "/all-modalities": {

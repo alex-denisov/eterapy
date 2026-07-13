@@ -56,11 +56,12 @@ describe("B440 tarot page fixes (#1–#6)", () => {
   });
 
   describe("#6 reading text + recommendations", () => {
-    it("the tarot prompt ends on professional synthesis and action, not a templated next step", () => {
+    it("the tarot prompt ends on professional divination, not a coaching next step", () => {
       const prompt = defaultPromptTextForFeature("product-tarot");
       expect(prompt).toContain("## Картина расклада");
-      expect(prompt).toContain("## Связь карт между собой");
-      expect(prompt).toContain("## Как действовать по раскладу");
+      expect(prompt).toContain("## Связь карт и скрытая линия");
+      expect(prompt).toContain("## Ответ расклада");
+      expect(prompt).toContain("## Вероятная динамика");
       // #5: personal-context guidance
       expect(prompt).toContain("на кого делается расклад");
     });
@@ -74,6 +75,9 @@ describe("B440 tarot page fixes (#1–#6)", () => {
     it("raises the tarot token budget for a fuller reading", () => {
       const lib = source("src/lib/symbolic-products.ts");
       expect(lib).toContain('tarot: 3200');
+      expect(lib).toContain("input.cards?.length === 1 ? 2_000 : 3_000");
+      const route = source("src/app/api/products/symbolic/route.ts");
+      expect(route).toContain('MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot"');
     });
 
     it("the recommendations endpoint returns repeat CTA + other service + esoteric specialist", () => {

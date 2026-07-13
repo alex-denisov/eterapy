@@ -1,210 +1,269 @@
-// B387 (M26) — динамический бодиграф «Дизайна человека». Чистый презентационный
-// SVG: рисуется ИЗ рассчитанного чарта (определённые центры окрашены, определённые
-// каналы выделены) — то есть картинка отражает реальный результат, а не шаблон.
-// Работает и на странице услуги, и в печатной (PDF) версии.
+// B501 — бодиграф «Дизайна человека» в bodygraph.com-style геометрии.
+// Центральный SVG хранится как локальный утверждённый шаблон; перед рендером
+// он перекрашивается по рассчитанному chart, поэтому визуал не расходится с
+// типом, каналами, центрами и воротами результата.
 
-import { HD_BODIES, HD_CENTERS, HD_CHANNELS, HD_GATE_TO_CENTER, type HDCenterKey, type HumanDesignChart } from "@/lib/human-design-data";
+import { HD_GATE_ARC, HD_LINE_ARC, HD_START_DEGREE, type HDBodyKey, type HDCenterKey, type HDActivation, type HDVariable, type HumanDesignChart } from "@/lib/human-design-data";
+import { HUMAN_DESIGN_BODYGRAPH_TEMPLATE } from "@/components/products/human-design-bodygraph-template";
 
-type Pt = { x: number; y: number };
+/* eslint-disable @next/next/no-img-element */
 
-// Центроиды 9 центров на каноничной вертикальной компоновке бодиграфа.
-const CENTROID: Record<HDCenterKey, Pt> = {
-  head: { x: 150, y: 50 },
-  ajna: { x: 150, y: 112 },
-  throat: { x: 150, y: 172 },
-  g: { x: 150, y: 250 },
-  heart: { x: 214, y: 256 },
-  spleen: { x: 60, y: 330 },
-  solar: { x: 240, y: 330 },
-  sacral: { x: 150, y: 344 },
-  root: { x: 150, y: 452 },
+// Exact palette from the approved bodygraph.com reference: Design uses warm
+// amber, Personality uses graphite. Keeping both rails separate makes mixed
+// activations visible without changing the source geometry.
+const DESIGN_COLOR = "#E69138";
+const PERSONALITY_COLOR = "#5D5448";
+
+const CENTER_ID: Record<HDCenterKey, string> = {
+  head: "head-center",
+  ajna: "ajna-center",
+  throat: "throat-center",
+  g: "g-center",
+  heart: "heart-center",
+  spleen: "splenic-center",
+  solar: "solar-plexus-center",
+  sacral: "sacral-center",
+  root: "root-center",
 };
 
-// Геометрия фигур каждого центра (полигон или прямоугольник).
-const SHAPES: Record<HDCenterKey, { kind: "poly"; pts: string } | { kind: "rect"; x: number; y: number; w: number; h: number }> = {
-  head: { kind: "poly", pts: "150,20 120,74 180,74" },
-  ajna: { kind: "poly", pts: "150,150 120,90 180,90" },
-  throat: { kind: "rect", x: 126, y: 150, w: 48, h: 44 },
-  g: { kind: "poly", pts: "150,218 182,250 150,282 118,250" },
-  heart: { kind: "poly", pts: "232,238 232,274 196,256" },
-  spleen: { kind: "poly", pts: "40,300 40,360 88,330" },
-  solar: { kind: "poly", pts: "260,300 260,360 212,330" },
-  sacral: { kind: "rect", x: 126, y: 320, w: 48, h: 46 },
-  root: { kind: "rect", x: 126, y: 430, w: 48, h: 46 },
+const CENTER_FILL: Record<HDCenterKey, string> = {
+  head: "#F1D566",
+  ajna: "#BFD39E",
+  throat: "#E5CFB5",
+  g: "#E7BA72",
+  heart: "#9F6261",
+  spleen: "#B69470",
+  solar: "#E5CFB5",
+  sacral: "#D6523F",
+  root: "#C9A06F",
 };
 
-const SHORT_LABEL: Record<HDCenterKey, string> = {
-  head: "Голова",
-  ajna: "Аджна",
-  throat: "Горло",
-  g: "Самость",
-  heart: "Воля",
-  spleen: "Селезёнка",
-  solar: "Эмоции",
-  sacral: "Сакрал",
-  root: "Корень",
+const BODY_ORDER: HDBodyKey[] = [
+  "sun",
+  "earth",
+  "north_node",
+  "south_node",
+  "moon",
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+  "chiron",
+  "lilith",
+];
+
+const BODY_ICON_FILE: Partial<Record<HDBodyKey, number>> = {
+  sun: 1,
+  earth: 2,
+  north_node: 3,
+  south_node: 4,
+  moon: 5,
+  mercury: 7,
+  venus: 8,
+  mars: 9,
+  jupiter: 11,
+  saturn: 12,
+  uranus: 13,
+  neptune: 14,
+  pluto: 15,
 };
 
-function gateChannelKey(a: number, b: number): string {
-  return [a, b].sort((left, right) => left - right).join("-");
+const BODY_LABEL: Record<HDBodyKey, string> = {
+  sun: "Солнце",
+  earth: "Земля",
+  north_node: "Северный узел",
+  south_node: "Южный узел",
+  moon: "Луна",
+  mercury: "Меркурий",
+  venus: "Венера",
+  mars: "Марс",
+  jupiter: "Юпитер",
+  saturn: "Сатурн",
+  uranus: "Уран",
+  neptune: "Нептун",
+  pluto: "Плутон",
+  chiron: "Хирон",
+  lilith: "Лилит (средняя)",
+};
+
+function norm360(value: number): number {
+  return ((value % 360) + 360) % 360;
 }
 
-function polar(cx: number, cy: number, r: number, angleDeg: number): Pt {
-  const angle = (angleDeg / 360) * Math.PI * 2;
-  return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
+function activationValue(activation: HDActivation): string {
+  return `${activation.gate}.${activation.line}`;
 }
 
-const CENTER_GATE_RADIUS: Record<HDCenterKey, number> = {
-  head: 36,
-  ajna: 40,
-  throat: 38,
-  g: 44,
-  heart: 34,
-  spleen: 44,
-  solar: 44,
-  sacral: 40,
-  root: 42,
-};
-
-function gatePoint(gate: number): Pt {
-  const center = HD_GATE_TO_CENTER[gate];
-  const gates = HD_CENTERS[center].gates;
-  const idx = Math.max(0, gates.indexOf(gate));
-  const denom = Math.max(1, gates.length - 1);
-  const startByCenter: Record<HDCenterKey, number> = {
-    head: -62,
-    ajna: 242,
-    throat: 212,
-    g: -145,
-    heart: 238,
-    spleen: -36,
-    solar: -144,
-    sacral: 206,
-    root: -154,
-  };
-  const spanByCenter: Record<HDCenterKey, number> = {
-    head: 124,
-    ajna: 236,
-    throat: 296,
-    g: 290,
-    heart: 112,
-    spleen: 152,
-    solar: 152,
-    sacral: 294,
-    root: 308,
-  };
-  return polar(CENTROID[center].x, CENTROID[center].y, CENTER_GATE_RADIUS[center], startByCenter[center] + (spanByCenter[center] * idx) / denom);
+function activationByBody(items: HDActivation[]): Map<HDBodyKey, HDActivation> {
+  return new Map(items.map((item) => [item.body, item]));
 }
 
-const BODY_LABEL = new Map(HD_BODIES.map((body) => [body.key, body.glyph]));
+function cssAttrSelector(id: string): string {
+  return `[id="${id}"]`;
+}
 
-function ActivationList({ title, items }: { title: string; items: HumanDesignChart["personality"] }) {
+function chartSelector(id: string): string {
+  return `#BodyGraphChart-Rounded ${cssAttrSelector(id)}`;
+}
+
+function gateSelectors(gate: number): string {
+  return `${cssAttrSelector(String(gate))},${cssAttrSelector(String(gate))} + text,${cssAttrSelector(String(gate))} + text *`;
+}
+
+function substructure(activation: HDActivation | null | undefined): { color: number; tone: number } {
+  if (!activation) return { color: 1, tone: 1 };
+  const offset = norm360(activation.longitude - HD_START_DEGREE);
+  const gateWithin = offset % HD_GATE_ARC;
+  const lineWithin = gateWithin % HD_LINE_ARC;
+  const colorArc = HD_LINE_ARC / 6;
+  const color = Math.min(6, Math.max(1, Math.floor(lineWithin / colorArc) + 1));
+  const colorWithin = lineWithin % colorArc;
+  const toneArc = colorArc / 6;
+  const tone = Math.min(6, Math.max(1, Math.floor(colorWithin / toneArc) + 1));
+  return { color, tone };
+}
+
+function styleForChart(chart: HumanDesignChart): string {
+  const personalityGates = new Set(chart.personality.map((item) => item.gate));
+  const designGates = new Set(chart.design.map((item) => item.gate));
+  const activeGates = new Set([...personalityGates, ...designGates]);
+  const definedCenters = new Set(chart.definedCenters);
+
+  const allGates = Array.from({ length: 64 }, (_, index) => index + 1);
+  const gateResetRules = allGates.map((gate) => `${gateSelectors(gate)}{fill:#000!important;}`);
+  const gateTextResetRules = allGates.map((gate) => `${cssAttrSelector(String(gate))}{fill:#fff!important;}${cssAttrSelector(String(gate))} + text,${cssAttrSelector(String(gate))} + text *{fill:#000!important;}`);
+  const activeGateRules = [...activeGates].map((gate) => `${cssAttrSelector(String(gate))}{fill:#000!important;}${cssAttrSelector(String(gate))} + text,${cssAttrSelector(String(gate))} + text *{fill:#fff!important;}`);
+
+  const channelRules = allGates.map((gate) => {
+    const design = designGates.has(gate);
+    const personality = personalityGates.has(gate);
+    // Match the reset rule's ID+attribute specificity. Previously these rules
+    // used only [id="…"], so the white !important reset always won.
+    const designSelector = `${chartSelector(`design-${gate}`)},${chartSelector(`design-${gate}-bg`)}`;
+    const personalitySelector = `${chartSelector(`personality-${gate}`)},${chartSelector(`personality-${gate}-bg`)}`;
+    if (design && personality) {
+      return `${designSelector}{stroke:${DESIGN_COLOR}!important;}${personalitySelector}{stroke:${PERSONALITY_COLOR}!important;}`;
+    }
+    if (design) return `${designSelector},${personalitySelector}{stroke:${DESIGN_COLOR}!important;}`;
+    if (personality) return `${designSelector},${personalitySelector}{stroke:${PERSONALITY_COLOR}!important;}`;
+    return "";
+  });
+  const centerRules = chart.centers.map((center) => {
+    const fill = definedCenters.has(center.key) ? CENTER_FILL[center.key] : "#FFFFFF";
+    return `${cssAttrSelector(CENTER_ID[center.key])}{fill:${fill}!important;}`;
+  });
+
+  return [
+    "<style>",
+    "#BodyGraphChart-Rounded [id^=\"personality-\"],#BodyGraphChart-Rounded [id^=\"design-\"]{stroke:#FFFFFF!important;}",
+    Object.values(CENTER_ID).map((id) => `${cssAttrSelector(id)}{fill:#FFFFFF!important;}`).join(""),
+    gateResetRules.join(""),
+    gateTextResetRules.join(""),
+    centerRules.join(""),
+    channelRules.join(""),
+    activeGateRules.join(""),
+    "</style>",
+  ].join("");
+}
+
+function renderChartSvg(chart: HumanDesignChart): string {
+  return HUMAN_DESIGN_BODYGRAPH_TEMPLATE.replace("</defs>", `${styleForChart(chart)}</defs>`);
+}
+
+function ActivationColumn({ title, side, items }: { title: string; side: "design" | "personality"; items: HDActivation[] }) {
+  const byBody = activationByBody(items);
   return (
-    <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-      <p className="soft-eyebrow text-[0.58rem]">{title}</p>
-      <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] leading-snug text-[var(--soft-ink-soft)]">
-        {items.slice(0, 8).map((item) => (
-          <span key={`${title}-${item.body}-${item.gate}-${item.line}`} title={item.label}>
-            {BODY_LABEL.get(item.body) ?? item.glyph} {item.gate}.{item.line}
-          </span>
-        ))}
+    <div className={`hd-bodygraph-col hd-bodygraph-col-${side}`}>
+      <div className="hd-bodygraph-col-label">{title}</div>
+      {BODY_ORDER.map((body) => {
+        const item = byBody.get(body);
+        if (!item) return null;
+        return (
+          <div key={`${side}-${body}`} className={`hd-bodygraph-badge hd-bodygraph-badge-${side}`} title={`${BODY_LABEL[body]}: ${activationValue(item)}`}>
+            {BODY_ICON_FILE[body] ? (
+              <img className="hd-bodygraph-planet-icon" src={`/bodygraph-com/svgexport-${BODY_ICON_FILE[body]}.svg`} alt="" aria-hidden="true" />
+            ) : (
+              <span className="hd-bodygraph-planet-icon" aria-hidden="true">{item.glyph}</span>
+            )}
+            <span className="hd-bodygraph-gate">{activationValue(item)}</span>
+            <span className="hd-bodygraph-fixing" aria-hidden="true" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VariableNumber({ color, tone, side }: { color: number; tone: number; side: "left" | "right" }) {
+  return (
+    <span className="hd-bodygraph-var-num">
+      {side === "right" ? <sub>{tone}</sub> : null}
+      {color}
+      {side === "left" ? <sub>{tone}</sub> : null}
+    </span>
+  );
+}
+
+function VariableItem({
+  activation,
+  value,
+  side,
+  label,
+}: {
+  activation: HDActivation | null | undefined;
+  value?: HDVariable;
+  side: "left" | "right";
+  label: string;
+}) {
+  const resolved = value ?? (() => {
+    const legacy = substructure(activation);
+    return { ...legacy, direction: legacy.tone <= 3 ? "left" as const : "right" as const };
+  })();
+  const icon = <img className={resolved.direction === "left" ? "hd-bodygraph-var-arrow reverse" : "hd-bodygraph-var-arrow"} src="/bodygraph-com/svgexport-19.svg" alt="" aria-hidden="true" />;
+  return (
+    <div className="hd-bodygraph-var-item" aria-label={`${label}: цвет ${resolved.color}, тон ${resolved.tone}, направление ${resolved.direction === "left" ? "влево" : "вправо"}`}>
+      {side === "left" ? icon : null}
+      <VariableNumber color={resolved.color} tone={resolved.tone} side={side} />
+      {side === "right" ? icon : null}
+    </div>
+  );
+}
+
+function Variables({ chart }: { chart: HumanDesignChart }) {
+  const design = activationByBody(chart.design);
+  const personality = activationByBody(chart.personality);
+  return (
+    <div className="hd-bodygraph-vars" aria-label="Переменные бодиграфа">
+      <div className="hd-bodygraph-vars-left">
+        <VariableItem label="Питание" side="left" activation={design.get("sun")} value={chart.variables?.determination} />
+        <VariableItem label="Среда" side="left" activation={design.get("north_node")} value={chart.variables?.environment} />
+      </div>
+      <div className="hd-bodygraph-vars-right">
+        <VariableItem label="Осознанность" side="right" activation={personality.get("sun")} value={chart.variables?.motivation} />
+        <VariableItem label="Перспектива" side="right" activation={personality.get("north_node")} value={chart.variables?.perspective} />
       </div>
     </div>
   );
 }
 
 export function HumanDesignBodygraph({ chart }: { chart: HumanDesignChart }) {
-  const definedCenters = new Set(chart.definedCenters);
-  const activeGates = new Set(chart.activeGates);
-  const definedGateChannels = new Set(chart.definedChannels.map((c) => gateChannelKey(c.gates[0], c.gates[1])));
-  const allChannelGates = Array.from(new Set(HD_CHANNELS.flatMap(([a, b]) => [a, b]))).sort((left, right) => left - right);
+  const chartSvg = renderChartSvg(chart);
 
   return (
     <figure className="hd-bodygraph" data-testid="hd-bodygraph">
-      <svg viewBox="0 0 420 540" role="img" aria-label={`Бодиграф: тип ${chart.typeName}, ${definedCenters.size} из 9 центров определены`} className="mx-auto block w-full max-w-[360px]">
-        <g transform="translate(60 18)">
-          <path
-            d="M150 8 C108 24 92 70 102 118 C72 143 61 196 81 242 C37 285 21 354 50 420 C72 468 108 488 150 488 C192 488 228 468 250 420 C279 354 263 285 219 242 C239 196 228 143 198 118 C208 70 192 24 150 8Z"
-            fill="rgba(246, 236, 217, 0.58)"
-            stroke="var(--soft-paper-edge, #d9cdb8)"
-            strokeWidth="1.2"
-          />
-
-          {/* Все 36 каналов: бледный контур, висячие ворота и полностью определённые каналы. */}
-          {HD_CHANNELS.map(([aGate, bGate]) => {
-            const pa = gatePoint(aGate);
-            const pb = gatePoint(bGate);
-            const defined = definedGateChannels.has(gateChannelKey(aGate, bGate));
-            const hanging = activeGates.has(aGate) || activeGates.has(bGate);
-            return (
-              <line
-                key={`ch-${aGate}-${bGate}`}
-                x1={pa.x}
-                y1={pa.y}
-                x2={pb.x}
-                y2={pb.y}
-                stroke={defined ? "var(--soft-bordeaux, #7a1f3d)" : hanging ? "var(--soft-terracotta-dark, #b5623f)" : "var(--soft-paper-edge, #e7dccb)"}
-                strokeWidth={defined ? 4.2 : hanging ? 2.4 : 1.15}
-                strokeLinecap="round"
-                strokeDasharray={defined ? undefined : hanging ? "7 5" : undefined}
-                opacity={defined ? 0.92 : hanging ? 0.78 : 0.62}
-              />
-            );
-          })}
-
-          {/* Центры поверх каналов */}
-          {chart.centers.map((center) => {
-            const shape = SHAPES[center.key];
-            const fill = center.defined
-              ? center.motor
-                ? "var(--soft-terracotta-dark, #b5623f)"
-                : "var(--soft-apricot, #e8a87c)"
-              : "var(--soft-paper-card, #fbf5ea)";
-            const textFill = center.defined ? "#fff8f1" : "var(--soft-muted, #7a7068)";
-            const stroke = center.defined ? "var(--soft-bordeaux, #7a1f3d)" : "var(--soft-paper-edge, #d9cdb8)";
-            const centroid = CENTROID[center.key];
-            return (
-              <g key={center.key} data-defined={center.defined}>
-                {shape.kind === "rect" ? (
-                  <rect x={shape.x} y={shape.y} width={shape.w} height={shape.h} rx={6} fill={fill} stroke={stroke} strokeWidth={1.7} />
-                ) : (
-                  <polygon points={shape.pts} fill={fill} stroke={stroke} strokeWidth={1.7} strokeLinejoin="round" />
-                )}
-                <text x={centroid.x} y={centroid.y} textAnchor="middle" dominantBaseline="central" fontSize="8.5" fontWeight={center.defined ? 700 : 500} fill={textFill}>
-                  {SHORT_LABEL[center.key]}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Номера ворот: активные ворота читаются сразу, остальные дают каноничную сетку. */}
-          {allChannelGates.map((gate) => {
-            const p = gatePoint(gate);
-            const active = activeGates.has(gate);
-            return (
-              <g key={`gate-${gate}`}>
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={active ? 6.6 : 5.1}
-                  fill={active ? "var(--soft-bordeaux, #7a1f3d)" : "var(--soft-paper-card, #fbf5ea)"}
-                  stroke={active ? "var(--soft-bordeaux, #7a1f3d)" : "var(--soft-paper-edge, #d9cdb8)"}
-                  strokeWidth={1}
-                />
-                <text x={p.x} y={p.y + 0.4} textAnchor="middle" dominantBaseline="central" fontSize={gate > 9 ? "5.3" : "6.1"} fontWeight={active ? 700 : 500} fill={active ? "#fff8f1" : "var(--soft-muted, #7a7068)"}>
-                  {gate}
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      </svg>
-      <figcaption className="mt-3 text-center text-xs text-[var(--soft-muted,#7a7068)]">
-        {chart.typeName} · {chart.definition.toLowerCase()} · закрашены {definedCenters.size} из 9 центров · показаны ворота и 36 каналов
-      </figcaption>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="hd-activation-table">
-        <ActivationList title="личность" items={chart.personality} />
-        <ActivationList title="дизайн" items={chart.design} />
+      <div className="hd-bodygraph-card" aria-label={`Бодиграф: тип ${chart.typeName}, профиль ${chart.profile}`}>
+        <div className="hd-bodygraph-grid">
+          <ActivationColumn title="Дизайн" side="design" items={chart.design} />
+          <div className="hd-bodygraph-svg-col">
+            <Variables chart={chart} />
+            <div className="hd-bodygraph-svg" dangerouslySetInnerHTML={{ __html: chartSvg }} />
+          </div>
+          <ActivationColumn title="Личность" side="personality" items={chart.personality} />
+        </div>
       </div>
     </figure>
   );

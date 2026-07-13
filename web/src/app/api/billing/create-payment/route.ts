@@ -13,7 +13,7 @@ import { yukassaFetch } from "@/lib/yukassa";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
+import { resolveBillingPurchaseWithSettings, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { trackServerEvent } from "@/lib/analytics";
 import { APP_URL } from "@/lib/env";
 import {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   let purchase: ResolvedBillingPurchase;
   try {
-    purchase = resolveBillingPurchase(body);
+    purchase = await resolveBillingPurchaseWithSettings(body);
   } catch (err) {
     return errorWithRequestContext(
       "INVALID_PURCHASE",

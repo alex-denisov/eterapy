@@ -53,6 +53,20 @@ export function tryParseChatAnalysis(text: string): ChatAnalysisStructured | nul
   return null;
 }
 
+function chatAnalysisQualityIssue(value: ChatAnalysisStructured): string | null {
+  const allText = JSON.stringify(value);
+  if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(allText)) return "заказчик описан в третьем лице";
+  if (!value.assessment || value.assessment.trim().length < 180) return "assessment слишком короткий";
+  if (!Array.isArray(value.tonesThem) || value.tonesThem.length !== 4) return "нужно ровно четыре тона собеседника";
+  if (!Array.isArray(value.tonesMe) || value.tonesMe.length !== 4) return "нужно ровно четыре ваших тона";
+  if (!Array.isArray(value.replies) || value.replies.length !== 3) return "нужно ровно три варианта ответа";
+  if (value.replies.some((reply) => !reply || typeof reply !== "object" || !reply.text?.trim() || !reply.style?.trim())) return "варианты ответа неполны";
+  if (!Array.isArray(value.uncertainZones) || value.uncertainZones.length < 1) return "не заполнен блок неопределённости";
+  if (!Array.isArray(value.conflictPoints) || value.conflictPoints.length < 1) return "не заполнены точки конфликта";
+  if (!Array.isArray(value.dontSend) || value.dontSend.length < 1) return "не заполнен блок «лучше не писать»";
+  return null;
+}
+
 function chatAnalysisJsonCandidates(text: string): string[] {
   const trimmed = text.trim();
   const candidates = [trimmed];
@@ -424,7 +438,7 @@ export async function generateChatAnalysis(input: {
   const systemPrompt = CHAT_ANALYSIS_SYSTEM_PROMPT;
 
   try {
-    const response = await aiComplete({
+    let response = await aiComplete({
       feature: "product-chat-analysis",
       userId: input.userId,
       requestId: input.requestId,
@@ -447,8 +461,32 @@ export async function generateChatAnalysis(input: {
       ],
     });
 
-    const parsed = tryParseChatAnalysis(response.text.trim());
-    if (!parsed) {
+    let parsed = tryParseChatAnalysis(response.text.trim());
+    let qualityIssue = parsed ? chatAnalysisQualityIssue(parsed) : "ответ не соответствует JSON-схеме";
+    if (qualityIssue) {
+      response = await aiComplete({
+        feature: "product-chat-analysis",
+        userId: input.userId,
+        requestId: input.requestId,
+        maxTokens: 2200,
+        temperature: 0.35,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              `Сформируй результат заново: предыдущий ответ не прошёл проверку (${qualityIssue}).`,
+              "Верни валидный JSON, ровно 4+4 тона и ровно 3 полноценных варианта ответа. Обращайся только «вы/вам/ваш».",
+              input.contextNote ? `CONTEXT:\n${normalize(input.contextNote).slice(0, 1200)}` : "CONTEXT: не указан.",
+              `Переписка:\n${normalize(input.sourceText.slice(0, 8000))}`,
+            ].join("\n\n"),
+          },
+        ],
+      });
+      parsed = tryParseChatAnalysis(response.text.trim());
+      qualityIssue = parsed ? chatAnalysisQualityIssue(parsed) : "ответ не соответствует JSON-схеме";
+    }
+    if (!parsed || qualityIssue) {
       return { text: fallback.text, metadata: { source: "heuristic", fallbackReason: "json_parse_failed" } };
     }
     return {

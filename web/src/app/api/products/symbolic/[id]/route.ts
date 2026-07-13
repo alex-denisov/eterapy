@@ -5,7 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
-const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story"] as const;
+const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story", "horary", "tarot-numerology"] as const;
 
 const patchSchema = z.object({ action: z.enum(["save"]) });
 

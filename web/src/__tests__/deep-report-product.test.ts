@@ -54,9 +54,13 @@ describe("B442 deep report product (Подробный разбор)", () => {
   it("raises the token budget so the document can really be 5–10 pages", () => {
     const lib = source("src/lib/deep-report.ts");
     const policy = source("src/lib/ai-gateway/task-policy.ts");
-    // B446: bumped 9000 → 11000 for a richer (≥3500-word) document
-    expect(lib).toContain("maxTokens: 11000");
-    // policy entry wins over the call value, so it must be lifted too
+    // B502: one controlled call per section prevents the provider from silently
+    // collapsing a multi-section request into a short generic answer.
+    expect(lib).toContain("DEEP_REPORT_SECTIONS.map((title) => [title] as const)");
+    expect(lib).toContain('wordCount(text) < 350');
+    expect(lib).toContain("maxTokens: 4200");
+    expect(lib).toContain("wordCount(text) < 2_800");
+    // policy remains high enough for any individual report generation request.
     expect(policy).toContain("maxTokens: 11000");
   });
 

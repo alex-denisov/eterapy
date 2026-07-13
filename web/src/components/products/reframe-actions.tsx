@@ -430,7 +430,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
     const cat = [topic, feeling].filter(Boolean).join(" · ");
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="reframe-actions">
-        <div className="tarot-head">
+        <div className="product-order-head">
           <p className="soft-eyebrow">когнитивный рефрейминг</p>
         </div>
         <h2 className="soft-h3 mt-1">Ваша ситуация под четырьмя углами</h2>
@@ -439,18 +439,18 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
 
         {/* Свёрнутый блок с заданным вопросом и категориями (как у Таро). */}
         <details
-          className="tarot-controls-collapsed mt-4"
+          className="product-controls-collapsed mt-4"
           data-testid="reframe-recap"
           open={recapOpen}
           onToggle={(e) => setRecapOpen((e.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>
-            <span className="tarot-collapsed-q">
+            <span className="product-collapsed-question">
               {sourceText.trim() ? `Вопрос: ${sourceText.trim()}` : "Ваш запрос и категории"}
             </span>
-            <span className="tarot-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
+            <span className="product-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
           </summary>
-          <dl className="tarot-recap">
+          <dl className="product-recap">
             {sourceText.trim() && (
               <div>
                 <dt>Запрос</dt>
@@ -512,15 +512,15 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
   const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card tarot-order-surface" data-testid="reframe-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="reframe-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">когнитивный рефрейминг</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём это">
+      <div className="product-controls">
+        <OptionScrollStrip ariaLabel="Сфера ситуации" label="сфера ситуации" hint="Выберите ближайшую тему — она настроит примеры и фокус разбора.">
           {TOPICS.map((t) => (
             <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
               onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
@@ -529,7 +529,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
           ))}
         </OptionScrollStrip>
 
-        <OptionScrollStrip ariaLabel="Что сейчас сильнее">
+        <OptionScrollStrip ariaLabel="Что сейчас сильнее" label="что сейчас сильнее" hint="Отметьте состояние, через которое вы сейчас смотрите на ситуацию.">
           {FEELINGS.map((f) => (
             <OptionChoice key={f} active={feeling === f} disabled={status === "loading"}
               onClick={() => setFeeling(feeling === f ? null : f)}>
@@ -538,19 +538,19 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
           ))}
         </OptionScrollStrip>
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="reframe-input">ситуация или мысль, которая не отпускает</label>
+        <label className="soft-eyebrow product-question-label" htmlFor="reframe-input">ситуация или мысль, которая не отпускает</label>
         <textarea
           id="reframe-input"
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value.slice(0, 6000))}
           placeholder={placeholder}
           rows={3}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input product-question-input"
           disabled={status === "loading"}
           data-testid="reframe-input"
         />
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={generateReport} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="reframe-start">
               {status === "loading" ? "Анализируем…" : "Провести анализ"}

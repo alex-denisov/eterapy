@@ -1,44 +1,100 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
-import { buildSynastryWheel, type SynastryWheel } from "@/lib/esoteric-chart";
+import type { SynastryWheel } from "@/lib/esoteric-chart";
+import { buildSynastryEphemerisWheel, textMentionsZodiacSign } from "@/lib/natal-ephemeris";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { log, serializeError } from "@/lib/logger";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
+
+const SYNASTRY_HEADINGS = ["Прямой ответ", "Главная ось связи", "Эмоциональная совместимость", "Коммуникация", "Притяжение и близость", "Быт и устойчивость", "Конфликт, власть и границы", "Поддержка и рост", "Противоречия пары", "Сценарий в плюсе", "Сценарий в минусе", "Итог в выбранном слое отношений"];
 
 // B451: факты пары для AI — реальные знаки Солнца обоих + баланс течения/трения,
 // чтобы разбор опирался на них и совпадал с колесом совместимости.
-function synastryFactsForAI(wheel: SynastryWheel): string {
+function synastryFactsForAI(wheel: SynastryWheel, relationshipLayer: string) {
   const flow = wheel.aspects.filter((a) => a.harmony === "flow").length;
   const tension = wheel.aspects.filter((a) => a.harmony === "tension").length;
+  const placementLine = (placements: SynastryWheel["a"]["placements"]) => placements
+    .map((placement) => `${placement.label}: ${placement.degreeInSign.toFixed(1)}° ${placement.signName}`)
+    .join("; ");
+  const placementLabel = (side: "a" | "b", key?: string) => wheel[side].placements.find((placement) => placement.luminary === key)?.label ?? key ?? "планета";
+  const aspectLine = wheel.aspects.slice(0, 16).map((aspect) => (
+    `${placementLabel("a", aspect.fromLuminary)} — ${placementLabel("b", aspect.toLuminary)}: ${aspect.kind ?? aspect.harmony}, орб ${aspect.orb ?? "—"}°`
+  )).join("; ");
   return [
-    "ТОЧНО ПОСЧИТАНО (символическая схема, не эфемериды — не выдумывай иных точных позиций):",
-    `Солнце первого человека: ${wheel.a.sunSign.name}. Солнце второго: ${wheel.b.sunSign.name}.`,
+    "ТОЧНО ПОСЧИТАНО ПО ЭФЕМЕРИДАМ (не меняй позиции и аспекты):",
+    `Ваше Солнце: ${wheel.a.sunSign.name}. Солнце партнёра: ${wheel.b.sunSign.name}.`,
+    `Ваши положения: ${placementLine(wheel.a.placements)}.`,
+    `Положения партнёра: ${placementLine(wheel.b.placements)}.`,
+    `Главные межкарточные аспекты: ${aspectLine || "точных мажорных аспектов в выбранном орбе нет"}.`,
     `Связей «где течёт»: ${flow}; «где трение»: ${tension}.`,
-    "Опирайся на знаки Солнца обоих и баланс течения/трения; точные Луны/дома требуют времени рождения — не утверждай их как факт.",
+    `Выбранный слой отношений: ${relationshipLayer}.`,
+    relationshipLayer === "personal"
+      ? "В результате обращайся к заказчику `вы/ваш`, а второго участника называй `партнёр`."
+      : "Это рабочая синастрия. Используй выбранные деловые роли, анализируй решения, коммуникацию, риск, власть и разделение ответственности; не переноси разбор в романтику.",
+    "Не используй `первый/второй человек`. Не вставляй общие дисклеймеры.",
   ].join("\n");
 }
 
-function normalize(text: string) {
-  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 7000);
+function normalizeInput(text: string) {
+  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 4000);
+}
+
+function normalizeResult(text: string) {
+  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 30_000);
+}
+
+function headingKey(value: string) {
+  return value.replace(/[–-]/g, "—").replace(/\s+/g, " ").replace(/[.:;]+$/, "").trim().toLocaleLowerCase("ru");
+}
+
+function mergeSynastrySections(texts: string[]) {
+  const wanted = new Map(SYNASTRY_HEADINGS.map((heading) => [headingKey(heading), heading]));
+  const bodies = new Map<string, string>();
+  for (const text of texts) {
+    for (const section of splitSections(normalizeResultSectionHeadings("synastry", normalizeResult(text)))) {
+      const canonical = wanted.get(headingKey(section.title));
+      if (!canonical || !section.body.trim()) continue;
+      const existing = bodies.get(canonical) ?? "";
+      if (section.body.trim().length > existing.length) bodies.set(canonical, section.body.trim());
+    }
+  }
+  return SYNASTRY_HEADINGS
+    .filter((heading) => bodies.has(heading))
+    .map((heading) => `## ${heading}\n\n${bodies.get(heading)}`)
+    .join("\n\n");
+}
+
+function weakestSynastryHeadings(text: string) {
+  const sizes = new Map(splitSections(text).map((section) => [headingKey(section.title), section.body.length]));
+  return [...SYNASTRY_HEADINGS]
+    .sort((a, b) => (sizes.get(headingKey(a)) ?? -1) - (sizes.get(headingKey(b)) ?? -1))
+    .slice(0, 4);
+}
+
+function segmentedRequestId(requestId: string | undefined, suffix: string) {
+  return requestId ? `${requestId}:${suffix}` : undefined;
 }
 
 function compactBirthData(text: string) {
-  return normalize(text).replace(/\s+/g, " ").slice(0, 240);
+  return normalizeInput(text).replace(/\s+/g, " ").slice(0, 240);
 }
 
 function fallbackSynastryResult(input: {
   userBirthData: string;
   partnerBirthData: string;
+  focus?: string | null;
   question?: string | null;
+  relationshipLayer?: string | null;
 }) {
-  const question = normalize(input.question ?? "");
+  const focus = normalizeInput(input.focus ?? input.question ?? "");
   return [
     "Совместимость по звёздам",
     "",
-    "Этот разбор стоит читать как язык тем между двумя людьми, а не как verdict о совместимости. Карта не решает за пару — она подсвечивает, где разговору нужна форма.",
+    "Карта пары показывает сочетание двух ритмов: где притяжение складывается естественно и где различия создают напряжение.",
     "",
     "Один общий ресурс: в ваших данных уже видно напряжение между близостью и автономией. Это может давать много живости, если заранее договариваться о темпе.",
-    "Одна зона различия: один человек быстрее ищет контакт, другой может сначала уходить в тишину и сбор мыслей.",
-    question ? `Связь с вопросом: ${question.slice(0, 420)}` : "Связь с вопросом: полезно смотреть не «подходим ли мы», а «как нам говорить, когда мы разные».",
+    "Одна зона различия: вы можете быстрее искать контакт, а партнёр — сначала уходить в тишину и собирать мысли.",
+    focus ? `Фокус чтения: ${focus.slice(0, 180)}.` : "Фокус чтения: общая динамика вашей пары.",
     "",
     "Практический шаг: договоритесь о короткой фразе для паузы. Например: «я рядом, мне нужно 20 минут, потом вернусь к разговору».",
   ].join("\n");
@@ -68,54 +124,113 @@ export function buildSynastryTeaser(input: {
 export async function generateSynastryResult(input: {
   userBirthData: string;
   partnerBirthData: string;
+  focus?: string | null;
   question?: string | null;
   userId: string;
   requestId?: string;
+  relationshipLayer?: string | null;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = fallbackSynastryResult(input);
   // B388: структурное колесо совместимости в metadata (визуал = «расклад»).
-  const wheel = buildSynastryWheel(input.userBirthData, input.partnerBirthData);
+  let wheel: SynastryWheel;
+  try {
+    wheel = buildSynastryEphemerisWheel(input.userBirthData, input.partnerBirthData);
+  } catch {
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable" } };
+  }
   const wheelMeta: Prisma.InputJsonObject = { wheel: wheel as unknown as Prisma.InputJsonValue };
 
   try {
     // B451: тот же экспертный промпт, что виден/редактируется в /admin/ai
     // (product-synastry), + посчитанные факты пары; полный многоглавный разбор.
-    const response = await aiComplete({
+    const relationshipLayer = normalizeInput(input.relationshipLayer ?? "personal");
+    const systemPrompt = `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel, relationshipLayer)}`;
+    const context = [
+      `Ваши данные рождения: ${normalizeInput(input.userBirthData)}`,
+      `Данные рождения партнёра: ${normalizeInput(input.partnerBirthData)}`,
+      `Фокус совместимости: ${normalizeInput(input.focus ?? input.question ?? "") || "полная динамика пары"}`,
+      `Слой отношений: ${relationshipLayer}.`,
+    ].join("\n");
+    const midpoint = Math.ceil(SYNASTRY_HEADINGS.length / 2);
+    const groups = [SYNASTRY_HEADINGS.slice(0, midpoint), SYNASTRY_HEADINGS.slice(midpoint)];
+    const responses = await Promise.all(groups.map((headings, index) => aiComplete({
       feature: "product-synastry",
       userId: input.userId,
-      requestId: input.requestId,
+      requestId: segmentedRequestId(input.requestId, `part-${index + 1}`),
       maxTokens: 6500,
-      temperature: 0.45,
+      temperature: 0.42,
       messages: [
-        {
-          role: "system",
-          content: `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel)}`,
-        },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
-            `Данные первого человека: ${normalize(input.userBirthData)}`,
-            `Данные второго человека: ${normalize(input.partnerBirthData)}`,
-            `Вопрос пары: ${normalize(input.question ?? "") || "Пара хочет понять динамику бережно и без фатальности."}`,
+            "Собери одну часть большого разбора синастрии. Верни ТОЛЬКО перечисленные разделы и не добавляй остальные.",
+            "Каждый заголовок напиши дословно с `##`; внутри дай 3 содержательных абзаца с конкретными положениями и аспектами.",
+            ...headings.map((heading) => `## ${heading}`),
+            context,
           ].join("\n"),
         },
       ],
-    });
+    })));
 
-    const text = normalize(response.text);
-    if (text.length < 240) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response", ...wheelMeta } };
+    let text = mergeSynastrySections(responses.map((response) => response.text));
+    const qualityIssue = () => {
+      if (text.length < 5_000) return "результат слишком короткий";
+      if (/(?:первый|второй)\s+человек|\b(?:пользователь|клиент|заявитель)\b/iu.test(text)) return "неверное обращение к заказчику";
+      if (!SYNASTRY_HEADINGS.every((heading) => text.includes(`## ${heading}`))) return "нет обязательных разделов";
+      const signs = [...new Set([...wheel.a.placements, ...wheel.b.placements].map((placement) => placement.signName))];
+      if (signs.filter((sign) => textMentionsZodiacSign(text, sign)).length < Math.min(5, signs.length)) return "текст не опирается на рассчитанные положения";
+      return null;
+    };
+    let issue = qualityIssue();
+    if (issue) {
+      const repairHeadings = weakestSynastryHeadings(text);
+      const repair = await aiComplete({
+        feature: "product-synastry",
+        userId: input.userId,
+        requestId: segmentedRequestId(input.requestId, "repair"),
+        maxTokens: 6500,
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              `Дополни только слабые или отсутствующие разделы. Причина: ${issue}.`,
+              "Верни только эти заголовки дословно с `##`; каждый раздел — 3–4 конкретных абзаца. Обращайся «вы», второго участника называй «партнёр».",
+              ...repairHeadings.map((heading) => `## ${heading}`),
+              context,
+            ].join("\n"),
+          },
+        ],
+      });
+      responses.push(repair);
+      text = mergeSynastrySections(responses.map((response) => response.text));
+      issue = qualityIssue();
     }
+    if (issue) {
+      log.warn("synastry-product-quality-failed", {
+        requestId: input.requestId,
+        qualityIssue: issue,
+        resultLength: text.length,
+      });
+      return { text: fallback, metadata: { source: "heuristic", fallbackReason: `quality_failed:${issue}`, ...wheelMeta } };
+    }
+
+    const primaryResponse = responses[0];
 
     return {
       text,
       metadata: {
         source: "ai",
-        provider: response.provider,
-        model: response.model,
-        tokensIn: response.tokensIn,
-        tokensOut: response.tokensOut,
-        latencyMs: response.latencyMs,
+        provider: primaryResponse.provider,
+        model: primaryResponse.model,
+        providers: [...new Set(responses.map((response) => response.provider))],
+        models: [...new Set(responses.map((response) => response.model))],
+        generationParts: responses.length,
+        tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
+        tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
+        latencyMs: responses.reduce((sum, response) => sum + response.latencyMs, 0),
         ...wheelMeta,
       },
     };

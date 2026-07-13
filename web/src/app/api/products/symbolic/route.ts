@@ -7,6 +7,8 @@ import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { parseStrictBirthDate } from "@/lib/destiny-matrix";
+import { classifyProductSafety } from "@/lib/product-safety";
 import {
   SYMBOLIC_PRODUCT_DEFINITIONS,
   buildSymbolicProductTeaser,
@@ -23,12 +25,14 @@ const PRODUCT_KEYS = [
   { productKey: "family-scenarios" },
   { productKey: "human-design" },
   { productKey: "surname-story" },
+  { productKey: "horary" },
+  { productKey: "tarot-numerology" },
 ] as const;
 
 // B387/B389: family-scenarios и human-design тоже идут через этот эндпоинт.
 // Раньше их не было в enum — генерация платного разбора падала на валидации.
 const postSchema = z.object({
-  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story"]),
+  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story", "horary", "tarot-numerology"]),
   userInput: z.string().max(4000).optional(),
   tarotSpread: z.enum(["one", "three", "celtic"]).optional(),
   tarotTheme: z.string().max(80).optional(),
@@ -37,9 +41,9 @@ const postSchema = z.object({
 // B450: натальная карта переведена на платный-только флоу (нет бесплатного
 // фрагмента), с автосейвом результата в Дневник и обязательным LLM-результатом.
 // Наборы расширяются по мере миграции остальных символических услуг на паттерн Таро.
-const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
-const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
-const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
+const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
+const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
+const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
 
 function serializeResult(result: {
   id: string;
@@ -117,6 +121,30 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid payload", 400, context);
 
   const { productKey } = parsed.data;
+  const rawInput = parsed.data.userInput?.trim() ?? "";
+  if ((productKey === "numerology" || productKey === "tarot-numerology") && !parseStrictBirthDate(rawInput)) {
+    return errorWithRequestContext("VALIDATION_ERROR", "Укажите полную корректную дату рождения в формате ДД.ММ.ГГГГ", 400, context);
+  }
+  if (productKey === "horary" && (!/Вопрос:\s*\S/iu.test(rawInput) || !/Место:\s*\S/iu.test(rawInput))) {
+    return errorWithRequestContext("VALIDATION_ERROR", "Для хорарной карты нужны один точный вопрос и текущее место", 400, context);
+  }
+  const safety = await classifyProductSafety({
+    text: rawInput,
+    productKey,
+    userId,
+    requestId: context.requestId,
+  });
+  if (safety.interrupted) {
+    return jsonWithRequestContext(
+      {
+        error: safety.message,
+        code: "SAFETY_INTERRUPTED",
+        safetyLevel: safety.level,
+      },
+      { status: 422 },
+      context,
+    );
+  }
   const definition = getSymbolicProductDefinition(productKey);
   const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
 
@@ -131,10 +159,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const userInput = parsed.data.userInput?.trim() || definition?.promptLabel || productKey;
+  const fixedAt = productKey === "horary" ? new Date() : null;
+  const userInput = productKey === "horary"
+    ? `${rawInput}\nМомент фиксации UTC: ${fixedAt!.toISOString()}`
+    : rawInput || definition?.promptLabel || productKey;
   const tarotRequestMeta: Prisma.InputJsonObject = {
     ...(productKey === "tarot" && parsed.data.tarotSpread ? { tarotSpread: parsed.data.tarotSpread } : {}),
     ...(productKey === "tarot" && parsed.data.tarotTheme ? { tarotTheme: parsed.data.tarotTheme } : {}),
+    ...(fixedAt ? { fixedAt: fixedAt.toISOString() } : {}),
   };
   const generated = await generateSymbolicProductResult({
     productKey,

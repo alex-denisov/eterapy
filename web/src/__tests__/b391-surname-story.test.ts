@@ -98,8 +98,19 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
     const facts = surnameFactsForAI(story);
     expect(facts).toContain("Кузнецов");
     expect(facts).toContain(story.originLabel);
-    expect(facts.toLowerCase()).toContain("не придумывай");
-    expect(facts.toLowerCase()).toContain("не как о судьбе");
+    expect(facts.toLowerCase()).toContain("не подменяй");
+    expect(facts.toLowerCase()).toContain("не переносить");
+  });
+
+  it("recognizes Рукосуев from the documented lexeme instead of the generic -ев suffix", () => {
+    const story = analyzeSurname("Рукосуев")!;
+    const facts = surnameFactsForAI(story);
+
+    expect(story.originKind).toBe("descriptive");
+    expect(story.rootHint).toContain("рукосуй");
+    expect(story.evidence?.historicalMentions.join(" ")).toContain("1712");
+    expect(facts).toContain("Исходная лексема: «рукосуй»");
+    expect(facts).not.toContain("основа/корень после снятия типового суффикса: «рукосу»");
   });
 
   it("free teaser uses the recognized origin label", () => {
@@ -111,7 +122,7 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
 describe("B391 product registration & pricing", () => {
   it("surname-story is a symbolic product with a definition", () => {
     expect(isSymbolicProductKey("surname-story")).toBe(true);
-    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("История фамилии");
+    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("Тайна имени и фамилии");
   });
 
   it("is a known paid product priced 590 ₽ / 2 балла", () => {

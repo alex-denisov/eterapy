@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -9,6 +9,7 @@ import { HumanDesignBodygraph } from "@/components/products/human-design-bodygra
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
+import { personalizeHumanDesignResultHeadings } from "@/lib/human-design-result";
 
 // B451: «Дизайн человека» — самодостаточная услуга по паттерну Таро/reframe.
 // Бодиграф/тип считаются детерминированно (server, по данным рождения), разбор
@@ -16,11 +17,6 @@ import type { HumanDesignChart } from "@/lib/human-design-data";
 // многоглавный разбор; автосейв; сессии по ?reading=.
 
 export type HumanDesignResult = SymbolicResult;
-
-const EXAMPLES_DEFAULT = [
-  "Например: как мне жить и решать по своей природе?",
-  "Опишите, что хотите прояснить — разбор свяжет ваш дизайн с вопросом.",
-];
 
 export function extractHumanDesignChart(result: SymbolicResult | null): HumanDesignChart | null {
   const md = result?.metadata;
@@ -34,46 +30,35 @@ export function extractHumanDesignChart(result: SymbolicResult | null): HumanDes
   return raw as HumanDesignChart;
 }
 
-function composeUserInput(birth: string, question: string, topic: string | null): string {
-  return [
-    `Данные рождения: ${birth.trim()}`,
-    question.trim() ? `Вопрос: ${question.trim()}` : "",
-    topic ? `Сфера: ${topic}` : "",
-  ].filter(Boolean).join("\n");
+function composeUserInput(birth: string): string {
+  return `Данные рождения: ${birth.trim()}`;
 }
 
-function parseInput(userInput?: string | null): { birth: string; question: string; topic: string | null } {
-  if (!userInput) return { birth: "", question: "", topic: null };
-  return {
-    birth: userInput.match(/Данные рождения:\s*(.+)/)?.[1]?.trim() ?? userInput.split("\n")[0]?.trim() ?? "",
-    question: userInput.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
-    topic: userInput.match(/Сфера:\s*(.+)/)?.[1]?.trim() ?? null,
-  };
+function parseInput(userInput?: string | null): { birth: string } {
+  if (!userInput) return { birth: "" };
+  return { birth: userInput.match(/Данные рождения:\s*(.+)/)?.[1]?.trim() ?? userInput.split("\n")[0]?.trim() ?? "" };
 }
 
 function HumanDesignVisual({ result }: { result: SymbolicResult }) {
   const chart = extractHumanDesignChart(result);
   if (!chart) return null;
+  const facts = [
+    { label: "тип", value: chart.typeName },
+    { label: "стратегия", value: chart.strategy },
+    { label: "авторитет", value: chart.authorityName },
+    { label: "профиль", value: `${chart.profile} · ${chart.profileName}` },
+    { label: "определение", value: chart.definition },
+  ];
   return (
     <div>
       <HumanDesignBodygraph chart={chart} />
-      <div className="mt-3 grid grid-cols-2 gap-2.5" data-testid="hd-facts">
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">тип</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.typeName}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">стратегия</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.strategy}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">авторитет</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.authorityName}</p>
-        </div>
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">профиль</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.profile} · {chart.profileName}</p>
-        </div>
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid="human-design-facts">
+        {facts.map((fact) => (
+          <div key={fact.label} className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
+            <p className="soft-eyebrow text-[0.6rem]">{fact.label}</p>
+            <p className="mt-0.5 text-[0.95rem] leading-snug text-[var(--soft-ink)]">{fact.value}</p>
+          </div>
+        ))}
       </div>
       {!chart.hasExactTime && (
         <p className="mt-3 rounded-[12px] bg-[var(--soft-paper-deep)] p-3 text-xs leading-relaxed text-[var(--soft-bordeaux)]">
@@ -109,14 +94,13 @@ export function HumanDesignResultView({
   creditCost,
 }: {
   result: SymbolicResult;
-  recap: { birth: string; question: string; topic: string | null };
-  onStartNew: () => void;
+  recap: { birth: string };
+  onStartNew?: () => void;
   creditCost: number;
 }) {
+  const chart = extractHumanDesignChart(result);
   const recapRows = [
     recap.birth.trim() ? { label: "Данные рождения", value: recap.birth.trim() } : null,
-    recap.question.trim() ? { label: "Вопрос", value: recap.question.trim() } : null,
-    recap.topic ? { label: "Сфера", value: recap.topic } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
 
   return (
@@ -124,117 +108,87 @@ export function HumanDesignResultView({
       productKey="human-design"
       eyebrow="дизайн человека"
       heading="Ваш дизайн человека"
-      recapSummary={recap.question.trim() ? `Вопрос: ${recap.question.trim()}` : "Ваши данные и вопрос"}
+      recapSummary="Ваши данные рождения"
       recapRows={recapRows}
       visual={<HumanDesignVisual result={result} />}
-      resultText={result.resultText ?? ""}
-      topic={recap.topic}
+      resultText={personalizeHumanDesignResultHeadings(result.resultText ?? "", chart)}
+      topic={null}
       creditCost={creditCost}
-      repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор", description: "Свежий разбор дизайна по новым данным или вопросу.", ctaLabel: "Начать" }}
-      onStartNew={onStartNew}
+      repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор", description: "Свежий разбор бодиграфа по новым данным рождения.", ctaLabel: "Начать" }}
+      onStartNew={onStartNew ?? (() => undefined)}
     />
   );
 }
 
 export function HumanDesignActions({ creditCost }: { creditCost: number }) {
   const [birth, setBirth] = useState("");
-  const [question, setQuestion] = useState("");
-  const [topic, setTopic] = useState<string | null>(null);
-  const [exampleIdx, setExampleIdx] = useState(0);
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("human-design", (userInput) => {
       const parsed = parseInput(userInput);
       setBirth(parsed.birth);
-      setQuestion(parsed.question);
-      setTopic(parsed.topic);
     });
 
   // #3: ввод переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
     "human-design",
-    { birth, question, topic },
+    { birth },
     (draft) => {
       if (typeof draft.birth === "string") setBirth(draft.birth);
-      if (typeof draft.question === "string") setQuestion(draft.question);
-      if (typeof draft.topic === "string") setTopic(draft.topic);
     },
     { active: !result },
   );
-
-  useEffect(() => {
-    if (result) return;
-    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
-    return () => window.clearInterval(id);
-  }, [result]);
 
   function handleGenerate() {
     if (birth.trim().length < 4) {
       setMessage("Укажите дату рождения (а лучше — точное время и город), чтобы рассчитать бодиграф.");
       return;
     }
-    void generate(composeUserInput(birth, question, topic));
+    void generate(composeUserInput(birth));
   }
 
   function startNew() {
     reset();
     clearDraft();
     setBirth("");
-    setQuestion("");
-    setTopic(null);
   }
 
   if (result?.resultText) {
     return (
       <HumanDesignResultView
         result={result}
-        recap={{ birth, question, topic }}
+        recap={{ birth }}
         onStartNew={startNew}
         creditCost={creditCost}
       />
     );
   }
 
-  const placeholder = EXAMPLES_DEFAULT[exampleIdx % EXAMPLES_DEFAULT.length];
-
   return (
-    <div className="soft-card tarot-order-surface" data-testid="human-design-actions">
-      <div className="tarot-head">
+    <div className="soft-card product-order-surface" data-testid="human-design-actions">
+      <div className="product-order-head">
         <p className="soft-eyebrow">дизайн человека · язык природы</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <label className="soft-eyebrow tarot-question-label" htmlFor="hd-birth-input">дата, время и место рождения</label>
-        <textarea
+      <div className="product-controls">
+        <label className="soft-eyebrow product-question-label" htmlFor="hd-birth-input">дата, время и место рождения</label>
+        <input
           id="hd-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 400))}
           placeholder="15.05.1990, 10:30, Москва. Точное время и город важны для верного расчёта."
-          rows={2}
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="hd-birth-input"
-        />
-
-        <label className="soft-eyebrow tarot-question-label" htmlFor="hd-question-input">ваш вопрос (необязательно)</label>
-        <textarea
-          id="hd-question-input"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
-          placeholder={placeholder}
-          rows={2}
-          className="soft-question-input tarot-question-input"
-          disabled={status === "loading"}
-          data-testid="hd-question-input"
         />
 
         <div className="mt-1">
           <BodygraphTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="hd-start">
               {status === "loading" ? "Считаем бодиграф…" : "Открыть дизайн человека"}

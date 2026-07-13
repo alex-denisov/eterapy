@@ -25,6 +25,39 @@ export type SurnameStory = {
   rootHint: string | null;
   familyTheme: string;
   shareLine: string;
+  evidence?: {
+    baseLexeme: string;
+    dictionaryMeanings: string[];
+    historicalMentions: string[];
+    geography: string[];
+    sourceNotes: string[];
+  } | null;
+};
+
+const KNOWN_SURNAME_STORIES: Record<string, Omit<SurnameStory, "surname">> = {
+  "рукосуев": {
+    originKind: "descriptive",
+    originLabel: "Фамилия от мирского прозвища",
+    originStory: "Фамилия образована от диалектного слова и мирского прозвища «рукосуй», а суффикс «-ев» закрепил значение принадлежности к носителю этого прозвища.",
+    regionHint: "Сибирь и Забайкалье; ранние следы связаны с Енисейским уездом",
+    rootHint: "диалектное прозвище «рукосуй»",
+    familyTheme: "исследовательская линия — проследить сибирскую географию носителей и варианты написания в ревизских сказках и метрических книгах",
+    shareLine: "Рукосуев — фамилия от диалектного мирского прозвища «рукосуй».",
+    evidence: {
+      baseLexeme: "рукосуй",
+      dictionaryMeanings: [
+        "тот, кто берёт или трогает чужие вещи без разрешения",
+        "тот, кто вмешивается в чужие дела",
+        "в забайкальских говорах — сумка или мешок нищего",
+      ],
+      historicalMentions: ["носители фамилии отмечены в документах Енисейского уезда с 1712 года"],
+      geography: ["Красноярский край", "Иркутская область", "Забайкалье"],
+      sourceNotes: [
+        "лексема «рукосуй» зафиксирована в словарных справочных ресурсах",
+        "ономастическая карточка Familio связывает фамилию с мирским прозвищем и документами Енисейского уезда",
+      ],
+    },
+  },
 };
 
 const STOP_WORDS = new Set([
@@ -160,6 +193,10 @@ export function analyzeSurname(input: string): SurnameStory | null {
   if (!surname) return null;
 
   const lower = surname.toLowerCase();
+  const knownKey = lower.endsWith("а") ? lower.slice(0, -1) : lower;
+  const known = KNOWN_SURNAME_STORIES[knownKey];
+  if (known) return { surname, ...known };
+
   const detected = detectOriginKind(lower);
   const stem = stemOf(lower);
   const occupation = OCCUPATION_ROOTS.find((o) => lower.includes(o.root) || stem.includes(o.root));
@@ -188,18 +225,29 @@ export function analyzeSurname(input: string): SurnameStory | null {
     rootHint,
     familyTheme,
     shareLine,
+    evidence: null,
   };
 }
 
 // Факты для AI — чтобы платный разбор опирался на распознанную форму, а не выдумывал
 // этимологию. AI расширяет это в тёплый родовой нарратив, без фатализма.
 export function surnameFactsForAI(story: SurnameStory): string {
+  const lower = story.surname.toLowerCase();
+  const stem = stemOf(lower);
   return [
-    "РАСПОЗНАНО ПО ФОРМЕ ФАМИЛИИ (опирайся на это, не придумывай другую этимологию):",
+    "ОНОМАСТИЧЕСКИЙ КАРКАС (опирайся на него, не подменяй общей догадкой по суффиксу):",
     `Фамилия: ${story.surname}. Тип: ${story.originLabel}. ${story.originStory}`,
+    story.evidence ? "Источниковый статус: есть словарные и документальные подсказки; цитируй их как подсказки, не как доказательство родства." : "Источниковый статус: эвристика по форме фамилии. Нельзя утверждать конкретную географию, занятие предка или историю рода как подтверждённый факт.",
+    story.evidence?.baseLexeme
+      ? `Исходная лексема: «${story.evidence.baseLexeme}». Не используй ошибочную механическую основу «${stem}».`
+      : stem ? `Видимая основа/корень после снятия типового суффикса: «${stem}». Проверь версии: личное имя, прозвище, занятие, местность, качество или предмет.` : "",
     story.rootHint ? `Связана с: ${story.rootHint}.` : "",
     story.regionHint ? `География формы: ${story.regionHint}.` : "",
-    `Родовая тема для интерпретации: ${story.familyTheme}.`,
-    "Говори о ФОРМЕ и ИСТОРИИ фамилии и о роде как о теме для размышления — НЕ как о судьбе, карме или приговоре. Не утверждай факты про конкретных предков как достоверные; формулируй «вероятно», «часто», «возможно».",
+    story.evidence ? `Словарные значения: ${story.evidence.dictionaryMeanings.join("; ")}.` : "",
+    story.evidence ? `Документальные следы: ${story.evidence.historicalMentions.join("; ")}.` : "",
+    story.evidence ? `География носителей/версии: ${story.evidence.geography.join(", ")}.` : "",
+    story.evidence ? `Источниковые подсказки: ${story.evidence.sourceNotes.join("; ")}. Не превращай их в доказательство родства конкретной семьи.` : "",
+    `Символическая тема для самопроверки: ${story.familyTheme}. Не выдавай её за факт о характере или роде.`,
+    "Чётко раздели: документированный след, словарное значение, наиболее вероятную этимологию и альтернативную версию. Можно прямо назвать неудобное историческое значение слова, но не переносить его на заказчика или современных носителей фамилии.",
   ].filter(Boolean).join("\n");
 }

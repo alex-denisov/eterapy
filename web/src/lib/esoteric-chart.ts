@@ -159,7 +159,10 @@ export type ChartPlacement = {
 export type NatalWheel = {
   kind: "natal";
   sunSign: ZodiacSign;
-  ascendant: ZodiacSign;
+  ascendant: ZodiacSign | null;
+  ascendantDegree?: number | null;
+  houses?: Array<{ number: number; cusp: number; signName: string }>;
+  calculation?: "ephemeris" | "legacy-symbolic";
   placements: ChartPlacement[];
   parsed: ParsedBirthDate;
 };
@@ -191,14 +194,22 @@ export function buildNatalWheel(birthData: string): NatalWheel {
     };
   });
 
-  return { kind: "natal", sunSign, ascendant, placements, parsed };
+  return { kind: "natal", sunSign, ascendant, placements, parsed, calculation: "legacy-symbolic" };
 }
 
 export type SynastryWheel = {
   kind: "synastry";
   a: { sunSign: ZodiacSign; placements: ChartPlacement[] };
   b: { sunSign: ZodiacSign; placements: ChartPlacement[] };
-  aspects: Array<{ from: number; to: number; harmony: "flow" | "tension" }>;
+  aspects: Array<{
+    from: number;
+    to: number;
+    harmony: "flow" | "tension";
+    fromLuminary?: string;
+    toLuminary?: string;
+    kind?: string;
+    orb?: number;
+  }>;
 };
 
 export function buildSynastryWheel(aData: string, bData: string): SynastryWheel {

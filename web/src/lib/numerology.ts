@@ -1,4 +1,5 @@
 import { parseBirthDate } from "@/lib/esoteric-chart";
+import { computeDestinyMatrix, parseStrictBirthDate, type DestinyMatrix } from "@/lib/destiny-matrix";
 
 // B451: детерминированный числовой портрет (русская нумерология, пифагорейская
 // редукция). Считаем РЕАЛЬНЫЕ ядровые числа — Число жизненного пути (по дате),
@@ -39,6 +40,7 @@ export type NumerologyPortrait = {
   name: string | null;
   birth: { day: number; month: number; year: number | null } | null;
   hasYear: boolean;
+  matrix: DestinyMatrix | null;
 };
 
 // Имя берём из строки «Имя: …», иначе из ведущего фрагмента кириллицы до даты.
@@ -51,8 +53,9 @@ function extractName(input: string): string | null {
 
 export function computeNumerology(input: string): NumerologyPortrait {
   const name = extractName(input);
-  const parsed = parseBirthDate(input);
-  const hasYear = typeof parsed.year === "number";
+  const strict = parseStrictBirthDate(input);
+  const parsed = strict ?? parseBirthDate(input);
+  const hasYear = Boolean(strict);
 
   const dateDigits = hasYear
     ? `${String(parsed.day).padStart(2, "0")}${String(parsed.month).padStart(2, "0")}${parsed.year}`
@@ -77,6 +80,7 @@ export function computeNumerology(input: string): NumerologyPortrait {
     name,
     birth: { day: parsed.day, month: parsed.month, year: parsed.year },
     hasYear,
+    matrix: strict ? computeDestinyMatrix(strict.day, strict.month, strict.year) : null,
   };
 }
 
@@ -97,12 +101,26 @@ export const NUMBER_KEYWORD: Record<number, string> = {
 };
 
 export function numerologyFactsForAI(p: NumerologyPortrait): string {
+  if (p.matrix) {
+    const m = p.matrix;
+    return [
+      "ТОЧНО ПОСЧИТАНО ПО СИСТЕМЕ МАТРИЦЫ СУДЬБЫ 22 ЭНЕРГИЙ (не меняй энергии и позиции):",
+      `Дата: ${String(m.birth.day).padStart(2, "0")}.${String(m.birth.month).padStart(2, "0")}.${m.birth.year}.`,
+      `Десять позиций расшифровки: ${m.zones.map((zone) => `${zone.title} — ${zone.hint}: ${zone.value}`).join("; ")}.`,
+      `Базовые узлы: запад/день ${m.west.outer}; север/месяц ${m.north.outer}; восток/год ${m.east.outer}; юг/сумма ${m.south.outer}; центр ${m.center}.`,
+      `Внутренний центр: ${m.innerCenter}. Диагонали: СЗ ${m.northwest.outer}/${m.northwest.outerInner}/${m.northwest.middle}; СВ ${m.northeast.outer}/${m.northeast.outerInner}/${m.northeast.middle}; ЮВ ${m.southeast.outer}/${m.southeast.outerInner}/${m.southeast.middle}; ЮЗ ${m.southwest.outer}/${m.southwest.outerInner}/${m.southwest.middle}.`,
+      `Линия любви: ${m.love.entry} → ${m.love.core} → ${m.love.outcome}. Канал денег: ${m.money.entry} → ${m.money.core} → ${m.money.outcome}.`,
+      `Предназначения: личное Земля ${m.purposes.personalEarth}, Небо ${m.purposes.personalHeaven}, итог ${m.purposes.personal}; род матери ${m.purposes.maternal}, род отца ${m.purposes.paternal}, родовое ${m.purposes.ancestral}; духовное ${m.purposes.spiritual}; высшее ${m.purposes.highest}.`,
+      `Эзотерическая карта энергий (Небо/Земля/Ключ): ${m.health.map((row) => `${row.name} ${row.energy}/${row.physical}/${row.emotions}`).join("; ")}; итог ${m.healthTotal.energy}/${m.healthTotal.physical}/${m.healthTotal.emotions}.`,
+      "Это Матрица судьбы 22 энергий, не квадрат Пифагора. Не пересчитывай дату, не добавляй другие числа. Карта здоровья символическая и не является медицинской диагностикой.",
+    ].join("\n");
+  }
   return [
     "ТОЧНО ПОСЧИТАНО (пифагорейская редукция — не меняй эти числа):",
     `Число жизненного пути: ${p.lifePath} (${NUMBER_KEYWORD[p.lifePath] ?? "—"}).`,
     p.expression !== null ? `Число выражения (по имени): ${p.expression} (${NUMBER_KEYWORD[p.expression] ?? "—"}).` : "Имя не передано — Число выражения не считаем, не выдумывай его.",
     p.soulUrge !== null ? `Число души (по гласным имени): ${p.soulUrge} (${NUMBER_KEYWORD[p.soulUrge] ?? "—"}).` : "",
     p.hasYear ? "" : "Год рождения не указан — Число жизненного пути приблизительно; мягко предложи указать полную дату.",
-    "Опирайся именно на эти числа, трактуй их бережно как язык повторов и ритма, без предсказаний и фатальности.",
+    "Опирайся именно на эти числа. Заголовки разделов, карта чисел и интерпретация обязаны совпадать: не называй в тексте другие числа и не подменяй их примерами. Если объясняешь альтернативные школы, делай это отдельно и коротко, не меняя расчет этого результата.",
   ].filter(Boolean).join("\n");
 }

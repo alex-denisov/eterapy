@@ -12,9 +12,11 @@ import { spendClarityCreditsForProduct } from "@/lib/clarity-credits";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { log, serializeError } from "@/lib/logger";
 import {
-  buildCompanionSystemPrompt,
+  buildCompanionRuntimePrompt,
   companionSafeguard,
   sanitizeCompanionReply,
+  startsWithAutomaticUnderstanding,
+  countCompanionQuestions,
   splitIntoMessages,
   typingDelayMs,
   isCompanionMode,
@@ -62,7 +64,11 @@ function toMessages(value: Prisma.JsonValue): CompanionMessage[] {
   return value.filter(
     (m): m is CompanionMessage =>
       !!m && typeof m === "object" && typeof (m as CompanionMessage).text === "string",
-  );
+  ).map((message) => (
+    message.role === "companion"
+      ? { ...message, text: sanitizeCompanionReply(message.text) }
+      : message
+  ));
 }
 
 function toState(row: SessionRow): ChatSessionState {
@@ -308,7 +314,18 @@ export async function sendCompanionMessage(input: {
   }
 
   // 5. Генерация ответа компаньона.
-  const reply = await generateCompanionReply({ history: toMessages(row.messages), text, mode, userId: input.userId, requestId: input.requestId });
+  const history = toMessages(row.messages);
+  const reply = await generateCompanionReply({
+    sessionId: row.id,
+    history,
+    text,
+    mode,
+    userId: input.userId,
+    requestId: input.requestId,
+    paidStarted: row.paidStartedAt !== null,
+    minutesRemaining: paidMinutesRemaining(toState(row), now),
+    userTurnCount: history.filter((message) => message.role === "user").length + 1,
+  });
   const chunks = splitIntoMessages(reply);
   const safeChunks = chunks.length > 0 ? chunks : [sanitizeCompanionReply("")];
   const companionMsgs: CompanionMessage[] = safeChunks.map((c) => ({ role: "companion", text: c, at: new Date().toISOString() }));
@@ -322,30 +339,118 @@ export async function sendCompanionMessage(input: {
 }
 
 async function generateCompanionReply(input: {
+  sessionId: string;
   history: CompanionMessage[];
   text: string;
   mode: CompanionMode;
   userId: string;
   requestId?: string;
+  paidStarted: boolean;
+  minutesRemaining: number;
+  userTurnCount: number;
 }): Promise<string> {
   try {
     const recent = input.history.slice(-MAX_HISTORY_MESSAGES);
-    const response = await aiComplete({
+    const memoryNote = await buildClientMemoryNote(input.userId, input.sessionId);
+    const sessionNote = buildCompanionSessionNote(input);
+    const systemPrompt = [buildCompanionRuntimePrompt(input.mode), sessionNote, memoryNote].filter(Boolean).join("\n\n");
+    let response = await aiComplete({
       feature: "companion-chat",
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 700,
       temperature: 0.6,
       messages: [
-        { role: "system", content: buildCompanionSystemPrompt(input.mode) },
+        {
+          role: "system",
+          content: systemPrompt,
+        },
         ...recent.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.text })),
         { role: "user", content: input.text },
       ],
     });
-    return sanitizeCompanionReply(response.text);
+    let reply = sanitizeCompanionReply(response.text);
+    let qualityIssue = companionReplyQualityIssue(response.text, reply);
+    if (qualityIssue) {
+      response = await aiComplete({
+        feature: "companion-chat",
+        userId: input.userId,
+        requestId: input.requestId ? `${input.requestId}:repair` : undefined,
+        maxTokens: 600,
+        temperature: 0.45,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...recent.map((message) => ({ role: message.role === "user" ? ("user" as const) : ("assistant" as const), content: message.text })),
+          { role: "user", content: input.text },
+          { role: "user", content: `Переформулируй ответ: ${qualityIssue}. Не начинай со слова «понимаю». Дай одну живую реплику, один шаг выбранной практики и не более одного вопроса.` },
+        ],
+      });
+      reply = sanitizeCompanionReply(response.text);
+      qualityIssue = companionReplyQualityIssue(response.text, reply);
+    }
+    return qualityIssue ? reply.slice(0, 900) : reply;
   } catch (error) {
     log.warn("companion-chat-fallback", { requestId: input.requestId, error: serializeError(error) });
     return "Я рядом. Расскажите чуть больше — что в этой ситуации беспокоит вас сильнее всего?";
+  }
+}
+
+function buildCompanionSessionNote(input: {
+  paidStarted: boolean;
+  minutesRemaining: number;
+  userTurnCount: number;
+}) {
+  const stage = !input.paidStarted
+    ? input.userTurnCount <= 2 ? "контракт и выбор одного фокуса" : "короткая диагностическая практика внутри бесплатного знакомства"
+    : input.minutesRemaining <= 8
+      ? "интеграция: назвать уже полученный результат и незавершённый следующий слой"
+      : input.userTurnCount <= 3
+        ? "контракт: согласовать один фокус и критерий результата"
+        : "рабочая середина: продолжать одну выбранную практику шаг за шагом";
+  return [
+    "RUNTIME СОСТОЯНИЕ СЕССИИ:",
+    `Стадия: ${stage}.`,
+    input.paidStarted ? `Осталось примерно ${input.minutesRemaining} минут текущего окна.` : "Сейчас бесплатное знакомство; не выдавай поверхностный рекламный ответ.",
+    `Это примерно ${input.userTurnCount}-я реплика клиента в текущей сессии.`,
+    "Не сообщай служебные стадии и таймер механически. Используй их, чтобы выбрать глубину и следующий шаг.",
+  ].join("\n");
+}
+
+function companionReplyQualityIssue(raw: string, sanitized: string): string | null {
+  if (startsWithAutomaticUnderstanding(sanitized)) return "ответ начинается с автоматического «понимаю»";
+  if (countCompanionQuestions(raw) > 1) return "в ответе больше одного вопроса";
+  if (/^\s*(?:#{1,6}|[-*•]\s)/m.test(raw)) return "в ответе есть сырой Markdown или список";
+  if (/^\s*(?:ассистент|психолог|коуч|эксперт)\s*[:：—-]/iu.test(raw)) return "в ответе есть служебный префикс роли";
+  if (/\b(?:почитайте|посмотрите курс|поищите в интернете|подумайте об этом|переосмыслите это)\b/iu.test(sanitized)) return "ответ отправляет клиента работать самостоятельно вместо практики в чате";
+  if (sanitized.length > 1100) return "ответ перегружен и пытается решить всё за один ход";
+  return null;
+}
+
+async function buildClientMemoryNote(userId: string, currentSessionId: string): Promise<string> {
+  try {
+    const sessions = await db.companionChatSession.findMany({
+      where: { userId, id: { not: currentSessionId } },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+      select: { messages: true, updatedAt: true },
+    });
+    const lines = sessions.flatMap((session, index) => {
+      const messages = toMessages(session.messages).filter((message) => message.text.trim()).slice(-8);
+      if (messages.length === 0) return [];
+      const thread = messages
+        .map((message) => `${message.role === "user" ? "Вы (в прошлом диалоге)" : "ETerapy"}: ${message.text.replace(/\s+/g, " ").slice(0, 260)}`)
+        .join("\n");
+      return [`Диалог ${index + 1} (${session.updatedAt.toISOString().slice(0, 10)}):\n${thread}`];
+    });
+    if (lines.length === 0) return "";
+    return [
+      "ДОЛГОСРОЧНАЯ ПАМЯТЬ СОБЕСЕДНИКА:",
+      "Ниже краткий контекст прошлых чат-сессий этого же человека. Используй его тихо: замечай повторяющиеся темы, незавершенные практики и важные факты, но не цитируй память механически и не говори «я помню из базы». Если текущий запрос противоречит памяти, приоритет у текущего сообщения.",
+      lines.join("\n\n").slice(0, 4200),
+    ].join("\n");
+  } catch (error) {
+    log.warn("companion-chat-memory-skip", { error: serializeError(error) });
+    return "";
   }
 }
 

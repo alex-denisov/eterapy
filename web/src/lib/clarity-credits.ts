@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
-import { getProductCreditCost } from "@/lib/entitlements";
+import { getConfiguredProductCreditCost } from "@/lib/entitlements";
 
 export type ClarityCreditStatus = "pending" | "confirmed" | "revoked" | "expired";
 export type ClarityCreditType = "grant" | "spend" | "expire" | "clawback" | "adjustment";
@@ -212,6 +212,33 @@ export async function getClarityCreditBalance(
   return buildOpenClarityCreditLots(entries, new Date()).reduce((sum, lot) => sum + lot.amount, 0);
 }
 
+export async function getClarityCreditBalances(
+  userIds: string[],
+  tx: Prisma.TransactionClient = db,
+  now = new Date(),
+): Promise<Map<string, number>> {
+  const uniqueUserIds = [...new Set(userIds)].filter(Boolean);
+  if (uniqueUserIds.length === 0) return new Map();
+
+  const entries = await tx.clarityCreditLedgerEntry.findMany({
+    where: { userId: { in: uniqueUserIds }, status: { in: ACTIVE_STATUSES } },
+    select: { userId: true, amount: true, source: true, type: true, status: true, expiresAt: true, metadata: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const entriesByUser = new Map<string, typeof entries>();
+  for (const entry of entries) {
+    const userEntries = entriesByUser.get(entry.userId) ?? [];
+    userEntries.push(entry);
+    entriesByUser.set(entry.userId, userEntries);
+  }
+
+  return new Map(uniqueUserIds.map((userId) => {
+    const balance = buildOpenClarityCreditLots(entriesByUser.get(userId) ?? [], now)
+      .reduce((sum, lot) => sum + lot.amount, 0);
+    return [userId, balance];
+  }));
+}
+
 export async function getSpendableClarityCreditBalance(
   userId: string,
   tx: Prisma.TransactionClient = db,
@@ -288,7 +315,7 @@ export async function spendClarityCreditsForProduct(input: {
   sourceEventId?: string | null;
   metadata?: Prisma.InputJsonValue;
 }) {
-  const cost = getProductCreditCost(input.productKey);
+  const cost = await getConfiguredProductCreditCost(input.productKey);
   if (!cost) {
     throw new Error("Для продукта не настроена стоимость в баллах");
   }

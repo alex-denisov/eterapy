@@ -28,8 +28,8 @@ describe("B441 tarot + checkin follow-ups", () => {
 
   describe("#2 read-only recap on the result", () => {
     it("shows a read-only theme/spread/question recap", () => {
-      expect(actions).toContain('data-testid="tarot-recap"');
-      expect(actions).toContain('className="tarot-recap"');
+      expect(actions).toContain('data-testid="product-recap"');
+      expect(actions).toContain('className="product-recap"');
     });
   });
 

@@ -6,6 +6,7 @@ import { TogetherActions } from "@/components/products/together-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import {
   PAIR_HUB_SCENARIOS,
+  PAIR_READING_PARAM,
   type PairHubScenarioKey,
   type PairRelationshipType,
 } from "@/lib/pair-hub";
@@ -41,11 +42,15 @@ export function PairScenarioActions({
     const url = new URL(window.location.href);
     if (active === "compare") {
       url.searchParams.set("scenario", "compare");
+      if (!dialogueId) {
+        url.searchParams.delete(PAIR_READING_PARAM);
+      }
     } else {
       url.searchParams.delete("scenario");
+      url.searchParams.delete(PAIR_READING_PARAM);
     }
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-  }, [active]);
+  }, [active, dialogueId]);
 
   const activeScenario =
     PAIR_HUB_SCENARIOS.find((scenario) => scenario.key === active) ?? PAIR_HUB_SCENARIOS[0];
@@ -70,8 +75,8 @@ export function PairScenarioActions({
               role="tab"
               aria-selected={isActive}
               onClick={() => setActive(scenario.key)}
-              className={`tarot-choice flex-1 inline-flex items-center justify-center gap-2 ${
-                isActive ? "tarot-choice-active" : ""
+              className={`product-option-choice flex-1 inline-flex items-center justify-center gap-2 ${
+                isActive ? "product-option-choice-active" : ""
               }`}
               data-testid={`pair-scenario-pill-${scenario.key}`}
               data-active={isActive}

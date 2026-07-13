@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -15,11 +15,6 @@ import type { SurnameStory } from "@/lib/surname-story";
 
 export type SurnameResult = SymbolicResult;
 
-const EXAMPLES_DEFAULT = [
-  "Например: откуда могла прийти моя фамилия и что она говорит о роде?",
-  "Опишите, что хотите проверить: происхождение, географию, занятие предков или семейную легенду.",
-];
-
 export function extractSurnameStory(result: SymbolicResult | null): SurnameStory | null {
   const md = result?.metadata;
   if (!md || typeof md !== "object") return null;
@@ -32,71 +27,59 @@ export function extractSurnameStory(result: SymbolicResult | null): SurnameStory
   return raw as SurnameStory;
 }
 
-function composeUserInput(surname: string, question: string, topic: string | null): string {
-  return [
-    surname.trim(),
-    question.trim() ? `Вопрос: ${question.trim()}` : "",
-    topic ? `Сфера: ${topic}` : "",
-  ].filter(Boolean).join("\n");
+function composeUserInput(name: string, surname: string, question: string): string {
+  return [`Имя: ${name.trim()}`, `Фамилия: ${surname.trim()}`, question.trim() ? `Вопрос: ${question.trim()}` : ""].filter(Boolean).join("\n");
 }
 
-function parseInput(userInput?: string | null): { surname: string; question: string; topic: string | null } {
-  if (!userInput) return { surname: "", question: "", topic: null };
+function parseInput(userInput?: string | null): { name: string; surname: string; question: string } {
   return {
-    surname: userInput.split("\n")[0]?.trim() ?? "",
-    question: userInput.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
-    topic: userInput.match(/Сфера:\s*(.+)/)?.[1]?.trim() ?? null,
+    name: userInput?.match(/Имя:\s*(.+)/)?.[1]?.trim() ?? "",
+    surname: userInput?.match(/Фамилия:\s*(.+)/)?.[1]?.trim() ?? userInput?.split("\n")[0]?.trim() ?? "",
+    question: userInput?.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
   };
 }
 
-function SurnameLineageVisual({ story }: { story: SurnameStory }) {
-  const nodes: Array<{ x: number; y: number; label: string; value: string }> = [
-    { x: 70, y: 146, label: "форма", value: story.originLabel },
-    { x: 160, y: 68, label: "фамилия", value: story.surname },
-    { x: 250, y: 146, label: "тема", value: story.rootHint ?? story.regionHint ?? "родовая версия" },
-    { x: 160, y: 206, label: "проверка", value: "метрики · архивы · память" },
-  ];
-
+export function SurnameLineageVisual({ story, name }: { story: SurnameStory; name?: string }) {
+  const displayName = [name?.trim(), story.surname].filter(Boolean).join(" ");
+  const monogram = `${name?.trim()?.[0] ?? ""}${story.surname[0] ?? ""}`.toUpperCase();
+  const evidenceLabel = story.evidence ? "есть словарные следы" : "версии требуют проверки";
   return (
-    <figure data-testid="surname-lineage">
-      <svg viewBox="0 0 320 245" role="img" aria-label={`Карта происхождения фамилии ${story.surname}`} className="mx-auto block w-full max-w-[340px]">
-        <rect x="20" y="18" width="280" height="206" rx="18" fill="var(--soft-paper-card)" stroke="var(--soft-paper-edge)" />
-        <path d="M160 68 C128 94, 98 110, 70 146" fill="none" stroke="var(--soft-terracotta-dark)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M160 68 C192 94, 222 110, 250 146" fill="none" stroke="var(--soft-sage)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M160 68 L160 206" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="5 5" />
-        <path d="M70 146 C98 190, 128 206, 160 206 C192 206, 222 190, 250 146" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.2" strokeDasharray="4 5" />
-        {nodes.map((node) => (
-          <g key={node.label}>
-            <circle cx={node.x} cy={node.y} r={node.label === "фамилия" ? 31 : 27} fill="var(--soft-paper-deep)" stroke="var(--soft-terracotta-dark)" strokeWidth="1.5" />
-            <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize="8" fill="var(--soft-muted)" className="soft-eyebrow">{node.label}</text>
-            <text x={node.x} y={node.y + 9} textAnchor="middle" fontSize={node.label === "фамилия" ? "12" : "8.5"} fontWeight="600" fill="var(--soft-bordeaux)">
-              {node.value.length > 18 ? `${node.value.slice(0, 16)}…` : node.value}
-            </text>
-          </g>
-        ))}
-        <text x="34" y="38" fontSize="9" fill="var(--soft-muted)">версии происхождения</text>
-        <text x="286" y="216" textAnchor="end" fontSize="9" fill="var(--soft-muted)">следы для проверки</text>
-      </svg>
-      <figcaption className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">
-        {story.surname} · {story.originLabel.toLowerCase()} · форма, версия, география и проверка
-      </figcaption>
-      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid="surname-facts">
-        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-          <p className="soft-eyebrow text-[0.6rem]">происхождение</p>
-          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{story.originLabel}</p>
+    <figure data-testid="surname-identity-map" aria-label={`Карта имени ${displayName || story.surname}`}>
+      <div className="overflow-hidden rounded-[22px] bg-[var(--soft-paper-card)] p-4 shadow-[0_24px_64px_rgba(91,64,45,0.10)] sm:p-6">
+        <svg viewBox="0 0 520 320" role="img" aria-label={`Личное досье имени ${displayName || story.surname}`} className="block w-full">
+          <defs>
+            <radialGradient id="name-map-wash" cx="50%" cy="42%" r="68%">
+              <stop offset="0" stopColor="#F3DDC5" stopOpacity="0.8" />
+              <stop offset="1" stopColor="#FBF6EE" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect x="0" y="0" width="520" height="320" rx="24" fill="url(#name-map-wash)" />
+          <ellipse cx="260" cy="160" rx="198" ry="112" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1" />
+          <ellipse cx="260" cy="160" rx="152" ry="78" fill="none" stroke="var(--soft-terracotta-dark)" strokeOpacity="0.42" strokeWidth="1.2" strokeDasharray="4 7" />
+          <path d="M92 160 C152 112 186 90 260 84 C334 90 368 112 428 160" fill="none" stroke="var(--soft-sage)" strokeOpacity="0.6" strokeWidth="1.4" />
+          <path d="M92 160 C152 208 186 230 260 236 C334 230 368 208 428 160" fill="none" stroke="var(--soft-terracotta-dark)" strokeOpacity="0.55" strokeWidth="1.4" />
+          <circle cx="260" cy="160" r="58" fill="var(--soft-paper)" stroke="var(--soft-paper-edge)" />
+          <text x="260" y="148" textAnchor="middle" fontFamily="var(--font-heading)" fontSize="42" fill="var(--soft-bordeaux)">{monogram || "ИФ"}</text>
+          <text x="260" y="177" textAnchor="middle" fontSize="11" fill="var(--soft-ink-soft)">{displayName.slice(0, 34) || story.surname}</text>
+          <text x="260" y="197" textAnchor="middle" fontSize="8.5" letterSpacing="1.5" fill="var(--soft-ink-faint)">ЛИЧНОЕ ДОСЬЕ</text>
+          {[
+            { x: 92, y: 160, title: "Форма", value: story.originLabel },
+            { x: 260, y: 48, title: "Корень", value: story.rootHint ?? "рабочая версия" },
+            { x: 428, y: 160, title: "География", value: story.regionHint ?? "нужен семейный регион" },
+            { x: 260, y: 272, title: "Достоверность", value: evidenceLabel },
+          ].map((node) => (
+            <g key={node.title}>
+              <circle cx={node.x} cy={node.y} r="31" fill="var(--soft-paper-deep)" stroke="var(--soft-paper-edge)" />
+              <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--soft-bordeaux)">{node.title}</text>
+              <text x={node.x} y={node.y + 10} textAnchor="middle" fontSize="7.5" fill="var(--soft-ink-soft)">{node.value.length > 22 ? `${node.value.slice(0, 20)}…` : node.value}</text>
+            </g>
+          ))}
+        </svg>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-testid="surname-facts">
+          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">факт</p><p className="mt-1 text-sm text-[var(--soft-ink)]">форма и словообразование</p></div>
+          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">версия</p><p className="mt-1 text-sm text-[var(--soft-ink)]">происхождение и география</p></div>
+          <div className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-3"><p className="soft-eyebrow text-[0.6rem]">зеркало</p><p className="mt-1 text-sm text-[var(--soft-ink)]">звучание и черты характера</p></div>
         </div>
-        {story.rootHint && (
-          <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-            <p className="soft-eyebrow text-[0.6rem]">связана с</p>
-            <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{story.rootHint}</p>
-          </div>
-        )}
-        {story.regionHint && (
-          <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
-            <p className="soft-eyebrow text-[0.6rem]">география формы</p>
-            <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{story.regionHint}</p>
-          </div>
-        )}
       </div>
     </figure>
   );
@@ -128,141 +111,126 @@ export function SurnameStoryResultView({
   creditCost,
 }: {
   result: SymbolicResult;
-  recap: { surname: string; question: string; topic: string | null };
+  recap: { name: string; surname: string; question: string };
   onStartNew: () => void;
   creditCost: number;
 }) {
   const story = extractSurnameStory(result);
   const recapRows = [
     recap.surname.trim() ? { label: "Фамилия", value: recap.surname.trim() } : null,
+    recap.name.trim() ? { label: "Имя", value: recap.name.trim() } : null,
     recap.question.trim() ? { label: "Вопрос", value: recap.question.trim() } : null,
-    recap.topic ? { label: "Сфера", value: recap.topic } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
 
   return (
     <SymbolicResultScaffold
       productKey="surname-story"
-      eyebrow="история фамилии"
-      heading="История вашей фамилии"
-      recapSummary={recap.surname.trim() ? `Фамилия: ${recap.surname.trim()}` : "Ваша фамилия и вопрос"}
+      eyebrow="имя + фамилия"
+      heading="Паспорт вашего имени"
+      recapSummary={recap.surname.trim() ? `Фамилия: ${recap.surname.trim()}` : "Ваша фамилия"}
       recapRows={recapRows}
-      visual={story ? <SurnameLineageVisual story={story} /> : undefined}
+      visual={story ? <SurnameLineageVisual story={story} name={recap.name} /> : undefined}
       resultText={result.resultText ?? ""}
-      topic={recap.topic}
+      topic={recap.question || null}
       creditCost={creditCost}
-      repeat={{ ribbon: "разобрать ещё", title: "Разобрать другую фамилию", description: "Свежий родовой разбор по новой фамилии или вопросу.", ctaLabel: "Начать" }}
+      repeat={{ ribbon: "разобрать ещё", title: "Разобрать другую фамилию", description: "Новое исследование происхождения и истории фамилии.", ctaLabel: "Начать" }}
       onStartNew={onStartNew}
     />
   );
 }
 
 export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
+  const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [question, setQuestion] = useState("");
-  const [topic, setTopic] = useState<string | null>(null);
-  const [exampleIdx, setExampleIdx] = useState(0);
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("surname-story", (userInput) => {
       const parsed = parseInput(userInput);
+      setName(parsed.name);
       setSurname(parsed.surname);
       setQuestion(parsed.question);
-      setTopic(parsed.topic);
     });
 
   // #3: ввод переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
     "surname-story",
-    { surname, question, topic },
+    { name, surname, question },
     (draft) => {
       if (typeof draft.surname === "string") setSurname(draft.surname);
+      if (typeof draft.name === "string") setName(draft.name);
       if (typeof draft.question === "string") setQuestion(draft.question);
-      if (typeof draft.topic === "string") setTopic(draft.topic);
     },
     { active: !result },
   );
-
-  useEffect(() => {
-    if (result) return;
-    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
-    return () => window.clearInterval(id);
-  }, [result]);
 
   function handleGenerate() {
     if (surname.trim().length < 2) {
       setMessage("Напишите свою фамилию — по её форме строится разбор.");
       return;
     }
-    void generate(composeUserInput(surname, question, topic));
+    void generate(composeUserInput(name, surname, question));
   }
 
   function startNew() {
     reset();
     clearDraft();
     setSurname("");
+    setName("");
     setQuestion("");
-    setTopic(null);
   }
 
   if (result?.resultText) {
     return (
       <SurnameStoryResultView
         result={result}
-        recap={{ surname, question, topic }}
+        recap={{ name, surname, question }}
         onStartNew={startNew}
         creditCost={creditCost}
       />
     );
   }
 
-  const placeholder = EXAMPLES_DEFAULT[exampleIdx % EXAMPLES_DEFAULT.length];
-
   return (
-    <div className="soft-card tarot-order-surface" data-testid="surname-story-actions">
-      <div className="tarot-head">
-        <p className="soft-eyebrow">род · история фамилии</p>
+    <div className="soft-card product-order-surface" data-testid="surname-story-actions">
+      <div className="product-order-head">
+        <p className="soft-eyebrow">имя + фамилия · корни и звучание</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="tarot-controls">
-        <label className="soft-eyebrow tarot-question-label" htmlFor="surname-input">ваша фамилия</label>
+      <div className="product-controls">
+        <label className="soft-eyebrow product-question-label" htmlFor="surname-name-input">ваше имя</label>
+        <input id="surname-name-input" value={name} onChange={(e) => setName(e.target.value.slice(0, 80))} placeholder="Алексей" className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} data-testid="surname-name-input" />
+
+        <label className="soft-eyebrow product-question-label" htmlFor="surname-input">ваша фамилия</label>
         <input
           id="surname-input"
           value={surname}
           onChange={(e) => setSurname(e.target.value.slice(0, 80))}
           placeholder="Кузнецов, Ковальчук, Соколова…"
-          className="soft-question-input tarot-question-input tarot-line-input"
+          className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="surname-input"
         />
 
-        <label className="soft-eyebrow tarot-question-label" htmlFor="surname-question-input">ваш вопрос (необязательно)</label>
-        <textarea
-          id="surname-question-input"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
-          placeholder={placeholder}
-          rows={2}
-          className="soft-question-input tarot-question-input"
-          disabled={status === "loading"}
-          data-testid="surname-question-input"
-        />
+        <label className="soft-eyebrow product-question-label" htmlFor="surname-question-input">что хотите узнать, необязательно</label>
+        <textarea id="surname-question-input" value={question} onChange={(e) => setQuestion(e.target.value.slice(0, 500))} placeholder="Например: какое впечатление создаёт сочетание имени и фамилии?" className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
 
         <div className="mt-1">
           <SurnameTeaser />
         </div>
 
-        <div className="tarot-action-row">
+        <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="surname-start">
-              {status === "loading" ? "Читаем фамилию…" : "Открыть историю фамилии"}
+              {status === "loading" ? "Собираем паспорт имени…" : "Открыть имя и фамилию"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (
             <ProductPurchaseControls
               productKey="surname-story"
-              label="Открыть историю фамилии"
+              label="Открыть имя и фамилию"
               checkoutSource="surname-story-direct"
               creditCost={creditCost}
               onUnlocked={() => {

@@ -8,6 +8,7 @@ import {
   reframeResultForDisplay,
   tryParseReframe,
   REFRAME_SYSTEM_PROMPT,
+  type ReframeStructured,
 } from "@/lib/reframe";
 
 const root = process.cwd();
@@ -71,7 +72,7 @@ describe("B441 reframe product (Переосмысление)", () => {
   });
 
   it("repairs generic or incomplete LLM angles instead of accepting formal JSON", () => {
-    const generic = {
+    const generic: ReframeStructured = {
       angles: [
         {
           id: "thoughts",

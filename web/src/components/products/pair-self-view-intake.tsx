@@ -97,7 +97,7 @@ export function PairSelfViewIntake() {
               role="radio"
               aria-checked={isActive}
               onClick={() => setType(relationship.key)}
-              className={`tarot-choice inline-flex items-center gap-1.5 ${isActive ? "tarot-choice-active" : ""}`}
+              className={`product-option-choice inline-flex items-center gap-1.5 ${isActive ? "product-option-choice-active" : ""}`}
               data-testid={`pair-relationship-${relationship.key}`}
               data-active={isActive}
               disabled={disabled}
@@ -111,37 +111,37 @@ export function PairSelfViewIntake() {
 
       <div className="mt-5 grid gap-4">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-[var(--soft-ink)]">{option.warmthPrompt}</span>
+          <span className="soft-eyebrow product-question-label">{option.warmthPrompt}</span>
           <textarea
             value={warmth}
             onChange={(event) => setWarmth(event.target.value.slice(0, 600))}
             placeholder="Несколько слов…"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input product-question-input product-compact-input p-3"
             disabled={disabled}
             data-testid="pair-warmth-input"
           />
         </label>
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-[var(--soft-ink)]">{PAIR_TENSION_PROMPT}</span>
+          <span className="soft-eyebrow product-question-label">{PAIR_TENSION_PROMPT}</span>
           <textarea
             value={tension}
             onChange={(event) => setTension(event.target.value.slice(0, 600))}
             placeholder="Несколько слов…"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input product-question-input product-compact-input p-3"
             disabled={disabled}
             data-testid="pair-tension-input"
           />
         </label>
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-[var(--soft-ink-soft)]">{PAIR_QUESTION_PROMPT}</span>
+          <span className="soft-eyebrow product-question-label">{PAIR_QUESTION_PROMPT}</span>
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value.slice(0, 400))}
             placeholder="Если хочется прояснить что-то одно"
             rows={2}
-            className="soft-question-input tarot-question-input p-3"
+            className="soft-question-input product-question-input product-compact-input p-3"
             disabled={disabled}
             data-testid="pair-question-input"
           />

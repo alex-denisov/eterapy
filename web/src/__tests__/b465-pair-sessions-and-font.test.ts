@@ -93,7 +93,7 @@ describe("B465 — pair scenarios wire ?reading= session pinning", () => {
   });
 });
 
-describe("B465 — product input font unified up to tarot-question-input (no 14px)", () => {
+describe("B465 — product input font unified up to product-question-input (no 14px)", () => {
   const pairInputs = [
     "src/components/products/pair-self-view-intake.tsx",
     "src/components/products/together-actions.tsx",
@@ -110,13 +110,13 @@ describe("B465 — product input font unified up to tarot-question-input (no 14p
     }
   });
 
-  it("pair + product-intake textareas adopt the tarot-question-input size", () => {
+  it("pair + product-intake textareas adopt the product-question-input size", () => {
     for (const rel of [
       "src/components/products/pair-self-view-intake.tsx",
       "src/components/products/product-intake.tsx",
       "src/components/products/together-actions.tsx",
     ]) {
-      expect(source(rel)).toContain("tarot-question-input");
+      expect(source(rel)).toContain("product-question-input");
     }
   });
 });

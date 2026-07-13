@@ -14,7 +14,7 @@ const PRODUCT_KEY = "deep-report";
 // B444 (M28): «Подробный разбор» self-contained — контекст собирается ВНУТРИ услуги
 // (sourceText + опц. заметка из чипов), без первичного диалога/checkin. Бесплатного
 // предпросмотра/оглавления БОЛЬШЕ НЕТ — один платный шаг: проверяем доступ → ОДНА
-// полноценная генерация документа 6–10 страниц → READY + списание + автосейв в
+// полноценная генерация детального документа → READY + списание + автосейв в
 // Дневник в одной транзакции. Сессионность: GET по ?resultId=.
 const postSchema = z.object({
   action: z.literal("generate"),
@@ -115,9 +115,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Одна полноценная генерация документа 6–10 страниц на полном тексте ситуации
+  // Одна полноценная генерация детального документа на полном тексте ситуации
   // и заметке темы/цели (виден в суперадминке как один LLM-вызов).
   const full = await generateDeepReport({ sourceText, contextNote, userId, requestId: context.requestId });
+  if ((full.metadata as { source?: string }).source !== "ai") {
+    return errorWithRequestContext(
+      "AI_UNAVAILABLE",
+      "Не получилось собрать полный подробный разбор — попробуйте ещё раз. Баллы не списаны.",
+      503,
+      context,
+    );
+  }
   const title = buildDeepReportTitle(sourceText);
   const baseMetadata: Prisma.InputJsonObject = {
     source: "generate",

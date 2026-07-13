@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { getSpendableClarityCreditBalance, planClarityCreditSpend, recordClarityCreditEntry } from "@/lib/clarity-credits";
-import { V5_BUNDLE_CONTENTS, getProductCreditCost, isKnownBundleProduct, isKnownPaidProduct } from "@/lib/entitlements";
+import { V5_BUNDLE_CONTENTS, getConfiguredProductCreditCost, isKnownBundleProduct, isKnownPaidProduct } from "@/lib/entitlements";
 import { completeMission } from "@/lib/missions";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return errorWithRequestContext("INVALID_PRODUCT", "Неизвестный платный продукт", 400, context);
   }
 
-  const creditCost = getProductCreditCost(productKey);
+  const creditCost = await getConfiguredProductCreditCost(productKey);
   if (!creditCost) {
     return errorWithRequestContext("CREDITS_NOT_SUPPORTED", "Для продукта не настроена оплата баллами", 400, context);
   }

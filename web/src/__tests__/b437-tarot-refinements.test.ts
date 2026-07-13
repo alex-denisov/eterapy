@@ -19,13 +19,13 @@ describe("B437 tarot refinements", () => {
 
   it("#2 uses a compact scrollable spread selector without the helper subtext", () => {
     expect(actions).toContain("<ScrollStrip");
-    expect(actions).toContain("tarot-strip-arrow");
+    expect(actions).toContain("product-option-strip-arrow");
     // helper text was moved to a title attribute, not a visible <small>
     expect(actions).not.toContain("<small>{option.helper}</small>");
   });
 
   it("#4 collapses the controls and reveals cards in-place", () => {
-    expect(actions).toContain("tarot-controls-collapsed");
+    expect(actions).toContain("product-controls-collapsed");
     expect(actions).toContain('data-testid="tarot-reveal"');
   });
 

@@ -6,7 +6,9 @@ import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { SectionAccordion } from "@/components/products/section-accordion";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
-import { splitSections } from "@/lib/report-sections";
+import { getProductPriceLabel } from "@/lib/product-prices";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
+import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl } from "@/lib/subdomain";
 
@@ -60,7 +62,9 @@ export function SymbolicResultScaffold({
   onStartNew: () => void;
 }) {
   const [recapOpen, setRecapOpen] = useState(false);
-  const normalizedResultText = normalizeLegacySymbolicHeadings(productKey, resultText);
+  const normalizedResultText = stripEmbeddedResultDisclaimers(
+    normalizeResultSectionHeadings(productKey, normalizeLegacySymbolicHeadings(productKey, resultText)),
+  );
   const sections = splitSections(normalizedResultText);
 
   const topicKey = dialogueTopicFromChip(topic);
@@ -72,6 +76,7 @@ export function SymbolicResultScaffold({
       icon: Sparkles,
       title: repeat.title,
       description: repeat.description,
+      priceMain: getProductPriceLabel(productKey),
       priceSub: `${creditCost} балла за разбор`,
       ctaLabel: repeat.ctaLabel,
       onClick: onStartNew,
@@ -96,23 +101,23 @@ export function SymbolicResultScaffold({
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid={`${productKey}-actions`}>
-      <div className="tarot-head">
+      <div className="product-order-head">
         <p className="soft-eyebrow">{eyebrow}</p>
       </div>
       <h2 className="soft-h3 mt-1">{heading}</h2>
 
       {/* Свёрнутый блок с самим запросом пользователя (как у Таро). */}
       <details
-        className="tarot-controls-collapsed mt-4"
+        className="product-controls-collapsed mt-4"
         data-testid={`${productKey}-recap`}
         open={recapOpen}
         onToggle={(e) => setRecapOpen((e.currentTarget as HTMLDetailsElement).open)}
       >
         <summary>
-          <span className="tarot-collapsed-q">{recapSummary}</span>
-          <span className="tarot-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
+          <span className="product-collapsed-question">{recapSummary}</span>
+          <span className="product-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
         </summary>
-        <dl className="tarot-recap">
+        <dl className="product-recap">
           {recapRows.map((row) => (
             <div key={row.label}>
               <dt>{row.label}</dt>
