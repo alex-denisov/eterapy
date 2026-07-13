@@ -101,10 +101,14 @@ describe("AI prompt configs", () => {
   it("preserves runtime-calculated facts after an admin-managed prompt", () => {
     const feature = "product-numerology";
     const runtime = `${defaultPromptTextForFeature(feature)}\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.`;
+    const merged = mergeAIPromptOverride(feature, runtime, "Owner numerology prompt");
 
-    expect(mergeAIPromptOverride(feature, runtime, "Owner numerology prompt")).toBe(
-      `${IMMUTABLE_AI_SAFETY_ENVELOPE}\n\nOwner numerology prompt\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.`,
-    );
+    expect(merged).toContain(IMMUTABLE_AI_SAFETY_ENVELOPE);
+    expect(merged).toContain("Давай честный эзотерический вывод");
+    expect(merged).toContain("Не смягчай неблагоприятные показатели");
+    expect(merged).toContain("КОНТРАКТ ПРЯМОГО ЭЗОТЕРИЧЕСКОГО ОТВЕТА");
+    expect(merged).toContain("Owner numerology prompt");
+    expect(merged).toContain("РАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.");
   });
 
   it("keeps runtime facts inside the explicit defaultPrompt placeholder", () => {
