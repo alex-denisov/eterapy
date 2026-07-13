@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BadgeCheck, ChevronLeft, ShieldCheck, Star, TrendingUp, Users } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, ShieldCheck, Star, TrendingUp, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PRACTITIONER_VERIFICATION_PREFIX } from "@/lib/practitioner-verification";
@@ -128,13 +128,15 @@ export default async function PractitionerVerificationPage() {
         </section>
       </div>
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
-      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-verification-page">
-        <Link href={appUrl("/practitioner/profile")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-          <ArrowLeft className="h-4 w-4" />
-          Профиль
-        </Link>
-        <p className="soft-eyebrow mt-4">Кабинет практика</p>
+      {/* ДЕСКТОП R9-5 — статус верификации (честно: реальный request-card, без
+          фейковых пошаговых статусов документов). Хлебные крошки от «Профиль». */}
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-verification-page">
+        <nav className="flex items-center gap-1.5 text-xs text-[var(--soft-ink-faint)]" aria-label="Хлебные крошки">
+          <Link href={appUrl("/practitioner/profile")} className="transition-colors hover:text-[var(--soft-ink-soft)]">Профиль</Link>
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          <span className="text-[var(--soft-ink-soft)]">Верификация</span>
+        </nav>
+        <p className="soft-eyebrow mt-4">Профиль</p>
         <h1 className="soft-h1 mt-2">Верификация</h1>
 
         {/* Status */}

@@ -88,7 +88,7 @@ describe("Z18 BYOC practitioner client source axis", () => {
     expect(applicationsRoute).toContain("assignFoundingCohortIfEligible");
     expect(adminPractitionerCreate).toContain("assignFoundingCohortIfEligible");
     expect(inviteRoute).toContain("createPractitionerInvite");
-    expect(invitePage).toContain("Приведите своего клиента");
+    expect(invitePage).toContain("Приводите своих клиентов");
     expect(publicLanding).toContain("ByocVisitTracker");
     expect(visitRoute).toContain("recordPractitionerInviteVisit");
     expect(visitRoute).toContain("setByocCookie");
