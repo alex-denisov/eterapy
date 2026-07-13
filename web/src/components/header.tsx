@@ -460,6 +460,11 @@ export function Header() {
   //     bar is landing-only to avoid a double bar).
   const isClientPersona = !isAuthenticated || (!isStaff && !isPractitioner);
   const showCabinetBridge = isAuthenticated && !isStaff && !isPractitioner && isAppArea;
+  // B466 R9-5 — inside the cabinet the practitioner centre track carries a lone
+  // «На сайт» bridge (approved desktop mockup). Practitioners get no client
+  // service-bridge/credits, so their centre was empty; a single ArrowLeft link
+  // back to the public site keeps the cabinet↔landing boundary seamless.
+  const showPractitionerBridge = isAuthenticated && isPractitioner && isAppArea;
   const showMobileBar = showPublicNav && isClientPersona;
   const mobileTabs = isAuthenticated ? CLIENT_MOBILE_TABS : GUEST_MOBILE_TABS;
   const moreItems = isAuthenticated ? CLIENT_MORE_ITEMS : GUEST_MORE_ITEMS;
@@ -519,7 +524,19 @@ export function Header() {
             bridge inside the cabinet (B464 IB0). Exactly one renders, so the
             3-column grid — and the byte-identical right cluster — stays stable.
             B315: justify-center keeps the nav in the middle of the 1fr track. */}
-        {showCabinetBridge ? (
+        {showPractitionerBridge ? (
+          <nav data-testid="practitioner-service-bridge" className="hidden items-center justify-center gap-1 md:flex">
+            <Link
+              href={mainUrl("/")}
+              prefetch={false}
+              data-soft-nav="link"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-[var(--soft-ink-faint)] transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden="true" />
+              На сайт
+            </Link>
+          </nav>
+        ) : showCabinetBridge ? (
           <nav data-testid="cabinet-service-bridge" className="hidden items-center justify-center gap-1 md:flex">
             {CABINET_BRIDGE.map((item, i) => (
               <Link key={item.href} href={item.href} prefetch={false}

@@ -15,6 +15,13 @@ import {
   LogOut,
   CircleHelp,
   Gift,
+  Sun,
+  Users,
+  UserRound,
+  Briefcase,
+  Sparkles,
+  Star,
+  ShieldCheck,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { DIARY_PIN_CHANGED_EVENT, hasDiaryPinStored } from "@/lib/diary-pin";
@@ -60,15 +67,43 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];
 
-// B466 — «Practice cockpit» IA: the practitioner sidebar mirrors the 5-tab
-// model (Сегодня · Клиенты · Календарь · Финансы · Ещё) from nav-model, the
-// same source that drives the mobile bar, so desktop and mobile can't drift.
-// Every former flat page lives on under «Ещё» (hub page + sub-routes).
-const PRACTITIONER_NAV: NavItem[] = PRACTITIONER_TABS.map((tab) => ({
-  href: tab.href,
-  icon: NAV_ICONS[tab.iconKey],
-  label: tab.label,
-}));
+interface NavGroup {
+  heading?: string;
+  items: NavItem[];
+}
+
+// B466 R9-5 — the practitioner DESKTOP sidebar is the owner-approved expanded
+// cockpit: sections are NOT hidden under «Ещё» (there is room on desktop). The
+// mobile bar stays the 5-tab model (PRACTITIONER_TABS → «Ещё» hub); only the
+// desktop sidebar fans out into these three groups (1-to-1 with the approved
+// `practitioner-desktop-today-v2` mockup + the `practitioner-more-hub` groups).
+const PRACTITIONER_DESKTOP_GROUPS: NavGroup[] = [
+  {
+    items: [
+      { href: appUrl("/practitioner"), icon: Sun, label: "Сегодня" },
+      { href: appUrl("/practitioner/clients"), icon: Users, label: "Клиенты" },
+      { href: appUrl("/practitioner/calendar"), icon: CalendarDays, label: "Календарь" },
+      { href: appUrl("/practitioner/finance"), icon: Wallet, label: "Финансы" },
+    ],
+  },
+  {
+    heading: "Практика",
+    items: [
+      { href: appUrl("/practitioner/profile"), icon: UserRound, label: "Профиль" },
+      { href: appUrl("/practitioner/services"), icon: Briefcase, label: "Услуги" },
+      { href: appUrl("/practitioner/ai-usage"), icon: Sparkles, label: "Разборы и AI" },
+      { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
+      { href: appUrl("/practitioner/invite"), icon: Gift, label: "Приглашения" },
+    ],
+  },
+  {
+    heading: "Аккаунт",
+    items: [
+      { href: appUrl("/practitioner/settings"), icon: Settings, label: "Настройки" },
+      { href: appUrl("/practitioner/ethics"), icon: ShieldCheck, label: "Этика и безопасность" },
+    ],
+  },
+];
 
 const ROLE_LABELS: Record<string, string> = {
   CLIENT: "Клиент",
@@ -77,10 +112,13 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 // X10: section key for the practitioner sidebar «непрочитанные» badge.
-// B466: заявки live inside «Календарь», new reviews surface on «Ещё» (hub row).
+// B466 R9-5: заявки live inside «Календарь»; the expanded desktop sidebar
+// surfaces new reviews directly on «Отзывы» (the mobile «Ещё» hub still shows
+// them on its own row). The «Ещё» hub key stays mapped for the mobile bar.
 function navCountKey(href: string): string | null {
   if (href.endsWith("/practitioner/calendar")) return "requests";
   if (href.endsWith("/practitioner/clients")) return "clients";
+  if (href.endsWith("/practitioner/reviews")) return "reviews";
   if (href.endsWith("/practitioner/more")) return "reviews";
   return null;
 }
@@ -101,9 +139,9 @@ export function CabinetShell({
   const pathname = usePathname();
   const isClient = role === "CLIENT";
   const isPractitionerBar = role === "PRACTITIONER";
-  const nav = (role === "ADMIN" || role === "SUPERADMIN")
-    ? []
-    : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
+  // Flat sidebar list for the client (the practitioner desktop sidebar is
+  // grouped — see PRACTITIONER_DESKTOP_GROUPS — and admin has its own shell).
+  const nav = role === "CLIENT" ? CLIENT_NAV : [];
   const diaryHref = appUrl("/diary");
   const supportHref = appUrl("/support");
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
@@ -227,6 +265,66 @@ export function CabinetShell({
     return isActive(item.href);
   }
 
+  // Shared sidebar row renderer — used flat for the client and per-group for
+  // the practitioner (PRACTITIONER_DESKTOP_GROUPS). Keeps the diary PIN-lock
+  // special-case and the «непрочитанные» count badge identical across both.
+  function renderNavRow(item: NavItem) {
+    const Icon = item.icon;
+    const countKey = navCountKey(item.href);
+    const count = countKey ? (counts?.[countKey] ?? 0) : 0;
+    // B464 round-4 #8: the «Дневник» row carries a LIVE lock — open (LockOpen)
+    // until the user sets a device PIN, closed (Lock) once set. The glyph is
+    // its own link straight into the PIN setup.
+    const isDiary = isClient && item.href === diaryHref;
+    if (isDiary) {
+      return (
+        <div key={item.href}
+          data-testid="app-shell-nav-item"
+          className={`soft-app-nav-link flex min-h-11 items-center rounded-[var(--soft-radius-md)] text-sm transition-colors duration-[var(--motion-base)] ${
+            isActive(item.href) ? "is-active font-medium" : ""
+          }`}>
+          <Link href={item.href} className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2">
+            <Icon className="h-4 w-4 shrink-0" />
+            {item.label}
+          </Link>
+          <Link
+            href={appUrl("/diary?pin=setup")}
+            data-testid="app-shell-diary-lock"
+            data-pin-set={diaryPinSet ? "1" : "0"}
+            aria-label={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
+            title={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
+            className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)]"
+          >
+            {diaryPinSet
+              ? <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              : <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />}
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <Link key={item.href} href={item.href}
+        data-testid="app-shell-nav-item"
+        className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+          isNavActive(item)
+            ? "is-active font-medium"
+            : ""
+        }`}>
+        <Icon className="h-4 w-4 shrink-0" />
+        {item.label}
+        {count > 0 && (
+          <span
+            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
+            data-testid="app-nav-counter"
+            aria-label={`${count} новых`}
+          >
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
   return (
     <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
       <div className="soft-shell soft-app-layout">
@@ -250,64 +348,25 @@ export function CabinetShell({
             </div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 space-y-1">
-            {nav.map((item) => {
-              const Icon = item.icon;
-              const countKey = navCountKey(item.href);
-              const count = countKey ? (counts?.[countKey] ?? 0) : 0;
-              // B464 round-4 #8: the «Дневник» row carries a LIVE lock — open
-              // (LockOpen) until the user sets a device PIN, closed (Lock) once
-              // set. The glyph is its own link straight into the PIN setup.
-              const isDiary = isClient && item.href === diaryHref;
-              if (isDiary) {
-                return (
-                  <div key={item.href}
-                    data-testid="app-shell-nav-item"
-                    className={`soft-app-nav-link flex min-h-11 items-center rounded-[var(--soft-radius-md)] text-sm transition-colors duration-[var(--motion-base)] ${
-                      isActive(item.href) ? "is-active font-medium" : ""
-                    }`}>
-                    <Link href={item.href} className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2">
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
-                    </Link>
-                    <Link
-                      href={appUrl("/diary?pin=setup")}
-                      data-testid="app-shell-diary-lock"
-                      data-pin-set={diaryPinSet ? "1" : "0"}
-                      aria-label={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
-                      title={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
-                      className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)]"
-                    >
-                      {diaryPinSet
-                        ? <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                        : <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />}
-                    </Link>
+          {/* Nav — client = flat CLIENT_NAV; practitioner = the expanded
+              «Practice cockpit» groups approved for desktop (B466 R9-5). */}
+          <nav className="flex-1 space-y-1" data-testid="app-shell-nav">
+            {isPractitionerBar
+              ? PRACTITIONER_DESKTOP_GROUPS.map((group, gi) => (
+                  <div
+                    key={group.heading ?? `nav-group-${gi}`}
+                    data-testid="app-shell-nav-group"
+                    className={gi > 0 ? "space-y-1 pt-3" : "space-y-1"}
+                  >
+                    {group.heading && (
+                      <p className="px-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--soft-ink-faint)]">
+                        {group.heading}
+                      </p>
+                    )}
+                    {group.items.map(renderNavRow)}
                   </div>
-                );
-              }
-              return (
-                <Link key={item.href} href={item.href}
-                  data-testid="app-shell-nav-item"
-                  className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-                    isNavActive(item)
-                      ? "is-active font-medium"
-                      : ""
-                  }`}>
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                  {count > 0 && (
-                    <span
-                      className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
-                      data-testid="app-nav-counter"
-                      aria-label={`${count} новых`}
-                    >
-                      {count > 99 ? "99+" : count}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+                ))
+              : nav.map(renderNavRow)}
           </nav>
 
           {/* Utility rows — Помощь + Выйти, present on every cabinet page (B464 #9/#10).
