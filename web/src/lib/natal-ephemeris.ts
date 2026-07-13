@@ -20,6 +20,7 @@ import {
   type ZodiacSign,
 } from "@/lib/esoteric-chart";
 import { parseHumanDesignBirth } from "@/lib/human-design";
+import { resolveRussianLocality } from "@/lib/russian-localities";
 
 const RAD2DEG = 180 / Math.PI;
 const DEG2RAD = Math.PI / 180;
@@ -128,9 +129,10 @@ function placementsAt(time: AstroTime): ChartPlacement[] {
   });
 }
 
-function resolveCoordinates(input: string) {
+export function resolveAstrologicalCoordinates(input: string) {
   const location = input.match(/^Место:\s*(.+)$/imu)?.[1]?.trim() ?? input;
-  const explicit = location.match(/(-?\d{1,2}(?:[.,]\d+)?)\s*[,;/]\s*(-?\d{1,3}(?:[.,]\d+)?)/u);
+  const coordinateSource = input.match(/^Координаты:\s*(.+)$/imu)?.[1]?.trim() ?? location;
+  const explicit = coordinateSource.match(/(-?\d{1,2}(?:[.,]\d+)?)\s*[,;/]\s*(-?\d{1,3}(?:[.,]\d+)?)/u);
   if (explicit) {
     const latitude = Number(explicit[1].replace(",", "."));
     const longitude = Number(explicit[2].replace(",", "."));
@@ -138,11 +140,14 @@ function resolveCoordinates(input: string) {
       return { latitude, longitude };
     }
   }
-  return CITY_COORDINATES.find((city) => city.match.test(location)) ?? null;
+  const knownCity = CITY_COORDINATES.find((city) => city.match.test(location));
+  if (knownCity) return knownCity;
+  const locality = resolveRussianLocality(location);
+  return locality ? { latitude: locality.latitude, longitude: locality.longitude } : null;
 }
 
 export function canResolveAstrologicalLocation(input: string) {
-  return Boolean(resolveCoordinates(input));
+  return Boolean(resolveAstrologicalCoordinates(input));
 }
 
 function ascendantLongitude(time: AstroTime, latitude: number, longitude: number) {
@@ -174,7 +179,7 @@ export function buildNatalEphemerisWheel(birthData: string): NatalWheel {
   const placements = placementsAt(time);
   const sun = placements.find((placement) => placement.luminary === "sun")!;
   const sunSign = zodiacForLongitude(sun.angle);
-  const coordinates = parsedBirth.hasExactTime ? resolveCoordinates(birthData) : null;
+  const coordinates = parsedBirth.hasExactTime ? resolveAstrologicalCoordinates(birthData) : null;
   const ascendantDegree = coordinates
     ? ascendantLongitude(time, coordinates.latitude, coordinates.longitude)
     : null;

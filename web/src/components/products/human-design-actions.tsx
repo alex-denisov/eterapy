@@ -14,7 +14,7 @@ import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 const HUMAN_DESIGN_BIRTH_EXAMPLES = [
   "15.05.1990, 10:30, Москва",
-  "03.03.1988, 21:00, Кишинёв",
+  "18.08.1991, 07:20, Самара",
   "24.09.1994, 06:45, Екатеринбург",
 ];
 

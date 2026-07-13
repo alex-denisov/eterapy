@@ -647,6 +647,9 @@ function symbolicQualityIssue(input: {
   };
   if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
   if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
+  if (input.productKey === "horary" && /\b(?:applying|separating|unknown|early|late|ordinary)\b/iu.test(input.text)) {
+    return "в клиентский текст попали внутренние английские значения хорарного расчёта";
+  }
   const requiredHeadings = symbolicSectionHeadings({
     productKey: input.productKey,
     cards: input.cards,

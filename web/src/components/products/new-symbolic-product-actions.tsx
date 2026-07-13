@@ -7,10 +7,12 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { OptionChoice, OptionScrollStrip } from "@/components/products/option-scroll-strip";
 import { SymbolicResultScaffold } from "@/components/products/symbolic-result-scaffold";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
+import { LocationSuggestInput } from "@/components/products/location-suggest-input";
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard } from "@/lib/tarot-deck";
 import type { TarotBirthCode } from "@/lib/tarot-birth-code";
+import type { RussianLocality } from "@/lib/russian-localities";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 function metadataValue<T>(result: SymbolicResult | null, key: string): T | null {
@@ -33,7 +35,6 @@ const HORARY_QUESTION_EXAMPLES: Record<string, string[]> = {
   срок: ["Когда завершится согласование этого проекта?", "Произойдёт ли ожидаемое событие до конца месяца?"],
   другое: ["Сформулируйте один вопрос, на который можно ответить по конкретному исходу", "Что именно должно произойти, чтобы вы сочли вопрос решённым?"],
 };
-const HORARY_LOCATION_EXAMPLES = ["Москва", "Санкт-Петербург", "Казань"];
 const HORARY_CONTEXT_EXAMPLES: Record<string, string[]> = {
   default: ["Что уже произошло и какой срок для вас важен", "Кто участвует и что изменилось перед вопросом"],
   покупка: ["Объект выбран, продавец ждёт решение до пятницы", "Переговоры идут две недели, есть конкурирующий покупатель"],
@@ -45,15 +46,31 @@ const HORARY_CONTEXT_EXAMPLES: Record<string, string[]> = {
   другое: ["Коротко: факты, участники и важный срок", "Что уже известно и почему вопрос возник именно сейчас"],
 };
 
+function parseHoraryInput(userInput?: string | null) {
+  return {
+    question: userInput?.match(/^Вопрос:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    location: userInput?.match(/^Место:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    focus: userInput?.match(/^Категория:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    context: userInput?.match(/^Контекст:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+  };
+}
+
 export function HoraryActions({ creditCost }: { creditCost: number }) {
   const [question, setQuestion] = useState("");
   const [location, setLocation] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<RussianLocality | null>(null);
   const [context, setContext] = useState("");
   const [focus, setFocus] = useState<string | null>(null);
   const questionPlaceholder = useRotatingPlaceholder(HORARY_QUESTION_EXAMPLES[focus ?? "default"] ?? HORARY_QUESTION_EXAMPLES.default, focus ?? "default");
-  const locationPlaceholder = useRotatingPlaceholder(HORARY_LOCATION_EXAMPLES, "location");
   const contextPlaceholder = useRotatingPlaceholder(HORARY_CONTEXT_EXAMPLES[focus ?? "default"] ?? HORARY_CONTEXT_EXAMPLES.default, focus ?? "default");
-  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("horary");
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("horary", (userInput) => {
+    const restored = parseHoraryInput(userInput);
+    setQuestion(restored.question);
+    setLocation(restored.location);
+    setSelectedLocation(null);
+    setContext(restored.context);
+    setFocus(HORARY_FOCUS.includes(restored.focus) ? restored.focus : null);
+  });
   const wheel = metadataValue<NatalWheel>(result, "wheel");
 
   const submit = () => {
@@ -64,13 +81,14 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
     void generate([
       `Вопрос: ${question.trim()}`,
       `Место: ${location.trim()}`,
+      selectedLocation ? `Координаты: ${selectedLocation.latitude}, ${selectedLocation.longitude}` : "",
       focus ? `Категория: ${focus}` : "",
       context.trim() ? `Контекст: ${context.trim()}` : "",
     ].filter(Boolean).join("\n"));
   };
 
   if (result?.resultText) {
-    return <SymbolicResultScaffold productKey="horary" eyebrow="хорарная астрология · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setQuestion(""); setLocation(""); setContext(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold productKey="horary" eyebrow="хорарная астрология · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : []), ...(context ? [{ label: "Контекст", value: context }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setQuestion(""); setLocation(""); setSelectedLocation(null); setContext(""); setFocus(null); }} />;
   }
 
   return (
@@ -82,7 +100,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
         <label className="soft-eyebrow product-question-label" htmlFor="horary-question">один точный вопрос</label>
         <textarea id="horary-question" value={question} onChange={(event) => setQuestion(event.target.value.slice(0, 500))} placeholder={questionPlaceholder} className="soft-question-input product-question-input min-h-28" disabled={status === "loading"} data-testid="horary-question" />
         <label className="soft-eyebrow product-question-label" htmlFor="horary-location">где вы находитесь сейчас</label>
-        <input id="horary-location" value={location} onChange={(event) => setLocation(event.target.value.slice(0, 120))} placeholder={locationPlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} data-testid="horary-location" />
+        <LocationSuggestInput value={location} selected={selectedLocation} onChange={setLocation} onSelect={setSelectedLocation} disabled={status === "loading"} />
         <label className="soft-eyebrow product-question-label" htmlFor="horary-context">короткий контекст, необязательно</label>
         <textarea id="horary-context" value={context} onChange={(event) => setContext(event.target.value.slice(0, 800))} placeholder={contextPlaceholder} className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
         <div className="rounded-2xl bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]"><p className="font-medium text-[var(--soft-ink)]">Точное время вопроса будет использовано автоматически</p><p className="mt-1">Карта строится для момента, когда вы отправляете сформулированный вопрос.</p></div>
@@ -109,6 +127,15 @@ function tarotBirthCards(code: TarotBirthCode): TarotCard[] {
   return code.positions.map((position) => ({ ...position.card, position: position.label, meaning: position.card.upright, uprightMeaning: position.card.upright, reversedMeaning: position.card.reversedMeaning, reversed: false }));
 }
 
+function parseTarotNumerologyInput(userInput?: string | null) {
+  return {
+    name: userInput?.match(/^Имя:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    birth: userInput?.match(/^Дата рождения:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    focus: userInput?.match(/^Фокус:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    question: userInput?.match(/^Вопрос:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+  };
+}
+
 export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
@@ -118,7 +145,13 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
   const namePlaceholder = useRotatingPlaceholder(TAROT_NUM_NAMES, placeholderKey);
   const birthPlaceholder = useRotatingPlaceholder(TAROT_NUM_BIRTHS, placeholderKey);
   const questionPlaceholder = useRotatingPlaceholder(TAROT_NUM_QUESTIONS[placeholderKey] ?? TAROT_NUM_QUESTIONS.default, placeholderKey);
-  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("tarot-numerology");
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("tarot-numerology", (userInput) => {
+    const restored = parseTarotNumerologyInput(userInput);
+    setName(restored.name);
+    setBirth(restored.birth);
+    setQuestion(restored.question);
+    setFocus(TAROT_NUM_FOCUS.includes(restored.focus) ? restored.focus : null);
+  });
   const code = metadataValue<TarotBirthCode>(result, "tarotBirthCode");
   const submit = () => {
     if (!focus || name.trim().length < 2 || !/^\d{1,2}[./-]\d{1,2}[./-]\d{4}$/.test(birth.trim())) {
@@ -128,7 +161,7 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
     void generate([`Имя: ${name.trim()}`, `Дата рождения: ${birth.trim()}`, focus ? `Фокус: ${focus}` : "", question.trim() ? `Вопрос: ${question.trim()}` : ""].filter(Boolean).join("\n"));
   };
   if (result?.resultText) {
-    return <SymbolicResultScaffold productKey="tarot-numerology" eyebrow="таро · карты рождения" heading="Ваши Арканы рождения" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold productKey="tarot-numerology" eyebrow="таро · карты рождения" heading="Ваши Арканы рождения" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : []), ...(question ? [{ label: "Вопрос", value: question }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
   }
   return (
     <div className="soft-card product-order-surface" data-testid="tarot-numerology-actions">
