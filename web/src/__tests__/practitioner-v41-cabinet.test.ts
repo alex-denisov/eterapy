@@ -29,11 +29,15 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(page).toContain("ActiveTariffsEditor");
     const editor = source("src/app/cabinet/practitioner/services/active-tariffs-editor.tsx");
     expect(editor).toContain("Индивидуальная сессия");
-    expect(page).toContain("комиссия платформы");
-    expect(page).toContain("Без скидок на встречи");
-    expect(page).toContain("психология + эзотерика");
-    expect(page).toContain("practitioner-acquisition-kit");
-    expect(page).toContain("Личная ссылка предразбора");
+    // B466 R9-5 desktop -services-v2: формат приёма (on/off) + направления + выплата.
+    expect(page).toContain("Форматы приёма");
+    expect(page).toContain("ServicesDirectionsEditor");
+    expect(page).toContain("Как считается выплата");
+    expect(page).toContain("Вы получаете");
+    // acquisition-kit removed from the cabinet «Услуги» per owner (2026-07-14);
+    // its precheck widget/route + public precheck page remain (precheck-widgets test).
+    expect(page).not.toContain("practitioner-acquisition-kit");
+    expect(page).not.toContain("QRCode");
     expect(page).not.toContain("будет доступно в следующем обновлении");
   });
 
