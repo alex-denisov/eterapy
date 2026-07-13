@@ -14,10 +14,12 @@ import { SurnameStoryActions } from "@/components/products/surname-story-actions
 import { NatalChartActions } from "@/components/products/natal-chart-actions";
 import { NumerologyActions } from "@/components/products/numerology-actions";
 import { FamilyScenariosActions } from "@/components/products/family-scenarios-actions";
+import { HoraryActions, TarotNumerologyActions } from "@/components/products/new-symbolic-product-actions";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
+import { getSetting } from "@/lib/platform-settings";
 
 export function generateStaticParams() {
   return v5Products.map((product) => ({ slug: product.slug }));
@@ -101,8 +103,10 @@ function ProductActionSurface({
   }
   if (product.slug === "synastry") return <SynastryActions creditCost={product.creditCost ?? 3} />;
   if (product.slug === "numerology") {
-    return <NumerologyActions creditCost={product.creditCost ?? 2} />;
+    return <NumerologyActions creditCost={product.creditCost ?? 3} />;
   }
+  if (product.slug === "horary") return <HoraryActions creditCost={product.creditCost ?? 2} />;
+  if (product.slug === "tarot-numerology") return <TarotNumerologyActions creditCost={product.creditCost ?? 3} />;
   if (product.slug === "family-scenarios") {
     return <FamilyScenariosActions creditCost={product.creditCost ?? 4} />;
   }
@@ -121,7 +125,7 @@ function ProductActionSurface({
 // B441/B442 (M28): «Переосмысление» и «Подробный разбор» переработаны под этот же
 // компактный hero (CTA + инструмент на первом экране, переиспользуют ценник/
 // дисклеймер/приватность), как просил владелец — тот же метод, что у chat-analysis/tarot.
-const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "synastry"]);
+const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "synastry", "horary", "tarot-numerology"]);
 
 export default async function ProductPage({
   params,
@@ -132,8 +136,15 @@ export default async function ProductPage({
 }) {
   const { slug } = await params;
   const search = await searchParams;
-  const product = getV5Product(slug);
-  if (!product) notFound();
+  const baseProduct = getV5Product(slug);
+  if (!baseProduct) notFound();
+  const configuredRubles = Number(await getSetting(`product.${baseProduct.slug}.price`));
+  const configuredCredits = Number(await getSetting(`product.${baseProduct.slug}.credits`));
+  const product = {
+    ...baseProduct,
+    ...(Number.isInteger(configuredRubles) && configuredRubles > 0 ? { price: `${configuredRubles.toLocaleString("ru-RU")} ₽` } : {}),
+    ...(Number.isInteger(configuredCredits) && configuredCredits > 0 ? { creditCost: configuredCredits, creditPrice: `или −${configuredCredits} балла` } : {}),
+  };
 
   return (
     <main className="soft-clarity-page soft-product-detail-page" data-testid={`product-page-${product.slug}`}>

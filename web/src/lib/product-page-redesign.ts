@@ -85,6 +85,22 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["Солнце и асцендент", "ключевые акценты", "связь с вашим вопросом"],
     trustLine: "Данные рождения используются только для выбранного разбора.",
   },
+  horary: {
+    family: "symbolic",
+    primaryPromise: "Получите прямой ответ на один вопрос по карте зафиксированного момента.",
+    heroVisual: "interactive-chart",
+    previewTitle: "Астрология вопросов",
+    previewBullets: ["сигнификаторы", "препятствия и рецепции", "ответ, срок и условие"],
+    trustLine: "Момент фиксируется на сервере; новая формулировка создаёт новую карту.",
+  },
+  "tarot-numerology": {
+    family: "symbolic",
+    primaryPromise: "Узнайте постоянные Старшие арканы своей даты рождения.",
+    heroVisual: "interactive-chart",
+    previewTitle: "Арканы рождения",
+    previewBullets: ["карта рождения", "карта души", "связь двух арканов"],
+    trustLine: "Арканы рассчитываются по видимой формуле — случайной вытяжки нет.",
+  },
   numerology: {
     family: "symbolic",
     primaryPromise: "Соберёте короткую схему личных тем и ритмов.",
@@ -111,10 +127,10 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
   },
   "surname-story": {
     family: "symbolic",
-    primaryPromise: "Узнаете происхождение фамилии и родовую тему.",
-    heroVisual: "document-outline",
-    previewTitle: "История фамилии",
-    previewBullets: ["корень формы", "география", "родовая тема"],
+    primaryPromise: "Раскроете происхождение, звучание и символический образ имени и фамилии.",
+    heroVisual: "interactive-chart",
+    previewTitle: "Личное досье имени",
+    previewBullets: ["проверяемое происхождение", "звучание и латиница", "символические черты характера"],
     trustLine: "Фамилия не публикуется без вашего согласия.",
   },
   reframe: {

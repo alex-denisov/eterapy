@@ -9,6 +9,7 @@ import { HumanDesignBodygraph } from "@/components/products/human-design-bodygra
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
+import { personalizeHumanDesignResultHeadings } from "@/lib/human-design-result";
 
 // B451: «Дизайн человека» — самодостаточная услуга по паттерну Таро/reframe.
 // Бодиграф/тип считаются детерминированно (server, по данным рождения), разбор
@@ -41,9 +42,24 @@ function parseInput(userInput?: string | null): { birth: string } {
 function HumanDesignVisual({ result }: { result: SymbolicResult }) {
   const chart = extractHumanDesignChart(result);
   if (!chart) return null;
+  const facts = [
+    { label: "тип", value: chart.typeName },
+    { label: "стратегия", value: chart.strategy },
+    { label: "авторитет", value: chart.authorityName },
+    { label: "профиль", value: `${chart.profile} · ${chart.profileName}` },
+    { label: "определение", value: chart.definition },
+  ];
   return (
     <div>
       <HumanDesignBodygraph chart={chart} />
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid="human-design-facts">
+        {facts.map((fact) => (
+          <div key={fact.label} className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
+            <p className="soft-eyebrow text-[0.6rem]">{fact.label}</p>
+            <p className="mt-0.5 text-[0.95rem] leading-snug text-[var(--soft-ink)]">{fact.value}</p>
+          </div>
+        ))}
+      </div>
       {!chart.hasExactTime && (
         <p className="mt-3 rounded-[12px] bg-[var(--soft-paper-deep)] p-3 text-xs leading-relaxed text-[var(--soft-bordeaux)]">
           Время рождения не указано — тип посчитан на полдень. Для точного результата добавьте точное время и город.
@@ -79,9 +95,10 @@ export function HumanDesignResultView({
 }: {
   result: SymbolicResult;
   recap: { birth: string };
-  onStartNew: () => void;
+  onStartNew?: () => void;
   creditCost: number;
 }) {
+  const chart = extractHumanDesignChart(result);
   const recapRows = [
     recap.birth.trim() ? { label: "Данные рождения", value: recap.birth.trim() } : null,
   ].filter((r): r is { label: string; value: string } => r !== null);
@@ -94,11 +111,11 @@ export function HumanDesignResultView({
       recapSummary="Ваши данные рождения"
       recapRows={recapRows}
       visual={<HumanDesignVisual result={result} />}
-      resultText={result.resultText ?? ""}
+      resultText={personalizeHumanDesignResultHeadings(result.resultText ?? "", chart)}
       topic={null}
       creditCost={creditCost}
       repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор", description: "Свежий разбор бодиграфа по новым данным рождения.", ctaLabel: "Начать" }}
-      onStartNew={onStartNew}
+      onStartNew={onStartNew ?? (() => undefined)}
     />
   );
 }

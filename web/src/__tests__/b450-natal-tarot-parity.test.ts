@@ -53,13 +53,13 @@ describe("B450 — natal-chart tarot-parity rework", () => {
     });
 
     it("mandates the exact astrology ## chapters the accordion renders", () => {
-      expect(natal).toContain("## Главная конфигурация карты");
-      expect(natal).toContain("## Солнце, стихия и модальность");
-      expect(natal).toContain("## Луна, Асцендент и личные планеты");
-      expect(natal).toContain("## Дома и сферы жизни");
-      expect(natal).toContain("## Аспекты: где напряжение и где ресурс");
-      expect(natal).toContain("## Персональный синтез карты");
-      expect(natal).toContain("## Как читать эту карту в жизни");
+      expect(natal).toContain("## Прямой ответ");
+      expect(natal).toContain("## Паспорт карты");
+      expect(natal).toContain("## Большая тройка");
+      expect(natal).toContain("## Дома и углы");
+      expect(natal).toContain("## Аспекты: главные ресурсы");
+      expect(natal).toContain("## Аспекты: главные напряжения");
+      expect(natal).toContain("## Итог по вашему вопросу");
     });
 
     it("forbids fate promises and preserves calculated facts", () => {

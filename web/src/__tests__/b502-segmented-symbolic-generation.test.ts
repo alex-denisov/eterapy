@@ -12,9 +12,21 @@ describe("B502 segmented symbolic generation", () => {
       const userMessage = request.messages.find((message) => message.role === "user");
       const content = typeof userMessage?.content === "string" ? userMessage.content : "";
       const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
-      const factParagraph = "Число пути 5, Число выражения 5 и Число души 4 образуют конкретный портрет. Вы видите, как эти числа проявляются в решениях, работе и внутренней мотивации без подмены расчёта. ".repeat(5);
+      const factParagraph = "Центр матрицы 10, личное предназначение 10 и родовое предназначение 20 образуют конкретный рисунок. Вы видите, как эти энергии проявляются в решениях, работе и внутренней мотивации без подмены расчёта. ".repeat(5);
+      const zoneParagraph = "Энергия проявляется в наблюдаемых решениях, отношениях и работе; вывод связан с рассчитанной позицией и не подменяет исходные числа. ".repeat(2);
+      const zoneEnergy: Record<string, number> = {
+        "Личность (день)": 3, "Талант (месяц)": 3, "Социум (год)": 8, "Задача": 14,
+        "Центр": 10, "Внутренний центр": 11, "Деньги": 18, "Любовь": 12,
+        "Социальность": 6, "Предназначение": 3,
+      };
       return {
-        text: headings.map((heading) => `## ${heading}\n\n${factParagraph}\n\n${factParagraph}\n\n${factParagraph}`).join("\n\n"),
+        text: headings.map((heading) => {
+          const energy = zoneEnergy[heading];
+          const zoneBody = energy
+            ? `Суть энергии ${energy}. ${zoneParagraph}\n\n### В плюсе\n${zoneParagraph}\n\n### В минусе\n${zoneParagraph}\n\n### Практики\n${zoneParagraph}`
+            : `${factParagraph}\n\n${factParagraph}\n\n${factParagraph}`;
+          return `## ${heading}\n\n${zoneBody}`;
+        }).join("\n\n"),
         provider: "yandex" as never,
         model: "yandexgpt/latest",
         tokensIn: 500,
@@ -38,9 +50,9 @@ describe("B502 segmented symbolic generation", () => {
       numerology: expect.objectContaining({ lifePath: 5, expression: 5, soulUrge: 4 }),
     }));
     expect(result.text.length).toBeGreaterThan(5_000);
-    expect(result.text).toContain("## Число пути 5 — главный вектор");
-    expect(result.text).toContain("## Число выражения 5 — как вы проявляетесь");
-    expect(result.text).toContain("## Число души 4 — что вами движет");
+    expect(result.text).toContain("## Центр");
+    expect(result.text).toContain("## Личное предназначение");
+    expect(result.text).toContain("## Родовое предназначение");
     expect(mockAiComplete).toHaveBeenCalledTimes(2);
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-segmented:part-1",
@@ -48,13 +60,14 @@ describe("B502 segmented symbolic generation", () => {
     ]);
     for (const [request] of mockAiComplete.mock.calls) {
       const system = request.messages.find((message) => message.role === "system");
-      expect(system?.content).toEqual(expect.stringContaining("Число жизненного пути: 5"));
-      expect(system?.content).toEqual(expect.stringContaining("Число выражения (по имени): 5"));
-      expect(system?.content).toEqual(expect.stringContaining("Число души (по гласным имени): 4"));
+      expect(system?.content).toEqual(expect.stringContaining("СИСТЕМЕ МАТРИЦЫ СУДЬБЫ 22 ЭНЕРГИЙ"));
+      expect(system?.content).not.toEqual(expect.stringContaining("ladini-lidrekon-v1"));
+      expect(system?.content).toEqual(expect.stringContaining("центр 10"));
+      expect(system?.content).toEqual(expect.stringContaining("родовое 20"));
     }
   });
 
-  it("generates a three-card Tarot reading in four small reliable parts", async () => {
+  it("generates a three-card Tarot reading in five small reliable parts", async () => {
     const result = await generateSymbolicProductResult({
       productKey: "tarot",
       userInput: "Какая динамика ожидает меня при переходе на новую работу?",
@@ -66,20 +79,21 @@ describe("B502 segmented symbolic generation", () => {
 
     expect(result.metadata).toEqual(expect.objectContaining({
       source: "ai",
-      generationParts: 4,
+      generationParts: 5,
       cards: expect.arrayContaining([expect.objectContaining({ name: expect.any(String), position: expect.any(String) })]),
     }));
     expect(result.text).toContain("## Картина расклада");
     expect(result.text).toContain("## Связь карт и скрытая линия");
     expect(result.text).toContain("## Ответ расклада");
     expect(result.text).toContain("## Предупреждение карт");
-    expect(result.text.match(/^## /gm)).toHaveLength(8);
-    expect(mockAiComplete).toHaveBeenCalledTimes(4);
+    expect(result.text.match(/^## /gm)).toHaveLength(9);
+    expect(mockAiComplete).toHaveBeenCalledTimes(5);
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-tarot:part-1",
       "req-tarot:part-2",
       "req-tarot:part-3",
       "req-tarot:part-4",
+      "req-tarot:part-5",
     ]);
   });
 
@@ -109,14 +123,15 @@ describe("B502 segmented symbolic generation", () => {
       requestId: "req-tarot-repair",
     });
 
-    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 8 }));
-    expect(result.text.match(/^## /gm)).toHaveLength(8);
-    expect(mockAiComplete).toHaveBeenCalledTimes(8);
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 9 }));
+    expect(result.text.match(/^## /gm)).toHaveLength(9);
+    expect(mockAiComplete).toHaveBeenCalledTimes(9);
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-tarot-repair:part-1",
       "req-tarot-repair:part-2",
       "req-tarot-repair:part-3",
       "req-tarot-repair:part-4",
+      "req-tarot-repair:part-5",
       "req-tarot-repair:part-1-repair",
       "req-tarot-repair:part-2-repair",
       "req-tarot-repair:part-3-repair",
@@ -149,8 +164,8 @@ describe("B502 segmented symbolic generation", () => {
       requestId: "req-tarot-inline",
     });
 
-    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 4 }));
-    expect(result.text.match(/^## /gm)).toHaveLength(8);
-    expect(mockAiComplete).toHaveBeenCalledTimes(4);
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 5 }));
+    expect(result.text.match(/^## /gm)).toHaveLength(9);
+    expect(mockAiComplete).toHaveBeenCalledTimes(5);
   });
 });

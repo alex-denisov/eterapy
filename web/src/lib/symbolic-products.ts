@@ -4,12 +4,17 @@ import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import { buildNatalEphemerisWheel, textMentionsZodiacSign } from "@/lib/natal-ephemeris";
 import { computeNumerology, numerologyFactsForAI, type NumerologyPortrait } from "@/lib/numerology";
+import { parseStrictBirthDate } from "@/lib/destiny-matrix";
+import { computeTarotBirthCode, type TarotBirthCode } from "@/lib/tarot-birth-code";
+import { computeHoraryFacts, horaryFactsForAI } from "@/lib/horary";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
+import { humanDesignChannelHeading, humanDesignSectionHeadings } from "@/lib/human-design-result";
 import { analyzeSurname, surnameFactsForAI, type SurnameStory } from "@/lib/surname-story";
 import { log, serializeError } from "@/lib/logger";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { TAROT_DECK, type TarotCard } from "@/lib/tarot-deck";
+import { calculateNatalAspectLines } from "@/lib/astrology-aspects";
 
 // Данные колоды + поиск карты по имени живут в client-safe `@/lib/tarot-deck`
 // (без server-импортов), чтобы клиентские визуалы не тянули pg в бандл. Здесь —
@@ -32,9 +37,21 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
   },
   {
     productKey: "numerology",
-    title: "Числовой портрет",
+    title: "Матрица судьбы",
     promptLabel: "Имя и дата рождения",
-    resultTitle: "Числовой портрет",
+    resultTitle: "Матрица судьбы: 22 энергии",
+  },
+  {
+    productKey: "horary",
+    title: "Хорарная астрология",
+    promptLabel: "Один точный вопрос, место и момент фиксации",
+    resultTitle: "Хорарная астрология: ответ карты момента",
+  },
+  {
+    productKey: "tarot-numerology",
+    title: "Арканы рождения",
+    promptLabel: "Имя, дата рождения, фокус и вопрос",
+    resultTitle: "Арканы рождения: ваши карты Таро по дате",
   },
   {
     // B389 (M26): genogram-разбор «Семейные сценарии» (рекомендуется в Дневнике).
@@ -57,9 +74,9 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     // и детерминированно (surname-story.ts по форме); этот платный «родовой разбор»
     // расширяет распознанную форму в тёплый нарратив про род человеческим языком.
     productKey: "surname-story",
-    title: "История фамилии",
-    promptLabel: "Ваша фамилия",
-    resultTitle: "История фамилии: что говорит ваш род",
+    title: "Тайна имени и фамилии",
+    promptLabel: "Ваши имя и фамилия",
+    resultTitle: "Тайна имени и фамилии: личное досье",
   },
 ] as const;
 
@@ -200,6 +217,12 @@ export function buildSymbolicProductTeaser(input: {
       "Полный разбор раскроет дополнительные темы и практический маршрут.",
     ].join("\n");
   }
+  if (input.productKey === "horary") {
+    return ["Хорарная карта вопроса", firstMeaningfulLine, "", "Полный разбор откроет сигнификаторы, рецепции, препятствия, срок и условие изменения исхода."].join("\n");
+  }
+  if (input.productKey === "tarot-numerology") {
+    return ["Один акцент Арканного кода", firstMeaningfulLine, "", "Полный разбор откроет шесть рассчитанных арканов, их противоречия и ответ по вашему вопросу."].join("\n");
+  }
 
   if (input.productKey === "numerology") {
     const yearLine = generatedLines.find((line) => /число года/i.test(line)) ?? firstMeaningfulLine;
@@ -259,6 +282,14 @@ export function buildSymbolicProductTeaser(input: {
 
 function normalizeInput(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
+}
+
+function tarotBirthCodeFactsForAI(code: TarotBirthCode) {
+  return [
+    "ТОЧНО ПОСЧИТАНО ПО СИСТЕМЕ TAROT BIRTH CARDS (не меняй арканы):",
+    ...code.positions.map((position) => `${position.label}: энергия ${position.energy}, ${position.card.name}; формула ${position.formula}.`),
+    "Это существующая пара карт рождения по дате. Карты постоянны, не выпали случайно и не перевёрнуты. Используй только эти Старшие арканы и не добавляй годовую карту.",
+  ].join("\n");
 }
 
 function normalizeResult(text: string) {
@@ -339,9 +370,17 @@ function humanDesignFactsForAI(chart: HumanDesignChart): string {
   const defined = chart.centers.filter((c) => c.defined).map((c) => c.name).join(", ") || "нет определённых центров";
   const open = chart.centers.filter((c) => !c.defined).map((c) => c.name).join(", ") || "нет открытых центров";
   const channels = chart.definedChannels.map((c) => `${c.gates[0]}-${c.gates[1]}`).join(", ") || "нет";
+  const extended = (body: "chiron" | "lilith", label: string) => {
+    const personality = chart.personality.find((activation) => activation.body === body);
+    const design = chart.design.find((activation) => activation.body === body);
+    return personality && design ? `${label}: Личность ${personality.gate}.${personality.line}; Дизайн ${design.gate}.${design.line}.` : "";
+  };
   const column = (activations: HumanDesignChart["personality"]) => activations
     .map((activation) => `${activation.label} ${activation.gate}.${activation.line}`)
     .join("; ");
+  const variable = (label: string, value: NonNullable<HumanDesignChart["variables"]>[keyof NonNullable<HumanDesignChart["variables"]>] | undefined) => value
+    ? `${label}: Color ${value.color}, Tone ${value.tone}, ${value.direction === "left" ? "Left" : "Right"}.`
+    : "";
   return [
     "ТОЧНО РАССЧИТАНО (не меняй и не выдумывай эти факты):",
     `Тип: ${chart.typeName}. Стратегия: ${chart.strategy}. Внутренний авторитет: ${chart.authorityName}.`,
@@ -352,6 +391,12 @@ function humanDesignFactsForAI(chart: HumanDesignChart): string {
     `Все активные ворота: ${chart.activeGates.join(", ")}.`,
     `Колонка Личность: ${column(chart.personality)}.`,
     `Колонка Дизайн: ${column(chart.design)}.`,
+    extended("chiron", "Хирон, NASA/JPL SBDB orbit 171"),
+    extended("lilith", "Лилит, средний лунный апогей"),
+    variable("Determination", chart.variables?.determination),
+    variable("Environment", chart.variables?.environment),
+    variable("Motivation", chart.variables?.motivation),
+    variable("Perspective", chart.variables?.perspective),
     `Подпись: ${chart.signature}. Тема не-я: ${chart.notSelf}.`,
     chart.hasExactTime ? "Указано точное время рождения." : "Время рождения не указано — считай тип как ориентир и прямо укажи, что точность ограничена.",
     "Объясни ИМЕННО эти тип/стратегию/авторитет/профиль/каналы человеческим языком. Результат должен быть связан с конкретным бодиграфом, а не быть общей статьей о Human Design.",
@@ -368,15 +413,35 @@ function humanDesignFallback(chart: HumanDesignChart | null): string {
       "Практический ориентир: укажите данные рождения как можно точнее — и здесь появится ваш тип, стратегия и авторитет.",
     ].join("\n");
   }
+  const defined = chart.centers.filter((center) => center.defined);
+  const open = chart.centers.filter((center) => !center.defined);
+  const channelSections = chart.definedChannels.flatMap((channel) => [
+    `## ${humanDesignChannelHeading(channel.gates)}`,
+    `Эта связь объединяет ${channel.centers.map((key) => chart.centers.find((center) => center.key === key)?.name).join(" и ")}. Её стоит наблюдать как устойчивую тему карты вместе со стратегией и авторитетом, а не как отдельный ярлык характера.`,
+  ]);
   return [
-    `## Тип и стратегия`,
-    "",
+    `## Тип — ${chart.typeName}`,
     `Ваш тип — ${chart.typeName}. ${chart.typeSummary}`,
-    "",
-    `## Внутренний авторитет\n${chart.authorityName}. ${chart.authorityHint}`,
-    `## Профиль ${chart.profile} — ${chart.profileName}\nЭто язык того, как вы естественно учитесь и проявляетесь.`,
-    "",
-    "## Как применять дизайн",
+    `## Стратегия — ${chart.strategy}`,
+    `Ваша стратегия — ${chart.strategy.toLowerCase()}. Она описывает способ входить в решения с меньшим сопротивлением, а не обязанность или обещание результата.`,
+    `## Авторитет — ${chart.authorityName}`,
+    `${chart.authorityName}. ${chart.authorityHint}`,
+    `## Профиль — ${chart.profile}: ${chart.profileName}`,
+    `Профиль ${chart.profile} (${chart.profileName}) описывает естественный способ учиться, взаимодействовать и быть замеченным другими.`,
+    `## Определение — ${chart.definition}`,
+    `${chart.definition} показывает, как определённые центры связаны между собой в устойчивые контуры.`,
+    `## Определённые центры — ${defined.length}`,
+    `Определены: ${defined.map((center) => center.name).join(", ") || "нет"}. Здесь энергия и способ обработки опыта считаются более устойчивыми темами карты.`,
+    `## Открытые центры — ${open.length}`,
+    `Открыты: ${open.map((center) => center.name).join(", ") || "нет"}. Здесь особенно полезно различать собственный опыт и усиленное влияние среды.`,
+    ...channelSections,
+    `## Ворота — ${chart.activeGates.length} активных`,
+    `Активные ворота: ${chart.activeGates.join(", ")}. Их смысл раскрывается вместе с центрами, линиями и полной конфигурацией карты.`,
+    `## Тема не-я — ${chart.notSelf}; подпись — ${chart.signature}`,
+    `«${chart.notSelf}» в этой системе читается как сигнал сопротивления; «${chart.signature}» — как ориентир согласованности с собой.`,
+    `## Синтез — ${chart.typeName}, профиль ${chart.profile}`,
+    `Главный практический порядок: сначала стратегия «${chart.strategy}», затем решения через авторитет «${chart.authorityName}». Профиль ${chart.profile} добавляет способ проживать этот процесс в отношениях и опыте.`,
+    `## Практика — ${chart.strategy}; ${chart.authorityName}`,
     `Подпись «${chart.signature}» — знак, что вы живёте по себе; «${chart.notSelf.toLowerCase()}» — сигнал свернуть не туда. Это карта самопонимания, а не приговор.`,
   ].join("\n");
 }
@@ -385,7 +450,7 @@ function humanDesignFallback(chart: HumanDesignChart | null): string {
 function surnameStoryFallback(story: SurnameStory | null): string {
   if (!story) {
     return [
-      "История фамилии",
+      "Тайна имени и фамилии",
       "",
       "Чтобы рассказать историю фамилии, напишите саму фамилию — например «Кузнецов» или «Ковальчук». По её форме видно происхождение и вероятное занятие или местность предков.",
       "",
@@ -422,20 +487,32 @@ function natalFactsForAI(wheel: NatalWheel, userInput: string): string {
     .map((placement) => `${placement.label}: ${placement.degreeInSign.toFixed(1)}° ${placement.signName}`)
     .join("; ");
   const houses = wheel.houses?.map((house) => `${house.number} дом — ${house.signName} ${house.cusp.toFixed(1)}°`).join("; ") ?? "не рассчитаны";
+  const aspects = calculateNatalAspectLines(wheel.placements)
+    .sort((left, right) => left.aspect.orb - right.aspect.orb)
+    .map((line, index) => `A${String(index + 1).padStart(2, "0")}: ${line.from.label} — ${line.to.label}, ${line.aspect.label.toLowerCase()}, орбис ${line.aspect.orb.toFixed(1)}°`)
+    .join("; ");
   return [
     "ТОЧНО ПОСЧИТАНО ПО ЭФЕМЕРИДАМ (не меняй эти факты):",
     `Солнце в знаке ${wheel.sunSign.name} (${wheel.sunSign.glyph}). Стихия: ${wheel.sunSign.element}. Модальность: ${modality}. Полярность: ${polarity}.`,
     `Положения: ${placements}.`,
+    `Мажорные аспекты: ${aspects || "нет аспектов в выбранных орбисах"}.`,
     wheel.ascendant && wheel.ascendantDegree !== null && wheel.ascendantDegree !== undefined
       ? `Асцендент: ${wheel.ascendantDegree.toFixed(1)}° ${wheel.ascendant.name}. Равнодомные куспиды: ${houses}.`
       : hasTime
         ? "Время рождения передано, но координаты города не распознаны: не утверждай конкретный ASC и дома. Все положения десяти планет рассчитаны точно и должны быть разобраны."
         : "Точное время рождения не указано: не утверждай конкретный ASC и дома. Положения десяти планет на полдень рассчитаны и должны быть разобраны с оговоркой только для быстро движущейся Луны.",
-    "Каждый раздел связывай с этими конкретными положениями. Не вставляй общие дисклеймеры в текст результата.",
+    "Каждый раздел связывай с этими конкретными положениями и ID аспектов. Не называй аспект, которого нет в списке. Не вставляй общие дисклеймеры в текст результата.",
   ].join("\n");
 }
 
 function numerologyMatches(text: string, portrait: NumerologyPortrait) {
+  if (portrait.matrix) {
+    const sections = new Map(splitSections(text).map((section) => [headingKey(section.title), section.body]));
+    return portrait.matrix.zones.every((zone) => {
+      const body = sections.get(headingKey(zone.title)) ?? "";
+      return new RegExp(`(^|\\D)${zone.value}(\\D|$)`, "u").test(body);
+    });
+  }
   const required = [
     `Число пути ${portrait.lifePath}`,
     portrait.expression === null ? null : `Число выражения ${portrait.expression}`,
@@ -448,9 +525,11 @@ function symbolicSectionHeadings(input: {
   productKey: SymbolicProductKey;
   cards: TarotCard[] | null;
   numerology: NumerologyPortrait | null;
+  chart: HumanDesignChart | null;
 }): string[] | null {
   if (input.productKey === "tarot" && input.cards) {
     return [
+      "Прямой ответ",
       "Картина расклада",
       ...input.cards.map((card) => `${card.position}: ${card.name}`),
       "Связь карт и скрытая линия",
@@ -460,10 +539,26 @@ function symbolicSectionHeadings(input: {
     ];
   }
   if (input.productKey === "natal-chart") {
-    return ["Главная конфигурация карты", "Солнце, стихия и модальность", "Луна, Асцендент и личные планеты", "Дома и сферы жизни", "Аспекты: где напряжение и где ресурс", "Персональный синтез карты", "Как читать эту карту в жизни"];
+    return ["Прямой ответ", "Паспорт карты", "Большая тройка", "Меркурий, Венера и Марс", "Юпитер и Сатурн", "Уран, Нептун и Плутон", "Дома и углы", "Доминирующие стихии и модальности", "Аспекты: главные ресурсы", "Аспекты: главные напряжения", "Любовь и близость", "Работа и реализация", "Внутренние противоречия карты", "Итог по вашему вопросу"];
   }
   if (input.productKey === "numerology" && input.numerology) {
+    if (input.numerology.matrix) {
+      return [
+        "Прямой ответ",
+        ...input.numerology.matrix.zones.map((zone) => zone.title),
+        "Личное предназначение",
+        "Родовое предназначение",
+        "Духовное и высшее предназначение",
+        "Мужская родовая линия",
+        "Женская родовая линия",
+        "Возрастные периоды",
+        "Карта здоровья: Небо, Земля и Ключ",
+        "Противоречия матрицы",
+        "Итоговый синтез",
+      ];
+    }
     return [
+      "Прямой ответ",
       "Карта чисел",
       `Число пути ${input.numerology.lifePath} — главный вектор`,
       ...(input.numerology.expression === null ? [] : [`Число выражения ${input.numerology.expression} — как вы проявляетесь`]),
@@ -474,11 +569,17 @@ function symbolicSectionHeadings(input: {
       "Практический ориентир на ближайшее время",
     ];
   }
-  if (input.productKey === "human-design") {
-    return ["Тип и стратегия", "Внутренний авторитет", "Профиль и роль", "Центры: где определенность и где восприимчивость", "Каналы и ворота", "Тема не-я и сигналы сбоя", "Синтез вашего бодиграфа", "Как применять дизайн"];
+  if (input.productKey === "human-design" && input.chart) {
+    return ["Прямой ответ", ...humanDesignSectionHeadings(input.chart)];
   }
   if (input.productKey === "surname-story") {
-    return ["Что говорит форма фамилии", "Вероятные корни и версии происхождения", "География и исторический контекст", "Профессия, статус или прозвище предка", "Известные ассоциации и тёмные версии", "Факты, версии и границы достоверности", "Что проверить в семейной истории", "Итог исследования фамилии"];
+    return ["Прямой ответ", "Что говорит форма фамилии", "Корень и словообразование", "Версии происхождения по степени вероятности", "География и историческая среда", "Профессия, статус, место или прозвище предка", "Социальная история фамилии", "Как фамилия могла меняться", "Звучание и фоносемантический образ", "Имя + фамилия: характер сочетания", "Черты характера: символическая гипотеза", "Эмоциональное зеркало", "Загадка имени", "Написание латиницей и варианты за рубежом", "Факты, версии и границы достоверности", "Что искать в архивах и семейной памяти"];
+  }
+  if (input.productKey === "horary") {
+    return ["Прямой ответ", "Радикальность и можно ли судить вопрос", "Вы и ваш сигнификатор", "Предмет вопроса и его сигнификатор", "Луна как ход событий", "Главный сходящийся аспект", "Рецепции: желание и способность действовать", "Препятствия и скрытые условия", "Что поддерживает ответ", "Что ему противоречит", "Вероятный срок", "Что может изменить исход"];
+  }
+  if (input.productKey === "tarot-numerology") {
+    return ["Прямой ответ", "Пара карт рождения", "Карта рождения", "Карта души", "Связь двух арканов", "Сильное проявление", "Теневая сторона", "Отношения", "Реализация и деньги", "Ответ по вашему вопросу"];
   }
   return null;
 }
@@ -540,27 +641,52 @@ function symbolicQualityIssue(input: {
     numerology: 5_000,
     "human-design": 4_800,
     "surname-story": 5_000,
+    horary: 5_500,
+    "tarot-numerology": 6_000,
   };
   if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
   if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
   if (input.productKey === "numerology" && input.numerology && !numerologyMatches(input.text, input.numerology)) {
     return "числа в заголовках не совпадают с рассчитанным портретом";
   }
+  if (input.productKey === "numerology" && input.numerology?.matrix) {
+    const sections = new Map(splitSections(input.text).map((section) => [headingKey(section.title), section.body]));
+    for (const zone of input.numerology.matrix.zones) {
+      const body = sections.get(headingKey(zone.title)) ?? "";
+      if (body.length < 650 || !/В плюсе/iu.test(body) || !/В минусе/iu.test(body) || !/Практик/iu.test(body)) {
+        return `неполная расшифровка позиции ${zone.title}`;
+      }
+    }
+  }
   if (input.productKey === "human-design" && input.chart) {
-    const headings = ["Тип и стратегия", "Внутренний авторитет", "Профиль и роль", "Центры:", "Каналы и ворота", "Тема не-я", "Синтез вашего бодиграфа", "Как применять дизайн"];
-    if (!headings.every((heading) => input.text.includes(`## ${heading}`))) return "нет обязательных разделов бодиграфа";
-    if (!input.text.includes(input.chart.typeName) || !input.text.includes(input.chart.profile)) return "интерпретация не цитирует рассчитанный бодиграф";
+    const headings = symbolicSectionHeadings({ productKey: "human-design", cards: null, numerology: null, chart: input.chart }) ?? [];
+    if (!headings.every((heading) => input.text.includes(`## ${heading}`))) return "нет обязательных персональных разделов бодиграфа";
+    if (
+      !input.text.includes(input.chart.typeName)
+      || !input.text.includes(input.chart.strategy)
+      || !input.text.includes(input.chart.authorityName)
+      || !input.text.includes(input.chart.profile)
+      || !input.text.includes(input.chart.definition)
+    ) return "интерпретация не цитирует ключевые рассчитанные значения бодиграфа";
   }
   if (input.productKey === "tarot" && input.cards) {
-    const requiredHeadings = symbolicSectionHeadings({ productKey: "tarot", cards: input.cards, numerology: null }) ?? [];
+    const requiredHeadings = symbolicSectionHeadings({ productKey: "tarot", cards: input.cards, numerology: null, chart: null }) ?? [];
     const actualHeadings = new Set(splitSections(input.text).map((section) => headingKey(section.title)));
     if (requiredHeadings.some((heading) => !actualHeadings.has(headingKey(heading)))) return "нет обязательных разделов расклада";
     const missingCard = input.cards.find((card) => !input.text.includes(card.name) || !input.text.includes(card.position));
     if (missingCard) return `нет трактовки карты ${missingCard.name} в позиции ${missingCard.position}`;
   }
   if (input.productKey === "natal-chart" && input.wheel) {
+    const requiredHeadings = symbolicSectionHeadings({ productKey: "natal-chart", cards: null, numerology: null, chart: null }) ?? [];
+    const actualHeadings = new Set(splitSections(input.text).map((section) => headingKey(section.title)));
+    if (requiredHeadings.some((heading) => !actualHeadings.has(headingKey(heading)))) return "нет обязательных разделов натальной карты";
     const distinctSigns = [...new Set(input.wheel.placements.map((placement) => placement.signName))];
     if (distinctSigns.filter((sign) => textMentionsZodiacSign(input.text, sign)).length < Math.min(4, distinctSigns.length)) return "текст не опирается на рассчитанные положения планет";
+    const exactAspects = calculateNatalAspectLines(input.wheel.placements)
+      .sort((left, right) => left.aspect.orb - right.aspect.orb)
+      .slice(0, 3);
+    const citedAspects = exactAspects.filter((line) => input.text.includes(line.from.label) && input.text.includes(line.to.label));
+    if (exactAspects.length > 0 && citedAspects.length < Math.min(2, exactAspects.length)) return "текст не цитирует рассчитанные аспекты";
   }
   if (input.productKey === "surname-story" && input.surname && !input.text.includes(input.surname.surname)) return "текст не называет исследуемую фамилию";
   return null;
@@ -575,6 +701,8 @@ const SYMBOLIC_MAX_TOKENS: Partial<Record<SymbolicProductKey, number>> = {
   "human-design": 6500,
   "surname-story": 6000,
   "family-scenarios": 6500,
+  horary: 7000,
+  "tarot-numerology": 7000,
 };
 
 export async function generateSymbolicProductResult(input: {
@@ -604,6 +732,20 @@ export async function generateSymbolicProductResult(input: {
       }
     })()
     : null;
+  const horaryWheel = input.productKey === "horary"
+    ? (() => {
+      try { return buildNatalEphemerisWheel(normalizeInput(input.userInput)); } catch { return null; }
+    })()
+    : null;
+  const horaryFutureWheel = input.productKey === "horary" ? (() => {
+    try {
+      const iso = input.userInput.match(/Момент фиксации UTC:\s*(\d{4}-\d{2}-\d{2}T[^\s]+)/u)?.[1];
+      if (!iso) return null;
+      const future = new Date(new Date(iso).getTime() + 10 * 60_000).toISOString();
+      return buildNatalEphemerisWheel(input.userInput.replace(iso, future));
+    } catch { return null; }
+  })() : null;
+  const horary = horaryWheel ? (() => { try { return computeHoraryFacts(horaryWheel, input.userInput, horaryFutureWheel); } catch { return null; } })() : null;
   // B387: «Дизайн человека» — детерминированный чарт по реальным эфемеридам;
   // храним в metadata (для бодиграфа на странице/в PDF) и передаём в AI как факты.
   const hdChart = input.productKey === "human-design" ? computeHumanDesignFromText(input.userInput).chart : null;
@@ -612,14 +754,26 @@ export async function generateSymbolicProductResult(input: {
   const surnameStory = input.productKey === "surname-story" ? analyzeSurname(input.userInput) : null;
   // B451: числовой портрет — детерминированные ядровые числа (для визуала и фактов AI).
   const numerology = input.productKey === "numerology" ? computeNumerology(input.userInput) : null;
+  const tarotBirthDate = input.productKey === "tarot-numerology" ? parseStrictBirthDate(input.userInput) : null;
+  const tarotBirthCode = tarotBirthDate ? computeTarotBirthCode(tarotBirthDate.day, tarotBirthDate.month, tarotBirthDate.year) : null;
   const visualMeta: Prisma.InputJsonObject = {
     ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
     ...(tarotSpread ? { tarotSpread: { key: tarotSpread.key, label: tarotSpread.label, positions: [...tarotSpread.positions] } } : {}),
     ...(tarotTheme ? { tarotTheme } : {}),
     ...(wheel ? { wheel: wheel as unknown as Prisma.InputJsonValue } : {}),
+    ...(wheel ? { aspects: calculateNatalAspectLines(wheel.placements).map((line) => ({
+      from: line.from.luminary,
+      to: line.to.luminary,
+      kind: line.aspect.kind,
+      label: line.aspect.label,
+      orb: line.aspect.orb,
+    })) as unknown as Prisma.InputJsonValue } : {}),
     ...(hdChart ? { chart: hdChart as unknown as Prisma.InputJsonValue } : {}),
     ...(surnameStory ? { surname: surnameStory as unknown as Prisma.InputJsonValue } : {}),
     ...(numerology ? { numerology: numerology as unknown as Prisma.InputJsonValue } : {}),
+    ...(horaryWheel ? { wheel: horaryWheel as unknown as Prisma.InputJsonValue } : {}),
+    ...(horary ? { horary: horary as unknown as Prisma.InputJsonValue } : {}),
+    ...(tarotBirthCode ? { tarotBirthCode: tarotBirthCode as unknown as Prisma.InputJsonValue } : {}),
   };
   const cardsMeta = visualMeta;
   const fallback = cards
@@ -631,6 +785,12 @@ export async function generateSymbolicProductResult(input: {
         : heuristicSymbolicResult(input);
 
   if (input.productKey === "natal-chart" && !wheel) {
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable", ...cardsMeta } };
+  }
+  if (input.productKey === "horary" && (!horaryWheel || !horary)) {
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "question_moment_not_calculable", ...cardsMeta } };
+  }
+  if (input.productKey === "tarot-numerology" && !tarotBirthCode) {
     return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable", ...cardsMeta } };
   }
 
@@ -650,8 +810,10 @@ export async function generateSymbolicProductResult(input: {
     const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
     const natalNote = wheel ? `\n\n${natalFactsForAI(wheel, normalizeInput(input.userInput))}` : "";
     const numeroNote = numerology ? `\n\n${numerologyFactsForAI(numerology)}` : "";
+    const horaryNote = horaryWheel && horary ? `\n\n${natalFactsForAI(horaryWheel, normalizeInput(input.userInput))}\n\n${horaryFactsForAI(horary)}` : "";
+    const tarotBirthNote = tarotBirthCode ? `\n\n${tarotBirthCodeFactsForAI(tarotBirthCode)}` : "";
 
-    const systemPrompt = baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote;
+    const systemPrompt = baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote + horaryNote + tarotBirthNote;
     const userContext = [
       `Услуга: ${definition?.title ?? input.productKey}.`,
       tarotSpread ? `Расклад: ${tarotSpread.label}.` : "",
@@ -659,7 +821,7 @@ export async function generateSymbolicProductResult(input: {
       cards ? `Выпавшие карты: ${cards.map((card) => `${card.position} — ${card.name}${card.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
       `Данные для разбора: ${normalizeInput(input.userInput) || "Нужен полный персональный разбор."}`,
     ].filter(Boolean).join("\n");
-    const headings = symbolicSectionHeadings({ productKey: input.productKey, cards, numerology });
+    const headings = symbolicSectionHeadings({ productKey: input.productKey, cards, numerology, chart: hdChart });
     const responses = [] as Awaited<ReturnType<typeof aiComplete>>[];
     let text = "";
 

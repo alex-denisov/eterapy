@@ -26,7 +26,7 @@ describe("B502 shared digital-product intake quality", () => {
     expect(source("src/components/products/deep-report-actions.tsx")).toContain('label="результат разбора"');
     expect(source("src/components/products/natal-chart-actions.tsx")).toContain('label="фокус натальной карты"');
     expect(source("src/components/products/synastry-actions.tsx")).toContain('label="фокус совместимости"');
-    expect(source("src/components/products/numerology-actions.tsx")).toContain('label="фокус числового портрета"');
+    expect(source("src/components/products/numerology-actions.tsx")).toContain('label="что разобрать глубже"');
   });
 
   it("removes the unnecessary optional question from deterministic esoteric products", () => {
@@ -51,12 +51,14 @@ describe("B502 shared digital-product intake quality", () => {
     expect(sections.map((section) => section.title)).toEqual(["Тип и стратегия", "Внутренний авторитет"]);
   });
 
-  it("keeps the visible 5-5-4 portrait and AI facts on the same deterministic calculation", () => {
+  it("keeps the legacy core numbers but makes the selected Destiny Matrix facts authoritative", () => {
     const portrait = computeNumerology("Имя: Алексей\nДата рождения: 03.03.1988");
     expect(portrait).toEqual(expect.objectContaining({ lifePath: 5, expression: 5, soulUrge: 4 }));
     const facts = numerologyFactsForAI(portrait);
-    expect(facts).toContain("Число жизненного пути: 5");
-    expect(facts).toContain("Число выражения (по имени): 5");
-    expect(facts).toContain("Число души (по гласным имени): 4");
+    expect(facts).toContain("СИСТЕМЕ МАТРИЦЫ СУДЬБЫ 22 ЭНЕРГИЙ");
+    expect(facts).not.toContain("ladini-lidrekon-v1");
+    expect(facts).toContain("центр 10");
+    expect(facts).toContain("родовое 20");
+    expect(facts).toContain("не квадрат Пифагора");
   });
 });

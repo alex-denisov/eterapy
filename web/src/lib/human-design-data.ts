@@ -88,7 +88,7 @@ export const HD_CHANNELS: ReadonlyArray<readonly [number, number]> = [
 export type HDBodyKey =
   | "sun" | "earth" | "moon" | "north_node" | "south_node"
   | "mercury" | "venus" | "mars" | "jupiter" | "saturn"
-  | "uranus" | "neptune" | "pluto";
+  | "uranus" | "neptune" | "pluto" | "chiron" | "lilith";
 
 export const HD_BODIES: ReadonlyArray<{ key: HDBodyKey; label: string; glyph: string }> = [
   { key: "sun", label: "Солнце", glyph: "☉" },
@@ -104,6 +104,8 @@ export const HD_BODIES: ReadonlyArray<{ key: HDBodyKey; label: string; glyph: st
   { key: "uranus", label: "Уран", glyph: "♅" },
   { key: "neptune", label: "Нептун", glyph: "♆" },
   { key: "pluto", label: "Плутон", glyph: "♇" },
+  { key: "chiron", label: "Хирон", glyph: "⚷" },
+  { key: "lilith", label: "Лилит (средняя)", glyph: "⚸" },
 ];
 
 export type HDType =
@@ -234,6 +236,19 @@ export type HDDefinedChannel = {
   centers: [HDCenterKey, HDCenterKey];
 };
 
+export type HDVariable = {
+  color: number;
+  tone: number;
+  direction: "left" | "right";
+};
+
+export type HDVariables = {
+  determination: HDVariable;
+  environment: HDVariable;
+  motivation: HDVariable;
+  perspective: HDVariable;
+};
+
 export type HumanDesignChart = {
   type: HDType;
   typeName: string;
@@ -254,6 +269,7 @@ export type HumanDesignChart = {
   activeGates: number[];
   personality: HDActivation[];
   design: HDActivation[];
+  variables?: HDVariables;
   hasExactTime: boolean;
 };
 
@@ -263,6 +279,6 @@ export const HD_PROFILE_LINES: Record<number, { name: string; note: string }> = 
   2: { name: "Отшельник", note: "естественный дар, которому нужно уединение" },
   3: { name: "Экспериментатор", note: "учится через пробы, ошибки и живой опыт" },
   4: { name: "Друг", note: "раскрывается через близкие связи и доверие" },
-  5: { name: "Учитель", note: "находит практичные решения для других" },
+  5: { name: "Практик", note: "проверяет решения на опыте и сталкивается с ожиданиями других" },
   6: { name: "Пример", note: "живёт в три этапа и со временем становится ориентиром" },
 };

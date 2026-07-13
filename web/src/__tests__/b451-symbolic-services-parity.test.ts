@@ -34,11 +34,11 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
 
   describe("expert prompts with mandatory ## chapters", () => {
     const cases: Array<[string, string[]]> = [
-      ["product-numerology", ["опытный нумеролог", "## Карта чисел", "## Практический ориентир на ближайшее время"]],
-      ["product-human-design", ["Дизайна человека", "## Тип и стратегия", "## Как применять дизайн"]],
-      ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Что проверить в семейной истории"]],
+      ["product-numerology", ["Матрицы судьбы", "Личность, Талант, Социум, Задача, Центр, Внутренний центр", "### В плюсе", "### В минусе", "### Практики"]],
+      ["product-human-design", ["Дизайна человека", "Тип, стратегия, авторитет, профиль и определение всегда идут пятью отдельными разделами", "Каждый заголовок начинай с `##`"]],
+      ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Загадка имени"]],
       ["product-family-scenarios", ["системной семейной терапии", "## Что вы описали — узор повторов", "## Бережные шаги на ближайшее время"]],
-      ["product-synastry", ["астролог по синастрии", "## Общий рисунок связи", "## Главная динамика вашей пары"]],
+      ["product-synastry", ["астролог по синастрии", "## Главная ось связи", "## Итог в выбранном слое отношений"]],
     ];
     it.each(cases)("%s is expert-level and structured", (feature, markers) => {
       const prompt = defaultPromptTextForFeature(feature);
@@ -46,8 +46,10 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
       expect(prompt).not.toContain("Формат: ");
     });
 
-    it("synastry never returns a verdict", () => {
-      expect(defaultPromptTextForFeature("product-synastry")).toMatch(/не выноси приговор/i);
+    it("synastry gives a direct layer-specific answer without judging people globally", () => {
+      const prompt = defaultPromptTextForFeature("product-synastry");
+      expect(prompt).toContain("## Прямой ответ");
+      expect(prompt).toMatch(/вердикт относится только к выбранному слою/i);
     });
   });
 
