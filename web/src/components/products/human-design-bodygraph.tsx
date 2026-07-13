@@ -3,11 +3,14 @@
 // он перекрашивается по рассчитанному chart, поэтому визуал не расходится с
 // типом, каналами, центрами и воротами результата.
 
-import { HD_GATE_ARC, HD_LINE_ARC, HD_START_DEGREE, type HDBodyKey, type HDCenterKey, type HDActivation, type HumanDesignChart } from "@/lib/human-design-data";
+import { HD_GATE_ARC, HD_LINE_ARC, HD_START_DEGREE, type HDBodyKey, type HDCenterKey, type HDActivation, type HDVariable, type HumanDesignChart } from "@/lib/human-design-data";
 import { HUMAN_DESIGN_BODYGRAPH_TEMPLATE } from "@/components/products/human-design-bodygraph-template";
 
 /* eslint-disable @next/next/no-img-element */
 
+// Exact palette from the approved bodygraph.com reference: Design uses warm
+// amber, Personality uses graphite. Keeping both rails separate makes mixed
+// activations visible without changing the source geometry.
 const DESIGN_COLOR = "#E69138";
 const PERSONALITY_COLOR = "#5D5448";
 
@@ -49,9 +52,11 @@ const BODY_ORDER: HDBodyKey[] = [
   "uranus",
   "neptune",
   "pluto",
+  "chiron",
+  "lilith",
 ];
 
-const BODY_ICON_FILE: Record<HDBodyKey, number> = {
+const BODY_ICON_FILE: Partial<Record<HDBodyKey, number>> = {
   sun: 1,
   earth: 2,
   north_node: 3,
@@ -81,6 +86,8 @@ const BODY_LABEL: Record<HDBodyKey, string> = {
   uranus: "Уран",
   neptune: "Нептун",
   pluto: "Плутон",
+  chiron: "Хирон",
+  lilith: "Лилит (средняя)",
 };
 
 function norm360(value: number): number {
@@ -97,6 +104,10 @@ function activationByBody(items: HDActivation[]): Map<HDBodyKey, HDActivation> {
 
 function cssAttrSelector(id: string): string {
   return `[id="${id}"]`;
+}
+
+function chartSelector(id: string): string {
+  return `#BodyGraphChart-Rounded ${cssAttrSelector(id)}`;
 }
 
 function gateSelectors(gate: number): string {
@@ -127,8 +138,20 @@ function styleForChart(chart: HumanDesignChart): string {
   const gateTextResetRules = allGates.map((gate) => `${cssAttrSelector(String(gate))}{fill:#fff!important;}${cssAttrSelector(String(gate))} + text,${cssAttrSelector(String(gate))} + text *{fill:#000!important;}`);
   const activeGateRules = [...activeGates].map((gate) => `${cssAttrSelector(String(gate))}{fill:#000!important;}${cssAttrSelector(String(gate))} + text,${cssAttrSelector(String(gate))} + text *{fill:#fff!important;}`);
 
-  const designRules = [...designGates].map((gate) => `${cssAttrSelector(`design-${gate}`)},${cssAttrSelector(`design-${gate}-bg`)}{stroke:${DESIGN_COLOR}!important;}`);
-  const personalityRules = [...personalityGates].map((gate) => `${cssAttrSelector(`personality-${gate}`)},${cssAttrSelector(`personality-${gate}-bg`)}{stroke:${PERSONALITY_COLOR}!important;}`);
+  const channelRules = allGates.map((gate) => {
+    const design = designGates.has(gate);
+    const personality = personalityGates.has(gate);
+    // Match the reset rule's ID+attribute specificity. Previously these rules
+    // used only [id="…"], so the white !important reset always won.
+    const designSelector = `${chartSelector(`design-${gate}`)},${chartSelector(`design-${gate}-bg`)}`;
+    const personalitySelector = `${chartSelector(`personality-${gate}`)},${chartSelector(`personality-${gate}-bg`)}`;
+    if (design && personality) {
+      return `${designSelector}{stroke:${DESIGN_COLOR}!important;}${personalitySelector}{stroke:${PERSONALITY_COLOR}!important;}`;
+    }
+    if (design) return `${designSelector},${personalitySelector}{stroke:${DESIGN_COLOR}!important;}`;
+    if (personality) return `${designSelector},${personalitySelector}{stroke:${PERSONALITY_COLOR}!important;}`;
+    return "";
+  });
   const centerRules = chart.centers.map((center) => {
     const fill = definedCenters.has(center.key) ? CENTER_FILL[center.key] : "#FFFFFF";
     return `${cssAttrSelector(CENTER_ID[center.key])}{fill:${fill}!important;}`;
@@ -141,8 +164,7 @@ function styleForChart(chart: HumanDesignChart): string {
     gateResetRules.join(""),
     gateTextResetRules.join(""),
     centerRules.join(""),
-    designRules.join(""),
-    personalityRules.join(""),
+    channelRules.join(""),
     activeGateRules.join(""),
     "</style>",
   ].join("");
@@ -162,7 +184,11 @@ function ActivationColumn({ title, side, items }: { title: string; side: "design
         if (!item) return null;
         return (
           <div key={`${side}-${body}`} className={`hd-bodygraph-badge hd-bodygraph-badge-${side}`} title={`${BODY_LABEL[body]}: ${activationValue(item)}`}>
-            <img className="hd-bodygraph-planet-icon" src={`/bodygraph-com/svgexport-${BODY_ICON_FILE[body]}.svg`} alt="" aria-hidden="true" />
+            {BODY_ICON_FILE[body] ? (
+              <img className="hd-bodygraph-planet-icon" src={`/bodygraph-com/svgexport-${BODY_ICON_FILE[body]}.svg`} alt="" aria-hidden="true" />
+            ) : (
+              <span className="hd-bodygraph-planet-icon" aria-hidden="true">{item.glyph}</span>
+            )}
             <span className="hd-bodygraph-gate">{activationValue(item)}</span>
             <span className="hd-bodygraph-fixing" aria-hidden="true" />
           </div>
@@ -184,23 +210,24 @@ function VariableNumber({ color, tone, side }: { color: number; tone: number; si
 
 function VariableItem({
   activation,
+  value,
   side,
-  arrow,
-  reverse = false,
   label,
 }: {
   activation: HDActivation | null | undefined;
+  value?: HDVariable;
   side: "left" | "right";
-  arrow: 18 | 19 | 20;
-  reverse?: boolean;
   label: string;
 }) {
-  const value = substructure(activation);
-  const icon = <img className={reverse ? "hd-bodygraph-var-arrow reverse" : "hd-bodygraph-var-arrow"} src={`/bodygraph-com/svgexport-${arrow}.svg`} alt="" aria-hidden="true" />;
+  const resolved = value ?? (() => {
+    const legacy = substructure(activation);
+    return { ...legacy, direction: legacy.tone <= 3 ? "left" as const : "right" as const };
+  })();
+  const icon = <img className={resolved.direction === "left" ? "hd-bodygraph-var-arrow reverse" : "hd-bodygraph-var-arrow"} src="/bodygraph-com/svgexport-19.svg" alt="" aria-hidden="true" />;
   return (
-    <div className="hd-bodygraph-var-item" aria-label={`${label}: цвет ${value.color}, тон ${value.tone}`}>
+    <div className="hd-bodygraph-var-item" aria-label={`${label}: цвет ${resolved.color}, тон ${resolved.tone}, направление ${resolved.direction === "left" ? "влево" : "вправо"}`}>
       {side === "left" ? icon : null}
-      <VariableNumber color={value.color} tone={value.tone} side={side} />
+      <VariableNumber color={resolved.color} tone={resolved.tone} side={side} />
       {side === "right" ? icon : null}
     </div>
   );
@@ -212,12 +239,12 @@ function Variables({ chart }: { chart: HumanDesignChart }) {
   return (
     <div className="hd-bodygraph-vars" aria-label="Переменные бодиграфа">
       <div className="hd-bodygraph-vars-left">
-        <VariableItem label="Питание" side="left" arrow={18} reverse activation={design.get("sun")} />
-        <VariableItem label="Среда" side="left" arrow={18} reverse activation={design.get("north_node")} />
+        <VariableItem label="Питание" side="left" activation={design.get("sun")} value={chart.variables?.determination} />
+        <VariableItem label="Среда" side="left" activation={design.get("north_node")} value={chart.variables?.environment} />
       </div>
       <div className="hd-bodygraph-vars-right">
-        <VariableItem label="Осознанность" side="right" arrow={19} activation={personality.get("sun")} />
-        <VariableItem label="Перспектива" side="right" arrow={20} reverse activation={personality.get("north_node")} />
+        <VariableItem label="Осознанность" side="right" activation={personality.get("sun")} value={chart.variables?.motivation} />
+        <VariableItem label="Перспектива" side="right" activation={personality.get("north_node")} value={chart.variables?.perspective} />
       </div>
     </div>
   );

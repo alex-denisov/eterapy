@@ -44,24 +44,38 @@ interface PriceKey {
 // obsolete free-session / tool-limit / min-price settings were removed.
 const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.reframe.price", label: "Переосмысление", unit: "₽", recommended: 299 },
-  { key: "product.deep-report.price", label: "Подробный разбор", unit: "₽", recommended: 690 },
-  { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽", recommended: 790 },
+  { key: "product.deep-report.price", label: "Подробный разбор", unit: "₽", recommended: 890 },
+  { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽", recommended: 590 },
   { key: "product.tarot.price", label: "Расклад Таро", unit: "₽", recommended: 590 },
   { key: "product.natal-chart.price", label: "Натальная карта", unit: "₽", recommended: 590 },
   { key: "product.synastry.price", label: "Синастрия", unit: "₽", recommended: 890 },
-  { key: "product.numerology.price", label: "Нумерология", unit: "₽", recommended: 590 },
+  { key: "product.numerology.price", label: "Матрица судьбы", unit: "₽", recommended: 890 },
+  { key: "product.horary.price", label: "Хорарная астрология", unit: "₽", recommended: 590 },
+  { key: "product.tarot-numerology.price", label: "Арканы рождения", unit: "₽", recommended: 890 },
   { key: "product.family-scenarios.price", label: "Семейные сценарии", unit: "₽", recommended: 1090 },
   { key: "product.human-design.price", label: "Human Design", unit: "₽", recommended: 590 },
-  { key: "product.surname-story.price", label: "История фамилии", unit: "₽", recommended: 590 },
-  { key: "product.circle.price", label: "Круг", unit: "₽", recommended: 790 },
-  { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽", recommended: 790 },
-  { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 790 },
+  { key: "product.surname-story.price", label: "Тайна имени и фамилии", unit: "₽", recommended: 590 },
+  { key: "product.circle.price", label: "Круг", unit: "₽", recommended: 890 },
+  { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽", recommended: 890 },
+  { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 890 },
   { key: "product.daily-practice.price", label: "Расширенный разбор практики", unit: "₽", recommended: 199 },
   { key: "product.map-upgrade.price", label: "Апгрейд карты", unit: "₽", recommended: 990 },
   { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес", recommended: 590 },
   { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес", recommended: 1490 },
   { key: "subscription.practitioner-pro.price", label: "Practitioner Pro: подписка практика", unit: "₽/мес", recommended: 1490 },
   { key: "subscription.practitioner-pro-plus.price", label: "Practitioner Pro+: подписка практика", unit: "₽/мес", recommended: 2990 },
+];
+
+const PRODUCT_CREDIT_KEYS: PriceKey[] = [
+  { key: "product.tarot.credits", label: "Расклад Таро", unit: "баллы", recommended: 2 },
+  { key: "product.natal-chart.credits", label: "Натальная карта", unit: "баллы", recommended: 2 },
+  { key: "product.synastry.credits", label: "Синастрия", unit: "баллы", recommended: 3 },
+  { key: "product.numerology.credits", label: "Матрица судьбы", unit: "баллы", recommended: 3 },
+  { key: "product.horary.credits", label: "Хорарная астрология", unit: "баллы", recommended: 2 },
+  { key: "product.tarot-numerology.credits", label: "Арканы рождения", unit: "баллы", recommended: 3 },
+  { key: "product.family-scenarios.credits", label: "Семейные сценарии", unit: "баллы", recommended: 4 },
+  { key: "product.human-design.credits", label: "Human Design", unit: "баллы", recommended: 2 },
+  { key: "product.surname-story.credits", label: "Тайна имени и фамилии", unit: "баллы", recommended: 2 },
 ];
 
 const DURATION_LABELS: Record<number, string> = {
@@ -327,6 +341,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
       </div>
 
       {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS, "products")}
+      {settingsTable("Стоимость эзотерических продуктов в баллах", PRODUCT_CREDIT_KEYS, "product-credits")}
 
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

@@ -26,7 +26,9 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "tarot": 59000,
   "natal-chart": 59000,
   "synastry": 89000,
-  "numerology": 59000,
+  "numerology": 89000,
+  "horary": 59000,
+  "tarot-numerology": 89000,
   // B389 (M26): genogram-разбор «Семейные сценарии», рекомендуется в Дневнике.
   // 4 балла = 1090 ₽ (272.5 ₽/балл, в полосе ладдера).
   "family-scenarios": 109000,
@@ -53,7 +55,9 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "tarot": 2,
   "natal-chart": 2,
   "synastry": 3,
-  "numerology": 2,
+  "numerology": 3,
+  "horary": 2,
+  "tarot-numerology": 3,
   "family-scenarios": 4,
   "human-design": 2,
   "surname-story": 2,
@@ -66,7 +70,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
 // band. (Retired services were fully removed in B373.)
 export const V5_LADDER_ACTIVE_PRODUCTS = [
   "reframe", "deep-report", "full-question", "chat-analysis",
-  "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology",
+  "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology", "horary", "tarot-numerology",
   "family-scenarios", "human-design", "surname-story",
 ] as const;
 

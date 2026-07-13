@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
-import { getProductCreditCost } from "@/lib/entitlements";
+import { getConfiguredProductCreditCost } from "@/lib/entitlements";
 
 export type ClarityCreditStatus = "pending" | "confirmed" | "revoked" | "expired";
 export type ClarityCreditType = "grant" | "spend" | "expire" | "clawback" | "adjustment";
@@ -315,7 +315,7 @@ export async function spendClarityCreditsForProduct(input: {
   sourceEventId?: string | null;
   metadata?: Prisma.InputJsonValue;
 }) {
-  const cost = getProductCreditCost(input.productKey);
+  const cost = await getConfiguredProductCreditCost(input.productKey);
   if (!cost) {
     throw new Error("Для продукта не настроена стоимость в баллах");
   }

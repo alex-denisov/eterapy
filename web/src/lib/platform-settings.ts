@@ -22,10 +22,29 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
 
   // Цены цифровых продуктов (копейки/рубли)
   "product.reframe.price":   "299",
-  "product.deep-report.price":    "590",
-  "product.chat-analysis.price":  "390",
-  "product.circle.price":         "790",
-  "product.pair.price":           "790",
+  "product.deep-report.price":    "890",
+  "product.chat-analysis.price":  "590",
+  "product.tarot.price":          "590",
+  "product.natal-chart.price":    "590",
+  "product.synastry.price":       "890",
+  "product.numerology.price":     "890",
+  "product.horary.price":         "590",
+  "product.tarot-numerology.price": "890",
+  "product.family-scenarios.price": "1090",
+  "product.human-design.price":   "590",
+  "product.surname-story.price":  "590",
+  "product.tarot.credits":        "2",
+  "product.natal-chart.credits":  "2",
+  "product.synastry.credits":     "3",
+  "product.numerology.credits":   "3",
+  "product.horary.credits":       "2",
+  "product.tarot-numerology.credits": "3",
+  "product.family-scenarios.credits": "4",
+  "product.human-design.credits": "2",
+  "product.surname-story.credits": "2",
+  "product.compatibility.price":  "890",
+  "product.circle.price":         "890",
+  "product.pair.price":           "890",
 
   // Подписки (v5)
   "subscription.plus.price":      "590",
@@ -34,8 +53,14 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
 };
 
 export async function getSetting(key: string): Promise<string> {
-  const row = await db.platformSetting.findUnique({ where: { key } });
-  return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
+  try {
+    const row = await db.platformSetting?.findUnique({ where: { key } });
+    return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
+  } catch {
+    // Public product pages and checkout keep a server-owned safe fallback if
+    // settings storage is temporarily unavailable; client amounts are ignored.
+    return DEFAULT_SETTINGS[key] ?? "";
+  }
 }
 
 export async function getSettings(keys: string[]): Promise<Record<string, string>> {

@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import {
   applyAIPromptOverride,
   defaultPromptTextForFeature,
+  IMMUTABLE_AI_SAFETY_ENVELOPE,
   listAIPromptConfigs,
   mergeAIPromptOverride,
   serializeAIMessagesForAdmin,
@@ -93,10 +94,8 @@ describe("AI prompt configs", () => {
       { role: "user", content: "Вопрос" },
     ]);
 
-    expect(messages[0]).toEqual({
-      role: "system",
-      content: "Custom prompt\n\nDefault prompt\n\nExtra rule",
-    });
+    expect(messages[0]?.role).toBe("system");
+    expect(messages[0]?.content).toBe(`${IMMUTABLE_AI_SAFETY_ENVELOPE}\n\nCustom prompt\n\nDefault prompt\n\nExtra rule`);
   });
 
   it("preserves runtime-calculated facts after an admin-managed prompt", () => {
@@ -104,7 +103,7 @@ describe("AI prompt configs", () => {
     const runtime = `${defaultPromptTextForFeature(feature)}\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.`;
 
     expect(mergeAIPromptOverride(feature, runtime, "Owner numerology prompt")).toBe(
-      "Owner numerology prompt\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.",
+      `${IMMUTABLE_AI_SAFETY_ENVELOPE}\n\nOwner numerology prompt\n\nРАССЧИТАННЫЕ ЧИСЛА: путь 5, выражение 5, душа 4.`,
     );
   });
 

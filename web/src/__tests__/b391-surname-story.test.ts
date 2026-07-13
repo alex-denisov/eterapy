@@ -122,7 +122,7 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
 describe("B391 product registration & pricing", () => {
   it("surname-story is a symbolic product with a definition", () => {
     expect(isSymbolicProductKey("surname-story")).toBe(true);
-    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("История фамилии");
+    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("Тайна имени и фамилии");
   });
 
   it("is a known paid product priced 590 ₽ / 2 балла", () => {

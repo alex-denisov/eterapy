@@ -6,11 +6,11 @@ import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { log, serializeError } from "@/lib/logger";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 
-const SYNASTRY_HEADINGS = ["Общий рисунок связи", "Притяжение и ресурс пары", "Где возникают трения", "Разные темпы и ожидания", "Коммуникация и конфликт", "Главная динамика вашей пары", "Что показывает карта отношений"];
+const SYNASTRY_HEADINGS = ["Прямой ответ", "Главная ось связи", "Эмоциональная совместимость", "Коммуникация", "Притяжение и близость", "Быт и устойчивость", "Конфликт, власть и границы", "Поддержка и рост", "Противоречия пары", "Сценарий в плюсе", "Сценарий в минусе", "Итог в выбранном слое отношений"];
 
 // B451: факты пары для AI — реальные знаки Солнца обоих + баланс течения/трения,
 // чтобы разбор опирался на них и совпадал с колесом совместимости.
-function synastryFactsForAI(wheel: SynastryWheel): string {
+function synastryFactsForAI(wheel: SynastryWheel, relationshipLayer: string) {
   const flow = wheel.aspects.filter((a) => a.harmony === "flow").length;
   const tension = wheel.aspects.filter((a) => a.harmony === "tension").length;
   const placementLine = (placements: SynastryWheel["a"]["placements"]) => placements
@@ -27,7 +27,11 @@ function synastryFactsForAI(wheel: SynastryWheel): string {
     `Положения партнёра: ${placementLine(wheel.b.placements)}.`,
     `Главные межкарточные аспекты: ${aspectLine || "точных мажорных аспектов в выбранном орбе нет"}.`,
     `Связей «где течёт»: ${flow}; «где трение»: ${tension}.`,
-    "В результате обращайся к заказчику только «вы/ваш», а второго участника называй «партнёр». Не используй «первый/второй человек». Не вставляй общие дисклеймеры.",
+    `Выбранный слой отношений: ${relationshipLayer}.`,
+    relationshipLayer === "personal"
+      ? "В результате обращайся к заказчику `вы/ваш`, а второго участника называй `партнёр`."
+      : "Это рабочая синастрия. Используй выбранные деловые роли, анализируй решения, коммуникацию, риск, власть и разделение ответственности; не переноси разбор в романтику.",
+    "Не используй `первый/второй человек`. Не вставляй общие дисклеймеры.",
   ].join("\n");
 }
 
@@ -80,6 +84,7 @@ function fallbackSynastryResult(input: {
   partnerBirthData: string;
   focus?: string | null;
   question?: string | null;
+  relationshipLayer?: string | null;
 }) {
   const focus = normalizeInput(input.focus ?? input.question ?? "");
   return [
@@ -123,6 +128,7 @@ export async function generateSynastryResult(input: {
   question?: string | null;
   userId: string;
   requestId?: string;
+  relationshipLayer?: string | null;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = fallbackSynastryResult(input);
   // B388: структурное колесо совместимости в metadata (визуал = «расклад»).
@@ -137,11 +143,13 @@ export async function generateSynastryResult(input: {
   try {
     // B451: тот же экспертный промпт, что виден/редактируется в /admin/ai
     // (product-synastry), + посчитанные факты пары; полный многоглавный разбор.
-    const systemPrompt = `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel)}`;
+    const relationshipLayer = normalizeInput(input.relationshipLayer ?? "personal");
+    const systemPrompt = `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel, relationshipLayer)}`;
     const context = [
       `Ваши данные рождения: ${normalizeInput(input.userBirthData)}`,
       `Данные рождения партнёра: ${normalizeInput(input.partnerBirthData)}`,
       `Фокус совместимости: ${normalizeInput(input.focus ?? input.question ?? "") || "полная динамика пары"}`,
+      `Слой отношений: ${relationshipLayer}.`,
     ].join("\n");
     const midpoint = Math.ceil(SYNASTRY_HEADINGS.length / 2);
     const groups = [SYNASTRY_HEADINGS.slice(0, midpoint), SYNASTRY_HEADINGS.slice(midpoint)];
