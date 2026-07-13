@@ -101,66 +101,106 @@ export default async function PractitionerReviewsPage() {
         )}
       </div>
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
-      <div className="hidden max-w-4xl px-4 py-8 sm:px-6 md:block" data-testid="practitioner-reviews-page">
-      <div className="mb-6 flex items-center gap-4">
-        <h1 className="soft-h1">Отзывы</h1>
-        {avg && (
-          <div className="soft-badge soft-badge-warm flex items-center gap-1.5">
-            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{avg}</span>
-            <span>★</span>
-            <span style={{ fontSize: 11 }}>{practitioner.reviewCount} отзывов</span>
+      {/* ДЕСКТОП R9-5 — 1-в-1 practitioner-desktop-reviews-v2 (список слева +
+          сводка/«как это работает» справа). Ответы практика не предусмотрены. */}
+      <div className="mx-auto hidden w-full max-w-6xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-reviews-page">
+        <p className="soft-eyebrow">Практика</p>
+        <h1 className="soft-h1 mt-2">Отзывы</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Оставляют только клиенты после проведённой сессии. Отзывы видны в вашей публичной карточке.
+        </p>
+
+        {practitioner.reviews.length === 0 ? (
+          <div className="soft-card mt-6 p-8 text-center">
+            <p className="text-sm text-[var(--soft-ink-soft)]">Пока нет отзывов. Они появятся после завершённых сессий.</p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+            {/* Список отзывов */}
+            <div className="soft-card p-5 sm:p-6" data-testid="practitioner-review-list">
+              <p className="soft-eyebrow mb-4">{practitioner.reviewCount} {reviewWord}</p>
+              <div className="space-y-5">
+                {practitioner.reviews.map((r) => (
+                  <div key={r.id} className="border-b border-[var(--soft-paper-deep)] pb-5 last:border-0 last:pb-0">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--soft-paper-deep)] text-[12px] font-semibold text-[var(--soft-bordeaux)]">
+                        {reviewInitials(r.author?.name)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1.5 text-[14px] font-medium">
+                          <span className="truncate">{r.author?.name ?? "Клиент"}</span>
+                          {r.status !== "PUBLISHED" && (
+                            <span className="shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold" style={{ background: "var(--soft-lilac-bg, #EAE4F0)", color: "var(--soft-lilac-ink, #5B4A73)" }}>
+                              {r.status === "REVIEW" ? "на проверке" : "скрыт"}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+                          {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" })}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-0.5" aria-label={`${r.rating} из 5`}>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <span key={i} className="text-[14px]" style={{ color: i < r.rating ? "#D8A24A" : "var(--soft-paper-deep)" }}>★</span>
+                        ))}
+                      </div>
+                    </div>
+                    {r.text && <p className="mt-2.5 text-[13.5px] leading-relaxed text-[var(--soft-ink-soft)]">{r.text}</p>}
+                    {(r.riskScore > 0 || r.riskFlags.length > 0) && (
+                      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+                        Модерация: {r.riskScore}/100{r.riskFlags.length > 0 ? ` · ${r.riskFlags.slice(0, 3).join(", ")}` : ""}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Сводка + как это работает */}
+            <div className="flex flex-col gap-4">
+              <div className="soft-card p-6 text-center">
+                <p className="font-heading text-[46px] font-semibold leading-none text-[var(--soft-bordeaux)]">
+                  {avg?.replace(".", ",") ?? "—"}
+                </p>
+                <div className="mt-2 flex justify-center gap-0.5" aria-hidden="true">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i} className="text-[15px]" style={{ color: "#D8A24A" }}>★</span>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">на основе {practitioner.reviewCount} {reviewWord}</p>
+                <div className="mt-4 space-y-2 text-left">
+                  {dist.map((d) => (
+                    <div key={d.star} className="flex items-center gap-2.5 text-xs text-[var(--soft-ink-faint)]">
+                      <span className="w-3 text-right text-[var(--soft-ink-soft)]">{d.star}</span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--soft-paper-deep)]">
+                        <span className="block h-full rounded-full" style={{ width: `${Math.round((d.n / Math.max(1, published.length)) * 100)}%`, background: "#D8A24A" }} />
+                      </span>
+                      <span className="w-5 text-right">{d.n}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="soft-card p-5">
+                <p className="soft-eyebrow mb-2">Как это работает</p>
+                <p className="text-[13px] leading-relaxed text-[var(--soft-ink-faint)]">
+                  Оценку и отзыв оставляет только клиент после подтверждённой сессии. Отзывы отображаются как есть — ответы специалиста не предусмотрены. Удалить чужой отзыв нельзя, но при нарушении правил можно пожаловаться модератору.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
-      <div className="mb-5 grid gap-3 sm:grid-cols-3" data-testid="practitioner-review-compliance">
-        {[
-          ["Опубликованы", practitioner.reviews.filter((r) => r.status === "PUBLISHED").length],
-          ["На проверке", practitioner.reviews.filter((r) => r.status === "REVIEW").length],
-          ["Скрыты", practitioner.reviews.filter((r) => r.status === "HIDDEN").length],
-        ].map(([label, value]) => (
-          <div key={label} className="soft-card-flat p-3">
-            <p className="text-xs text-[var(--soft-ink-faint)]">{label}</p>
-            <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {practitioner.reviews.length === 0 ? (
-        <p className="text-[var(--soft-ink-soft)] text-sm">Пока нет отзывов. Они появятся после завершённых сессий.</p>
-      ) : (
-        <div className="space-y-4">
-          {practitioner.reviews.map((r) => (
-            <div key={r.id} className="soft-card p-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{r.author?.name ?? "Клиент"}</span>
-                <div className="flex items-center gap-2">
-                  {r.status !== "PUBLISHED" && (
-                    <span className="soft-badge soft-badge-lilac text-[11px]">
-                      {r.status === "REVIEW" ? "на проверке" : "скрыт"}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1" style={{ color: "var(--soft-terracotta)" }}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} style={{ opacity: i < r.rating ? 1 : 0.2 }}>★</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {r.text && <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{r.text}</p>}
-              {(r.riskScore > 0 || r.riskFlags.length > 0) && (
-                <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
-                  Модерация: {r.riskScore}/100{r.riskFlags.length > 0 ? ` · ${r.riskFlags.slice(0, 3).join(", ")}` : ""}
-                </p>
-              )}
-              <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-      </div>
     </>
+  );
+}
+
+function reviewInitials(name: string | null | undefined): string {
+  if (!name) return "К";
+  return (
+    name
+      .split(" ")
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "К"
   );
 }

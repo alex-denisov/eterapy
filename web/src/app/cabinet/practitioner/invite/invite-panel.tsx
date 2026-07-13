@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Copy, Link2, QrCode, RotateCcw, Share2, XCircle } from "lucide-react";
+import { Copy, Link2, Send, Share2 } from "lucide-react";
 
 interface InviteRow {
   id: string;
@@ -176,107 +176,114 @@ export function PractitionerInvitePanel({
     );
   }
 
+  // ── Десктоп «Practice cockpit» (mockup practitioner-desktop-invite-v2):
+  //     бордо-геро с активной ссылкой + статгрид + «Ваши ссылки» слева,
+  //     «Создать ссылку» + «Как это работает» + note справа. Без баллов/₽. ──
+  const opened = invites.reduce((sum, invite) => sum + invite.openedCount, 0);
+  const registered = invites.reduce((sum, invite) => sum + invite.registeredCount, 0);
+  const booked = invites.reduce((sum, invite) => sum + invite.bookedCount, 0);
+  const link = activeInvite?.landingUrl ?? "";
+  const displayLink = link.replace(/^https?:\/\//, "");
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-lg border border-border/50 bg-white/80 p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Название ссылки</span>
-            <input
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
-              maxLength={80}
-            />
+    <div className="grid gap-4 lg:grid-cols-2" data-testid="practitioner-invite-desktop-panel">
+      {/* Левая колонка: активная ссылка + статы + список */}
+      <div className="flex flex-col gap-4">
+        {activeInvite ? (
+          <div className="overflow-hidden rounded-[18px] p-5 sm:p-6" style={{ background: "var(--soft-bordeaux)", color: "var(--soft-cream)" }}>
+            <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: "rgba(251,241,228,0.82)" }}>Активная ссылка</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] p-2.5" style={{ background: "rgba(251,241,228,0.1)" }}>
+              <span className="min-w-0 flex-1 truncate px-1 text-[14px] font-medium" data-testid="invite-link-desktop">{displayLink}</span>
+              <button type="button" onClick={() => copy(link)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold" style={{ background: "var(--soft-cream)", color: "var(--soft-bordeaux)" }} data-testid="invite-copy-desktop">
+                <Copy className="h-3.5 w-3.5" />Копировать
+              </button>
+              <button type="button" onClick={() => share(activeInvite.telegramUrl)} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px]" style={{ borderColor: "rgba(251,241,228,0.4)", color: "var(--soft-cream)" }}>
+                <Send className="h-3.5 w-3.5" />Telegram
+              </button>
+            </div>
+            <p className="mt-3 text-[12px] leading-relaxed" style={{ color: "rgba(251,241,228,0.82)" }}>
+              Приглашённым — бесплатный короткий разбор перед первой записью. Вы получаете клиента, доход — с обычных сессий.
+            </p>
+          </div>
+        ) : (
+          <div className="soft-card p-6 text-center">
+            <p className="text-sm text-[var(--soft-ink-soft)]">Пока нет ссылок. Создайте первую справа, чтобы приводить своих клиентов.</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2.5">
+          {([["открытия", opened], ["регистрации", registered], ["записи", booked]] as const).map(([lbl, value]) => (
+            <div key={lbl} className="soft-card p-3.5 text-center">
+              <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{value}</p>
+              <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">{lbl}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow mb-3">Ваши ссылки</p>
+          {invites.length === 0 ? (
+            <p className="text-sm text-[var(--soft-ink-faint)]">Ссылок пока нет.</p>
+          ) : (
+            <div className="space-y-3">
+              {invites.map((invite) => (
+                <div key={invite.id} className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={invite.status === "ACTIVE" ? { background: "#F6E7DD", color: "var(--soft-bordeaux)" } : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
+                    <Link2 className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13.5px] font-medium">{invite.label}</p>
+                    <p className="mt-0.5 truncate text-xs text-[var(--soft-ink-faint)]">Открытия {invite.openedCount} · Регистрации {invite.registeredCount} · Записи {invite.bookedCount}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-semibold" style={invite.status === "ACTIVE" ? { background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" } : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
+                    {invite.status === "ACTIVE" ? "активна" : "отозвана"}
+                  </span>
+                  {invite.status === "ACTIVE" ? (
+                    <button type="button" onClick={() => updateStatus(invite.id, "REVOKED")} disabled={isPending} className="shrink-0 text-xs text-[var(--soft-ink-faint)] disabled:opacity-60">Отозвать</button>
+                  ) : (
+                    <button type="button" onClick={() => updateStatus(invite.id, "ACTIVE")} disabled={isPending} className="shrink-0 text-xs disabled:opacity-60" style={{ color: "var(--soft-terracotta-dark)" }}>Включить</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Правая колонка: создать + как работает + note */}
+      <div className="flex flex-col gap-4">
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow mb-3">Создать ссылку</p>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Название ссылки</label>
+          <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={80} className="mb-3.5 w-full rounded-[10px] border border-[var(--soft-paper-edge)] bg-white px-3 py-2.5 text-[13px]" />
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">
+            Текст-приглашение <span className="font-normal text-[var(--soft-ink-faint)]">(что увидит клиент)</span>
           </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Текст-приглашение</span>
-            <input
-              value={freeAiHook}
-              onChange={(event) => setFreeAiHook(event.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
-              maxLength={240}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={createInvite}
-            disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--soft-bordeaux)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60 md:self-end"
-          >
+          <input value={freeAiHook} onChange={(event) => setFreeAiHook(event.target.value)} maxLength={240} className="mb-4 w-full rounded-[10px] border border-[var(--soft-paper-edge)] bg-white px-3 py-2.5 text-[13px]" />
+          <button type="button" onClick={createInvite} disabled={isPending} className="soft-button soft-button-primary w-full justify-center" data-testid="invite-create-desktop">
             <Link2 className="h-4 w-4" />
-            Создать
+            {isPending ? "Создаём…" : "Создать ссылку"}
           </button>
         </div>
-      </section>
 
-      {activeInvite && (
-        <section className="rounded-lg border border-[var(--soft-apricot)] bg-[var(--soft-cream)] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Активная ссылка</p>
-              <p className="break-all text-sm font-medium">{activeInvite.landingUrl}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => copy(activeInvite.landingUrl)} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                <Copy className="h-4 w-4" />
-                Скопировать
-              </button>
-              <button type="button" onClick={() => copy(activeInvite.telegramUrl)} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                <QrCode className="h-4 w-4" />
-                Telegram
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section className="overflow-x-auto rounded-lg border border-border/50 bg-white/80 p-4 shadow-sm">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="pb-3">Ссылка</th>
-              <th className="pb-3">Открытия</th>
-              <th className="pb-3">Регистрации</th>
-              <th className="pb-3">Записи</th>
-              <th className="pb-3">Статус</th>
-              <th className="pb-3 text-right">Действие</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/50">
-            {invites.map((invite) => (
-              <tr key={invite.id}>
-                <td className="py-3">
-                  <div className="font-medium">{invite.label}</div>
-                  <div className="max-w-[320px] truncate text-xs text-muted-foreground">{invite.freeAiHook || invite.landingUrl}</div>
-                </td>
-                <td className="py-3 tabular-nums">{invite.openedCount}</td>
-                <td className="py-3 tabular-nums">{invite.registeredCount}</td>
-                <td className="py-3 tabular-nums">{invite.bookedCount}</td>
-                <td className="py-3">{invite.status}</td>
-                <td className="py-3 text-right">
-                  {invite.status === "ACTIVE" ? (
-                    <button type="button" onClick={() => updateStatus(invite.id, "REVOKED")} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-                      <XCircle className="h-4 w-4" />
-                      Отозвать
-                    </button>
-                  ) : (
-                    <button type="button" onClick={() => updateStatus(invite.id, "ACTIVE")} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
-                      <RotateCcw className="h-4 w-4" />
-                      Включить
-                    </button>
-                  )}
-                </td>
-              </tr>
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow mb-3">Как это работает</p>
+          <div className="space-y-3">
+            {([["1", "Делитесь ссылкой — в соцсетях, мессенджере или лично."], ["2", "Клиент видит бесплатный короткий разбор, регистрируется и записывается к вам."], ["3", "Запись появляется в вашем календаре. Доход — с проведённых сессий, как обычно."]] as const).map(([n, text]) => (
+              <div key={n} className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold" style={{ background: "#F6E7DD", color: "var(--soft-bordeaux)" }}>{n}</span>
+                <span className="text-[13px] leading-relaxed text-[var(--soft-ink-soft)]">{text}</span>
+              </div>
             ))}
-            {invites.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-muted-foreground">Создайте первую ссылку, чтобы приводить своих клиентов</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+          </div>
+        </div>
+
+        <div className="rounded-[18px] p-4" style={{ background: "var(--soft-paper-deep)" }}>
+          <p className="text-[12.5px] leading-relaxed text-[var(--soft-ink-faint)]">
+            Бонусов и баллов за приглашения нет — ценность в новых клиентах. Отозванная ссылка перестаёт работать, а её статистика сохраняется.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

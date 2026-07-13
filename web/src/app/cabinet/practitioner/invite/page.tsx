@@ -5,16 +5,10 @@ import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { BYOC_LADDER, PLATFORM_COMMISSION_BY_TIER, commissionForSource, isFoundingActive, type PractitionerCommissionTier } from "@/lib/practitioner-commission";
+import { BYOC_LADDER, PLATFORM_COMMISSION_BY_TIER } from "@/lib/practitioner-commission";
 import { practitionerInviteLandingUrl } from "@/lib/byoc";
 import { appUrl } from "@/lib/subdomain";
 import { PractitionerInvitePanel } from "./invite-panel";
-
-function tierFromCommissionSource(source: string | null | undefined): PractitionerCommissionTier {
-  if (source === "subscription_pro_plus") return "practitioner_pro_plus";
-  if (source === "subscription_pro") return "practitioner_pro";
-  return "base";
-}
 
 export default async function PractitionerInvitePage() {
   const session = await auth();
@@ -26,10 +20,6 @@ export default async function PractitionerInvitePage() {
     select: {
       id: true,
       slug: true,
-      commissionPercent: true,
-      commissionSource: true,
-      isFoundingCohort: true,
-      foundingUntil: true,
       invites: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -48,19 +38,13 @@ export default async function PractitionerInvitePage() {
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
-  const tier = tierFromCommissionSource(practitioner.commissionSource);
-  const foundingActive = isFoundingActive(practitioner);
-  const byocRate = commissionForSource("BYOC", tier, foundingActive);
-  const platformRate = practitioner.commissionPercent ?? commissionForSource("PLATFORM", tier, false);
-
   const invitesForPanel = practitioner.invites.map((invite) => ({
     ...invite,
     landingUrl: practitionerInviteLandingUrl(practitioner.slug, invite.token),
     telegramUrl: `https://t.me/eterapy_bot?start=practitioner_${practitioner.slug}`,
   }));
 
-  // Геро-ставки Pro/Pro+ из матрицы комиссий (code == matrix): BYOC 17/14,
-  // платформа 30/25. Значения тянутся из lib, не хардкодятся в макет.
+  // Геро-ставки Pro/Pro+ (мобильный геро) из матрицы комиссий (code == matrix).
   const heroRates = {
     proByoc: BYOC_LADDER.practitioner_pro,
     proPlatform: PLATFORM_COMMISSION_BY_TIER.practitioner_pro,
@@ -82,36 +66,17 @@ export default async function PractitionerInvitePage() {
         <PractitionerInvitePanel initialInvites={invitesForPanel} variant="pcab" heroRates={heroRates} />
       </div>
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
-      <div className="mx-auto hidden w-full max-w-6xl space-y-6 md:block" data-testid="practitioner-invite-page">
-        <header className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Свои клиенты</p>
-          <h1 className="text-3xl font-semibold">Приведите своего клиента</h1>
-          <p className="max-w-3xl text-muted-foreground">
-            Личная ссылка закрепляет новых клиентов за вами: платите {byocRate}% вместо {platformRate}% комиссии платформенного потока.
-          </p>
-        </header>
-
-        <section className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-            <p className="text-sm text-muted-foreground">Комиссия за своих клиентов</p>
-            <p className="mt-2 text-3xl font-semibold">{byocRate}%</p>
-          </div>
-          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-            <p className="text-sm text-muted-foreground">Платформенная ставка</p>
-            <p className="mt-2 text-3xl font-semibold">{platformRate}%</p>
-          </div>
-          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-            <p className="text-sm text-muted-foreground">Ставка основателя</p>
-            <p className="mt-2 text-base font-medium">
-              {foundingActive && practitioner.foundingUntil
-                ? `12% до ${practitioner.foundingUntil.toLocaleDateString("ru-RU")}, далее ${BYOC_LADDER[tier]}%`
-                : "Не активна"}
-            </p>
-          </div>
-        </section>
-
-        <PractitionerInvitePanel initialInvites={invitesForPanel} />
+      {/* ДЕСКТОП R9-5 — 1-в-1 practitioner-desktop-invite-v2 (именованные ссылки,
+          Открытия/Регистрации/Записи, крючок = бесплатный короткий разбор; без баллов/₽). */}
+      <div className="mx-auto hidden w-full max-w-6xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-invite-page">
+        <p className="soft-eyebrow">Практика</p>
+        <h1 className="soft-h1 mt-2">Приглашения</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Приводите своих клиентов по личной ссылке — она ведёт на вашу карточку и запись. Переходы, регистрации и записи считаются автоматически.
+        </p>
+        <div className="mt-6">
+          <PractitionerInvitePanel initialInvites={invitesForPanel} />
+        </div>
       </div>
     </>
   );

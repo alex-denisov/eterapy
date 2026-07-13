@@ -21,7 +21,7 @@ export default async function PractitionerAccountSettingsPage() {
     where: { userId: session.user!.id! },
     select: {
       id: true,
-      user: { select: { email: true, telegramId: true, telegramUsername: true, password: true } },
+      user: { select: { name: true, email: true, telegramId: true, telegramUsername: true, password: true } },
     },
   });
   if (!practitioner) redirect(appUrl(""));
@@ -47,9 +47,11 @@ export default async function PractitionerAccountSettingsPage() {
         backHref={appUrl("/practitioner/more")}
       />
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      {/* ДЕСКТОП R9-5 — 1-в-1 practitioner-desktop-settings-v2 (суб-табы
+          Аккаунт/Уведомления/Интерфейс/Удаление, пароль — в модалке). */}
       <div className="hidden md:block" data-testid="practitioner-settings-desktop">
         <PractitionerSettingsClient
+          name={practitioner.user.name ?? practitioner.user.email}
           email={practitioner.user.email}
           telegramStatus={telegramStatus}
           hasPassword={hasPassword}

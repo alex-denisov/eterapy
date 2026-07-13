@@ -90,8 +90,11 @@ export default async function PractitionerCalendarPage({
       </PractitionerCalendarMobileShell>
 
       <div className="mx-auto hidden w-full max-w-4xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-calendar-page">
-        <p className="soft-eyebrow">Календарь практика</p>
+        <p className="soft-eyebrow">Практика</p>
         <h1 className="soft-h1 mt-2">Календарь</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Расписание, заявки на запись и доступность для клиентов. Клиенты записываются только в открытые часы.
+        </p>
         <CalendarTabs active={tab} requestCount={pendingCount + changeCount} />
 
         {tab === "schedule" && <ScheduleTab practitionerId={practitioner.id} />}

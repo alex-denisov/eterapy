@@ -122,9 +122,10 @@ describe("B347 — practitioner settings tabs", () => {
     const client = source("src/app/cabinet/practitioner/profile/practitioner-settings-client.tsx");
     expect(client).toContain('"use client"');
     expect(client).toContain("setActiveTab");
-    // B466: «Профиль» вынесен на собственную страницу (/practitioner/profile);
-    // настройки держат аккаунт-вкладки.
-    for (const label of ["Безопасность", "Уведомления", "Удаление"]) {
+    // B466 R9-5: «Профиль» вынесен на собственную страницу (/practitioner/profile);
+    // настройки держат аккаунт-вкладки (десктоп-макет settings-v2: Аккаунт ·
+    // Уведомления · Интерфейс · Удаление; пароль — в модалке под «Аккаунт»).
+    for (const label of ["Аккаунт", "Уведомления", "Интерфейс", "Удаление"]) {
       expect(client).toContain(label);
     }
     expect(client).toContain("soft-chip-warm");

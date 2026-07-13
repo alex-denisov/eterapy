@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronLeft } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 
@@ -63,12 +63,14 @@ export default async function PractitionerEthicsCodePage() {
         </div>
       </div>
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
-      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ethics-code-page">
-        <Link href={appUrl("/practitioner/ethics")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-          <ArrowLeft className="h-4 w-4" />
-          Этика и безопасность
-        </Link>
+      {/* ДЕСКТОП R9-5 — 1-в-1 practitioner-desktop-ethics-code-v2 (хлебные крошки
+          от «Этика и безопасность» + документ с 7 каноническими принципами). */}
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ethics-code-page">
+        <nav className="flex items-center gap-1.5 text-xs text-[var(--soft-ink-faint)]" aria-label="Хлебные крошки">
+          <Link href={appUrl("/practitioner/ethics")} className="transition-colors hover:text-[var(--soft-ink-soft)]">Этика и безопасность</Link>
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          <span className="text-[var(--soft-ink-soft)]">Этический кодекс</span>
+        </nav>
         <p className="soft-eyebrow mt-4">Документ</p>
         <h1 className="soft-h1 mt-2">Этический кодекс</h1>
 

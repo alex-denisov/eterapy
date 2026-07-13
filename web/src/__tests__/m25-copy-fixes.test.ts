@@ -45,8 +45,10 @@ describe("M25 copy fixes", () => {
     expect(page).not.toContain("Ставка founding");
     expect(panel).not.toContain("AI-крючок");
     expect(panel).not.toContain("BYOC-воронку");
-    expect(page).toContain("Свои клиенты");
-    expect(page).toContain("Ставка основателя");
+    // B466 R9-5 desktop invite-v2: комиссия/ставки живут в «Финансы → Тариф»;
+    // экран приглашений — про личные ссылки и статистику, без ставок.
+    expect(page).toContain("Приглашения");
+    expect(page).toContain("личной ссылке");
     expect(panel).toContain("Текст-приглашение");
   });
 });

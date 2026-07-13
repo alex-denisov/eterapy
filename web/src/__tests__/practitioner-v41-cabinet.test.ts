@@ -61,7 +61,9 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(requests).toContain("BookingActions");
     expect(requests).toContain("riskScore");
     expect(requests).toContain("riskFlags");
-    expect(reviews).toContain('data-testid="practitioner-review-compliance"');
+    // B466 R9-5 desktop reviews-v2: сводка-счётчики модерации заменены рейтинг-
+    // сводкой + распределением; статус каждого отзыва и риск-флаги сохранены.
+    expect(reviews).toContain('data-testid="practitioner-review-list"');
     expect(reviews).toContain('r.status !== "PUBLISHED"');
     expect(reviews).toContain("riskScore");
     expect(reviews).toContain("riskFlags");
