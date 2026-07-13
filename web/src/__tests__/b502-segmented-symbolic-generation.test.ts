@@ -54,6 +54,8 @@ describe("B502 segmented symbolic generation", () => {
     expect(result.text).toContain("## Личное предназначение");
     expect(result.text).toContain("## Родовое предназначение");
     expect(mockAiComplete).toHaveBeenCalledTimes(9);
+    const directRequest = mockAiComplete.mock.calls[0][0].messages.find((message) => message.role === "user");
+    expect(directRequest?.content).toEqual(expect.stringContaining("минимум 500 знаков"));
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-segmented:part-1",
       "req-segmented:part-2",
