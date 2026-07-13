@@ -40,4 +40,20 @@ describe("B466 practitioner «Сегодня»", () => {
     expect(page).toContain("mskMonthRange");
     expect(page).toContain("commissionPercentApplied");
   });
+
+  // R9-5 desktop — the approved «Сегодня» refinements built on top of the
+  // existing hero/timeline/quota layout.
+  it("assembles the «строка-ориентир» from the same signals as mobile", () => {
+    expect(page).toContain('data-testid="practitioner-today-orientation"');
+    expect(page).toContain("orientationLine");
+    expect(page).toContain("Ближайшая встреча —");
+    // Fallback branch when there is no confirmed session.
+    expect(page).toContain("откройте доступность");
+  });
+
+  it("labels the metrics «Пульс практики» and offers the AI top-up CTA (B434)", () => {
+    expect(page).toContain("Пульс практики");
+    expect(page).toContain('data-testid="practitioner-ai-topup"');
+    expect(page).toContain("Докупить разборы");
+  });
 });
