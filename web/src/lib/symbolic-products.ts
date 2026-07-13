@@ -826,15 +826,21 @@ export async function generateSymbolicProductResult(input: {
     let text = "";
 
     if (headings && headings.length > 1) {
-      const groupSize = input.productKey === "tarot"
-        ? 2
-        : input.productKey === "numerology"
-          ? 3
-          : Math.ceil(headings.length / 2);
-      const groups = Array.from(
-        { length: Math.ceil(headings.length / groupSize) },
-        (_, index) => headings.slice(index * groupSize, (index + 1) * groupSize),
+      const chunkHeadings = (items: string[], size: number) => Array.from(
+        { length: Math.ceil(items.length / size) },
+        (_, index) => items.slice(index * size, (index + 1) * size),
       );
+      const matrixZoneHeadings = numerology?.matrix?.zones.map((zone) => zone.title) ?? [];
+      const groups = input.productKey === "numerology" && matrixZoneHeadings.length > 0
+        ? [
+            ["Прямой ответ"],
+            ...chunkHeadings(matrixZoneHeadings, 2),
+            ...chunkHeadings(
+              headings.filter((heading) => heading !== "Прямой ответ" && !matrixZoneHeadings.includes(heading)),
+              3,
+            ),
+          ]
+        : chunkHeadings(headings, input.productKey === "tarot" ? 2 : Math.ceil(headings.length / 2));
       const generateSegment = (group: string[], index: number, repair = false) => aiComplete({
         feature,
         userId: input.userId,
@@ -850,6 +856,9 @@ export async function generateSymbolicProductResult(input: {
                 ? "Предыдущая часть пропустила обязательный заголовок. Перепиши эту часть полностью и верни ВСЕ перечисленные разделы."
                 : "Собери одну часть большого результата. Верни ТОЛЬКО перечисленные ниже разделы и не добавляй остальные.",
               "Каждый заголовок напиши дословно с `##`; внутри дай 3 содержательных абзаца по конкретным фактам, без вступления и заключения вне разделов.",
+              input.productKey === "numerology" && group.some((heading) => matrixZoneHeadings.includes(heading))
+                ? "Для КАЖДОГО позиционного раздела дай не менее 900 знаков и обязательно сохрани подзаголовки `### В плюсе`, `### В минусе`, `### Практики`. Не сокращай одну позицию ради другой."
+                : "",
               ...group.map((heading) => `## ${heading}`),
               userContext,
             ].join("\n"),
@@ -883,6 +892,9 @@ export async function generateSymbolicProductResult(input: {
               content: [
                 `Дополни только слабые или отсутствующие разделы полного результата. Причина повторной генерации: ${issue}.`,
                 "Верни только эти заголовки дословно с `##`. Каждый раздел — 3–4 конкретных абзаца; не добавляй другие разделы.",
+                input.productKey === "numerology" && repairHeadings.some((heading) => matrixZoneHeadings.includes(heading))
+                  ? "Каждый позиционный раздел должен содержать не менее 900 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Практики`."
+                  : "",
                 ...repairHeadings.map((heading) => `## ${heading}`),
                 userContext,
               ].join("\n"),

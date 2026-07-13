@@ -46,14 +46,14 @@ describe("B502 segmented symbolic generation", () => {
 
     expect(result.metadata).toEqual(expect.objectContaining({
       source: "ai",
-      generationParts: 7,
+      generationParts: 9,
       numerology: expect.objectContaining({ lifePath: 5, expression: 5, soulUrge: 4 }),
     }));
     expect(result.text.length).toBeGreaterThan(5_000);
     expect(result.text).toContain("## Центр");
     expect(result.text).toContain("## Личное предназначение");
     expect(result.text).toContain("## Родовое предназначение");
-    expect(mockAiComplete).toHaveBeenCalledTimes(7);
+    expect(mockAiComplete).toHaveBeenCalledTimes(9);
     expect(mockAiComplete.mock.calls.map(([request]) => request.requestId)).toEqual([
       "req-segmented:part-1",
       "req-segmented:part-2",
@@ -62,6 +62,8 @@ describe("B502 segmented symbolic generation", () => {
       "req-segmented:part-5",
       "req-segmented:part-6",
       "req-segmented:part-7",
+      "req-segmented:part-8",
+      "req-segmented:part-9",
     ]);
     for (const [request] of mockAiComplete.mock.calls) {
       const system = request.messages.find((message) => message.role === "system");
