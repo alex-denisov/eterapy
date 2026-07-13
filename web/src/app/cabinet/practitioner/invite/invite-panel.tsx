@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Copy, Link2, Send, Share2 } from "lucide-react";
+import { Check, Copy, Link2, Send, Share2 } from "lucide-react";
 
 interface InviteRow {
   id: string;
@@ -40,6 +40,13 @@ export function PractitionerInvitePanel({
   const [label, setLabel] = useState("Основная ссылка");
   const [freeAiHook, setFreeAiHook] = useState("Бесплатный короткий разбор перед первой записью");
   const [isPending, startTransition] = useTransition();
+  const [copied, setCopied] = useState(false);
+
+  async function copyWithFeedback(value: string) {
+    await copy(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const activeInvite = useMemo(() => invites.find((invite) => invite.status === "ACTIVE") ?? invites[0] ?? null, [invites]);
 
@@ -190,16 +197,17 @@ export function PractitionerInvitePanel({
       {/* Левая колонка: активная ссылка + статы + список */}
       <div className="flex flex-col gap-4">
         {activeInvite ? (
-          <div className="overflow-hidden rounded-[18px] p-5 sm:p-6" style={{ background: "var(--soft-bordeaux)", color: "var(--soft-cream)" }}>
+          <div className="overflow-hidden rounded-[18px] p-5 sm:p-6" style={{ background: "var(--soft-bordeaux)", color: "#FBF1E4" }}>
             <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: "rgba(251,241,228,0.82)" }}>Активная ссылка</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] p-2.5" style={{ background: "rgba(251,241,228,0.1)" }}>
-              <span className="min-w-0 flex-1 truncate px-1 text-[14px] font-medium" data-testid="invite-link-desktop">{displayLink}</span>
-              <button type="button" onClick={() => copy(link)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold" style={{ background: "var(--soft-cream)", color: "var(--soft-bordeaux)" }} data-testid="invite-copy-desktop">
-                <Copy className="h-3.5 w-3.5" />Копировать
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] p-2.5" style={{ background: "rgba(251,241,228,0.14)" }}>
+              <span className="min-w-0 flex-1 truncate px-1 text-[14px] font-medium" style={{ color: "#FBF1E4" }} data-testid="invite-link-desktop">{displayLink}</span>
+              <button type="button" onClick={() => copyWithFeedback(link)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors" style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }} data-testid="invite-copy-desktop">
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Скопировано" : "Копировать"}
               </button>
-              <button type="button" onClick={() => share(activeInvite.telegramUrl)} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px]" style={{ borderColor: "rgba(251,241,228,0.4)", color: "var(--soft-cream)" }}>
+              <a href={activeInvite.telegramUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold" style={{ background: "rgba(251,241,228,0.16)", color: "#FBF1E4", border: "1px solid rgba(251,241,228,0.45)" }}>
                 <Send className="h-3.5 w-3.5" />Telegram
-              </button>
+              </a>
             </div>
             <p className="mt-3 text-[12px] leading-relaxed" style={{ color: "rgba(251,241,228,0.82)" }}>
               Приглашённым — бесплатный короткий разбор перед первой записью. Вы получаете клиента, доход — с обычных сессий.

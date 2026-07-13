@@ -111,6 +111,16 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Администратор",
 };
 
+// B466 R9-5 — «проваливание» на уровень ниже: страницы, у которых нет своего
+// пункта в сайдбаре, но которые логически принадлежат разделу, подсвечивают
+// этот раздел активным (напр. /sessions/[id] открывается из «Клиентов»,
+// /verification — из «Профиля», /crisis — из «Этики»). Путь → родительский href.
+const PRACTITIONER_SUBROUTE_PARENTS: Array<[string, string]> = [
+  ["/practitioner/sessions", "/practitioner/clients"],
+  ["/practitioner/verification", "/practitioner/profile"],
+  ["/practitioner/crisis", "/practitioner/ethics"],
+];
+
 // X10: section key for the practitioner sidebar «непрочитанные» badge.
 // B466 R9-5: заявки live inside «Календарь»; the expanded desktop sidebar
 // surfaces new reviews directly on «Отзывы» (the mobile «Ещё» hub still shows
@@ -215,7 +225,17 @@ export function CabinetShell({
     // server-rendered pathname. Reduce both to the bare /X form first.
     const stripCabinet = (path: string) => path === "/cabinet" ? "/" : path.startsWith("/cabinet/") ? path.slice("/cabinet".length) : path;
     const normItem = stripCabinet(itemPath);
-    const normActive = stripCabinet(activePathname);
+    let normActive = stripCabinet(activePathname);
+    // Drill-down pages без своего пункта в сайдбаре подсвечивают родительский
+    // раздел (B466): /sessions→Клиенты, /verification→Профиль, /crisis→Этика.
+    if (role === "PRACTITIONER") {
+      for (const [child, parent] of PRACTITIONER_SUBROUTE_PARENTS) {
+        if (normActive === child || normActive.startsWith(`${child}/`)) {
+          normActive = parent;
+          break;
+        }
+      }
+    }
     if (normItem === "/" || normItem === "/practitioner") return normActive === normItem;
     return normActive.startsWith(normItem);
   }
@@ -334,7 +354,7 @@ export function CabinetShell({
         data-shell-role={role}
         className="sticky top-16 hidden shrink-0 self-start md:flex"
       >
-        <div className="soft-app-sidebar-card flex flex-col overflow-y-auto p-3.5">
+        <div className="soft-app-sidebar-card flex flex-col overflow-hidden p-3.5">
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">
@@ -350,7 +370,7 @@ export function CabinetShell({
 
           {/* Nav — client = flat CLIENT_NAV; practitioner = the expanded
               «Practice cockpit» groups approved for desktop (B466 R9-5). */}
-          <nav className="flex-1 space-y-1" data-testid="app-shell-nav">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" data-testid="app-shell-nav">
             {isPractitionerBar
               ? PRACTITIONER_DESKTOP_GROUPS.map((group, gi) => (
                   <div

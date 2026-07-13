@@ -102,13 +102,13 @@ export default async function PractitionerEthicsPage() {
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           {/* Кодекс + документы + запись + 152-ФЗ */}
           <div className="soft-card p-5 sm:p-6">
-            <div className="flex items-center gap-3 rounded-[14px] p-3.5" style={{ background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" }}>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(75,97,70,0.16)" }}>
+            <div className="flex items-center gap-3 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 p-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" }}>
                 <CheckCircle2 className="h-5 w-5" />
               </span>
               <span>
                 <span className="block text-[14px] font-semibold">Этический кодекс принят</span>
-                <span className="mt-0.5 block text-[12.5px] opacity-80">Подписан при регистрации</span>
+                <span className="mt-0.5 block text-[12.5px] text-[var(--soft-ink-faint)]">Подписан при регистрации</span>
               </span>
             </div>
 

@@ -74,15 +74,11 @@ export function PriceRatesViewer({ rates, practitionerId }: Props) {
     .sort((a, b) => a.priceRub - b.priceRub)[0];
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-xs text-muted-foreground">
-        💡 Включайте форматы, которые хотите предлагать клиентам. Цены установлены платформой.
-      </div>
-
+    <div className="space-y-2.5">
       {minActive && (
-        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-xs text-muted-foreground">
+        <div className="rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2 text-xs text-[var(--soft-ink-faint)]">
           В каталоге показывается:{" "}
-          <strong className="text-primary">{minActive.priceRub.toLocaleString("ru")} ₽ за {DURATION_LABELS[minActive.durationMin]}</strong>
+          <strong className="text-[var(--soft-bordeaux)]">{minActive.priceRub.toLocaleString("ru")} ₽ за {DURATION_LABELS[minActive.durationMin]}</strong>
         </div>
       )}
 
@@ -93,8 +89,8 @@ export function PriceRatesViewer({ rates, practitionerId }: Props) {
 
           return (
             <div key={rate.durationMin}
-              className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
-                enabled ? "border-primary/15 bg-card/40" : "border-border/15 bg-card/10"
+              className={`flex items-center gap-3 rounded-[12px] border px-3.5 py-2.5 transition-colors ${
+                enabled ? "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]" : "border-[var(--soft-paper-deep)] bg-[var(--soft-paper-deep)]/30"
               }`}>
               {/* Toggle */}
               <ToggleSwitch
@@ -104,16 +100,21 @@ export function PriceRatesViewer({ rates, practitionerId }: Props) {
                 label={`${DURATION_LABELS[rate.durationMin]} — ${enabled ? "включено" : "выключено"}`}
               />
 
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-sm font-medium w-20 shrink-0">{DURATION_LABELS[rate.durationMin]}</span>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="w-20 shrink-0 text-sm font-medium">{DURATION_LABELS[rate.durationMin]}</span>
                 {enabled && price > 0 ? (
-                  <span className="text-sm font-semibold text-primary">{price.toLocaleString("ru")} ₽</span>
+                  <span className="text-sm font-semibold text-[var(--soft-bordeaux)]">{price.toLocaleString("ru")} ₽</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground/50">Цена не указана</span>
+                  <span className="text-xs text-[var(--soft-ink-faint)]">Цена не указана</span>
                 )}
               </div>
 
-              <span className={`text-xs ${enabled ? "text-green-600" : "text-muted-foreground/70"}`}>
+              <span
+                className="shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-medium"
+                style={enabled
+                  ? { background: "var(--soft-sage,#E4EADF)", color: "var(--soft-sage-ink,#4B6146)" }
+                  : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}
+              >
                 {enabled ? "Доступен" : "Отключён"}
               </span>
             </div>

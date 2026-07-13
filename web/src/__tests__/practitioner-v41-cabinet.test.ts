@@ -62,10 +62,12 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(requests).toContain("riskScore");
     expect(requests).toContain("riskFlags");
     // B466 R9-5 desktop reviews-v2: сводка-счётчики модерации заменены рейтинг-
-    // сводкой + распределением; статус каждого отзыва и риск-флаги сохранены.
+    // сводкой + распределением; карточки отзывов (статус + риск-флаги) вынесены в
+    // reviews-list.tsx (пагинация по 5 + «Ещё»), общий для мобайла и десктопа.
+    const reviewsList = source("src/app/cabinet/practitioner/reviews/reviews-list.tsx");
     expect(reviews).toContain('data-testid="practitioner-review-list"');
-    expect(reviews).toContain('r.status !== "PUBLISHED"');
-    expect(reviews).toContain("riskScore");
-    expect(reviews).toContain("riskFlags");
+    expect(reviewsList).toContain('r.status !== "PUBLISHED"');
+    expect(reviewsList).toContain("riskScore");
+    expect(reviewsList).toContain("riskFlags");
   });
 });

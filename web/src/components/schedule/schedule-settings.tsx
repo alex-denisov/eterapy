@@ -65,10 +65,10 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
       {DAYS.map(({ dow, label }) => {
         const rule = rules.find(r => r.dayOfWeek === dow)!;
         return (
-          <div key={dow} className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
-            rule.enabled ? "border-primary/20 bg-card/40" : "border-border/20 bg-card/10 opacity-60"
+          <div key={dow} className={`flex items-center gap-3 rounded-[12px] border px-3.5 py-2.5 transition-colors ${
+            rule.enabled ? "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]" : "border-[var(--soft-paper-deep)] bg-[var(--soft-paper-deep)]/30 opacity-70"
           }`}>
-            <div className="flex items-center gap-3 w-36 shrink-0">
+            <div className="flex w-32 shrink-0 items-center gap-2.5">
               <ToggleSwitch
                 enabled={rule.enabled}
                 onToggle={() => updateRule(dow, { enabled: !rule.enabled })}
@@ -82,13 +82,13 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
                 <span className="text-xs text-muted-foreground">с</span>
                 <select value={rule.startHour}
                   onChange={e => updateRule(dow, { startHour: Number(e.target.value) })}
-                  className="rounded border border-border/30 bg-background/50 px-2 py-1 text-sm focus:border-primary focus:outline-none">
+                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:border-[var(--soft-terracotta)] focus:outline-none">
                   {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                 </select>
                 <span className="text-xs text-muted-foreground">до</span>
                 <select value={rule.endHour}
                   onChange={e => updateRule(dow, { endHour: Number(e.target.value) })}
-                  className="rounded border border-border/30 bg-background/50 px-2 py-1 text-sm focus:border-primary focus:outline-none">
+                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:border-[var(--soft-terracotta)] focus:outline-none">
                   {HOURS.filter(h => h > rule.startHour).map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                 </select>
                 <span className="ml-2 text-xs text-muted-foreground/60">
@@ -101,9 +101,8 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
         );
       })}
 
-      <button onClick={handleSave} disabled={saving}
-        className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">
-        {saving ? "Сохранение..." : "Сохранить расписание"}
+      <button onClick={handleSave} disabled={saving} className="soft-button soft-button-primary mt-2">
+        {saving ? "Сохранение…" : "Сохранить расписание"}
       </button>
     </div>
   );

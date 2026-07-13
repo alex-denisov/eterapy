@@ -21,7 +21,7 @@ export default async function PractitionerAccountSettingsPage() {
     where: { userId: session.user!.id! },
     select: {
       id: true,
-      user: { select: { name: true, email: true, telegramId: true, telegramUsername: true, password: true } },
+      user: { select: { name: true, email: true, telegramId: true, telegramUsername: true, password: true, timezone: true } },
     },
   });
   if (!practitioner) redirect(appUrl(""));
@@ -55,6 +55,7 @@ export default async function PractitionerAccountSettingsPage() {
           email={practitioner.user.email}
           telegramStatus={telegramStatus}
           hasPassword={hasPassword}
+          timezone={practitioner.user.timezone ?? "Europe/Moscow"}
         />
       </div>
     </>

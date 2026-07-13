@@ -3804,12 +3804,19 @@
     box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
   }
 
+  /* B466 R9-5 — full-height sidebar column (like the superadmin shell) instead
+     of a short floating rounded card, so it never looks like the nav «ends»
+     before the fold. The nav scrolls internally; Помощь/Выйти stay pinned at
+     the bottom. */
   .soft-app-sidebar-card {
-    max-height: calc(100vh - 7rem);
-    border: 1px solid var(--soft-paper-edge);
-    border-radius: var(--soft-radius-lg);
-    background: var(--soft-paper-deep);
-    box-shadow: var(--soft-shadow-sm);
+    height: calc(100vh - var(--header-height, 4rem));
+    border: none;
+    border-right: 1px solid var(--soft-paper-edge);
+    border-radius: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.18)),
+      color-mix(in srgb, var(--soft-paper-deep) 91%, white);
+    box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
   }
 
   .soft-app-avatar {
