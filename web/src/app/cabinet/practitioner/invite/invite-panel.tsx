@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Copy, Link2, QrCode, RotateCcw, XCircle } from "lucide-react";
+import { Copy, Link2, QrCode, RotateCcw, Share2, XCircle } from "lucide-react";
 
 interface InviteRow {
   id: string;
@@ -16,7 +16,26 @@ interface InviteRow {
   telegramUrl: string;
 }
 
-export function PractitionerInvitePanel({ initialInvites }: { initialInvites: InviteRow[] }) {
+// B466 R9 — мобильный «Приглашения» (mockup -more-invite): бордо-геро со
+// ставками комиссии Pro/Pro+, персональная ссылка + копировать/поделиться,
+// сводка приглашённых/активных, «как это работает». variant="pcab" рендерит
+// компактный экран кокпита; десктоп (форма создания + таблица) — без изменений.
+interface InviteHeroRates {
+  proByoc: number;
+  proPlatform: number;
+  proPlusByoc: number;
+  proPlusPlatform: number;
+}
+
+export function PractitionerInvitePanel({
+  initialInvites,
+  variant,
+  heroRates,
+}: {
+  initialInvites: InviteRow[];
+  variant?: "pcab";
+  heroRates?: InviteHeroRates;
+}) {
   const [invites, setInvites] = useState(initialInvites);
   const [label, setLabel] = useState("Основная ссылка");
   const [freeAiHook, setFreeAiHook] = useState("Бесплатный короткий разбор перед первой записью");
@@ -50,6 +69,111 @@ export function PractitionerInvitePanel({ initialInvites }: { initialInvites: In
 
   async function copy(value: string) {
     await navigator.clipboard?.writeText(value);
+  }
+
+  async function share(value: string) {
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ url: value, title: "ETerapy" });
+        return;
+      } catch {
+        /* пользователь отменил share — молча падаем на копирование */
+      }
+    }
+    await copy(value);
+  }
+
+  // ── Мобильный кокпит (mockup practitioner-more-invite) ───────────────────
+  if (variant === "pcab") {
+    const invited = invites.reduce((sum, invite) => sum + invite.registeredCount, 0);
+    const activeClients = invites.reduce((sum, invite) => sum + invite.bookedCount, 0);
+    const link = activeInvite?.landingUrl ?? "";
+    const displayLink = link.replace(/^https?:\/\//, "");
+
+    return (
+      <div data-testid="practitioner-invite-mobile-panel">
+        <div className="pcab-inv-hero">
+          <div className="pcab-inv-hero-t">Приводите своих клиентов — комиссия ниже</div>
+          <div className="pcab-inv-hero-s">
+            Клиенты, пришедшие по вашей ссылке, считаются «своими»: платформа берёт меньшую комиссию с их сессий.
+          </div>
+          {heroRates && (
+            <div className="pcab-inv-rate">
+              <div className="pcab-rate-box">
+                <div className="pcab-rate-v">{heroRates.proByoc}%</div>
+                <div className="pcab-rate-k">на Pro (вместо {heroRates.proPlatform}%)</div>
+              </div>
+              <div className="pcab-rate-box">
+                <div className="pcab-rate-v">{heroRates.proPlusByoc}%</div>
+                <div className="pcab-rate-k">на Pro+ (вместо {heroRates.proPlusPlatform}%)</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activeInvite ? (
+          <>
+            <div className="pcab-linkcard" style={{ marginTop: 14 }}>
+              <span className="pcab-linkcard-ic">
+                <Link2 size={19} aria-hidden="true" />
+              </span>
+              <span className="pcab-linkcard-main">
+                <span className="pcab-linkcard-t" data-testid="invite-link-mobile">{displayLink}</span>
+                <span className="pcab-linkcard-u">Ваша персональная ссылка</span>
+              </span>
+            </div>
+            <div className="pcab-inv-actions">
+              <button type="button" className="pcab-btn pcab-btn-primary" onClick={() => copy(link)} data-testid="invite-copy-mobile">
+                <Copy size={15} aria-hidden="true" />
+                Копировать
+              </button>
+              <button type="button" className="pcab-btn pcab-btn-ghost" onClick={() => share(link)}>
+                <Share2 size={15} aria-hidden="true" />
+                Поделиться
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="pcab-btn pcab-btn-primary"
+            style={{ marginTop: 14, width: "100%" }}
+            onClick={createInvite}
+            disabled={isPending}
+            data-testid="invite-create-mobile"
+          >
+            <Link2 size={15} aria-hidden="true" />
+            {isPending ? "Создаём…" : "Создать ссылку"}
+          </button>
+        )}
+
+        <div className="pcab-stats" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
+          <div className="pcab-stat">
+            <div className="pcab-stat-v">{invited}</div>
+            <div className="pcab-stat-k">приглашено</div>
+          </div>
+          <div className="pcab-stat">
+            <div className="pcab-stat-v">{activeClients}</div>
+            <div className="pcab-stat-k">активных клиентов</div>
+          </div>
+        </div>
+
+        <div className="pcab-inv-steps">
+          <div className="pcab-inv-step">
+            <span className="pcab-step-n">1</span>
+            <span className="pcab-step-t">Отправьте ссылку клиенту любым способом.</span>
+          </div>
+          <div className="pcab-inv-step">
+            <span className="pcab-step-n">2</span>
+            <span className="pcab-step-t">Он записывается по ней и оплачивает сессию.</span>
+          </div>
+          <div className="pcab-inv-step">
+            <span className="pcab-step-n">3</span>
+            <span className="pcab-step-t">Комиссия по его сессиям — по сниженной ставке.</span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

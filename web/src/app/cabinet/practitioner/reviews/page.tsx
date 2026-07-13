@@ -1,9 +1,11 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { loginUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 
 export default async function PractitionerReviewsPage() {
   const session = await auth();
@@ -28,8 +30,79 @@ export default async function PractitionerReviewsPage() {
     ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1)
     : null;
 
+  const published = practitioner.reviews.filter((r) => r.status === "PUBLISHED");
+  const dist = [5, 4, 3, 2, 1].map((star) => ({ star, n: published.filter((r) => r.rating === star).length }));
+  const distMax = Math.max(1, ...dist.map((d) => d.n));
+  const reviewWord = practitioner.reviewCount === 1 ? "отзыв" : practitioner.reviewCount < 5 ? "отзыва" : "отзывов";
+
   return (
-    <div className="max-w-4xl px-4 py-8 sm:px-6" data-testid="practitioner-reviews-page">
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-more-reviews */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-reviews-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl("/practitioner/more")} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Отзывы</span>
+          <span className="pcab-topbar-spacer" />
+        </div>
+
+        {practitioner.reviewCount === 0 ? (
+          <p className="pcab-lead">Пока нет отзывов. Они появятся после завершённых сессий.</p>
+        ) : (
+          <>
+            <div className="pcab-revsum">
+              <div className="pcab-revscore">
+                <div className="pcab-revnum">{avg?.replace(".", ",")}</div>
+                <div className="pcab-revstars" aria-hidden="true">★★★★★</div>
+                <div className="pcab-revcnt">{practitioner.reviewCount} {reviewWord}</div>
+              </div>
+              <div className="pcab-revbars">
+                {dist.map((d) => (
+                  <div key={d.star} className="pcab-revbar">
+                    <span className="pcab-revbar-n">{d.star}</span>
+                    <span className="pcab-revtrack">
+                      <span className="pcab-revfill" style={{ width: `${Math.round((d.n / distMax) * 100)}%` }} />
+                    </span>
+                    <span className="pcab-revbar-c">{d.n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pcab-section-head" style={{ marginTop: 18, marginBottom: 4 }}>
+              <span className="pcab-eyebrow">Последние отзывы</span>
+            </div>
+            {practitioner.reviews.map((r) => (
+              <div key={r.id} className="pcab-rev">
+                <div className="pcab-rev-top">
+                  <span className="pcab-rev-av" aria-hidden="true">{(r.author?.name ?? "К")[0]}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="pcab-rev-name">
+                      {r.author?.name ?? "Клиент"}
+                      {r.status !== "PUBLISHED" && (
+                        <span className="pcab-needchip" style={{ marginLeft: 6 }}>{r.status === "REVIEW" ? "на проверке" : "скрыт"}</span>
+                      )}
+                    </div>
+                    <div className="pcab-rev-when">
+                      {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" })}
+                    </div>
+                  </div>
+                  <div className="pcab-rev-stars" aria-label={`${r.rating} из 5`}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} style={{ opacity: i < r.rating ? 1 : 0.22 }}>★</span>
+                    ))}
+                  </div>
+                </div>
+                {r.text && <div className="pcab-rev-text">{r.text}</div>}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="hidden max-w-4xl px-4 py-8 sm:px-6 md:block" data-testid="practitioner-reviews-page">
       <div className="mb-6 flex items-center gap-4">
         <h1 className="soft-h1">Отзывы</h1>
         {avg && (
@@ -87,6 +160,7 @@ export default async function PractitionerReviewsPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

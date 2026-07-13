@@ -10,6 +10,7 @@ import { AI_TOPUP_PACKS } from "@/lib/practitioner-ai-quota";
 import { formatMskDayMonth } from "@/lib/msk-time";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { AiUsageClient } from "./ai-usage-client";
+import { AiUsageMobile } from "./ai-usage-mobile";
 
 // B434 — «Разборы и AI» (mockup practitioner-ai-usage): квота месяца +
 // глобальный тумблер авто-разбора + per-session on/off + докупка пакетов +
@@ -47,38 +48,55 @@ export default async function PractitionerAiUsagePage() {
     }),
   ]);
 
-  return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-ai-usage-page">
-      <Link href={appUrl("/practitioner/more")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-        <ArrowLeft className="h-4 w-4" />
-        Ещё
-      </Link>
-      <p className="soft-eyebrow mt-4">Кабинет практика</p>
-      <h1 className="soft-h1 mt-2">Разборы и AI</h1>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-        AI-разбор сессии (резюме, заметки, сообщение клиенту) входит в тариф пакетом на месяц. Расшифровка и
-        безопасность сессий работают всегда и не тратят квоту.
-      </p>
+  const quotaProps = {
+    included: quota.included,
+    used: quota.usedThisMonth,
+    remaining: quota.remaining,
+    topupBalance: quota.topupBalance,
+    resetLabel: formatMskDayMonth(quota.periodResetAt),
+    tier: quota.tier,
+  };
+  const packsProps = AI_TOPUP_PACKS.map((p) => ({ units: p.units, priceRub: p.priceRub }));
+  const upcomingProps = upcoming.map((b) => ({
+    id: b.id,
+    clientLabel: b.client.name ?? b.client.email ?? "Клиент",
+    startAtIso: b.slot?.startAt.toISOString() ?? null,
+    aiAnalysisEnabled: b.aiAnalysisEnabled,
+  }));
 
-      <AiUsageClient
-        quota={{
-          included: quota.included,
-          used: quota.usedThisMonth,
-          remaining: quota.remaining,
-          topupBalance: quota.topupBalance,
-          resetLabel: formatMskDayMonth(quota.periodResetAt),
-          tier: quota.tier,
-        }}
+  return (
+    <>
+      {/* МОБАЙЛ — 1-в-1 mockup practitioner-ai-usage (pcab-native) */}
+      <AiUsageMobile
+        quota={quotaProps}
         aiAutoAnalyze={practitioner.aiAutoAnalyze}
         aiAutoTopup={practitioner.aiAutoTopup}
-        packs={AI_TOPUP_PACKS.map((p) => ({ units: p.units, priceRub: p.priceRub }))}
-        upcoming={upcoming.map((b) => ({
-          id: b.id,
-          clientLabel: b.client.name ?? b.client.email ?? "Клиент",
-          startAtIso: b.slot?.startAt.toISOString() ?? null,
-          aiAnalysisEnabled: b.aiAnalysisEnabled,
-        }))}
+        packs={packsProps}
+        upcoming={upcomingProps}
+        backHref={appUrl("/practitioner/more")}
       />
-    </div>
+
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ai-usage-page">
+        <Link href={appUrl("/practitioner/more")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+          <ArrowLeft className="h-4 w-4" />
+          Ещё
+        </Link>
+        <p className="soft-eyebrow mt-4">Кабинет практика</p>
+        <h1 className="soft-h1 mt-2">Разборы и AI</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          AI-разбор сессии (резюме, заметки, сообщение клиенту) входит в тариф пакетом на месяц. Расшифровка и
+          безопасность сессий работают всегда и не тратят квоту.
+        </p>
+
+        <AiUsageClient
+          quota={quotaProps}
+          aiAutoAnalyze={practitioner.aiAutoAnalyze}
+          aiAutoTopup={practitioner.aiAutoTopup}
+          packs={packsProps}
+          upcoming={upcomingProps}
+        />
+      </div>
+    </>
   );
 }

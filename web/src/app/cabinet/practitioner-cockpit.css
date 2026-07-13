@@ -1,0 +1,4748 @@
+/* B466 R9-4 — «Practice cockpit», мобильный ЛК практика 1-в-1 по макетам.
+   Источник значений: docs/Design/mockups/practitioner-*.html (общий mockup-CSS).
+   Owner: цвета/радиусы/бордеры/тени/чипы ровно из макетов; переиспользуются
+   только платформенные шрифты (var(--font-heading) / body-шрифт приложения).
+   Токены живут в СВОЁМ неймспейсе --pc-* — палитра макетов отличается от
+   платформенной soft-* (bordeaux #6E2B2B vs #5c2a2c и т.д.) и не должна
+   протекать в остальной кабинет. Десктоп не трогаем до R9-5. */
+
+:root {
+  --pc-paper: #FBF6EC;
+  --pc-paper-card: #FFFFFF;
+  --pc-paper-deep: #F3E9D7;
+  --pc-paper-edge: #E7DCCB;
+  --pc-ink: #2D2A26;
+  --pc-ink-soft: #6B6258;
+  --pc-ink-faint: #9A9085;
+  --pc-bordeaux: #6E2B2B;
+  --pc-terracotta: #C2724B;
+  --pc-terracotta-dark: #B5623F;
+  --pc-amber-bg: #F2E2C2;
+  --pc-amber-ink: #6E5114;
+  --pc-sage: #E4EADF;
+  --pc-sage-ink: #4B6146;
+  /* Производные литералы макета (btn-primary text / pill-soon bg). */
+  --pc-cream: #FBF1E4;
+  --pc-warm: #F6E7DD;
+  --pc-card-shadow: 0 10px 24px rgba(60, 40, 25, 0.07);
+  /* Опасное действие (отмена сессии — mockup -calendar-cancel). */
+  --pc-danger-bg: #F6E4E0;
+  --pc-danger-edge: #E4B9B0;
+}
+
+/* Экран, который сам владеет мобильным «верхом» (рендерит pcab-appbar или
+   свой заголовок по макету), помечается data-pcab-top — глобальный хедер
+   (bell-only полоска из round-8) и публичный футер на мобиле убираются
+   целиком: в макетах экран заканчивается таббаром. */
+@media (max-width: 767px) {
+  body:has([data-pcab-top]) header[data-site-chrome="header"],
+  body:has([data-pcab-top]) [data-site-chrome="footer"] {
+    display: none;
+  }
+}
+
+/* B466 R9-5 — клиентский мобильный кабинет тоже прячет верхний public-nav-хедер
+   (владелец: одинаковый «верх» у клиента и практика — только колокольчик, он
+   переезжает в собственный appbar кабинет-шелла [data-cabinet-mobile-top]).
+   Прячем ТОЛЬКО хедер — футер по просьбе владельца не трогаем. Десктоп (≥768px)
+   не затронут. */
+@media (max-width: 767px) {
+  body:has([data-cabinet-mobile-top]) header[data-site-chrome="header"] {
+    display: none;
+  }
+}
+
+/* ── screen ─────────────────────────────────────────────────────────── */
+/* Горизонтальный inset даёт .soft-app-main (clamp ≥1rem = 16px на мобиле,
+   как в макете); здесь только вертикальный ритм экрана. */
+.pcab-screen {
+  padding-block: 14px 18px;
+  color: var(--pc-ink);
+}
+.pcab-screen a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── appbar ─────────────────────────────────────────────────────────── */
+.pcab-appbar {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex: none;
+}
+.pcab-appbar-id {
+  min-width: 0;
+  flex: 1;
+}
+.pcab-appbar-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.pcab-appbar-sub {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-tier {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+/* Колокольчик = platform NotificationBell, пере-обёрнутый в iconbtn макета
+   (40×40, radius 12, edge-бордер) с точкой 7px terracotta вместо счётчика. */
+.pcab-iconbtn-slot .soft-notification-trigger {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+/* v4-soft.css (~4011, внутри @layer components) красит триггер в платформенные
+   цвета с !important. Внеслойный !important ПРОИГРЫВАЕТ слоёному (инверсия
+   каскада для important), поэтому переопределение живёт в ТОМ ЖЕ слое — там
+   решает специфичность: (0,3,0) > (0,2,0). Радиус/цвета — из макета. */
+@layer components {
+  .soft-app-shell .pcab-iconbtn-slot .soft-notification-trigger {
+    border-radius: 12px !important;
+    border-color: var(--pc-paper-edge) !important;
+    background: var(--pc-paper-card) !important;
+    color: var(--pc-ink-soft) !important;
+  }
+}
+.pcab-iconbtn-slot .soft-notification-trigger svg {
+  width: 19px;
+  height: 19px;
+}
+.pcab-iconbtn-slot .soft-dot-badge {
+  top: 9px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+  border: 1.5px solid var(--pc-paper-card);
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+}
+
+/* ── greeting / sections ────────────────────────────────────────────── */
+.pcab-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pc-terracotta-dark);
+}
+.pcab-greeting {
+  font-family: var(--font-heading);
+  font-size: 23px;
+  font-weight: 500;
+  margin: 5px 0 0;
+  color: var(--pc-ink);
+}
+.pcab-section {
+  margin-top: 20px;
+}
+.pcab-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.pcab-link {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  text-decoration: none;
+}
+.pcab-screen a.pcab-link {
+  color: var(--pc-ink-soft);
+}
+
+/* ── hero (следующая сессия) ────────────────────────────────────────── */
+.pcab-hero {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: var(--pc-card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.pcab-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--pc-terracotta);
+}
+.pcab-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pcab-hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-pill-soon {
+  background: var(--pc-warm);
+  color: var(--pc-bordeaux);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+.pcab-hero-client {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 12px;
+}
+.pcab-avatar-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-hero-name {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.pcab-hero-modality {
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+}
+.pcab-hero-time {
+  font-family: var(--font-heading);
+  font-size: 19px;
+}
+.pcab-rec-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.pcab-hero-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+/* ── buttons ────────────────────────────────────────────────────────── */
+.pcab-btn {
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+}
+.pcab-btn-primary {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  flex: 1;
+}
+.pcab-screen a.pcab-btn-primary {
+  color: var(--pc-cream);
+}
+.pcab-btn-ghost {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  padding: 12px 15px;
+  flex: none;
+}
+.pcab-screen a.pcab-btn-ghost {
+  color: var(--pc-ink-soft);
+}
+.pcab-btn[aria-disabled="true"] {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-faint);
+  cursor: default;
+}
+
+/* ── card list (требует внимания) ───────────────────────────────────── */
+.pcab-list {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.pcab-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+}
+.pcab-row + .pcab-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-row-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-row-ic.warm {
+  background: var(--pc-warm);
+  color: var(--pc-terracotta-dark);
+}
+.pcab-row-ic.amber {
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+}
+.pcab-row-ic.calm {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-row-main {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+/* В макете титул/подзаголовок — блочные div; в ссылочных строках это span-ы
+   (валидный HTML внутри <a>), блочность возвращаем стилем. */
+.pcab-row-t {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-row-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+.pcab-row-s {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-chev {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+
+/* ── timeline (расписание дня) ──────────────────────────────────────── */
+.pcab-tl-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-tl-row + .pcab-tl-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-tl-time {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--pc-ink);
+  width: 46px;
+  flex: none;
+}
+.pcab-tl-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-tl-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-tl-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-tag {
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+.pcab-tag.next {
+  background: var(--pc-warm);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-tag.ok {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+/* Идущая прямо сейчас сессия — статуса нет в статичном макете, тон живой. */
+.pcab-tag.live {
+  background: var(--pc-terracotta);
+  color: var(--pc-cream);
+  font-weight: 600;
+}
+
+/* ── stats ──────────────────────────────────────────────────────────── */
+.pcab-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+.pcab-stat {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 12px 11px;
+}
+.pcab-stat-v {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  line-height: 1.1;
+  color: var(--pc-ink);
+}
+.pcab-stat-v small {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-stat-k {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+
+/* ── generic card + progress (квота «Разборы и AI», будущие фазы) ───── */
+.pcab-card {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 14px;
+}
+.pcab-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+}
+.pcab-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+}
+
+/* ── tab bar (нижняя навигация практика) ────────────────────────────── */
+/* Вешается на shared .soft-app-mobile-nav только для роли PRACTITIONER:
+   непрозрачная карточка + edge-бордер вместо frosted-стекла клиента. */
+.pcab-tabbar {
+  background: var(--pc-paper-card);
+  border-top: 1px solid var(--pc-paper-edge);
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 9px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+}
+.pcab-tab {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  flex: 1;
+  padding: 0 2px;
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-tab svg {
+  width: 22px;
+  height: 22px;
+}
+.pcab-tab.is-active {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+/* r8 #4 счётчики: остаются, но в палитре макета. */
+.pcab-tabbar .pcab-count {
+  background: var(--pc-terracotta);
+  color: var(--pc-cream);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P2 — «Клиенты» (mockups practitioner-clients-list / -clients-empty)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* поиск по имени */
+.pcab-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 11px 13px;
+  color: var(--pc-ink-faint);
+  font-size: 13.5px;
+}
+.pcab-search svg {
+  flex: none;
+}
+.pcab-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--pc-ink);
+}
+.pcab-search input::placeholder {
+  color: var(--pc-ink-faint);
+}
+
+/* фильтр-чипы */
+.pcab-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+.pcab-chip {
+  font-size: 12px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-chip.is-active {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-color: var(--pc-bordeaux);
+}
+
+/* заметка-счётчик над списком («Требуют внимания — 2») */
+.pcab-listnote {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin: 16px 0 8px;
+}
+
+/* строка клиента */
+.pcab-cl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-cl + .pcab-cl {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-cl-av {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex: none;
+}
+.pcab-cl-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-cl-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.pcab-cl-meta {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-cl-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.pcab-cl-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.pcab-cl-tag.amber {
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+}
+.pcab-cl-tag.new {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+}
+
+/* пустое состояние (общий паттерн — переиспользуется на других экранах) */
+.pcab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 10px;
+}
+.pcab-empty-ill {
+  width: 92px;
+  height: 92px;
+  border-radius: 26px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-terracotta-dark);
+  display: grid;
+  place-items: center;
+}
+.pcab-empty-t {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  margin-top: 18px;
+}
+.pcab-empty-s {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  line-height: 1.55;
+  margin-top: 8px;
+  max-width: 280px;
+}
+.pcab-empty-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+  max-width: 280px;
+  margin-top: 20px;
+}
+.pcab-empty-cta .pcab-btn {
+  flex: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P2 — карточка клиента (mockups practitioner-client-overview /
+   -sessions / -plan / -plan-edit / -messages / -therapy-plan)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* верхняя полоса детального экрана: назад · титул · «ещё» */
+.pcab-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pcab-roundbtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  display: grid;
+  place-items: center;
+  color: var(--pc-ink-soft);
+  flex: none;
+  cursor: pointer;
+}
+.pcab-topbar-title {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--pc-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Пустой слот вместо правой кнопки — титул остаётся по центру. */
+.pcab-topbar-spacer {
+  width: 38px;
+  flex: none;
+}
+/* Кнопка «Ещё» топбара: нативный details-попап с быстрыми действиями. */
+.pcab-more {
+  position: relative;
+  flex: none;
+}
+.pcab-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.pcab-more > summary::-webkit-details-marker {
+  display: none;
+}
+.pcab-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 200px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  box-shadow: var(--pc-card-shadow);
+  padding: 5px;
+  z-index: 30;
+}
+.pcab-more-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--pc-ink);
+}
+.pcab-more-menu a:active {
+  background: var(--pc-paper-deep);
+}
+
+/* герой клиента */
+.pcab-client {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 14px;
+}
+.pcab-client-av {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 17px;
+  flex: none;
+}
+.pcab-client-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+.pcab-client-meta {
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-client-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+.pcab-ctag {
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+
+/* quick actions */
+.pcab-qa {
+  display: flex;
+  gap: 9px;
+  margin-top: 14px;
+}
+.pcab-qa .pcab-btn {
+  font-size: 13.5px;
+  gap: 7px;
+  flex: 1;
+}
+
+/* сегмент-переключатель табов карточки */
+.pcab-seg {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--pc-paper-deep);
+  border-radius: 12px;
+  padding: 3px;
+  margin-top: 16px;
+}
+.pcab-seg-item {
+  text-align: center;
+  font-size: 12px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  color: var(--pc-ink-soft);
+}
+.pcab-seg-item.is-active {
+  background: var(--pc-paper-card);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(60, 40, 25, 0.08);
+}
+.pcab-screen a.pcab-seg-item {
+  color: var(--pc-ink-soft);
+}
+.pcab-screen a.pcab-seg-item.is-active {
+  color: var(--pc-bordeaux);
+}
+
+/* карточные списки/строки детальных экранов: радиус 16, иконка 34/10 */
+.pcab-list.r16 {
+  border-radius: 16px;
+}
+.pcab-card.r16 {
+  border-radius: 16px;
+}
+.pcab-row-ic.r10 {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+/* «Запрос» и темы на обзоре */
+.pcab-req {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  line-height: 1.55;
+  margin: 0;
+}
+.pcab-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+.pcab-tchip {
+  position: relative;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+
+/* вкладка «Сессии»: ближайшая + строки прошедших */
+.pcab-next {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pcab-next-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--pc-warm);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-next-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-next-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-next-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-next-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 6px;
+}
+.pcab-cap {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin: -2px 0 9px;
+}
+.pcab-row-date {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--pc-ink);
+  width: 52px;
+  flex: none;
+}
+.pcab-tag.xs {
+  font-size: 10px;
+  padding: 3px 9px;
+}
+.pcab-tag.warn {
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+}
+.pcab-tag.sage {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+
+/* вкладка «План» (и therapy-plan): ai-note, цели, методы, фокус, actionbar */
+.pcab-ainote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  border-radius: 10px;
+  padding: 8px 11px;
+  margin-top: 16px;
+}
+.pcab-goal {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+  margin-top: 10px;
+}
+.pcab-goal-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pcab-goal-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-goal-pct {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-bordeaux);
+  flex: none;
+}
+.pcab-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  margin-top: 9px;
+  overflow: hidden;
+}
+.pcab-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pc-terracotta);
+}
+.pcab-goal-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+}
+.pcab-goal-meta.up {
+  color: var(--pc-sage-ink);
+}
+.pcab-gtag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px;
+  margin-top: 14px;
+}
+.pcab-methods .pcab-tchip {
+  padding: 7px 12px;
+}
+.pcab-chip-x {
+  position: absolute;
+  top: -6px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  color: var(--pc-ink-faint);
+  font-size: 12px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.pcab-tchip.add {
+  background: transparent;
+  border: 1px dashed var(--pc-terracotta);
+  color: var(--pc-terracotta-dark);
+  cursor: pointer;
+}
+.pcab-focus {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 14px;
+  margin-top: 10px;
+}
+.pcab-focus-t {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pcab-focus-list {
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+.pcab-focus-list li {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-focus-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+  flex: none;
+  margin-top: 6px;
+}
+.pcab-actionbar {
+  display: flex;
+  gap: 9px;
+  margin-top: 18px;
+}
+.pcab-abtn {
+  border-radius: 13px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+}
+.pcab-abtn-primary {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  flex: 1;
+}
+.pcab-screen a.pcab-abtn-primary {
+  color: var(--pc-cream);
+}
+.pcab-abtn-ghost {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  flex: none;
+  padding: 13px 16px;
+  position: relative;
+}
+.pcab-screen a.pcab-abtn-ghost {
+  color: var(--pc-ink-soft);
+}
+.pcab-protag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.pcab-abtn-ghost .pcab-protag {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+}
+
+/* редактирование плана (mockup -client-plan-edit) */
+.pcab-aibanner {
+  display: flex;
+  gap: 9px;
+  background: var(--pc-amber-bg);
+  border-radius: 13px;
+  padding: 12px 13px;
+  margin-top: 16px;
+  color: var(--pc-amber-ink);
+}
+.pcab-aibanner svg {
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-aibanner-t {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.pcab-aibanner-s {
+  font-size: 11.5px;
+  margin-top: 2px;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+.pcab-goal-edit {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 14px;
+  margin-top: 10px;
+}
+.pcab-goal-eh {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pcab-goal-et {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-goal-new {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+.pcab-goal-del {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--pc-paper-edge);
+  background: transparent;
+  color: var(--pc-ink-faint);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-slider {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  margin-top: 16px;
+}
+.pcab-slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--pc-terracotta);
+}
+.pcab-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--pc-terracotta);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 5px rgba(60, 40, 25, 0.18);
+}
+.pcab-pct-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 15px;
+}
+.pcab-aisug {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.pcab-pct-ctl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.pcab-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.pcab-pct-val {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--pc-bordeaux);
+  min-width: 42px;
+  text-align: center;
+}
+.pcab-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed var(--pc-terracotta);
+  border-radius: 13px;
+  padding: 12px;
+  margin-top: 10px;
+  color: var(--pc-terracotta-dark);
+  font-size: 13px;
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+}
+.pcab-inline-input {
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  background: var(--pc-paper-card);
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pc-ink);
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+.pcab-inline-input::placeholder {
+  color: var(--pc-ink-faint);
+}
+
+/* вкладка «Сообщения» (mockup -client-messages) */
+.pcab-explain {
+  display: flex;
+  gap: 9px;
+  background: var(--pc-sage);
+  border-radius: 12px;
+  padding: 11px 12px;
+  margin-top: 16px;
+}
+.pcab-explain svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--pc-sage-ink);
+}
+.pcab-explain p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--pc-sage-ink);
+  line-height: 1.5;
+}
+.pcab-composer {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px;
+  margin-top: 12px;
+}
+.pcab-ta {
+  width: 100%;
+  min-height: 60px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--pc-ink);
+  line-height: 1.6;
+}
+.pcab-ta::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-ta-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-cbtn {
+  font-size: 13px;
+  padding: 9px 15px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.pcab-cbtn.ghost {
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+}
+.pcab-cbtn.send {
+  border: none;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+}
+.pcab-cbtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.pcab-msg {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+}
+.pcab-msg + .pcab-msg {
+  margin-top: 10px;
+}
+.pcab-msg-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pcab-msg-who {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-msg-when {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+}
+.pcab-msg-text {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
+.pcab-msg-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--pc-ink-soft);
+  background: var(--pc-paper-deep);
+  padding: 5px 10px;
+  border-radius: 999px;
+  margin-top: 9px;
+}
+.pcab-msg-status {
+  display: flex;
+  gap: 7px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.pcab-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.pcab-st.read {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+.pcab-st.wait {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-faint);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P3 — «Календарь» (mockups practitioner-calendar-schedule /
+   -requests / -availability)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* сегмент на 3 колонки (вкладки календаря; крупнее карточного) */
+.pcab-seg.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 15px;
+}
+.pcab-seg.cols-3 .pcab-seg-item {
+  font-size: 12.5px;
+  padding: 9px 4px;
+}
+.pcab-seg-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+/* недельная лента */
+.pcab-weekstrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-top: 16px;
+}
+.pcab-wday {
+  text-align: center;
+  padding: 7px 0 6px;
+  border-radius: 12px;
+}
+.pcab-wday.is-active {
+  background: var(--pc-bordeaux);
+}
+.pcab-wday .dow {
+  font-size: 10px;
+  color: var(--pc-ink-faint);
+}
+.pcab-wday.is-active .dow {
+  color: #e9c9b6;
+}
+.pcab-wday .dnum {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.pcab-wday.is-active .dnum {
+  color: var(--pc-cream);
+}
+.pcab-wday .ddot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+  margin: 4px auto 0;
+}
+.pcab-wday.is-active .ddot {
+  background: #e9c9b6;
+}
+.pcab-wday .ddot.hide {
+  visibility: hidden;
+}
+
+/* заголовок дня + «Записать» */
+.pcab-dayrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 10px;
+}
+.pcab-dayrow .dt {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-dayrow .cnt {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+.pcab-screen a.pcab-add-btn {
+  color: var(--pc-bordeaux);
+}
+
+/* строка сессии в расписании */
+.pcab-appt {
+  display: flex;
+  gap: 13px;
+  padding: 13px 14px;
+  align-items: center;
+}
+.pcab-appt + .pcab-appt {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-appt-time {
+  flex: none;
+  width: 50px;
+  text-align: center;
+}
+.pcab-appt-time .t1 {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.pcab-appt-time .t2 {
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-appt-bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--pc-paper-deep);
+  flex: none;
+}
+.pcab-appt-bar.soon {
+  background: var(--pc-terracotta);
+}
+.pcab-appt-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-appt-name {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-appt-meta {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-appt-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-appt-status.st-conf {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+}
+.pcab-appt-status.st-soon {
+  color: var(--pc-cream);
+  background: var(--pc-terracotta);
+}
+.pcab-join-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pc-cream);
+  background: var(--pc-bordeaux);
+  border-radius: 9px;
+  padding: 5px 10px;
+  flex: none;
+}
+.pcab-screen a.pcab-join-btn {
+  color: var(--pc-cream);
+}
+
+/* карточка заявки */
+.pcab-rq {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 14px;
+}
+.pcab-rq + .pcab-rq {
+  margin-top: 10px;
+}
+.pcab-rq.change {
+  border-color: #e7d3a6;
+  background: #fcf4e4;
+}
+.pcab-rq-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-rq-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-rq-id {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-rq-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.pcab-rq-when {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rq-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-rq-tag.tag-new {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+}
+.pcab-rq-tag.tag-change {
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+}
+.pcab-rq-slot {
+  margin-top: 11px;
+  padding: 10px 12px;
+  background: var(--pc-paper-deep);
+  border-radius: 11px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-rq.change .pcab-rq-slot {
+  background: #f6e7c9;
+}
+.pcab-rq-slot b {
+  color: var(--pc-ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pcab-rq-slot .strike {
+  text-decoration: line-through;
+  color: var(--pc-ink-faint);
+}
+.pcab-rq-hint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 9px;
+  line-height: 1.45;
+}
+/* Экшены заявки: переиспользуем существующие клиентские компоненты
+   (BookingActions / ChangeRequestActions), перекрашивая их кнопки в
+   mockup-кнопки. Обычные (не-important) внеслойные правила бьют
+   tailwind-utilities; для .soft-button (important внутри @layer components)
+   ниже есть слоёный блок. */
+.pcab-rq-actions {
+  margin-top: 12px;
+}
+.pcab-rq-actions > div {
+  display: flex;
+  flex-direction: row-reverse; /* primary справа, как в макете */
+  gap: 8px;
+  width: 100%;
+}
+.pcab-rq-actions button,
+.pcab-rq-actions a {
+  flex: 1;
+  border-radius: 11px;
+  padding: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  min-height: 0;
+}
+/* Не-soft кнопки (BookingActions): первая = примари, остальные = ghost. */
+.pcab-rq-actions > div > button:first-child {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+}
+.pcab-rq-actions > div > button:not(:first-child) {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+}
+@layer components {
+  .soft-app-shell .pcab-rq-actions .soft-button {
+    border-radius: 11px !important;
+    padding: 10px !important;
+    font-size: 12.5px !important;
+    min-height: 0 !important;
+    flex: 1;
+  }
+  .soft-app-shell .pcab-rq-actions .soft-button-primary {
+    background: var(--pc-bordeaux) !important;
+    color: var(--pc-cream) !important;
+    border-color: var(--pc-bordeaux) !important;
+  }
+  .soft-app-shell .pcab-rq-actions .soft-button-ghost {
+    background: var(--pc-paper-card) !important;
+    color: var(--pc-ink-soft) !important;
+    border: 1px solid var(--pc-paper-edge) !important;
+  }
+}
+
+/* «Доступность»: рабочие часы, цены, ссылка */
+.pcab-avday {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.pcab-avday + .pcab-avday {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-avday-name {
+  width: 42px;
+  font-size: 13px;
+  font-weight: 500;
+  flex: none;
+}
+.pcab-avday-hours {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+}
+.pcab-avday-hours.off {
+  color: var(--pc-ink-faint);
+}
+.pcab-toggle {
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  position: relative;
+  flex: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-toggle.off {
+  background: var(--pc-paper-edge);
+}
+.pcab-toggle .knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: left 0.15s ease;
+}
+.pcab-toggle.off .knob {
+  left: 2px;
+}
+.pcab-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-price-row + .pcab-price-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-price-dur {
+  flex: 1;
+  font-size: 13px;
+}
+.pcab-price-dur small {
+  color: var(--pc-ink-faint);
+  font-size: 11.5px;
+}
+.pcab-price-val {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--pc-bordeaux);
+}
+.pcab-price-row.off .pcab-price-dur,
+.pcab-price-row.off .pcab-price-val {
+  color: var(--pc-ink-faint);
+}
+.pcab-linkcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 14px;
+}
+.pcab-linkcard-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-linkcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-linkcard-t {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-linkcard-u {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-copy-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-note {
+  background: var(--pc-paper-deep);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  margin-top: 14px;
+}
+.pcab-note b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-section18 {
+  margin-top: 18px;
+}
+
+/* ── Доступность · редактор рабочих часов (B466 R9-5) ──────────────────
+   Approved mockup practitioner-calendar-availability-edit.html: «Изменить»
+   в шапке секции открывает нижнюю шторку с per-day началом/концом и колесом
+   времени (шаг 30 мин). */
+.pcab-section-link {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.pcab-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(45, 32, 20, 0.34);
+  cursor: default;
+}
+.pcab-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--pc-paper);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--pc-paper-edge);
+  box-shadow: 0 -18px 50px rgba(60, 40, 25, 0.22);
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.pcab-grabber {
+  width: 40px;
+  height: 5px;
+  border-radius: 5px;
+  background: var(--pc-paper-edge);
+  margin: 4px auto 12px;
+}
+.pcab-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pcab-sheet-title {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-sheet-x {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.pcab-sheet-sub {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  margin: 5px 0 14px;
+}
+.pcab-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.pcab-preset-chip {
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-preset-chip.active {
+  background: var(--pc-bordeaux);
+  border-color: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  font-weight: 600;
+}
+.pcab-elist {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.pcab-erow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 9px 12px;
+}
+.pcab-erow.off {
+  background: var(--pc-paper-deep);
+}
+.pcab-erow-dn {
+  width: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  flex: none;
+}
+.pcab-erange {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+}
+.pcab-erange.off {
+  color: var(--pc-ink-faint);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.pcab-tfield {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  background: var(--pc-paper-deep);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 9px;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.pcab-dash {
+  color: var(--pc-ink-faint);
+  font-size: 13px;
+}
+.pcab-copyline {
+  margin: 12px 0 4px;
+  font-size: 12.5px;
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-sheet-save {
+  margin-top: 16px;
+  width: 100%;
+  text-align: center;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+}
+.pcab-sheet-save:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.pcab-sheet-hint {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  text-align: center;
+  margin-top: 9px;
+  line-height: 1.5;
+}
+.pcab-timepick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+.pcab-timepick-opt {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  padding: 12px 0;
+  border-radius: 12px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink);
+  cursor: pointer;
+}
+.pcab-timepick-opt.sel {
+  background: var(--pc-amber-bg);
+  border-color: #e6d3a6;
+  color: var(--pc-amber-ink);
+  font-weight: 700;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   R9-4 P3-детали — экраны Сессия / Записать / Перенести / Отмена
+   (mockups practitioner-calendar-session/-propose/-reschedule/-cancel.html).
+   Значения перенесены из mockup-CSS 1-в-1; soft-*→pc-* токены, serif→font-heading.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── общие поля форм (Записать / Перенести) ─────────────────────────── */
+.pcab-lead {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  margin-top: 14px;
+  line-height: 1.5;
+}
+.pcab-flabel {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  margin: 16px 0 7px;
+  font-weight: 500;
+}
+.pcab-flabel .opt {
+  color: var(--pc-ink-faint);
+  font-weight: 400;
+}
+/* поле-триггер нативного пикера (дата/время): иконка · значение · шеврон */
+.pcab-fieldinput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pcab-fieldinput > .ic {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-fieldinput > .chev {
+  margin-left: auto;
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-fieldinput input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0;
+  font: inherit;
+  color: var(--pc-ink);
+}
+/* полноширинная кнопка (в макетах btn-primary тянется на всю ширину) */
+.pcab-btn.block {
+  width: 100%;
+  flex: none;
+}
+
+/* ── экран «Сессия» (карточка брони) ────────────────────────────────── */
+.pcab-sesscard {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.pcab-sc-when {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-sc-when-ic {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-sc-date {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+}
+.pcab-sc-sub {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  margin-top: 2px;
+}
+.pcab-sc-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--pc-paper-deep);
+  flex-wrap: wrap;
+}
+.pcab-sc-chip {
+  font-size: 11.5px;
+  color: var(--pc-ink-soft);
+  background: var(--pc-paper-deep);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.pcab-sc-chip.status {
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  font-weight: 600;
+}
+.pcab-sc-context {
+  margin-top: 13px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+/* join gate (в T-30) */
+.pcab-joinhint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+}
+.pcab-joinhint svg {
+  flex: none;
+}
+/* строка действия с опасным титулом (отмена) */
+.pcab-row-t.danger {
+  color: var(--pc-bordeaux);
+}
+/* AI-разбор сессии */
+.pcab-airow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+  margin-top: 14px;
+}
+.pcab-airow-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-airow-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-airow-t.ready {
+  color: var(--pc-bordeaux);
+}
+.pcab-airow-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ── экран «Записать клиента» ────────────────────────────────────────── */
+.pcab-cpick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 11px 13px;
+}
+.pcab-cpick-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-cpick-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-cpick-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.pcab-cpick-meta {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-cpick-change {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+/* сегмент формата (2 колонки) — переиспользует .pcab-seg-item */
+.pcab-seg2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  background: var(--pc-paper-deep);
+  border-radius: 12px;
+  padding: 3px;
+}
+/* B480: свёрнутый триггер «Добавить комментарий» + раскрытое поле */
+.pcab-addcomment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.pcab-commentarea {
+  width: 100%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pc-ink);
+  resize: vertical;
+  min-height: 78px;
+  font-family: inherit;
+}
+.pcab-commentarea:focus {
+  outline: none;
+  border-color: var(--pc-bordeaux);
+}
+/* B481: сетка свободных слотов выбранного дня (mockup .slots/.slot) —
+   API возвращает только СВОБОДНЫЕ слоты, поэтому busy-состояние не нужно. */
+.pcab-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.pcab-slot {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 11px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-slot.active {
+  background: var(--pc-bordeaux);
+  color: #fbf1e4;
+  border-color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-slots-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+}
+/* длительность+цена (3 плитки) */
+.pcab-dur3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pcab-dur {
+  text-align: center;
+  padding: 11px 4px;
+  border-radius: 12px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pcab-dur small {
+  display: block;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-dur.active {
+  border-color: var(--pc-bordeaux);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(110, 43, 43, 0.08);
+}
+.pcab-dur.active small {
+  color: var(--pc-terracotta-dark);
+}
+.pcab-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 15px;
+  background: var(--pc-paper-deep);
+  border-radius: 14px;
+}
+.pcab-total-k {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+}
+.pcab-total-v {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-sendnote {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  line-height: 1.45;
+}
+.pcab-sendnote svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-sendnote.calm svg {
+  color: var(--pc-sage-ink);
+}
+
+/* ── экраны «Перенести» / «Отмена» (общая карточка «Сейчас») ─────────── */
+.pcab-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.pcab-current-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-current-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-current-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+/* наглядная замена времени старое → новое */
+.pcab-changearrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.pcab-changearrow .old {
+  color: var(--pc-ink-faint);
+  text-decoration: line-through;
+}
+.pcab-changearrow .new {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 15px;
+}
+
+/* ── экран «Отмена сессии» ───────────────────────────────────────────── */
+.pcab-warn {
+  display: flex;
+  gap: 12px;
+  background: var(--pc-danger-bg);
+  border: 1px solid var(--pc-danger-edge);
+  border-radius: 16px;
+  padding: 14px 15px;
+  margin-top: 14px;
+}
+.pcab-warn-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ecc7be;
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-warn-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-warn-list {
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pcab-warn-list li {
+  font-size: 12px;
+  color: #7a4a3e;
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.pcab-warn-list li + li {
+  margin-top: 4px;
+}
+.pcab-warn-list li::before {
+  content: "•";
+  position: absolute;
+  left: 3px;
+  color: var(--pc-terracotta);
+}
+.pcab-reasons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pcab-rchip {
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  cursor: pointer;
+}
+.pcab-rchip.active {
+  border-color: var(--pc-bordeaux);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-cancel-actions {
+  margin-top: 20px;
+  display: grid;
+  gap: 9px;
+}
+.pcab-btn-danger {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border: none;
+  border-radius: 13px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pcab-btn-danger:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.pcab-footnote {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  text-align: center;
+  margin-top: 12px;
+  line-height: 1.45;
+}
+.pcab-footnote b {
+  color: var(--pc-bordeaux);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P4 «Финансы» — Баланс / Тариф / Реквизиты / Отчёты (mockups
+   practitioner-finance-*). Значения 1-в-1 из mockup-CSS; soft-*→pc-*,
+   serif→var(--font-heading) (платформенный шрифт, owner-правило).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Баланс: money hero ─────────────────────────────────────────────── */
+.pcab-money {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 17px;
+  box-shadow: var(--pc-card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.pcab-money::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--pc-bordeaux);
+}
+.pcab-money-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-money-v {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  line-height: 1.05;
+  margin-top: 4px;
+}
+.pcab-money-v small {
+  font-size: 18px;
+}
+.pcab-money-sub {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  margin-top: 8px;
+  line-height: 1.45;
+}
+.pcab-money-sub b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-money-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-payout-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+/* «Удержано» — hold-объяснение, кликабельно → Движение средств */
+.pcab-heldrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  width: 100%;
+  text-align: left;
+}
+.pcab-held-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-held-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-held-t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-held-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+/* итоги 2×2 */
+.pcab-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.pcab-metric {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 12px 13px;
+}
+.pcab-metric-v {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  line-height: 1.1;
+}
+.pcab-metric-v small {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-metric-k {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+/* движение средств (превью на балансе + полный список) */
+.pcab-mv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-mv + .pcab-mv {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mv-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-mv-ic.in {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+.pcab-mv-ic.out {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-mv-ic.hold {
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+}
+.pcab-mv-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-mv-t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-mv-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-mv-amt {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  flex: none;
+}
+.pcab-mv-amt.pos {
+  color: var(--pc-sage-ink);
+}
+.pcab-mv-amt.neg {
+  color: var(--pc-ink-soft);
+}
+.pcab-mv-amt.hold {
+  color: var(--pc-amber-ink);
+}
+.pcab-mv-amt small {
+  display: block;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pc-ink-faint);
+  text-align: right;
+}
+.pcab-byoctag {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 5px;
+  letter-spacing: 0.02em;
+}
+/* доход по месяцам */
+.pcab-mrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.pcab-mrow + .pcab-mrow {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mrow-m {
+  flex: 1;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.pcab-mrow-c {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mrow-v {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-sage-ink);
+}
+
+/* ── Тариф: commission hero ─────────────────────────────────────────── */
+.pcab-comm {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 18px;
+  padding: 15px 16px;
+}
+.pcab-comm-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e9c9b6;
+}
+.pcab-comm-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 8px;
+}
+.pcab-comm-v {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pc-cream);
+}
+.pcab-comm-v small {
+  font-size: 13px;
+  font-weight: 400;
+  color: #e9c9b6;
+}
+.pcab-comm-sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.18);
+}
+.pcab-comm-sub {
+  font-size: 11.5px;
+  color: #e9c9b6;
+  margin-top: 10px;
+  line-height: 1.45;
+}
+/* планы */
+.pcab-plan {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-plan + .pcab-plan {
+  margin-top: 11px;
+}
+.pcab-plan.current {
+  border-color: var(--pc-terracotta);
+}
+.pcab-plan.upsell {
+  border: 1.5px solid var(--pc-bordeaux);
+  box-shadow: 0 10px 24px rgba(110, 43, 43, 0.1);
+  position: relative;
+}
+.pcab-ribbon {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--pc-cream);
+  background: var(--pc-bordeaux);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.pcab-plan-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pcab-plan-name {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.pcab-plan-price {
+  text-align: right;
+  flex: none;
+}
+.pcab-plan-price b {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-plan-price span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-badge-cur {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--pc-terracotta-dark);
+  background: var(--pc-warm);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.pcab-cstrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  padding: 8px 11px;
+  border-radius: 11px;
+  background: var(--pc-paper-deep);
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  flex-wrap: wrap;
+}
+.pcab-cstrip b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-cstrip-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-plan-lead {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin: 12px 0 7px;
+}
+.pcab-feats {
+  display: grid;
+  gap: 6px;
+}
+.pcab-feat {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.35;
+}
+.pcab-feat svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--pc-terracotta-dark);
+}
+.pcab-feat b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-feat.muted {
+  color: var(--pc-ink-faint);
+}
+.pcab-feat.muted svg {
+  color: var(--pc-ink-faint);
+}
+.pcab-plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 13px;
+}
+.pcab-planbtn {
+  border-radius: 11px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+}
+.pcab-planbtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-planbtn-primary {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+}
+.pcab-planbtn-ghost {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+}
+.pcab-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+  flex-wrap: wrap;
+}
+.pcab-manage-info {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-manage-info b {
+  color: var(--pc-ink-soft);
+  font-weight: 600;
+}
+.pcab-manage-link {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+/* привод своих клиентов (byoc) */
+.pcab-byoc {
+  background: var(--pc-amber-bg);
+  border: 1px solid #e7d3a6;
+  border-radius: 16px;
+  padding: 14px 15px;
+  display: flex;
+  gap: 12px;
+}
+.pcab-byoc-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: #ead08c;
+  color: var(--pc-amber-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-byoc-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+}
+.pcab-byoc-s {
+  font-size: 12px;
+  color: #7a5f1e;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.pcab-byoc-s b {
+  color: var(--pc-amber-ink);
+  font-weight: 600;
+}
+
+/* ── Реквизиты: способ выплат ───────────────────────────────────────── */
+.pcab-method {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-method-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.pcab-method-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-method-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-method-t {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.pcab-method-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+.pcab-method-chip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.pcab-method-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-method-note {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-screen a.pcab-editlink {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-addcard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  padding: 11px 14px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 14px;
+  background: transparent;
+}
+.pcab-addcard svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+}
+.pcab-okchip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+  margin-left: 6px;
+}
+.pcab-row-ic.sage {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+/* Реквизиты — заблокировано (ИНН не подтверждён) */
+.pcab-fwarn {
+  display: flex;
+  gap: 12px;
+  background: var(--pc-warm);
+  border: 1px solid #e7c9b5;
+  border-radius: 16px;
+  padding: 14px 15px;
+}
+.pcab-fwarn-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ebc7b2;
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-fwarn-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-fwarn-t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-fwarn-s {
+  font-size: 12px;
+  color: #7a4a38;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.pcab-screen a.pcab-fwarn-cta {
+  margin-top: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 11px;
+  padding: 10px 15px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-disabledadd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  padding: 11px 14px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 14px;
+  opacity: 0.6;
+}
+.pcab-disabledadd svg {
+  flex: none;
+}
+.pcab-needchip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  background: var(--pc-warm);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex: none;
+}
+/* Отчёты — download-иконка акта */
+.pcab-dl {
+  color: var(--pc-ink-soft);
+  flex: none;
+  background: var(--pc-paper-deep);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P4-детали — sub-routes: Движение средств / Чеки / Налоговый статус
+   (+confirm) / Реквизиты-edit (mockups practitioner-finance-movements /
+   -receipts / -tax-status(+confirm) / -requisites-edit)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* «на удержании» под суммой (движение — hold) */
+.pcab-mv-amt small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+
+/* Чеки — сводная карта месяца */
+.pcab-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 15px;
+}
+.pcab-summary-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-summary-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-summary-t {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-summary-s {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+}
+
+/* Чеки — строка чека (иконка · имя+№ · сумма+статус) */
+.pcab-rc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-rc + .pcab-rc {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-rc-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-rc-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-rc-t {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-rc-s {
+  display: block;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rc-right {
+  text-align: right;
+  flex: none;
+}
+.pcab-rc-amt {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--pc-ink);
+}
+.pcab-rc-st {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Внешняя кнопка «Открыть в приложении» (Мой налог) */
+.pcab-openapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 11px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--pc-bordeaux);
+  font-weight: 500;
+}
+
+/* Форменная подсказка (мелкий текст под полем) */
+.pcab-fhint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* Заметка «через ФНС» / «проходит проверку» под кнопкой */
+.pcab-fnsnote {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  line-height: 1.45;
+}
+.pcab-fnsnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-fnsnote.ok > svg {
+  color: var(--pc-sage-ink);
+}
+
+/* Налоговый статус — карта ФНС в листе подтверждения */
+.pcab-idcard {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.pcab-idrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.pcab-idrow + .pcab-idrow {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-idk {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-idv {
+  font-weight: 500;
+  text-align: right;
+  color: var(--pc-ink);
+}
+.pcab-idbadge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 5px;
+}
+
+/* Лист — вторичная кнопка «Это не я» */
+.pcab-sheet-cancel {
+  width: 100%;
+  margin-top: 9px;
+  background: transparent;
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.pcab-sheet-cancel:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* Реквизиты-edit — dashed заметка «для ИП/юр. лица» */
+.pcab-switchnote {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 13px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 13px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  line-height: 1.45;
+}
+.pcab-switchnote > svg {
+  color: var(--pc-terracotta-dark);
+  flex: none;
+  margin-top: 1px;
+}
+.pcab-switchnote b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   R9-4 P5 — «Ещё» hub + sub-screens (mockups practitioner-more-*)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* карточка профиля наверху «Ещё» */
+.pcab-pcard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 16px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-pcard-av {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 18px;
+  flex: none;
+}
+.pcab-pcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-pcard-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-tierchip {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.pcab-pcard-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-pcard-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--pc-amber-ink);
+  margin-top: 5px;
+}
+.pcab-pcard-cta {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-group {
+  margin-top: 18px;
+}
+/* строка hub: заголовок тянется, meta справа перед шевроном */
+.pcab-hrow-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--pc-ink);
+}
+.pcab-hrow-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+
+/* ── Отзывы (mockup practitioner-more-reviews) ───────────────────────── */
+.pcab-revsum {
+  display: flex;
+  gap: 16px;
+  margin-top: 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 15px;
+}
+.pcab-revscore {
+  text-align: center;
+  flex: none;
+}
+.pcab-revnum {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pc-ink);
+}
+.pcab-revstars {
+  color: var(--pc-terracotta);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+.pcab-revcnt {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+.pcab-revbars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: center;
+}
+.pcab-revbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+}
+.pcab-revbar-n {
+  width: 8px;
+  flex: none;
+}
+.pcab-revtrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 6px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+}
+.pcab-revfill {
+  display: block;
+  height: 100%;
+  background: var(--pc-terracotta);
+  border-radius: 6px;
+}
+.pcab-revbar-c {
+  width: 18px;
+  text-align: right;
+  flex: none;
+}
+.pcab-rev {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 13px 14px;
+  margin-top: 10px;
+}
+.pcab-rev-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pcab-rev-av {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-rev-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-ink);
+}
+.pcab-rev-when {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-rev-stars {
+  flex: none;
+  color: var(--pc-terracotta);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.pcab-rev-text {
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  line-height: 1.55;
+  margin-top: 9px;
+}
+
+/* ── Кризис-протокол (mockup practitioner-more-crisis) ───────────────── */
+.pcab-call {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 15px;
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 16px;
+  padding: 15px;
+}
+.pcab-call-ic {
+  flex: none;
+}
+.pcab-call-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-call-t {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pcab-call-s {
+  display: block;
+  font-size: 11.5px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.pcab-signs {
+  list-style: none;
+  margin: 0;
+  padding: 13px 15px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+}
+.pcab-sign {
+  position: relative;
+  padding-left: 16px;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-sign + .pcab-sign {
+  margin-top: 9px;
+}
+.pcab-sign::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+}
+.pcab-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pcab-step {
+  display: flex;
+  gap: 11px;
+}
+.pcab-step-n {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+}
+.pcab-step-t {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  padding-top: 2px;
+}
+.pcab-step-t b {
+  color: var(--pc-ink);
+  font-weight: 600;
+}
+.pcab-contact-num {
+  flex: none;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+
+/* ── B466 R9 «Ещё» ─ Документ · этический кодекс (mockup -more-ethics-code).
+   Прокручиваемый документ клаузами; кнопка «Скачать» из макета НЕ отгружена
+   (owner R9: без встроенного вьюера / скачивания PDF). ─────────────────── */
+.pcab-doc-head {
+  margin-top: 14px;
+}
+.pcab-doc-title {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  color: var(--pc-ink);
+}
+.pcab-doc-meta {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 5px;
+}
+.pcab-doc-body {
+  margin-top: 14px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 16px;
+}
+.pcab-clause {
+  display: flex;
+  gap: 11px;
+}
+.pcab-clause + .pcab-clause {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-clause-n {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pcab-clause-t {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.6;
+  padding-top: 2px;
+}
+
+/* ── B466 R9 «Ещё» ─ Приглашения · бордо-геро со ставками (mockup
+   -more-invite). Реюз pcab-linkcard/-copy-btn/-stats/-stat/-steps ниже. ── */
+.pcab-inv-hero {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  border-radius: 20px;
+  padding: 18px;
+  margin-top: 16px;
+}
+.pcab-inv-hero-t {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  line-height: 1.2;
+}
+.pcab-inv-hero-s {
+  font-size: 12.5px;
+  color: #e9c9b6;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.pcab-inv-rate {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.pcab-rate-box {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.pcab-rate-v {
+  font-family: var(--font-heading);
+  font-size: 22px;
+}
+.pcab-rate-k {
+  font-size: 10.5px;
+  color: #e9c9b6;
+  margin-top: 2px;
+}
+.pcab-inv-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pcab-inv-actions .pcab-btn {
+  flex: 1;
+}
+.pcab-inv-steps {
+  margin-top: 16px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 4px 14px;
+}
+.pcab-inv-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+.pcab-inv-step + .pcab-inv-step {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Профиль (mockup practitioner-more-profile) — публичные данные практика.
+   Значения 1-в-1 из mockup-CSS, soft-x -> pc-x. Реюз pcab-flabel, -fieldinput,
+   -chips, -chip, -list, -row, -topbar для полей и nav-строки.
+   ───────────────────────────────────────────────────────────────────── */
+.pcab-save-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: none;
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-save-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pcab-pf-photorow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.pcab-pf-photo {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 22px;
+  border: none;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-pf-photo-img {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.pcab-pf-cam {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  display: grid;
+  place-items: center;
+  color: var(--pc-bordeaux);
+}
+.pcab-pf-info {
+  min-width: 0;
+}
+.pcab-pf-verif {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.pcab-pf-verif-off {
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+}
+.pcab-pf-pub {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-pf-ta {
+  width: 100%;
+  min-height: 84px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 12px;
+  padding: 12px 13px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.pcab-pf-ta::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-pf-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.pcab-pf-navrow {
+  display: block;
+  margin-top: 16px;
+}
+
+/* B466 R9 P5 — экран «Услуги и направления» (mockup practitioner-more-services):
+   pcab-native редактор таксономии + форматов. Значения 1-в-1 из mockup-CSS. */
+.pcab-flabel small {
+  color: var(--pc-ink-faint);
+  font-weight: 400;
+}
+.pcab-cat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pc-ink);
+  cursor: pointer;
+}
+.pcab-cat-ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-cat-label {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-cat-chev {
+  margin-left: auto;
+  color: var(--pc-ink-faint);
+  flex: none;
+  transition: transform 0.15s ease;
+}
+.pcab-svc-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.pcab-svc-chip {
+  font-size: 12.5px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  color: var(--pc-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.pcab-svc-chip.on {
+  background: #f3eae0;
+  border-color: var(--pc-terracotta);
+  color: var(--pc-terracotta-dark);
+}
+.pcab-svc-chip.add {
+  color: var(--pc-bordeaux);
+  border-style: dashed;
+}
+.pcab-svc-x {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pc-ink-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.pcab-svc-chip.on .pcab-svc-x {
+  color: var(--pc-terracotta-dark);
+}
+.pcab-svc-picker {
+  margin-top: 8px;
+  border: 1px dashed var(--pc-paper-edge);
+  border-radius: 13px;
+  padding: 10px 12px;
+  background: var(--pc-paper);
+}
+.pcab-svc-hint {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin: 2px 0;
+}
+.pcab-svc-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.pcab-svc-addbtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  color: var(--pc-terracotta-dark);
+  display: grid;
+  place-items: center;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-fmt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  margin-top: 8px;
+}
+.pcab-fmt-t {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-fmt-t small {
+  display: block;
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-toggle:disabled {
+  cursor: default;
+}
+
+/* B466 R9 P5 — экран «Настройки» (mockup practitioner-more-settings). */
+.pcab-set-eyebrow {
+  display: block;
+  margin: 18px 0 9px;
+}
+.pcab-tgcard {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 14px;
+}
+.pcab-tgcard-ic {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e4f3fc;
+  color: #2aabee;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-tgcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-tgcard-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pcab-tgcard-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-tgcard-btn {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fbf1e4;
+  background: #2aabee;
+  border: none;
+  border-radius: 11px;
+  padding: 9px 14px;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-tgcard-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-tgcard-unlink {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pc-bordeaux);
+  background: none;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 8px 12px;
+  flex: none;
+  cursor: pointer;
+}
+.pcab-set-hint {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+.pcab-mx {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.pcab-mx-head {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pc-paper-deep);
+}
+.pcab-mx-lbl {
+  flex: 1;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mx-col {
+  width: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  color: var(--pc-ink-soft);
+}
+.pcab-mx-col.dim {
+  color: var(--pc-ink-faint);
+  opacity: 0.5;
+}
+.pcab-mx-loading {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-mx-row {
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+}
+.pcab-mx-row + .pcab-mx-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-mx-rowlbl {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-mx-t {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.pcab-mx-s {
+  display: block;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-mx-cell {
+  width: 44px;
+  display: grid;
+  place-items: center;
+}
+.pcab-cb {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-cb.on {
+  background: var(--pc-bordeaux);
+  border-color: var(--pc-bordeaux);
+  color: #fbf1e4;
+}
+.pcab-cb.dim {
+  opacity: 0.3;
+  cursor: default;
+}
+.pcab-set-rowval {
+  font-size: 13px;
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+.pcab-set-rowbtn {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.pcab-set-pwd {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 4px 14px 14px;
+}
+.pcab-set-input {
+  width: 100%;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  background: var(--pc-paper);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pc-ink);
+  outline: none;
+}
+.pcab-set-input::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-set-logout {
+  color: var(--pc-bordeaux);
+}
+.pcab-set-logout .pcab-row-t {
+  color: var(--pc-bordeaux);
+  font-weight: 500;
+}
+.pcab-set-ver {
+  text-align: center;
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 16px;
+}
+
+/* B466 R9 P5 — экран «Разборы и AI» (mockup practitioner-ai-usage). */
+.pcab-quota {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 17px;
+  margin-top: 16px;
+  box-shadow: 0 10px 24px rgba(60, 40, 25, 0.07);
+}
+.pcab-quota-k {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-quota-v {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  line-height: 1.05;
+  margin-top: 4px;
+}
+.pcab-quota-v small {
+  font-size: 15px;
+  color: var(--pc-ink-soft);
+}
+.pcab-track {
+  height: 9px;
+  border-radius: 9px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+  margin-top: 11px;
+}
+.pcab-fill {
+  height: 100%;
+  background: var(--pc-bordeaux);
+  border-radius: 9px;
+}
+.pcab-quota-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 8px;
+}
+.pcab-quota-foot b {
+  color: var(--pc-ink-soft);
+  font-weight: 600;
+}
+.pcab-toggle-lg {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+  position: relative;
+  flex: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pcab-toggle-lg.off {
+  background: var(--pc-paper-edge);
+}
+.pcab-toggle-lg .knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: left 0.15s ease;
+}
+.pcab-toggle-lg.off .knob {
+  left: 2px;
+}
+.pcab-defrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 13px 14px;
+}
+.pcab-defrow-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-defrow-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-defrow-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.pcab-aiu-ssn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-aiu-ssn + .pcab-aiu-ssn {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-aiu-ssn-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-aiu-ssn-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-aiu-ssn-s {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-aiu-empty {
+  padding: 16px 14px;
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-packs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pcab-pack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  border-radius: 13px;
+  padding: 12px 4px;
+  position: relative;
+  cursor: pointer;
+}
+.pcab-pack:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pcab-pack.best {
+  border-color: var(--pc-terracotta);
+}
+.pcab-pack-n {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+}
+.pcab-pack-p {
+  font-size: 12px;
+  color: var(--pc-bordeaux);
+}
+.pcab-pack-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  color: #fbf1e4;
+  background: var(--pc-terracotta);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-aiu-confirm {
+  margin-top: 10px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-terracotta);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.pcab-aiu-confirm-t {
+  font-size: 12.5px;
+  color: var(--pc-ink-soft);
+  line-height: 1.5;
+}
+.pcab-aiu-confirm-t b {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-aiu-confirm-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* B466 R9 P5 — AI-ассистент сессии (mockups practitioner-session-*). */
+.pcab-sess {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.pcab-sess-body {
+  min-width: 0;
+  flex: 1;
+}
+.pcab-sess-name {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.pcab-sess-meta {
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-sess-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pcab-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-mini.sage {
+  background: var(--pc-sage);
+  color: var(--pc-sage-ink);
+}
+.pcab-mini.calm {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-seg-card {
+  margin-top: 16px;
+  padding: 16px;
+}
+.pcab-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pcab-h-sec {
+  font-size: 15px;
+  font-weight: 600;
+}
+.pcab-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pcab-md {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--pc-ink-soft);
+}
+.pcab-md :first-child {
+  margin-top: 0;
+}
+.pcab-md :last-child {
+  margin-bottom: 0;
+}
+.pcab-saved {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 16px;
+}
+.pcab-transcript {
+  max-height: 58vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  border-radius: 12px;
+  background: var(--pc-paper-deep);
+  padding: 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pc-ink-soft);
+}
+.pcab-msg-wrap {
+  margin-top: 16px;
+}
+.pcab-msg-cap {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pc-ink-faint);
+  margin: 0;
+}
+.pcab-msg-tonerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pcab-msg-tonelabel {
+  font-size: 11.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-msg-ta {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 13px;
+  background: var(--pc-paper-card);
+  padding: 12px;
+  margin-top: 12px;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--pc-ink);
+  outline: none;
+}
+.pcab-msg-ta::placeholder {
+  color: var(--pc-ink-faint);
+}
+.pcab-msg-attach {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 11px;
+  padding: 8px 11px;
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+}
+.pcab-msg-attach-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-msg-attach button {
+  background: none;
+  border: none;
+  color: var(--pc-ink-faint);
+  cursor: pointer;
+  flex: none;
+  display: inline-flex;
+}
+.pcab-msg-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+}
+.pcab-msg-sent {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 16px;
+  padding: 22px 16px;
+  text-align: center;
+  margin-top: 16px;
+}
+.pcab-msg-sent-t {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pc-bordeaux);
+  margin: 0;
+}
+.pcab-msg-sent-s {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pc-ink-soft);
+  margin: 8px auto 0;
+}

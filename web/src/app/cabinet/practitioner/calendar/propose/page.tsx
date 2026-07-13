@@ -6,7 +6,9 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 import { ProposeForm } from "./propose-form";
+import { ProposeMobile } from "./propose-mobile";
 
 // B480 — «Записать» (mockup -calendar-propose): практик предлагает СВОЕМУ
 // клиенту время; клиент получает уведомление, подтверждает и оплачивает.
@@ -23,9 +25,11 @@ export default async function PractitionerProposePage({
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id! },
-    select: { id: true },
+    select: { id: true, formats: true },
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
+
+  const offeredFormats = normalizeOfferedFormats(practitioner.formats);
 
   const [clientRows, rates] = await Promise.all([
     db.booking.findMany({
@@ -49,7 +53,28 @@ export default async function PractitionerProposePage({
   const { client: preselectedClientId } = await searchParams;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-propose-page">
+    <>
+      {/* R9-4 P3 — мобильный «Записать клиента» 1-в-1 по макету; десктоп ниже
+          прежний (ждёт R9-5 новых десктоп-макетов). */}
+      {clients.length === 0 || rates.length === 0 ? (
+        <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-propose-mobile-empty">
+          <div className="pcab-topbar">
+            <Link href={appUrl("/practitioner/calendar")} className="pcab-roundbtn" aria-label="Назад">
+              <ArrowLeft width={19} height={19} aria-hidden="true" />
+            </Link>
+            <span className="pcab-topbar-title">Записать клиента</span>
+            <span className="pcab-topbar-spacer" />
+          </div>
+          <div className="pcab-note" style={{ marginTop: 16 }}>
+            {clients.length === 0
+              ? "Записать можно клиента, с которым уже была сессия. Пока таких нет — поделитесь личной ссылкой для записи из «Доступности»."
+              : "Включите хотя бы одну длительность сессии в «Календарь → Доступность», чтобы предложить время."}
+          </div>
+        </div>
+      ) : (
+        <ProposeMobile clients={clients} rates={rates} formats={offeredFormats} preselectedClientId={preselectedClientId ?? null} />
+      )}
+    <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-propose-page">
       <Link href={appUrl("/practitioner/calendar")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Календарь
@@ -74,8 +99,9 @@ export default async function PractitionerProposePage({
           </p>
         </section>
       ) : (
-        <ProposeForm clients={clients} rates={rates} preselectedClientId={preselectedClientId ?? null} />
+        <ProposeForm clients={clients} rates={rates} formats={offeredFormats} preselectedClientId={preselectedClientId ?? null} />
       )}
     </div>
+    </>
   );
 }

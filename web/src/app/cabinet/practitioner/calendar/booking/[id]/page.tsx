@@ -7,7 +7,9 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { canJoinBooking } from "@/lib/booking-actions";
 import { formatMskDayMonth, formatMskTime } from "@/lib/msk-time";
+import { sessionFormatLabel } from "@/lib/session-formats";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { PractitionerBookingMobile } from "./booking-mobile";
 
 // B466 — карточка брони (mockup -calendar-session): клиент · время · формат ·
 // цена · статус; «Войти» строго в T-30-окне (JOIN_WINDOW); действия Перенести
@@ -33,7 +35,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
   const { id } = await params;
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id! },
-    select: { id: true },
+    select: { id: true, aiAutoAnalyze: true },
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
@@ -65,8 +67,66 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
   const upcoming = ["PENDING", "CONFIRMED"].includes(booking.status);
   const openRequest = booking.changeRequests[0] ?? null;
 
+  // Метаданные героя мобильной карточки: «клиент с … · N-я сессия» — считаем по
+  // всем броням этого клиента у практика (как в карточке клиента).
+  const clientBookings = await db.booking.findMany({
+    where: { practitionerId: practitioner.id, clientId: booking.clientId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, createdAt: true },
+  });
+  const sinceLabel = formatMskDayMonth(clientBookings[0]?.createdAt ?? booking.createdAt);
+  const ordinal = Math.max(1, clientBookings.findIndex((b) => b.id === booking.id) + 1);
+  const initials =
+    clientLabel
+      .split(" ")
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?";
+  const openRequestNote = openRequest
+    ? `${openRequest.initiatedBy === "CLIENT" ? "Клиент" : "Вы"} ${
+        openRequest.type === "CANCEL" ? "просит отменить сессию" : "предлагает перенос"
+      }${
+        openRequest.proposedStartAt
+          ? ` на ${formatMskDayMonth(openRequest.proposedStartAt)} в ${formatMskTime(openRequest.proposedStartAt)}`
+          : ""
+      }. ${
+        openRequest.initiatedBy === "CLIENT"
+          ? "Ответьте в «Календарь → Заявки»."
+          : "Ждём подтверждения клиента — он получил уведомление."
+      }`
+    : null;
+  const analysisReady = booking.status === "COMPLETED" && Boolean(booking.videoSession?.summaryText);
+  const formatLabel = sessionFormatLabel(booking.format);
+  // B466/B434: per-session разбор — эффективное значение (null → глобальный дефолт).
+  const aiAnalysisEnabled = booking.aiAnalysisEnabled ?? practitioner.aiAutoAnalyze;
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-booking-page">
+    <>
+      {/* R9-4 P3 — мобильная «Сессия» 1-в-1 по макету; десктоп ниже прежний
+          (ждёт R9-5 новых десктоп-макетов). */}
+      <PractitionerBookingMobile
+        bookingId={booking.id}
+        clientId={booking.client.id}
+        clientLabel={clientLabel}
+        initials={initials}
+        sinceLabel={sinceLabel}
+        ordinal={ordinal}
+        startAt={booking.slot ? booking.slot.startAt.toISOString() : null}
+        endAt={booking.slot ? booking.slot.endAt.toISOString() : null}
+        durationMin={durationMin}
+        priceRub={booking.priceRub}
+        formatLabel={formatLabel}
+        statusLabel={STATUS_LABELS[booking.status] ?? booking.status}
+        status={booking.status}
+        meetingContext={booking.meetingContext ?? null}
+        joinable={joinable}
+        upcoming={upcoming}
+        hasOpenRequest={Boolean(openRequest)}
+        openRequestNote={openRequestNote}
+        analysisReady={analysisReady}
+        aiAnalysisEnabled={aiAnalysisEnabled}
+      />
+    <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-booking-page">
       <Link href={appUrl("/practitioner/calendar")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Календарь
@@ -79,7 +139,7 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
         <dl className="divide-y divide-[var(--soft-paper-deep)]">
           {[
             ["Когда", booking.slot ? `${formatMskDayMonth(booking.slot.startAt)} · ${formatMskTime(booking.slot.startAt)} – ${formatMskTime(booking.slot.endAt)}` : "Время уточняется"],
-            ["Формат", `Индивидуальная сессия · ${durationMin} мин`],
+            ["Формат", `${formatLabel} сессия · ${durationMin} мин`],
             ["Стоимость", `${booking.priceRub.toLocaleString("ru")} ₽`],
             ["Статус", STATUS_LABELS[booking.status] ?? booking.status],
           ].map(([k, v]) => (
@@ -173,5 +233,6 @@ export default async function PractitionerBookingPage({ params }: { params: Prom
         </p>
       ) : null}
     </div>
+    </>
   );
 }

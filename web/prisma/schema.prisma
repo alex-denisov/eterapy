@@ -184,6 +184,9 @@ model Practitioner {
   categories              String[]                    @default([]) // W3: level-1 taxonomy ids (psychology, coaching, legal, finance, esoteric, joint)
   directions              String[]                    @default([]) // W3: level-2 taxonomy ids (cbt, gestalt, family-law, tarot…)
   tags                    String[]                    @default([]) // W3: level-3 задачи (тревога, развод, инвестиции…)
+  // B466/B480: предлагаемые форматы сессий (session-formats.ts: individual/
+  // couple/family). individual всегда доступен; на цену не влияет.
+  formats                 String[]                    @default(["individual"])
 
   // Рейтинг (денормализован для скорости)
   ratingSum     Float     @default(0)
@@ -310,6 +313,8 @@ model BookingProposal {
   durationMin    Int          @map("duration_min")
   priceRub       Int          @map("price_rub")
   message        String?
+  // B466/B480: формат предлагаемой сессии (session-formats.ts). null → «individual».
+  format         String?
   status         String       @default("PENDING") // PENDING|ACCEPTED|DECLINED|EXPIRED|CANCELLED
   bookingId      String?      @unique @map("booking_id")
   createdAt      DateTime     @default(now())
@@ -482,6 +487,8 @@ model Booking {
   reminder24hSent Boolean @default(false)
   reminder1hSent  Boolean @default(false)
 
+  // B466/B480: формат сессии (session-formats.ts). null → «individual».
+  format            String?
   // B466/B434: per-session разбор on/off (null → practitioner.aiAutoAnalyze).
   aiAnalysisEnabled Boolean?  @map("ai_analysis_enabled")
   // B481/B484: кто и почему отменил (для правил штрафов и метрики надёжности).

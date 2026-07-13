@@ -7,7 +7,8 @@ describe("M9 — practitioner subscription CTA on «Финансы → Тари�
   it("shows the subscribe CTA on the tariff tab when a higher tier is available", () => {
     const plans = source("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
     expect(plans).toContain('data-testid="practitioner-subscribe-cta"');
-    expect(plans).toContain("start-from-earnings");
+    // B466 R9-4 P4: обработчики оплаты вынесены в общий хук (десктоп + мобайл).
+    expect(source("src/app/cabinet/practitioner/finance/use-tariff-plan-actions.ts")).toContain("start-from-earnings");
     const navModel = source("src/lib/nav-model.ts");
     expect(navModel).toContain('appUrl("/practitioner/finance")');
     const page = source("src/app/cabinet/practitioner/page.tsx");

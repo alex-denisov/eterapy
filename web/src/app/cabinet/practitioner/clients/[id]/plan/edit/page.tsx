@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { parseCarePlanGoals, sanitizeStringList } from "@/lib/care-plan";
@@ -32,12 +32,13 @@ export default async function PlanEditPage({ params }: { params: Promise<{ id: s
   });
   if (!relationship) notFound();
 
-  const [client, plan] = await Promise.all([
+  const [client, plan, completedCount] = await Promise.all([
     db.user.findUnique({ where: { id: clientId }, select: { name: true, email: true } }),
     db.clientCarePlan.findUnique({
       where: { practitionerId_clientId: { practitionerId: practitioner.id, clientId } },
       select: { goals: true, methods: true, nextFocus: true, aiSuggestion: true },
     }),
+    db.booking.count({ where: { practitionerId: practitioner.id, clientId, status: "COMPLETED" } }),
   ]);
   if (!client) notFound();
 
@@ -51,22 +52,60 @@ export default async function PlanEditPage({ params }: { params: Promise<{ id: s
       }
     : null;
 
-  return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-plan-edit-page">
-      <Link href={appUrl(`/practitioner/clients/${clientId}?tab=plan`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-        <ArrowLeft className="h-4 w-4" />
-        План
-      </Link>
-      <p className="soft-eyebrow mt-4">{client.name ?? client.email ?? "Клиент"}</p>
-      <h1 className="soft-h1 mt-2">План сопровождения</h1>
+  const clientLabel = client.name ?? client.email ?? "Клиент";
+  const initials = clientLabel
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
 
-      <PlanEditForm
-        clientId={clientId}
-        initialGoals={parseCarePlanGoals(plan?.goals)}
-        initialMethods={plan?.methods ?? []}
-        initialNextFocus={plan?.nextFocus ?? []}
-        suggestion={suggestion}
-      />
-    </div>
+  return (
+    <>
+      {/* R9-4 P2 — мобильный экран «Обновление плана» 1-в-1 по mockup
+          practitioner-client-plan-edit.html; десктоп ниже прежний. */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-plan-edit-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl(`/practitioner/clients/${clientId}?tab=plan`)} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Обновление плана</span>
+          <span className="pcab-topbar-spacer" aria-hidden="true" />
+        </div>
+        <div className="pcab-client">
+          <div className="pcab-client-av" aria-hidden="true">{initials}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="pcab-client-name">{clientLabel}</div>
+            <div className="pcab-client-meta">
+              Индивидуальная{completedCount > 0 ? ` · план после ${completedCount}-й сессии` : " · новый план"}
+            </div>
+          </div>
+        </div>
+        <PlanEditForm
+          clientId={clientId}
+          initialGoals={parseCarePlanGoals(plan?.goals)}
+          initialMethods={plan?.methods ?? []}
+          initialNextFocus={plan?.nextFocus ?? []}
+          suggestion={suggestion}
+          variant="pcab"
+        />
+      </div>
+
+      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-plan-edit-page">
+        <Link href={appUrl(`/practitioner/clients/${clientId}?tab=plan`)} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+          <ArrowLeft className="h-4 w-4" />
+          План
+        </Link>
+        <p className="soft-eyebrow mt-4">{clientLabel}</p>
+        <h1 className="soft-h1 mt-2">План сопровождения</h1>
+
+        <PlanEditForm
+          clientId={clientId}
+          initialGoals={parseCarePlanGoals(plan?.goals)}
+          initialMethods={plan?.methods ?? []}
+          initialNextFocus={plan?.nextFocus ?? []}
+          suggestion={suggestion}
+        />
+      </div>
+    </>
   );
 }

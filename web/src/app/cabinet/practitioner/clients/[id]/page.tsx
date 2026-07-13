@@ -10,6 +10,7 @@ import { CardOverview } from "./card-overview";
 import { CardSessions } from "./card-sessions";
 import { CardPlan } from "./card-plan";
 import { CardMessages } from "./card-messages";
+import { PractitionerClientCardMobile } from "./card-mobile";
 
 // B466 — карточка клиента (CRM hub; mockups -client-overview/-sessions/-plan/
 // -messages): header (формат «Индивидуальная сессия» + «клиент с … · N
@@ -77,9 +78,26 @@ export default async function PractitionerClientCardPage({
     .join("") || "?";
   const completedCount = bookings.filter((b) => b.status === "COMPLETED").length;
   const sinceLabel = DAY_FMT.format(bookings[0].createdAt);
+  const nowTs = new Date();
+  const monthAgo = new Date(nowTs.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const isNew = bookings[0].createdAt >= monthAgo && completedCount <= 1;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-client-card">
+    <>
+      {/* R9-4 P2 — мобильная карточка 1-в-1 по макетам; десктоп ниже прежний
+          (ждёт R9-5 новых десктоп-макетов). */}
+      <PractitionerClientCardMobile
+        practitionerId={practitioner.id}
+        clientId={client.id}
+        clientLabel={clientLabel}
+        initials={initials}
+        sinceLabel={sinceLabel}
+        completedCount={completedCount}
+        isNew={isNew}
+        bookings={bookings}
+        tab={tab}
+      />
+      <div className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-client-card">
       <Link href={appUrl("/practitioner/clients")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
         <ArrowLeft className="h-4 w-4" />
         Клиенты
@@ -101,11 +119,13 @@ export default async function PractitionerClientCardPage({
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
+      {/* Quick actions — mockup .btn: compact 13.5px / ~40px tall; half-width on
+          mobile (grid), hug-content on desktop (R9-2: не растягивать на max-w-3xl). */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:flex sm:w-fit">
         <Link
           href={appUrl(`/practitioner/calendar/propose?client=${client.id}`)}
-          className="soft-button soft-button-primary justify-center"
+          className="soft-button soft-button-primary justify-center gap-2 sm:px-5"
+          style={{ minHeight: "2.5rem", padding: "0.55rem 1.15rem", fontSize: "13.5px" }}
           data-testid="client-card-propose"
         >
           <CalendarPlus className="size-4" aria-hidden="true" />
@@ -113,7 +133,8 @@ export default async function PractitionerClientCardPage({
         </Link>
         <Link
           href={appUrl(`/practitioner/clients/${client.id}?tab=messages`)}
-          className="soft-button soft-button-ghost justify-center"
+          className="soft-button soft-button-ghost justify-center gap-2 sm:px-5"
+          style={{ minHeight: "2.5rem", padding: "0.55rem 1.15rem", fontSize: "13.5px" }}
           data-testid="client-card-message"
         >
           <MessageSquare className="size-4" aria-hidden="true" />
@@ -145,6 +166,7 @@ export default async function PractitionerClientCardPage({
       {tab === "messages" && (
         <CardMessages practitionerId={practitioner.id} clientId={client.id} clientLabel={clientLabel} />
       )}
-    </div>
+      </div>
+    </>
   );
 }

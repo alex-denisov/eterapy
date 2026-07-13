@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { CATEGORY_LABELS, DIRECTIONS_BY_CATEGORY, type CategoryId } from "@/lib/practitioner-taxonomy";
+import { normalizeOfferedFormats } from "@/lib/session-formats";
 
 const VALID_CATEGORY_IDS = new Set(Object.keys(CATEGORY_LABELS));
 const VALID_DIRECTION_IDS = new Set(
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { name, title, bio, experience, commissionPercent, categories, directions, specialties, tags, pricePerSession, sessionDuration } = body as {
+  const { name, title, bio, experience, commissionPercent, categories, directions, specialties, tags, formats, pricePerSession, sessionDuration } = body as {
     name?: string;
     title?: string;
     bio?: string;
@@ -34,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     directions?: unknown;
     specialties?: unknown;
     tags?: unknown;
+    formats?: unknown;
     pricePerSession?: unknown;
     sessionDuration?: unknown;
   };
@@ -95,6 +97,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     )].slice(0, 20);
   }
 
+  // B466/B480: предлагаемые форматы сессий (individual всегда включён).
+  let normalizedFormats: string[] | undefined;
+  if (formats !== undefined) {
+    if (!Array.isArray(formats)) {
+      return NextResponse.json({ error: "formats должен быть списком" }, { status: 400 });
+    }
+    normalizedFormats = normalizeOfferedFormats(formats);
+  }
+
   let normalizedPrice: number | undefined;
   if (pricePerSession !== undefined) {
     const n = Number(pricePerSession);
@@ -126,6 +137,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       directions?: string[];
       specialties?: Specialty[];
       tags?: string[];
+      formats?: string[];
       pricePerSession?: number;
       sessionDuration?: number;
     } = {};
@@ -142,6 +154,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (normalizedDirections !== undefined) updateData.directions = normalizedDirections;
     if (normalizedSpecialties !== undefined) updateData.specialties = normalizedSpecialties;
     if (normalizedTags !== undefined) updateData.tags = normalizedTags;
+    if (normalizedFormats !== undefined) updateData.formats = normalizedFormats;
     if (normalizedPrice !== undefined) updateData.pricePerSession = normalizedPrice;
     if (normalizedDuration !== undefined) updateData.sessionDuration = normalizedDuration;
 
@@ -166,6 +179,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (normalizedDirections !== undefined) changed.push(`направления=[${normalizedDirections.join(",")}]`);
     if (normalizedSpecialties !== undefined) changed.push(`эзо-категории=[${normalizedSpecialties.join(",")}]`);
     if (normalizedTags !== undefined) changed.push(`задачи=[${normalizedTags.join(",")}]`);
+    if (normalizedFormats !== undefined) changed.push(`форматы=[${normalizedFormats.join(",")}]`);
     const note = changed.length > 0
       ? `Профиль обновлён администратором (${changed.join(", ")})`
       : `Профиль обновлён администратором`;

@@ -27,6 +27,7 @@ import {
   LOGOUT_LABEL,
 } from "@/lib/nav-model";
 import { NAV_ICONS } from "@/components/nav/nav-icons";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface NavItem {
   href: string;
@@ -99,6 +100,7 @@ export function CabinetShell({
 }) {
   const pathname = usePathname();
   const isClient = role === "CLIENT";
+  const isPractitionerBar = role === "PRACTITIONER";
   const nav = (role === "ADMIN" || role === "SUPERADMIN")
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
@@ -378,12 +380,20 @@ export function CabinetShell({
         </>
       )}
 
-      {/* Mobile nav */}
-      <div data-testid="app-shell-mobile-nav" className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
+      {/* Mobile nav. B466 R9-4: у практика бар получает pcab-tabbar — вид
+          1-в-1 из мобильных макетов (непрозрачная карточка, edge-бордер,
+          10.5px подписи, активная вкладка бордо); клиентский бар не тронут. */}
+      <div
+        data-testid="app-shell-mobile-nav"
+        className={`soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden${isPractitionerBar ? " pcab-tabbar" : ""}`}
+      >
         {mobileTabs.map((item) => {
           const Icon = item.Icon;
-          const activeClass = isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]";
-          const base = `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${activeClass}`;
+          const base = isPractitionerBar
+            ? `pcab-tab${isMobileActive(item) ? " is-active" : ""}`
+            : `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
+                isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
+              }`;
           // X10/B466 round-8 #4: surface «требует внимания» counters on the mobile
           // bar too (e.g. new booking request on «Календарь») — same source as the
           // desktop sidebar badges so they can't drift.
@@ -391,12 +401,12 @@ export function CabinetShell({
           const count = countKey ? (counts?.[countKey] ?? 0) : 0;
           const iconWithBadge = (
             <span className="relative">
-              <Icon className="h-5 w-5" />
+              <Icon className={isPractitionerBar ? "h-[22px] w-[22px]" : "h-5 w-5"} />
               {count > 0 && (
                 <span
                   data-testid="app-mobile-nav-counter"
                   aria-label={`${count} новых`}
-                  className="absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--soft-terracotta)] px-1 text-[9px] font-bold leading-none text-[#FBF1E4] tabular-nums"
+                  className={`absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--soft-terracotta)] px-1 text-[9px] font-bold leading-none text-[#FBF1E4] tabular-nums${isPractitionerBar ? " pcab-count" : ""}`}
                 >
                   {count > 9 ? "9+" : count}
                 </span>
@@ -436,6 +446,32 @@ export function CabinetShell({
       {/* Main — reserve the bottom bar height + the iPhone home-indicator inset
           so no content hides behind the frosted tab bar (audit A2). */}
       <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+        {/* B466 R9-5 — клиентский мобильный «верх» 1-в-1 с практиком: публичный
+            nav-хедер на мобиле скрыт (data-cabinet-mobile-top), а сверху экрана —
+            свой минимальный appbar (аватар + имя/тариф + колокольчик). Десктоп не
+            тронут (md:hidden), у практика — свои per-screen appbar'ы. */}
+        {isClient && (
+          <div
+            data-cabinet-mobile-top
+            data-testid="client-mobile-appbar"
+            className="mb-5 flex items-center gap-3 md:hidden"
+          >
+            <div
+              className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-base font-semibold"
+              style={{ fontFamily: "var(--font-heading-v4)" }}
+              aria-hidden="true"
+            >
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--soft-ink)]">
+                {user?.name ?? "Мой кабинет"}
+              </p>
+              <p className="truncate text-xs text-[var(--soft-ink-faint)]">{displaySubLabel}</p>
+            </div>
+            <NotificationBell variant="header" />
+          </div>
+        )}
         {children}
       </main>
       </div>

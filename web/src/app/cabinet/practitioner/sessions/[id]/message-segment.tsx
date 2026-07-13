@@ -20,11 +20,13 @@ export function MessageSegment({
   clientLabel,
   bookingId,
   initialDraft,
+  variant = "desktop",
 }: {
   clientId: string;
   clientLabel: string;
   bookingId: string;
   initialDraft: string;
+  variant?: "desktop" | "pcab";
 }) {
   const [text, setText] = useState(initialDraft);
   const [attachment, setAttachment] = useState<{ url: string; name: string } | null>(null);
@@ -108,6 +110,70 @@ export function MessageSegment({
     } finally {
       setSending(false);
     }
+  }
+
+  // ── МОБАЙЛ (mockup -session-client-message, pcab-native) ──────────────────
+  if (variant === "pcab") {
+    if (sent) {
+      return (
+        <div className="pcab-msg-sent" data-testid="session-message-sent-mobile">
+          <p className="pcab-msg-sent-t">Сообщение отправлено</p>
+          <p className="pcab-msg-sent-s">
+            {clientLabel} получит уведомление и прочитает его в разделе «Сообщения». История — в карточке клиента.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div data-testid="session-segment-message-mobile">
+        <p className="pcab-msg-cap">
+          Черновик после сессии — отправится только после вашей проверки. Канал односторонний.
+        </p>
+        <div className="pcab-msg-tonerow" data-testid="session-message-tones-mobile">
+          <span className="pcab-msg-tonelabel">Тон (перепишет через AI):</span>
+          {TONES.map((tone) => (
+            <button
+              key={tone.key}
+              type="button"
+              className="pcab-svc-chip"
+              disabled={rewriting !== null || sending}
+              onClick={() => rewrite(tone.key)}
+            >
+              {rewriting === tone.key ? <Loader2 width={12} height={12} className="animate-spin" aria-hidden="true" /> : <Wand2 width={12} height={12} aria-hidden="true" />}
+              {tone.label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="pcab-msg-ta"
+          maxLength={4000}
+          placeholder="Бережное сообщение клиенту по итогам сессии…"
+          data-testid="session-message-draft-mobile"
+        />
+        {attachment && (
+          <div className="pcab-msg-attach">
+            <Paperclip width={13} height={13} aria-hidden="true" />
+            <span className="pcab-msg-attach-name">{attachment.name}</span>
+            <button type="button" onClick={() => setAttachment(null)} aria-label="Убрать вложение">
+              <X width={13} height={13} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" accept="application/pdf,image/jpeg,image/png,text/plain" className="hidden" onChange={(e) => uploadFile(e.target.files)} />
+        <div className="pcab-msg-actions">
+          <button type="button" className="pcab-abtn pcab-abtn-ghost" disabled={uploading || sending} onClick={() => fileInputRef.current?.click()}>
+            {uploading ? <Loader2 width={16} height={16} className="animate-spin" aria-hidden="true" /> : <Paperclip width={16} height={16} aria-hidden="true" />}
+            Приложить
+          </button>
+          <button type="button" className="pcab-abtn pcab-abtn-primary" disabled={sending || uploading} onClick={send} data-testid="session-message-send-mobile">
+            {sending ? <Loader2 width={16} height={16} className="animate-spin" aria-hidden="true" /> : <Send width={16} height={16} aria-hidden="true" />}
+            Отправить клиенту
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (sent) {

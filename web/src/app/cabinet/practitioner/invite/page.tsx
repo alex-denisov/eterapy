@@ -1,10 +1,13 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { BYOC_LADDER, commissionForSource, isFoundingActive, type PractitionerCommissionTier } from "@/lib/practitioner-commission";
+import { BYOC_LADDER, PLATFORM_COMMISSION_BY_TIER, commissionForSource, isFoundingActive, type PractitionerCommissionTier } from "@/lib/practitioner-commission";
 import { practitionerInviteLandingUrl } from "@/lib/byoc";
+import { appUrl } from "@/lib/subdomain";
 import { PractitionerInvitePanel } from "./invite-panel";
 
 function tierFromCommissionSource(source: string | null | undefined): PractitionerCommissionTier {
@@ -50,42 +53,66 @@ export default async function PractitionerInvitePage() {
   const byocRate = commissionForSource("BYOC", tier, foundingActive);
   const platformRate = practitioner.commissionPercent ?? commissionForSource("PLATFORM", tier, false);
 
+  const invitesForPanel = practitioner.invites.map((invite) => ({
+    ...invite,
+    landingUrl: practitionerInviteLandingUrl(practitioner.slug, invite.token),
+    telegramUrl: `https://t.me/eterapy_bot?start=practitioner_${practitioner.slug}`,
+  }));
+
+  // Геро-ставки Pro/Pro+ из матрицы комиссий (code == matrix): BYOC 17/14,
+  // платформа 30/25. Значения тянутся из lib, не хардкодятся в макет.
+  const heroRates = {
+    proByoc: BYOC_LADDER.practitioner_pro,
+    proPlatform: PLATFORM_COMMISSION_BY_TIER.practitioner_pro,
+    proPlusByoc: BYOC_LADDER.practitioner_pro_plus,
+    proPlusPlatform: PLATFORM_COMMISSION_BY_TIER.practitioner_pro_plus,
+  };
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Свои клиенты</p>
-        <h1 className="text-3xl font-semibold">Приведите своего клиента</h1>
-        <p className="max-w-3xl text-muted-foreground">
-          Личная ссылка закрепляет новых клиентов за вами: платите {byocRate}% вместо {platformRate}% комиссии платформенного потока.
-        </p>
-      </header>
+    <>
+      {/* МОБАЙЛ — 1-в-1 по mockup practitioner-more-invite */}
+      <div className="pcab-screen md:hidden" data-pcab-top data-testid="practitioner-invite-mobile">
+        <div className="pcab-topbar">
+          <Link href={appUrl("/practitioner/more")} className="pcab-roundbtn" aria-label="Назад">
+            <ChevronLeft width={19} height={19} aria-hidden="true" />
+          </Link>
+          <span className="pcab-topbar-title">Приглашения</span>
+          <span className="pcab-topbar-spacer" />
+        </div>
+        <PractitionerInvitePanel initialInvites={invitesForPanel} variant="pcab" heroRates={heroRates} />
+      </div>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-          <p className="text-sm text-muted-foreground">Комиссия за своих клиентов</p>
-          <p className="mt-2 text-3xl font-semibold">{byocRate}%</p>
-        </div>
-        <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-          <p className="text-sm text-muted-foreground">Платформенная ставка</p>
-          <p className="mt-2 text-3xl font-semibold">{platformRate}%</p>
-        </div>
-        <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-          <p className="text-sm text-muted-foreground">Ставка основателя</p>
-          <p className="mt-2 text-base font-medium">
-            {foundingActive && practitioner.foundingUntil
-              ? `12% до ${practitioner.foundingUntil.toLocaleDateString("ru-RU")}, далее ${BYOC_LADDER[tier]}%`
-              : "Не активна"}
+      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      <div className="mx-auto hidden w-full max-w-6xl space-y-6 md:block" data-testid="practitioner-invite-page">
+        <header className="space-y-2">
+          <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Свои клиенты</p>
+          <h1 className="text-3xl font-semibold">Приведите своего клиента</h1>
+          <p className="max-w-3xl text-muted-foreground">
+            Личная ссылка закрепляет новых клиентов за вами: платите {byocRate}% вместо {platformRate}% комиссии платформенного потока.
           </p>
-        </div>
-      </section>
+        </header>
 
-      <PractitionerInvitePanel
-        initialInvites={practitioner.invites.map((invite) => ({
-          ...invite,
-          landingUrl: practitionerInviteLandingUrl(practitioner.slug, invite.token),
-          telegramUrl: `https://t.me/eterapy_bot?start=practitioner_${practitioner.slug}`,
-        }))}
-      />
-    </div>
+        <section className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
+            <p className="text-sm text-muted-foreground">Комиссия за своих клиентов</p>
+            <p className="mt-2 text-3xl font-semibold">{byocRate}%</p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
+            <p className="text-sm text-muted-foreground">Платформенная ставка</p>
+            <p className="mt-2 text-3xl font-semibold">{platformRate}%</p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-white/80 p-4">
+            <p className="text-sm text-muted-foreground">Ставка основателя</p>
+            <p className="mt-2 text-base font-medium">
+              {foundingActive && practitioner.foundingUntil
+                ? `12% до ${practitioner.foundingUntil.toLocaleDateString("ru-RU")}, далее ${BYOC_LADDER[tier]}%`
+                : "Не активна"}
+            </p>
+          </div>
+        </section>
+
+        <PractitionerInvitePanel initialInvites={invitesForPanel} />
+      </div>
+    </>
   );
 }
