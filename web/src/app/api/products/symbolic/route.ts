@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
   if (productKey === "horary" && !canResolveAstrologicalLocation(rawInput)) {
     return errorWithRequestContext(
       "LOCATION_NOT_RESOLVED",
-      "Не удалось определить координаты места. Укажите ближайший крупный город или координаты в формате 55.7558, 37.6173.",
+      "Не удалось однозначно определить место. Выберите населённый пункт из подсказок «город, регион» или укажите координаты в формате 55.7558, 37.6173.",
       400,
       context,
     );
