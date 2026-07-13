@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { buildSynastryTeaser, generateSynastryResult } from "@/lib/synastry";
+import { classifyProductSafety } from "@/lib/product-safety";
 
 const PRODUCT_KEY = "synastry";
 
@@ -15,6 +16,7 @@ const postSchema = z.object({
   userBirthData: z.string().min(4).max(1200),
   partnerBirthData: z.string().min(4).max(1200),
   topic: z.string().max(80).optional(),
+  relationshipLayer: z.enum(["personal", "business-partners", "colleagues", "manager-report", "founder-specialist"]).default("personal"),
 });
 
 function serializeResult(result: {
@@ -79,6 +81,29 @@ export async function POST(request: NextRequest) {
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Данные рождения неполны", 400, context);
 
+  const safety = await classifyProductSafety({
+    text: [
+      parsed.data.userBirthData,
+      parsed.data.partnerBirthData,
+      parsed.data.topic ?? "",
+      parsed.data.relationshipLayer,
+    ].join("\n"),
+    productKey: PRODUCT_KEY,
+    userId,
+    requestId: context.requestId,
+  });
+  if (safety.interrupted) {
+    return jsonWithRequestContext(
+      {
+        error: safety.message,
+        code: "SAFETY_INTERRUPTED",
+        safetyLevel: safety.level,
+      },
+      { status: 422 },
+      context,
+    );
+  }
+
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
   // B451: платный-только — без доступа сразу 402, без генерации бесплатного фрагмента.
   if (!hasEntitlement) {
@@ -93,6 +118,7 @@ export async function POST(request: NextRequest) {
     userBirthData: parsed.data.userBirthData,
     partnerBirthData: parsed.data.partnerBirthData,
     focus: parsed.data.topic,
+    relationshipLayer: parsed.data.relationshipLayer,
     userId,
     requestId: context.requestId,
   });
@@ -129,6 +155,7 @@ export async function POST(request: NextRequest) {
           userBirthData: parsed.data.userBirthData,
           partnerBirthData: parsed.data.partnerBirthData,
           topic: parsed.data.topic ?? null,
+          relationshipLayer: parsed.data.relationshipLayer,
           generationMetadata: generated.metadata,
         } as Prisma.InputJsonObject,
       },

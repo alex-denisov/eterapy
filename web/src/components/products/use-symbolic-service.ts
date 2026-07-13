@@ -13,6 +13,7 @@ import type { SymbolicProductKey } from "@/lib/symbolic-products";
 
 export type SymbolicResult = {
   id: string;
+  productKey?: string;
   status: string;
   title: string;
   previewText: string | null;
@@ -26,6 +27,8 @@ type ApiPayload = {
   result?: SymbolicResult;
   results?: SymbolicResult[];
   error?: string;
+  code?: string;
+  safetyLevel?: string;
 };
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
@@ -37,6 +40,7 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
     (error as Error & { status?: number }).status = response.status;
+    (error as Error & { code?: string }).code = (payload as ApiPayload).code;
     throw error;
   }
   return payload as T;
@@ -66,25 +70,49 @@ export function useSymbolicService(
   const [result, setResult] = useState<SymbolicResult | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [safetyInterrupted, setSafetyInterrupted] = useState(false);
   const onRestoreRef = useRef(onRestore);
   useEffect(() => { onRestoreRef.current = onRestore; });
 
   // Сессионность: восстановить конкретный результат по ?reading=<id> (как у Таро).
   useEffect(() => {
-    if (authStatus !== "authenticated") return;
     const readingId = readingIdFromUrl();
     if (!readingId) return;
+    if (authStatus === "unauthenticated") {
+      redirectToLogin();
+      return;
+    }
+    if (authStatus !== "authenticated") return;
     let cancelled = false;
-    jsonRequest<ApiPayload>(`/api/products/symbolic/${readingId}`)
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setStatus("loading");
+        setMessage(null);
+      }
+    });
+    jsonRequest<ApiPayload>(`/api/products/symbolic/${readingId}?productKey=${encodeURIComponent(productKey)}`)
       .then((payload) => {
         if (cancelled || !payload.result) return;
+        if (payload.result.productKey && payload.result.productKey !== productKey) {
+          setMessage("Этот разбор относится к другой услуге и не может быть открыт на этой странице.");
+          setStatus("error");
+          return;
+        }
         setResult(payload.result);
+        setStatus("idle");
         const md = payload.result.metadata as { userInput?: unknown } | undefined;
         if (md && typeof md.userInput === "string") onRestoreRef.current?.(md.userInput);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (cancelled) return;
+        const typed = error as Error & { status?: number };
+        setMessage(typed.status === 404
+          ? "Этот разбор не найден или недоступен в текущем аккаунте."
+          : typed.message || "Не удалось открыть сохранённый разбор.");
+        setStatus("error");
+      });
     return () => { cancelled = true; };
-  }, [authStatus]);
+  }, [authStatus, productKey]);
 
   // Узнаём доступ на свежем экране (без ?reading=), чтобы показать прямой CTA.
   useEffect(() => {
@@ -103,6 +131,7 @@ export function useSymbolicService(
     }
     setStatus("loading");
     setMessage(null);
+    setSafetyInterrupted(false);
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
         method: "POST",
@@ -118,9 +147,12 @@ export function useSymbolicService(
         window.history.replaceState(null, "", url.toString());
       }
     } catch (error) {
-      const typed = error as Error & { status?: number };
+      const typed = error as Error & { status?: number; code?: string };
       if (typed.status === 401) return redirectToLogin();
-      if (typed.status === 402) {
+      if (typed.code === "SAFETY_INTERRUPTED") {
+        setSafetyInterrupted(true);
+        setMessage(typed.message);
+      } else if (typed.status === 402) {
         setHasEntitlement(false);
         setMessage("Откройте разбор баллами или картой — результат появится здесь же.");
       } else if (typed.status === 503) {
@@ -136,6 +168,7 @@ export function useSymbolicService(
     setResult(null);
     setMessage(null);
     setStatus("idle");
+    setSafetyInterrupted(false);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("reading");
@@ -150,6 +183,7 @@ export function useSymbolicService(
     result,
     status,
     message,
+    safetyInterrupted,
     setMessage,
     generate,
     reset,

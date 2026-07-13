@@ -19,7 +19,8 @@ export {
   getProductCreditCost,
   getProductPriceLabel,
 } from "@/lib/product-prices";
-import { V5_PRODUCT_PRICES_KOPECKS, getProductPriceKopecks } from "@/lib/product-prices";
+import { V5_PRODUCT_PRICES_KOPECKS, getProductCreditCost, getProductPriceKopecks } from "@/lib/product-prices";
+import { getSetting } from "@/lib/platform-settings";
 
 export const V5_BUNDLE_CONTENTS: Record<BundleProductKey, V5ProductSlug[]> = {
   "full-question": ["reframe", "deep-report"],
@@ -303,6 +304,23 @@ export function resolveBillingPurchase(input: {
   // Z1-Ф1: no client ₽ balance — a payment must name a product, a plan, or a
   // fixed credit pack.
   throw new Error("Укажите продукт, тариф или пакет баллов для оплаты");
+}
+
+// Resolve against the server-owned catalog first, then apply the persisted
+// admin price. Browser-provided amounts remain ignored.
+export async function resolveBillingPurchaseWithSettings(input: Parameters<typeof resolveBillingPurchase>[0]) {
+  const purchase = resolveBillingPurchase(input);
+  const productKey = typeof input.productKey === "string" ? input.productKey.trim() : "";
+  if (purchase.kind !== "product" || !productKey) return purchase;
+  const configuredRubles = Number(await getSetting(`product.${productKey}.price`));
+  if (!Number.isInteger(configuredRubles) || configuredRubles <= 0) return purchase;
+  return { ...purchase, amountKopecks: configuredRubles * 100 };
+}
+
+export async function getConfiguredProductCreditCost(productKey: string) {
+  const fallback = getProductCreditCost(productKey);
+  const configured = Number(await getSetting(`product.${productKey}.credits`));
+  return Number.isInteger(configured) && configured > 0 ? configured : fallback;
 }
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {

@@ -89,22 +89,9 @@ describe("Z14 synastry product", () => {
   it("generates a non-fatalistic synastry result through AI with a safe fallback", async () => {
     const calculatedFacts = "Овен Телец Близнецы Рак Лев Дева Весы Скорпион Стрелец Козерог Водолей Рыбы ".repeat(20);
     mockAiComplete.mockResolvedValue({
-      text: [
-        "## Общий рисунок связи",
-        calculatedFacts,
-        "## Притяжение и ресурс пары",
-        calculatedFacts,
-        "## Где возникают трения",
-        calculatedFacts,
-        "## Разные темпы и ожидания",
-        calculatedFacts,
-        "## Коммуникация и конфликт",
-        calculatedFacts,
-        "## Главная динамика вашей пары",
-        calculatedFacts,
-        "## Что показывает карта отношений",
-        calculatedFacts,
-      ].join("\n"),
+      text: ["Прямой ответ", "Главная ось связи", "Эмоциональная совместимость", "Коммуникация", "Притяжение и близость", "Быт и устойчивость", "Конфликт, власть и границы", "Поддержка и рост", "Противоречия пары", "Сценарий в плюсе", "Сценарий в минусе", "Итог в выбранном слое отношений"]
+        .map((heading) => `## ${heading}\n${calculatedFacts}`)
+        .join("\n"),
       provider: "openai" as never,
       model: "gpt-test",
       tokensIn: 100,
@@ -120,7 +107,8 @@ describe("Z14 synastry product", () => {
       requestId: "req-1",
     });
 
-    expect(generated.text).toContain("Главная динамика вашей пары");
+    expect(generated.text).toContain("Главная ось связи");
+    expect(generated.text).toContain("Прямой ответ");
     expect(generated.metadata).toEqual(expect.objectContaining({ source: "ai", provider: "openai" }));
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
       feature: "product-synastry",

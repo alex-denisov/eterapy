@@ -15,16 +15,18 @@
 
 import {
   Body,
-  EclipticGeoMoon,
+  GeoMoonState,
   GeoVector,
+  GravitySimulator,
+  HelioVector,
   MakeTime,
-  NextMoonNode,
-  NodeEventKind,
   Rotation_EQD_ECT,
   Rotation_EQJ_EQD,
+  RotateState,
   RotateVector,
-  SearchMoonNode,
+  StateVector,
   SunPosition,
+  Vector,
   type AstroTime,
 } from "astronomy-engine";
 import {
@@ -46,6 +48,7 @@ import {
   type HDCenterKey,
   type HDDefinedChannel,
   type HDType,
+  type HDVariable,
   type HumanDesignChart,
 } from "@/lib/human-design-data";
 
@@ -55,11 +58,6 @@ const MOTOR_CENTERS = new Set<HDCenterKey>(["sacral", "heart", "solar", "root"])
 
 function norm360(value: number): number {
   return ((value % 360) + 360) % 360;
-}
-
-function lerpAngle(a: number, b: number, ratio: number): number {
-  const diff = ((b - a + 540) % 360) - 180;
-  return norm360(a + diff * ratio);
 }
 
 // Эклиптическая долгота даты (истинное равноденствие даты) для планеты/Луны.
@@ -84,37 +82,124 @@ function meanNodeLongitude(time: AstroTime): number {
   return norm360(omega);
 }
 
-// Истинный восходящий узел: ищем реальные пересечения Луны с эклиптикой вокруг
-// момента и интерполируем долготу между двумя соседними восходящими узлами.
-// Bodygraph.com и профильные HD-калькуляторы для контрольного чарта 03.03.1988
-// дают именно true node (36.1/6.1), а не mean node (36.2/6.2).
+// Мгновенный восходящий узел орбиты Луны. Линейная интерполяция между двумя
+// реальными пересечениями сохраняла Gate/Line, но искажала более мелкие
+// Color/Tone, из которых строятся четыре Variables. Берём нормаль к мгновенной
+// орбитальной плоскости h = r × v в эклиптике даты.
 function trueNodeLongitude(time: AstroTime): number {
   try {
-    let event = SearchMoonNode(time.AddDays(-40));
-    const ascending = [];
-    for (let i = 0; i < 10; i += 1) {
-      if (event.kind === NodeEventKind.Ascending) ascending.push(event);
-      event = NextMoonNode(event);
-    }
-
-    let previous = null;
-    let next = null;
-    for (const item of ascending) {
-      if (item.time.tt <= time.tt) previous = item;
-      if (item.time.tt > time.tt) {
-        next = item;
-        break;
-      }
-    }
-    if (!previous || !next) return meanNodeLongitude(time);
-
-    const previousLon = norm360(EclipticGeoMoon(previous.time).lon);
-    const nextLon = norm360(EclipticGeoMoon(next.time).lon);
-    const ratio = (time.tt - previous.time.tt) / (next.time.tt - previous.time.tt);
-    return lerpAngle(previousLon, nextLon, ratio);
+    const eqj = GeoMoonState(time);
+    const eqd = RotateState(Rotation_EQJ_EQD(time), eqj);
+    const ecliptic = RotateState(Rotation_EQD_ECT(time), eqd);
+    const hx = ecliptic.y * ecliptic.vz - ecliptic.z * ecliptic.vy;
+    const hy = ecliptic.z * ecliptic.vx - ecliptic.x * ecliptic.vz;
+    return norm360(Math.atan2(hx, -hy) * RAD2DEG);
   } catch {
     return meanNodeLongitude(time);
   }
+}
+
+// Mean Black Moon Lilith = mean lunar apogee. This analytic Meeus-style
+// polynomial is independent of Swiss Ephemeris and deliberately does not mix
+// mean and osculating/"true" Lilith in one product version.
+function meanLilithLongitude(time: AstroTime): number {
+  const t = time.tt / 36525;
+  const meanPerigee =
+    83.3532465
+    + 4069.0137287 * t
+    - 0.01032 * t * t
+    - (t * t * t) / 80053
+    + (t * t * t * t) / 18_999_000;
+  return norm360(meanPerigee + 180);
+}
+
+// 2060 Chiron: local two-body propagation from the current public NASA/JPL
+// SBDB solution (orbit 171, epoch JD 2461200.5, DE441). It avoids an AGPL
+// dependency and any per-reading network request. Chiron is interpretive-only:
+// it is shown in the side columns but never changes Type/Authority/Definition.
+const CHIRON_JPL = {
+  epoch: 2_461_200.5,
+  a: 13.68426760850124,
+  e: 0.3797656311453571,
+  i: 6.930574468846328,
+  node: 209.2961258613147,
+  peri: 339.2878326589729,
+  meanAnomaly: 216.7198966018106,
+  meanMotion: 0.0194702593257484,
+} as const;
+
+function solveKepler(meanAnomalyRad: number, eccentricity: number) {
+  let eccentricAnomaly = meanAnomalyRad;
+  for (let iteration = 0; iteration < 12; iteration += 1) {
+    eccentricAnomaly -= (eccentricAnomaly - eccentricity * Math.sin(eccentricAnomaly) - meanAnomalyRad)
+      / (1 - eccentricity * Math.cos(eccentricAnomaly));
+  }
+  return eccentricAnomaly;
+}
+
+function chironHeliocentricEcliptic(jd: number) {
+  const degree = Math.PI / 180;
+  const meanAnomaly = norm360(CHIRON_JPL.meanAnomaly + CHIRON_JPL.meanMotion * (jd - CHIRON_JPL.epoch)) * degree;
+  const eccentricAnomaly = solveKepler(meanAnomaly, CHIRON_JPL.e);
+  const orbitalX = CHIRON_JPL.a * (Math.cos(eccentricAnomaly) - CHIRON_JPL.e);
+  const orbitalY = CHIRON_JPL.a * Math.sqrt(1 - CHIRON_JPL.e * CHIRON_JPL.e) * Math.sin(eccentricAnomaly);
+  const node = CHIRON_JPL.node * degree;
+  const peri = CHIRON_JPL.peri * degree;
+  const inclination = CHIRON_JPL.i * degree;
+  const cosNode = Math.cos(node);
+  const sinNode = Math.sin(node);
+  const cosPeri = Math.cos(peri);
+  const sinPeri = Math.sin(peri);
+  const cosI = Math.cos(inclination);
+  const sinI = Math.sin(inclination);
+  return {
+    x: (cosNode * cosPeri - sinNode * sinPeri * cosI) * orbitalX
+      + (-cosNode * sinPeri - sinNode * cosPeri * cosI) * orbitalY,
+    y: (sinNode * cosPeri + cosNode * sinPeri * cosI) * orbitalX
+      + (-sinNode * sinPeri + cosNode * cosPeri * cosI) * orbitalY,
+    z: sinPeri * sinI * orbitalX + cosPeri * sinI * orbitalY,
+  };
+}
+
+function chironInitialState() {
+  const epochDate = new Date((CHIRON_JPL.epoch - 2_440_587.5) * DAY_MS);
+  const epochTime = MakeTime(epochDate);
+  const delta = 0.01;
+  const before = chironHeliocentricEcliptic(CHIRON_JPL.epoch - delta);
+  const current = chironHeliocentricEcliptic(CHIRON_JPL.epoch);
+  const after = chironHeliocentricEcliptic(CHIRON_JPL.epoch + delta);
+  const velocity = { x: (after.x - before.x) / (2 * delta), y: (after.y - before.y) / (2 * delta), z: (after.z - before.z) / (2 * delta) };
+  const obliquity = 23.4392911 * Math.PI / 180;
+  const toEqj = (vector: { x: number; y: number; z: number }) => ({
+    x: vector.x,
+    y: vector.y * Math.cos(obliquity) - vector.z * Math.sin(obliquity),
+    z: vector.y * Math.sin(obliquity) + vector.z * Math.cos(obliquity),
+  });
+  const positionEqj = toEqj(current);
+  const velocityEqj = toEqj(velocity);
+  return { epochTime, state: new StateVector(positionEqj.x, positionEqj.y, positionEqj.z, velocityEqj.x, velocityEqj.y, velocityEqj.z, epochTime) };
+}
+
+// Integrating the JPL osculating state with the Sun and planets is materially
+// more accurate across historical birth dates than two-body propagation.
+// Chiron is slow and remains outside Saturn, so 20-day steps are sufficient for
+// gate/line precision while keeping a chart calculation local and fast.
+function chironLongitude(time: AstroTime): number {
+  const { epochTime, state } = chironInitialState();
+  const simulator = new GravitySimulator(Body.Sun, epochTime, [state]);
+  const direction = time.ut < epochTime.ut ? -1 : 1;
+  let currentUt = epochTime.ut;
+  let result = state;
+  while (Math.abs(time.ut - currentUt) > 20) {
+    currentUt += direction * 20;
+    result = simulator.Update(MakeTime(new Date((2_451_545 + currentUt - 2_440_587.5) * DAY_MS)))[0];
+  }
+  result = simulator.Update(time)[0];
+  const earth = HelioVector(Body.Earth, time);
+  const geoEqj = new Vector(result.x - earth.x, result.y - earth.y, result.z - earth.z, time);
+  const eqd = RotateVector(Rotation_EQJ_EQD(time), geoEqj);
+  const ecliptic = RotateVector(Rotation_EQD_ECT(time), eqd);
+  return norm360(Math.atan2(ecliptic.y, ecliptic.x) * RAD2DEG);
 }
 
 function bodyLongitude(key: HDBodyKey, time: AstroTime): number {
@@ -145,6 +230,10 @@ function bodyLongitude(key: HDBodyKey, time: AstroTime): number {
       return eclipticLongitudeOfDate(time, Body.Neptune);
     case "pluto":
       return eclipticLongitudeOfDate(time, Body.Pluto);
+    case "chiron":
+      return chironLongitude(time);
+    case "lilith":
+      return meanLilithLongitude(time);
     default:
       return 0;
   }
@@ -191,6 +280,18 @@ function activationsAt(time: AstroTime, side: "personality" | "design"): HDActiv
       side,
     };
   });
+}
+
+function activationVariable(activation: HDActivation): HDVariable {
+  const offset = norm360(activation.longitude - HD_START_DEGREE);
+  const gateWithin = offset % HD_GATE_ARC;
+  const lineWithin = gateWithin % HD_LINE_ARC;
+  const colorArc = HD_LINE_ARC / 6;
+  const color = Math.min(6, Math.max(1, Math.floor(lineWithin / colorArc) + 1));
+  const colorWithin = lineWithin % colorArc;
+  const toneArc = colorArc / 6;
+  const tone = Math.min(6, Math.max(1, Math.floor(colorWithin / toneArc) + 1));
+  return { color, tone, direction: tone <= 3 ? "left" : "right" };
 }
 
 function definedChannelsFrom(activeGates: Set<number>): HDDefinedChannel[] {
@@ -289,7 +390,8 @@ export function computeHumanDesign(birthUtc: Date, hasExactTime = true): HumanDe
   const personality = activationsAt(personalityTime, "personality");
   const design = activationsAt(designTime, "design");
 
-  const activeGates = new Set<number>([...personality, ...design].map((a) => a.gate));
+  const structuralActivations = [...personality, ...design].filter((activation) => activation.body !== "chiron" && activation.body !== "lilith");
+  const activeGates = new Set<number>(structuralActivations.map((activation) => activation.gate));
   const definedChannels = definedChannelsFrom(activeGates);
   const adjacency = centerAdjacency(definedChannels);
 
@@ -309,6 +411,14 @@ export function computeHumanDesign(birthUtc: Date, hasExactTime = true): HumanDe
   const designSunLine = design.find((a) => a.body === "sun")?.line ?? 1;
   const profile = `${personalitySunLine}/${designSunLine}`;
   const profileName = `${HD_PROFILE_LINES[personalitySunLine]?.name ?? ""} / ${HD_PROFILE_LINES[designSunLine]?.name ?? ""}`.trim();
+  const personalityByBody = new Map(personality.map((activation) => [activation.body, activation]));
+  const designByBody = new Map(design.map((activation) => [activation.body, activation]));
+  const variables = {
+    determination: activationVariable(designByBody.get("sun")!),
+    environment: activationVariable(designByBody.get("north_node")!),
+    motivation: activationVariable(personalityByBody.get("sun")!),
+    perspective: activationVariable(personalityByBody.get("north_node")!),
+  };
 
   return {
     type,
@@ -335,6 +445,7 @@ export function computeHumanDesign(birthUtc: Date, hasExactTime = true): HumanDe
     activeGates: [...activeGates].sort((a, b) => a - b),
     personality,
     design,
+    variables,
     hasExactTime,
   };
 }
@@ -416,6 +527,13 @@ function parseOffset(text: string): number {
 
 export function parseHumanDesignBirth(text: string): ParsedHumanDesignBirth {
   const clean = (text ?? "").trim();
+  const fixedUtcIso = clean.match(/Момент фиксации UTC:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z)/iu)?.[1];
+  if (fixedUtcIso) {
+    const utc = new Date(fixedUtcIso);
+    if (!Number.isNaN(utc.getTime())) {
+      return { utc, hasExactTime: true, offsetHours: 0, display: utc.toISOString() };
+    }
+  }
   const date = parseDateParts(clean);
   if (!date || date.year < 1900 || date.year > 2100 || date.month < 1 || date.month > 12) {
     return { utc: null, hasExactTime: false, offsetHours: DEFAULT_OFFSET, display: clean };

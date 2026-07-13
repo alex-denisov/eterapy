@@ -5,6 +5,18 @@ import { ChevronDown } from "lucide-react";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import type { ReportSection } from "@/lib/report-sections";
 
+function sectionPreview(body: string) {
+  return body
+    .replace(/^#{1,6}\s+.*$/gm, "")
+    .replace(/[*_`>\[\]]/g, "")
+    .replace(/^\s*(?:[-+•]|\d{1,3}[.)])\s*$/gm, "")
+    .replace(/^\s*(?:[-+•]|\d{1,3}[.)])\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?])\s+/)[0]
+    ?.slice(0, 150) ?? "";
+}
+
 // Навигация по длинному разбору: аккордеон по главам, открыт только один блок.
 // При раскрытии другой главы предыдущая сворачивается, а экран переходит к началу
 // открытой главы (она фиксируется сверху), чтобы не было видно, как сворачивается
@@ -33,6 +45,7 @@ export function SectionAccordion({
     <div className="flex flex-col gap-2.5" data-testid={testId}>
       {sections.map((section, i) => {
         const open = openIndex === i;
+        const preview = sectionPreview(section.body);
         return (
           <div
             key={i}
@@ -48,7 +61,10 @@ export function SectionAccordion({
               className="flex w-full scroll-mt-20 items-center gap-3 px-4 py-3.5 text-left sm:px-5"
             >
               <span className="font-heading text-sm italic text-[var(--soft-terracotta-dark)]">{String(i + 1).padStart(2, "0")}</span>
-              <span className="flex-1 font-heading text-[1.05rem] font-semibold text-[var(--soft-ink)]">{section.title}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-heading text-[1.05rem] font-semibold text-[var(--soft-ink)]">{section.title}</span>
+                {preview && <span className="mt-1 block text-xs leading-relaxed text-[var(--soft-ink-faint)]">{preview}</span>}
+              </span>
               <ChevronDown className={`size-4 shrink-0 text-[var(--soft-ink-faint)] transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
             {open && (

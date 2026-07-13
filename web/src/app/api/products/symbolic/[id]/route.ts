@@ -5,7 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
-const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story"] as const;
+const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story", "horary", "tarot-numerology"] as const;
 
 const patchSchema = z.object({ action: z.enum(["save"]) });
 
@@ -44,8 +44,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   const { id } = await params;
+  const expectedProductKey = request.nextUrl.searchParams.get("productKey");
+  if (expectedProductKey && !SYMBOLIC_PRODUCT_KEYS.includes(expectedProductKey as (typeof SYMBOLIC_PRODUCT_KEYS)[number])) {
+    return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+  }
+  const productKey = expectedProductKey as (typeof SYMBOLIC_PRODUCT_KEYS)[number] | null;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: { in: [...SYMBOLIC_PRODUCT_KEYS] }, deletedAt: null },
+    where: {
+      id,
+      userId,
+      productKey: productKey ?? { in: [...SYMBOLIC_PRODUCT_KEYS] },
+      deletedAt: null,
+    },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
   return jsonWithRequestContext(

@@ -10,6 +10,7 @@ import { SymbolicResultScaffold } from "@/components/products/symbolic-result-sc
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 // B450: «Натальная карта» — самодостаточная услуга по паттерну Таро/reframe.
 // Контекст (данные рождения + сфера) собирается ВНУТРИ услуги; бесплатного
@@ -19,6 +20,11 @@ import type { NatalWheel } from "@/lib/esoteric-chart";
 export type NatalResult = SymbolicResult;
 
 const TOPICS = ["самопознание", "работа", "отношения", "любовь", "семья", "деньги", "перемены", "предназначение"];
+const NATAL_BIRTH_EXAMPLES = [
+  "12.04.1992, 14:35, Москва",
+  "03.11.1988, 08:10, Санкт-Петербург",
+  "27.06.1995, 21:20, Казань",
+];
 
 const MODALITY_BY_KEY: Record<string, string> = {
   aries: "кардинальный", cancer: "кардинальный", libra: "кардинальный", capricorn: "кардинальный",
@@ -131,6 +137,7 @@ export function NatalResultView({
 export function NatalChartActions({ creditCost }: { creditCost: number }) {
   const [birth, setBirth] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+  const birthPlaceholder = useRotatingPlaceholder(NATAL_BIRTH_EXAMPLES, topic ?? "all");
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("natal-chart", (userInput) => {
@@ -199,7 +206,7 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
           id="natal-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 400))}
-          placeholder="12.04.1992, 14:35, Москва"
+          placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="natal-birth-input"

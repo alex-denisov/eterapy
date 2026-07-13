@@ -6,18 +6,22 @@ import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, MessageSq
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
-import { AutosavedNote } from "@/components/ui/autosaved-note";
+import { SectionAccordion } from "@/components/products/section-accordion";
+import { presentSymbolicSectionTitle } from "@/components/products/symbolic-result-scaffold";
 import { ServiceTriage, type TriagePrimary } from "@/components/products/service-triage";
 import { pointsWord } from "@/lib/points";
 import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { sanitizeTarotReading } from "@/lib/tarot-reading-format";
+import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
+import { loginUrl } from "@/lib/subdomain";
 
 type SymbolicResult = {
   id: string;
+  productKey?: string;
   status: string;
   title: string;
   previewText: string | null;
@@ -311,19 +315,39 @@ export function SymbolicProductActions({
   // same-tab refresh of that URL keep the result). A fresh visit to the bare
   // /products/tarot has no param → starts a new session.
   useEffect(() => {
-    if (productKey !== "tarot" || authStatus !== "authenticated" || typeof window === "undefined") return;
+    if (productKey !== "tarot" || typeof window === "undefined") return;
     const readingId = new URLSearchParams(window.location.search).get("reading");
     if (!readingId) return;
+    if (authStatus === "unauthenticated") {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `${loginUrl()}?next=${next}`;
+      return;
+    }
+    if (authStatus !== "authenticated") return;
     let cancelled = false;
-    jsonRequest<{ result?: SymbolicResult }>(`/api/products/symbolic/${readingId}`)
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setStatus("loading");
+        setMessage(null);
+      }
+    });
+    jsonRequest<{ result?: SymbolicResult }>(`/api/products/symbolic/${readingId}?productKey=tarot`)
       .then((payload) => {
         if (cancelled || !payload.result) return;
         setResult(payload.result);
+        setStatus("idle");
         syncTarotControlsFromResult(payload.result);
         const md = payload.result.metadata as { userInput?: unknown } | undefined;
         if (md && typeof md.userInput === "string") setUserInput(md.userInput);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (cancelled) return;
+        const typed = error as Error & { status?: number };
+        setMessage(typed.status === 404
+          ? "Этот расклад не найден или недоступен в текущем аккаунте."
+          : typed.message || "Не удалось открыть сохранённый расклад.");
+        setStatus("error");
+      });
     return () => { cancelled = true; };
   }, [productKey, authStatus, syncTarotControlsFromResult]);
 
@@ -459,6 +483,11 @@ export function SymbolicProductActions({
     // #5: подсказка зависит от выбранной темы; сменяется по таймеру.
     const themeExamples = tarotExamplesForTheme(tarotTheme);
     const tarotPlaceholder = themeExamples[exampleIdx % themeExamples.length];
+    const tarotResultText = result?.resultText
+      ? sanitizeTarotReading(stripEmbeddedResultDisclaimers(result.resultText))
+      : "";
+    const tarotSections = splitSections(normalizeResultSectionHeadings("tarot", tarotResultText))
+      .map((section) => ({ ...section, title: presentSymbolicSectionTitle("tarot", section.title) }));
 
     // #2/#4: два основных CTA в блоке «что дальше» (как у /checkin): повторить
     // расклад (одно слово на кнопке) + продолжить разговор в чате. Рекомендуемый
@@ -620,15 +649,20 @@ export function SymbolicProductActions({
                 {/* #1: только связный разбор по картам (карты с позициями уже
                     показаны выше). sanitize убирает у старых раскладов дубль
                     «прямое/перевёрнутое положение» строкой и вопросы к себе. */}
-                <SoftMarkdown
-                  content={sanitizeTarotReading(stripEmbeddedResultDisclaimers(result.resultText))}
-                  className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
-                />
+                {tarotSections.length > 0 ? (
+                  <div className="mt-5">
+                    <SectionAccordion sections={tarotSections} testId="tarot-accordion" itemTestId="tarot-section" />
+                  </div>
+                ) : (
+                  <SoftMarkdown
+                    content={tarotResultText}
+                    className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
+                  />
+                )}
                 {/* #6: расклад уже сохранён в Дневник автоматически (savedAt в API),
                     отдельной кнопки и экспорта в PDF тут нет — человек читает весь
                     разбор на странице. Вместо «Нового расклада» — блок «что дальше». */}
                 <div className="tarot-followup" data-testid="tarot-followup">
-                  <AutosavedNote testId="tarot-autosaved" />
                   {/* #2/#4: блок «что дальше» в дизайне triage как у checkin — ДВА
                       основных CTA (повторить расклад одним словом + продолжить в
                       чате), затем «другие форматы» + специалист-эзотерик. */}

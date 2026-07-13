@@ -39,16 +39,16 @@ describe("B437 tarot refinements", () => {
     expect(actions).not.toContain("Новый расклад");
   });
 
-  it("#6 auto-saves tarot readings, shows a quiet note, and drops the PDF/diary buttons", () => {
+  it("#6 auto-saves tarot readings without an extra diary disclaimer", () => {
     // B450: автосейв обобщён на набор AUTOSAVE_PRODUCTS (включает tarot).
     expect(route).toContain('AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart"');
     expect(route).toContain("AUTOSAVE_PRODUCTS.has(productKey) ? { savedAt: new Date() }");
     // the question (userInput) is persisted in metadata
     expect(route).toContain("userInput");
-    // the result page shows an auto-saved note instead of a save button or PDF export
-    expect(actions).toContain("AutosavedNote");
-    expect(actions).toContain('testId="tarot-autosaved"');
-    expect(source("src/components/ui/autosaved-note.tsx")).toContain("Сохранено в Дневнике автоматически");
+    // Saving stays a backend behaviour. The result does not repeat a diary
+    // notice; the page-level standard product disclaimer remains the only one.
+    expect(actions).not.toContain("AutosavedNote");
+    expect(actions).not.toContain('testId="tarot-autosaved"');
     expect(actions).not.toContain('data-testid="symbolic-pdf-tarot"');
     expect(actions).not.toContain('data-testid="tarot-open-diary"');
   });
