@@ -531,17 +531,22 @@ export function mergeAIPromptOverride(
   runtimeSystemPrompt: string,
   configuredPrompt: string,
 ) {
+  const codeDefault = defaultPromptTextForFeature(feature);
   let merged: string;
   if (configuredPrompt.includes("{{defaultPrompt}}")) {
     merged = configuredPrompt.replaceAll("{{defaultPrompt}}", runtimeSystemPrompt);
   } else {
-    const codeDefault = defaultPromptTextForFeature(feature);
     const runtimeSuffix = runtimeSystemPrompt.startsWith(codeDefault)
       ? runtimeSystemPrompt.slice(codeDefault.length)
       : "";
     merged = `${configuredPrompt}${runtimeSuffix}`;
   }
-  return `${IMMUTABLE_AI_SAFETY_ENVELOPE}\n\n${merged}`;
+  const symbolicContract = codeDefault.includes(SYMBOLIC_BASE_RULES)
+    ? [SYMBOLIC_BASE_RULES, DIRECT_SYMBOLIC_ANSWER_CONTRACT]
+        .filter((rule) => !merged.includes(rule))
+        .join("\n\n")
+    : "";
+  return [IMMUTABLE_AI_SAFETY_ENVELOPE, symbolicContract, merged].filter(Boolean).join("\n\n");
 }
 
 let promptDefaultSyncPromise: Promise<void> | null = null;
