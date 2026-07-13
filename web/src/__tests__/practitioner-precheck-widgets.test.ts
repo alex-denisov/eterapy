@@ -22,21 +22,25 @@ describe("B215 practitioner precheck links and widgets", () => {
     expect(profile).toContain("precheck-booking-context");
   });
 
-  it("exposes practitioner link kit with QR, Telegram deeplink, and script widget", () => {
-    const services = source("src/app/cabinet/practitioner/services/page.tsx");
+  it("keeps the precheck link kit (Telegram deeplink, precheck URL, script widget) available via lib + widget route", () => {
     const links = source("src/lib/practitioner-links.ts");
     const widgetRoute = source("src/app/api/widgets/practitioner-precheck.js/route.ts");
 
-    expect(services).toContain("practitioner-acquisition-kit");
-    expect(services).toContain("QRCode.toDataURL");
-    expect(services).toContain("practitionerTelegramStartUrl");
-    expect(services).toContain("practitionerWidgetSnippet");
+    // B466 R9-5 (owner 2026-07-14): the acquisition-kit surface was removed from
+    // the cabinet «Услуги» screen per the approved -services-v2 mockup, but the
+    // underlying kit (deeplink / precheck URL / embeddable widget) still exists.
+    expect(links).toContain("practitionerTelegramStartUrl");
+    expect(links).toContain("practitionerWidgetSnippet");
     expect(links).toContain("/p/${encodeURIComponent(slug)}/precheck");
     expect(links).toContain("practitioner-precheck.js");
     expect(links).toContain("practitioner_");
     expect(widgetRoute).toContain("application/javascript");
     expect(widgetRoute).toContain("embedded-widget");
     expect(widgetRoute).toContain("practitioner_widget_rendered");
+
+    // …and the cabinet «Услуги» screen no longer surfaces the kit.
+    const services = source("src/app/cabinet/practitioner/services/page.tsx");
+    expect(services).not.toContain("practitioner-acquisition-kit");
   });
 
   it("marks booking requests as channel conversions", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Video } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
@@ -21,13 +22,12 @@ interface ActiveTariffsEditorProps {
 }
 
 /**
- * M11/D7: real enable/disable toggles for the practitioner's tariffs.
- *
- * The previous markup rendered a static, non-interactive switch (nothing
- * persisted) and an «Изменить» button that mis-routed to /schedule even though
- * practitioners cannot set prices. Here the ToggleSwitch persists `enabled` via
- * PATCH /api/rates (which preserves the admin-set price), and the price is shown
- * read-only — price changes stay with the platform/admin.
+ * M11/D7 · restyled for B466 R9-5 desktop «Услуги» (-services-v2 mockup):
+ * real enable/disable toggles for the practitioner's session formats, rendered
+ * as the mockup's «Форматы приёма» rows (icon · name · online/duration · tag ·
+ * price · switch). The ToggleSwitch persists `enabled` via PATCH /api/rates
+ * (which preserves the admin-set price); the price is shown read-only — price
+ * changes stay with the platform/admin, and arbitrary services aren't creatable.
  */
 export function ActiveTariffsEditor({
   practitionerId,
@@ -59,7 +59,7 @@ export function ActiveTariffsEditor({
         throw new Error(typeof data.error === "string" ? data.error : "Не удалось сохранить");
       }
       const target = next.find((r) => r.id === rateId);
-      toast.success(target?.enabled ? "Тариф показывается клиентам" : "Тариф скрыт от клиентов");
+      toast.success(target?.enabled ? "Формат показывается клиентам" : "Формат скрыт от клиентов");
     } catch (err) {
       setRates(prev);
       toast.error(err instanceof Error ? err.message : "Не удалось сохранить");
@@ -69,47 +69,64 @@ export function ActiveTariffsEditor({
   }
 
   return (
-    <div className="grid gap-3" data-testid="practitioner-active-tariffs">
+    <div data-testid="practitioner-active-tariffs">
       {rates.map((rate) => {
         const net = rate.priceRub - Math.round((rate.priceRub * commissionPercent) / 100);
         return (
           <article
             key={rate.id}
-            className="soft-card-flat grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-            style={{ opacity: rate.enabled ? 1 : 0.62 }}
+            className="flex items-center gap-3.5 border-t border-[var(--soft-paper-deep)] py-3.5 first:border-t-0 first:pt-0.5"
+            style={{ opacity: rate.enabled ? 1 : 0.6 }}
           >
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="mt-0.5">
-                <ToggleSwitch
-                  enabled={rate.enabled}
-                  onToggle={() => toggleRate(rate.id)}
-                  disabled={readOnly || savingId === rate.id}
-                  label="Показывать тариф клиентам"
-                />
+            <span
+              className="grid h-[42px] w-[42px] flex-none place-items-center rounded-[12px]"
+              style={{ background: "#E4EADF", color: "#4B6146" }}
+              aria-hidden="true"
+            >
+              <Video width={20} height={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14.5px] font-semibold text-[var(--soft-ink)]">
+                Индивидуальная сессия
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-semibold text-[var(--soft-ink)]">Индивидуальная сессия</h2>
-                  <span className="soft-badge soft-badge-lilac text-[11px]">{rate.durationMin} мин</span>
-                  {!rate.enabled && <span className="soft-badge text-[11px]">скрыт</span>}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                  Онлайн · клиент видит цену до записи · чистыми после комиссии: {net.toLocaleString("ru-RU")} ₽
-                </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--soft-ink-faint)]">
+                <span>Онлайн</span>
+                <span className="inline-block h-[3px] w-[3px] rounded-full bg-[var(--soft-ink-faint)]" aria-hidden="true" />
+                <span>{rate.durationMin} мин</span>
+                <span className="inline-block h-[3px] w-[3px] rounded-full bg-[var(--soft-ink-faint)]" aria-hidden="true" />
+                {rate.enabled ? (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em]"
+                    style={{ background: "#E4EADF", color: "#4B6146" }}
+                  >
+                    активна
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[var(--soft-paper-deep)] px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-[var(--soft-ink-faint)]">
+                    скрыта
+                  </span>
+                )}
+                <span className="basis-full text-[11.5px] text-[var(--soft-ink-faint)]">
+                  клиент видит цену до записи · чистыми {net.toLocaleString("ru-RU")} ₽
+                </span>
               </div>
             </div>
-            <div className="flex items-center justify-end sm:w-32">
-              <p className="whitespace-nowrap text-right font-heading text-2xl font-semibold tabular-nums text-[var(--soft-bordeaux)]">
-                {rate.priceRub.toLocaleString("ru-RU")} ₽
-              </p>
-            </div>
+            <span className="flex-none whitespace-nowrap font-heading text-[17px] font-semibold tabular-nums text-[var(--soft-bordeaux)]">
+              {rate.priceRub.toLocaleString("ru-RU")} ₽
+            </span>
+            <ToggleSwitch
+              enabled={rate.enabled}
+              onToggle={() => toggleRate(rate.id)}
+              disabled={readOnly || savingId === rate.id}
+              label={rate.enabled ? "Скрыть формат от клиентов" : "Показать формат клиентам"}
+            />
           </article>
         );
       })}
-      <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+      <p className="mt-3.5 text-[11.5px] leading-relaxed text-[var(--soft-ink-faint)]">
         {readOnly
-          ? "Тарифы настраивает платформа. Чтобы изменить цену или добавить формат — напишите в поддержку."
-          : "Включайте и выключайте показ форматов клиентам переключателем. Цену устанавливает платформа — изменить её можно через администратора/поддержку."}
+          ? "Форматы приёма настраивает платформа. Чтобы изменить цену — напишите в поддержку. Создание произвольных услуг пока недоступно."
+          : "Форматы приёма настроены под ваш тариф — включайте нужные переключателем. Цену устанавливает платформа; создание произвольных услуг пока недоступно."}
       </p>
     </div>
   );

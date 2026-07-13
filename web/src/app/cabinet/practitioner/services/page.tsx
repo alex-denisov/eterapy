@@ -1,17 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
-import {
-  practitionerPrecheckUrl,
-  practitionerTelegramStartUrl,
-  practitionerWidgetSnippet,
-} from "@/lib/practitioner-links";
+import { appUrl, loginUrl } from "@/lib/subdomain";
+import { getActivePractitionerPlanKey } from "@/lib/practitioner-entitlements";
+import { practitionerTierBadge, practitionerTierFromPlanKey } from "@/lib/practitioner-tier";
 import { ActiveTariffsEditor } from "./active-tariffs-editor";
+import { ServicesDirectionsEditor } from "./services-directions-editor";
 import { PractitionerServicesEditorMobile } from "./services-editor-mobile";
 
 export default async function PractitionerServicesPage() {
@@ -36,170 +32,94 @@ export default async function PractitionerServicesPage() {
         priceRub: practitioner.pricePerSession,
         enabled: true,
       }];
-	  const commissionPercent = practitioner.commissionPercent ?? 35;
-  const precheckUrl = practitionerPrecheckUrl(practitioner.slug, {
-    source: "practitioner",
-    channel: "profile-link",
-    practitioner: practitioner.slug,
-    practitionerId: practitioner.id,
-    entry: "practitioner_precheck",
-  });
-  const telegramUrl = practitionerTelegramStartUrl(practitioner.id);
-  const widgetSnippet = practitionerWidgetSnippet(practitioner.slug, `practitioner-${practitioner.id}`);
-  const qrDataUrl = await QRCode.toDataURL(precheckUrl, {
-    margin: 1,
-    width: 168,
-    color: {
-      dark: "#6d2832",
-      light: "#fff8f1",
-    },
-  });
+  const commissionPercent = practitioner.commissionPercent ?? 35;
+  const activeCount = activeRates.filter((rate) => rate.enabled).length;
+
+  const planKey = await getActivePractitionerPlanKey(session.user!.id);
+  const tierBadge = practitionerTierBadge(practitionerTierFromPlanKey(planKey));
+
+  // «Как считается выплата» — на базовой цене сессии (иллюстрация выплаты).
+  const payoutPrice = practitioner.pricePerSession;
+  const payoutNet = payoutPrice - Math.round((payoutPrice * commissionPercent) / 100);
+
+  const taxonomy = {
+    categories: practitioner.categories,
+    directions: practitioner.directions,
+    tags: practitioner.tags,
+    formats: practitioner.formats,
+  };
 
   return (
     <>
       {/* МОБАЙЛ — 1-в-1 mockup practitioner-more-services: pcab-редактор
-          таксономии (специализация → направления → темы) + форматов. Тарифы/
-          цены здесь НЕ показываем — они в «Календарь → Доступность». */}
+          таксономии (специализация → направления → темы) + форматов. */}
       <PractitionerServicesEditorMobile
         backHref={appUrl("/practitioner/more")}
-        initialData={{
-          categories: practitioner.categories,
-          directions: practitioner.directions,
-          tags: practitioner.tags,
-          formats: practitioner.formats,
-        }}
+        initialData={taxonomy}
       />
 
-      {/* ДЕСКТОП — тарифы + acquisition kit (ждёт новых десктоп-макетов R9-5) */}
-      <div className="hidden p-6 md:block md:p-8 max-w-5xl" data-testid="practitioner-services-desktop">
-      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="soft-eyebrow">услуги практика</p>
-          <h1 className="soft-h1 mt-2">Услуги и цены</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Форматы, которые видит клиент при записи. Цена встречи не участвует в скидках и оплачивается отдельно
-            от цифровых продуктов ETerapy.
+      {/* ДЕСКТОП — B466 R9-5, 1-в-1 mockup practitioner-desktop-services-v2:
+          форматы приёма (on/off) + направления + «Как считается выплата». */}
+      <div className="hidden max-w-5xl p-6 md:block md:p-8" data-testid="practitioner-services-desktop">
+        <div className="mb-7">
+          <p className="soft-eyebrow">Практика</p>
+          <h1 className="soft-h1 mt-2">Услуги</h1>
+          <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Форматы приёма и направления работы. Клиенты видят их в вашей карточке и при записи.
           </p>
         </div>
-        <Link href={appUrl("/practitioner/schedule")} className="soft-button soft-button-primary">
-          Настроить расписание
-        </Link>
-      </div>
 
-      <section className="soft-card mb-4 p-5 md:p-6" data-testid="practitioner-acquisition-kit">
-        <div className="grid gap-5 lg:grid-cols-[1fr_180px] lg:items-center">
-          <div>
-            <p className="soft-eyebrow">каналы записи</p>
-            <h2 className="soft-h2 mt-2">Личная ссылка предразбора</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Публикуйте её в профиле, рассылке или Telegram. Клиент сначала формулирует вопрос,
-              ETerapy фиксирует attribution, а затем ведёт к записи без скидок на вашу ставку.
-            </p>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
-                <p className="text-xs text-[var(--soft-ink-faint)]">Precheck URL</p>
-                <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{precheckUrl}</code>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
-                  <p className="text-xs text-[var(--soft-ink-faint)]">Telegram deeplink</p>
-                  <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{telegramUrl}</code>
-                </div>
-                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
-                  <p className="text-xs text-[var(--soft-ink-faint)]">Script widget</p>
-                  <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{widgetSnippet}</code>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link href={precheckUrl} className="soft-button soft-button-primary" target="_blank" rel="noopener noreferrer">
-                Открыть предразбор
-              </Link>
-              <Link href={mainUrl(`/api/widgets/practitioner-precheck.js?slug=${encodeURIComponent(practitioner.slug)}`)} className="soft-button soft-button-ghost" target="_blank" rel="noopener noreferrer">
-                Проверить widget
-              </Link>
-            </div>
-          </div>
-          <div className="mx-auto rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-3 text-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt={`QR-код предразбора ${practitioner.slug}`} width={168} height={168} className="h-[168px] w-[168px]" />
-            <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">QR для кабинета / визитки</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="soft-card p-5 md:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <p className="soft-eyebrow">активные тарифы</p>
-            <span className="soft-badge soft-badge-warm">{activeRates.filter((rate) => rate.enabled).length} активно</span>
-          </div>
-          <ActiveTariffsEditor
-            practitionerId={practitioner.id}
-            initialRates={activeRates.map((rate) => ({
-              id: rate.id,
-              durationMin: rate.durationMin,
-              priceRub: rate.priceRub,
-              enabled: rate.enabled,
-            }))}
-            commissionPercent={commissionPercent}
-            readOnly={practitioner.priceRates.length === 0}
-          />
-          {/* B466: включение/отключение длительностей дублируется в
-              «Календарь → Доступность» рядом с рабочими часами. */}
-          <p className="mt-4 border-t border-[var(--soft-paper-deep)] pt-3 text-xs text-[var(--soft-ink-faint)]">
-            Включать и отключать длительности удобно также в{" "}
-            <Link href={appUrl("/practitioner/calendar?tab=availability")} className="text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline">
-              «Календарь → Доступность»
-            </Link>{" "}
-            — рядом с рабочими часами.
-          </p>
-        </section>
-
-        <aside className="grid gap-4">
-          <section className="soft-card p-5" style={{ background: "linear-gradient(160deg, #f4d9c1, #fff0df)" }}>
-            <p className="soft-eyebrow">комиссия платформы</p>
-            <p className="font-heading mt-3 text-4xl font-semibold text-[var(--soft-bordeaux)]">{commissionPercent}%</p>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Удерживается только с проведённых встреч. Цифровые продукты и баллы не уменьшают цену вашей
-              сессии.
-            </p>
+        <div className="grid items-start gap-[18px] lg:grid-cols-[1.6fr_1fr]">
+          <section className="soft-card p-5 md:p-6">
+            <p className="soft-eyebrow mb-4">Форматы приёма · {activeCount} активных</p>
+            <ActiveTariffsEditor
+              practitionerId={practitioner.id}
+              initialRates={activeRates.map((rate) => ({
+                id: rate.id,
+                durationMin: rate.durationMin,
+                priceRub: rate.priceRub,
+                enabled: rate.enabled,
+              }))}
+              commissionPercent={commissionPercent}
+              readOnly={practitioner.priceRates.length === 0}
+            />
           </section>
 
-          <section className="soft-card p-5" style={{ background: "linear-gradient(140deg, #dbd3ea, #f4d5c8)" }}>
-            <p className="soft-eyebrow">психология + эзотерика</p>
-            <h2 className="soft-h3 mt-3">Бейдж универсала</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Если вы работаете и в психологии, и в эзотерике, каталог подсвечивает ваш профиль
-              бейджем «психология + эзотерика». Ставка не меняется.
-            </p>
-            <Link href={mainUrl("/practitioners")} className="soft-chip mt-4">
-              Открыть каталог →
-            </Link>
-          </section>
-        </aside>
-      </div>
+          <div className="flex flex-col gap-[18px]">
+            <section className="soft-card p-5 md:p-6">
+              <p className="soft-eyebrow mb-3.5">Направления работы · {practitioner.directions.length}</p>
+              <ServicesDirectionsEditor initial={taxonomy} />
+              <p className="mt-3.5 text-[11.5px] leading-relaxed text-[var(--soft-ink-faint)]">
+                Направления помогают клиентам найти вас в каталоге по запросу. Отражают ваши компетенции
+                из верификации.
+              </p>
+            </section>
 
-      <section className="soft-card mt-4 p-5 md:p-6">
-        <p className="soft-eyebrow">правила витрины</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {[
-            ["Прозрачная цена", "Клиент видит стоимость до записи, без скрытых доплат."],
-            ["Без скидок на встречи", "Подписки и баллы применяются только к цифровым продуктам."],
-            ["Этическая рамка", "Нельзя обещать гарантированный результат или давить срочностью."],
-          ].map(([title, text]) => (
-            <div key={title} className="soft-card-flat p-4">
-              <h3 className="font-semibold text-[var(--soft-bordeaux)]">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{text}</p>
-            </div>
-          ))}
+            <section className="soft-card p-5 md:p-6" data-testid="practitioner-payout-card">
+              <p className="soft-eyebrow mb-3.5">Как считается выплата</p>
+              <div className="flex justify-between gap-3 py-2.5 text-[13px]">
+                <span className="text-[var(--soft-ink-soft)]">Цена сессии</span>
+                <span className="font-semibold text-[var(--soft-ink)]">
+                  {payoutPrice.toLocaleString("ru-RU")} ₽
+                </span>
+              </div>
+              <div className="flex justify-between gap-3 border-t border-[var(--soft-paper-deep)] py-2.5 text-[13px]">
+                <span className="text-[var(--soft-ink-soft)]">Комиссия платформы · тариф {tierBadge}</span>
+                <span className="font-semibold text-[var(--soft-ink)]">−{commissionPercent}%</span>
+              </div>
+              <div className="flex justify-between gap-3 border-t border-[var(--soft-paper-deep)] py-2.5 text-[13px]">
+                <span className="text-[var(--soft-ink-soft)]">Вы получаете</span>
+                <span className="font-semibold text-[var(--soft-bordeaux)]">
+                  ≈ {payoutNet.toLocaleString("ru-RU")} ₽
+                </span>
+              </div>
+              <p className="mt-3 text-[11.5px] leading-relaxed text-[var(--soft-ink-faint)]">
+                Комиссия зависит от тарифа. На PRO+ она ниже. Выплаты — по подтверждённым реквизитам
+                в разделе «Финансы».
+              </p>
+            </section>
+          </div>
         </div>
-      </section>
-
-      <div className="mt-5 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-sm text-[var(--soft-ink-soft)]">
-        Вы управляете показом форматов клиентам прямо здесь — переключателем. Цена встречи устанавливается
-        платформой и не меняется практиком, чтобы защитить уже созданные записи и витрину.
-      </div>
       </div>
     </>
   );
