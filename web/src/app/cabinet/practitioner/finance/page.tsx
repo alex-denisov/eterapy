@@ -98,8 +98,11 @@ export default async function PractitionerFinancePage({
         style={{ paddingBottom: 80 }}
         data-testid="practitioner-finance-page"
       >
-        <p className="soft-eyebrow">Финансы практика</p>
+        <p className="soft-eyebrow">Практика</p>
         <h1 className="soft-h1 mt-2">Финансы</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Баланс, выплаты, тариф и налоговый статус. Выплаты приходят по подтверждённым реквизитам.
+        </p>
         <FinanceTabs active={tab} />
 
         {tab === "balance" && financeData && <BalanceTab data={financeData} tier={tier} />}

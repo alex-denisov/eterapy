@@ -50,6 +50,12 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
   const confirmPack = confirmUnits === null ? null : packs.find((p) => p.units === confirmUnits) ?? null;
 
   const pct = quota.included > 0 ? Math.min(100, Math.round((quota.used / quota.included) * 100)) : 0;
+  // B466 R9-5 / ROUND 7 #5 — low-quota escalation: ≤3 left → amber warning,
+  // 0 left → red. Only for metered tiers (included > 0; Free shows the upsell).
+  const lowQuota = quota.included > 0 && quota.remaining <= 3;
+  const outOfQuota = quota.included > 0 && quota.remaining <= 0;
+  const remainingWord =
+    quota.remaining === 1 ? "разбор" : quota.remaining >= 2 && quota.remaining <= 4 ? "разбора" : "разборов";
 
   async function patchSettings(body: Record<string, unknown>, revert: () => void) {
     try {
@@ -108,6 +114,38 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
 
   return (
     <div className="mt-5 flex flex-col gap-4">
+      {/* Low-quota escalation banner (ROUND 7 #5) — anchors to top-up packs. */}
+      {lowQuota && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border px-4 py-3.5"
+          style={outOfQuota
+            ? { background: "#F7E4E0", borderColor: "#E4B8AE", color: "#7A2E22" }
+            : { background: "var(--soft-amber-bg, #F2E2C2)", borderColor: "#E4CE9A", color: "var(--soft-amber-ink, #6E5114)" }}
+          data-testid="practitioner-ai-lowquota"
+        >
+          <div className="min-w-0">
+            <p className="text-[13.5px] font-semibold">
+              {outOfQuota ? "Разборы в этом месяце закончились" : `Осталось ${quota.remaining} ${remainingWord}`}
+            </p>
+            <p className="mt-0.5 text-xs opacity-80">
+              {outOfQuota
+                ? "Докупите пакет с баланса, чтобы AI продолжил готовить резюме и заметки."
+                : "Докупите пакет заранее, чтобы разборы не прервались в конце месяца."}
+            </p>
+          </div>
+          <a
+            href="#ai-topup-packs"
+            className="shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold"
+            style={{ background: outOfQuota ? "#B5342A" : "var(--soft-terracotta)", color: "#FBF1E4" }}
+          >
+            Докупить
+          </a>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        {/* Левая колонка: метр + авто-разбор + ближайшие сессии */}
+        <div className="flex flex-col gap-4">
       {/* Quota */}
       <section className="soft-card p-4 sm:p-5" data-testid="practitioner-ai-usage-quota">
         <div className="flex items-baseline gap-2">
@@ -169,9 +207,13 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
         </div>
       </section>
 
+        </div>
+
+        {/* Правая колонка: докупка + авто-докупка + тариф-нота */}
+        <div className="flex flex-col gap-4">
       {/* Top-up packs — B466 round-8 #5: explicit BUY CTAs (price rendered as a
           filled action button); best pack carries the «выгодно» badge (mockup). */}
-      <section data-testid="practitioner-ai-topup">
+      <section id="ai-topup-packs" data-testid="practitioner-ai-topup" className="scroll-mt-20">
         <p className="soft-eyebrow mb-2.5">Докупить разборы</p>
         <div className="grid grid-cols-3 gap-2.5">
           {packs.map((pack, i) => {
@@ -228,6 +270,15 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
         </div>
         <ToggleSwitch enabled={autoTopup} onToggle={() => toggleAutoTopup(!autoTopup)} label="Авто-докупка" />
       </section>
+
+          {/* Тариф-нота: разборы входят в Pro/Pro+, смена тарифа — в Финансах. */}
+          <div className="rounded-[18px] p-4" style={{ background: "var(--soft-paper-deep)" }}>
+            <p className="text-[12.5px] leading-relaxed text-[var(--soft-ink-faint)]">
+              Разборы входят в тарифы Pro (20/мес) и Pro+ (50/мес). На Pro+ лимит выше и комиссия с сессий ниже — сменить тариф можно в «Финансы&nbsp;→&nbsp;Тариф».
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Purchase confirmation — B466 round-8 #6. */}
       <Dialog open={confirmPack !== null} onOpenChange={(open) => { if (!open) setConfirmUnits(null); }}>

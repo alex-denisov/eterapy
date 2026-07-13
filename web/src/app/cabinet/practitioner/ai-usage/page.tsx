@@ -1,8 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getPractitionerAiQuota } from "@/lib/practitioner-ai-quota-db";
@@ -76,17 +74,13 @@ export default async function PractitionerAiUsagePage() {
         backHref={appUrl("/practitioner/more")}
       />
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
-      <div className="mx-auto hidden w-full max-w-2xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ai-usage-page">
-        <Link href={appUrl("/practitioner/more")} className="inline-flex items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
-          <ArrowLeft className="h-4 w-4" />
-          Ещё
-        </Link>
-        <p className="soft-eyebrow mt-4">Кабинет практика</p>
+      {/* ДЕСКТОП R9-5 — 1-в-1 practitioner-desktop-ai-usage-v2 (метр + тумблеры
+          слева, докупка + авто-докупка + тариф-нота справа; low-quota баннер). */}
+      <div className="mx-auto hidden w-full max-w-6xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-ai-usage-page">
+        <p className="soft-eyebrow">Практика</p>
         <h1 className="soft-h1 mt-2">Разборы и AI</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          AI-разбор сессии (резюме, заметки, сообщение клиенту) входит в тариф пакетом на месяц. Расшифровка и
-          безопасность сессий работают всегда и не тратят квоту.
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          AI-помощник готовит резюме сессий, черновики сообщений и подготовку к встрече. Каждый разбор расходует лимит месяца.
         </p>
 
         <AiUsageClient

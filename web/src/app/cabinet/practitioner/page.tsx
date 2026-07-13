@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Inbox, ShieldAlert, Sparkles, Video } from "lucide-react";
+import { ChevronRight, Inbox, Plus, ShieldAlert, Sparkles, Video } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { canJoinBooking, bookingDurationMin } from "@/lib/booking-actions";
@@ -365,6 +365,33 @@ export default async function PractitionerTodayPage() {
     manageHref: appUrl("/practitioner/ai-usage"),
   };
 
+  // R9-5 desktop — «строка-ориентир» (approved psychologist element): a calm,
+  // server-assembled sentence built from the SAME signals that feed the mobile
+  // «Сегодня» (next session · fresh AI summary · pending requests), so the two
+  // surfaces can't drift. Each clause drops out when its data is absent.
+  const orientationSentences: string[] = [];
+  if (nextBooking?.slot) {
+    const inLabel = startsInLabel(nextBooking.slot.startAt, now);
+    let lead =
+      inLabel === "идёт сейчас"
+        ? "Сейчас идёт сессия"
+        : `Ближайшая встреча — ${inLabel}`;
+    if (freshAnalyses.length > 0) {
+      lead += ", к ней уже готово AI-резюме прошлой сессии";
+    }
+    orientationSentences.push(lead);
+  } else {
+    orientationSentences.push(
+      "Сегодня подтверждённых встреч нет — откройте доступность, чтобы клиенты могли записаться",
+    );
+  }
+  if (pendingRequests.length > 0) {
+    const n = pendingRequests.length;
+    const word = n === 1 ? "новая заявка ждёт" : n < 5 ? "новые заявки ждут" : "новых заявок ждут";
+    orientationSentences.push(`${n} ${word} ответа`);
+  }
+  const orientationLine = `${orientationSentences.join(". ")}.`;
+
   return (
     <>
       {/* R9-4 P1 — мобильный кокпит 1-в-1 по макету; десктоп ниже остаётся
@@ -408,8 +435,22 @@ export default async function PractitionerTodayPage() {
         </div>
       </div>
 
-      {/* Metrics — each card links into its screen (B466 round-8 #3). */}
-      <div className="mt-6 grid grid-cols-3 gap-2.5 lg:grid-cols-4">
+      {/* R9-5 — «строка-ориентир»: calm, server-assembled orientation line. */}
+      <p
+        className="mt-2.5 max-w-2xl text-[15px] leading-relaxed text-[var(--soft-ink-soft)]"
+        data-testid="practitioner-today-orientation"
+      >
+        {orientationLine}
+      </p>
+
+      {/* Пульс практики — metrics, each card links into its screen (B466 round-8 #3). */}
+      <div className="mt-6 mb-2.5 flex items-baseline justify-between">
+        <p className="soft-eyebrow">Пульс практики</p>
+        <Link href={appUrl("/practitioner/finance")} className="text-xs text-[var(--soft-ink-soft)]">
+          Финансы →
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5 lg:grid-cols-4">
         <Link
           href={appUrl("/practitioner/finance")}
           className="soft-card p-3.5 transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)]"
@@ -625,14 +666,19 @@ export default async function PractitionerTodayPage() {
             <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[var(--soft-paper-deep)]">
               <div className="h-full rounded-full" style={{ width: `${quotaPct}%`, background: "var(--soft-bordeaux)" }} />
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-[11.5px] text-[var(--soft-ink-faint)]">
-                Осталось {quota.remaining} · обновится {formatMskDayMonth(quota.periodResetAt)}
-              </p>
-              <Link href={appUrl("/practitioner/ai-usage")} className="shrink-0 text-xs font-medium text-[var(--soft-terracotta-dark)]">
-                Управлять →
-              </Link>
-            </div>
+            <p className="mt-2 text-[11.5px] text-[var(--soft-ink-faint)]">
+              Осталось {quota.remaining} · обновится {formatMskDayMonth(quota.periodResetAt)}
+            </p>
+            {/* R9-5 — top-up CTA (B434 metered): докупка разборов с баланса. */}
+            <Link
+              href={appUrl("/practitioner/ai-usage")}
+              data-testid="practitioner-ai-topup"
+              className="mt-3.5 flex items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-[var(--soft-bordeaux)] hover:text-[#FBF1E4]"
+              style={{ borderColor: "var(--soft-bordeaux)", color: "var(--soft-bordeaux)" }}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Докупить разборы
+            </Link>
           </section>
         </div>
       </div>

@@ -3,16 +3,25 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { appUrl, logoutUrl } from "@/lib/subdomain";
 
-// B347 / Интерфейс 14 → B466: аккаунт-настройки практика (mockup
-// -more-settings). Публичный профиль вынесен на /practitioner/profile —
-// здесь остаются Уведомления (матрица событие × Email/Telegram/В приложении +
-// привязка Telegram через NotificationSettings role="PRACTITIONER"),
-// Безопасность и Деактивация.
-type Tab = "notifications" | "security" | "danger";
+// B347 / Интерфейс 14 → B466 R9-5: аккаунт-настройки практика (mockup
+// practitioner-desktop-settings-v2): суб-табы Аккаунт · Уведомления · Интерфейс
+// · Удаление. Публичный профиль вынесен на /practitioner/profile. Смена пароля —
+// в модалке с подтверждением текущего. Имя/email/язык/пояс — read-only (нет бэка
+// для их изменения); NotificationSettings несёт реальную матрицу + Telegram.
+type Tab = "account" | "notifications" | "interface" | "danger";
 
 interface TelegramStatus {
   linked: boolean;
@@ -20,21 +29,25 @@ interface TelegramStatus {
 }
 
 const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "account", label: "Аккаунт" },
   { id: "notifications", label: "Уведомления" },
-  { id: "security", label: "Безопасность" },
+  { id: "interface", label: "Интерфейс" },
   { id: "danger", label: "Удаление" },
 ];
 
 export function PractitionerSettingsClient({
+  name,
   email,
   telegramStatus,
   hasPassword,
 }: {
+  name: string;
   email: string;
   telegramStatus: TelegramStatus;
   hasPassword: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>("notifications");
+  const [activeTab, setActiveTab] = useState<Tab>("account");
+  const [pwdModalOpen, setPwdModalOpen] = useState(false);
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -57,8 +70,11 @@ export function PractitionerSettingsClient({
         body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
       });
       const d = await res.json();
-      if (d.ok) { toast.success("Пароль изменён"); setCurrentPwd(""); setNewPwd(""); setConfirmPwd(""); }
-      else toast.error(d.error || "Ошибка");
+      if (d.ok) {
+        toast.success("Пароль изменён");
+        setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+        setPwdModalOpen(false);
+      } else toast.error(d.error || "Ошибка");
     } catch { toast.error("Ошибка"); }
     finally { setSavingPwd(false); }
   }
@@ -86,18 +102,18 @@ export function PractitionerSettingsClient({
   }
 
   return (
-    <div className="px-6 py-8 md:px-8 max-w-3xl">
-      <div className="soft-eyebrow">настройки практика</div>
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-settings-page">
+      <div className="soft-eyebrow">Аккаунт</div>
       <h1 className="soft-h1 mt-2 mb-2">Настройки</h1>
-      <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
-        Уведомления, Telegram и безопасность аккаунта. Публичный профиль — в разделе{" "}
+      <p className="mb-6 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+        Данные входа, уведомления и интерфейс. Публичный профиль редактируется в разделе{" "}
         <Link href={appUrl("/practitioner/profile")} className="text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline">
           «Профиль»
         </Link>.
       </p>
 
-      {/* Табы — переключатель как в кабинете клиента */}
-      <div className="flex flex-wrap gap-1.5 mb-6" style={{ borderBottom: "1px solid var(--soft-paper-edge)", paddingBottom: 12 }}>
+      {/* Суб-табы (как в Финансах) */}
+      <div className="mb-6 flex flex-wrap gap-1.5" style={{ borderBottom: "1px solid var(--soft-paper-edge)", paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors ${
@@ -108,45 +124,74 @@ export function PractitionerSettingsClient({
         ))}
       </div>
 
+      {/* Аккаунт — имя/email (read-only) + пароль (модалка) */}
+      {activeTab === "account" && (
+        <div className="soft-card p-6" data-testid="practitioner-settings-account">
+          <h2 className="soft-h3 mb-5">Данные аккаунта</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Имя</label>
+              <div className="flex items-center justify-between gap-2 rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2.5 text-[14px] text-[var(--soft-ink-soft)]">
+                <span className="truncate">{name}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--soft-ink-faint)]"><Lock size={12} /> нельзя изменить</span>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Email</label>
+              <div className="flex items-center justify-between gap-2 rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2.5 text-[14px] text-[var(--soft-ink-soft)]">
+                <span className="truncate">{email}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--soft-sage,#E4EADF)", color: "var(--soft-sage-ink,#4B6146)" }}>подтверждён</span>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Пароль</label>
+              <div className="flex items-center justify-between gap-2 rounded-[10px] border border-[var(--soft-paper-edge)] bg-white px-3 py-2">
+                <span className="tracking-widest text-[var(--soft-ink-faint)]">••••••••••</span>
+                {hasPassword ? (
+                  <button type="button" onClick={() => setPwdModalOpen(true)} className="soft-button soft-button-ghost" style={{ minHeight: "2rem", padding: "0.35rem 0.85rem", fontSize: "0.8rem" }} data-testid="practitioner-change-password">
+                    Сменить пароль
+                  </button>
+                ) : (
+                  <span className="text-xs text-[var(--soft-ink-faint)]">вход через внешний сервис</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+            Имя и email привязаны к аккаунту и не меняются здесь. Пароль меняется в отдельном окне с подтверждением текущего пароля.
+          </p>
+        </div>
+      )}
+
       {/* Уведомления — матрица событие × Email/Telegram/В приложении + Telegram */}
       {activeTab === "notifications" && (
         <NotificationSettings telegramStatus={telegramStatus} role="PRACTITIONER" />
       )}
 
-      {/* Безопасность */}
-      {activeTab === "security" && (
-        <div className="soft-card p-6">
-          <h2 className="soft-h3 mb-5">Смена пароля</h2>
-          {!hasPassword ? (
-            <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4 text-sm text-[var(--soft-ink-soft)]">
-              Вы вошли через внешний сервис (Google, VK, Telegram и т.д.). Смена пароля недоступна.
+      {/* Интерфейс — язык + часовой пояс (display-only: нет бэка для смены) */}
+      {activeTab === "interface" && (
+        <div className="soft-card p-6" data-testid="practitioner-settings-interface">
+          <h2 className="soft-h3 mb-5">Интерфейс</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Язык интерфейса</label>
+              <div className="rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2.5 text-[14px] text-[var(--soft-ink-soft)]">Русский</div>
             </div>
-          ) : (
-            <form onSubmit={handleSavePassword} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Текущий пароль</label>
-                <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Новый пароль</label>
-                <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Повторите новый пароль</label>
-                <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" />
-              </div>
-              <button type="submit" disabled={savingPwd || !currentPwd || !newPwd} className="soft-button soft-button-primary">
-                {savingPwd ? "Сохранение..." : "Изменить пароль"}
-              </button>
-            </form>
-          )}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Часовой пояс</label>
+              <div className="rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/40 px-3 py-2.5 text-[14px] text-[var(--soft-ink-soft)]">Москва · GMT+3</div>
+            </div>
+          </div>
+          <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+            Пока доступен только русский язык. Время сессий и напоминаний показывается по московскому времени (GMT+3).
+          </p>
         </div>
       )}
 
-      {/* Деактивация */}
+      {/* Удаление — экспорт + деактивация */}
       {activeTab === "danger" && (
-        <div className="soft-card-flat p-6" style={{ border: "1px solid rgba(176,32,32,.15)" }}>
-          <h2 className="soft-h3 mb-3" style={{ color: "#b02020" }}>Деактивация аккаунта</h2>
+        <div className="soft-card-flat p-6" style={{ border: "1px solid rgba(176,32,32,.15)" }} data-testid="practitioner-settings-danger">
+          <h2 className="soft-h3 mb-3" style={{ color: "#b02020" }}>Удаление аккаунта</h2>
           <div className="mb-5 rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4">
             <p className="text-sm font-semibold text-[var(--soft-ink)]">Экспорт личных данных</p>
             <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
@@ -157,7 +202,7 @@ export function PractitionerSettingsClient({
               Скачать JSON
             </button>
           </div>
-          <p className="text-sm text-[var(--soft-ink-soft)] mb-4">
+          <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
             Аккаунт будет скрыт из каталога. Для восстановления или полного удаления данных напишите на{" "}
             <a href="mailto:support@eterapy.com" className="text-primary hover:underline">support@eterapy.com</a>.
           </p>
@@ -167,7 +212,7 @@ export function PractitionerSettingsClient({
                 Введите ваш email ({email}) для подтверждения
               </label>
               <Input value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteConfirmError(null); }}
-                placeholder={email} className={`bg-[rgba(255,255,255,0.035)] border-destructive/30 max-w-xs ${deleteConfirmError ? "border-destructive" : ""}`} />
+                placeholder={email} className={`max-w-xs border-destructive/30 bg-[rgba(255,255,255,0.035)] ${deleteConfirmError ? "border-destructive" : ""}`} />
               {deleteConfirmError && <p className="mt-1 text-xs text-destructive">{deleteConfirmError}</p>}
             </div>
             <button type="button" disabled={deleting} onClick={handleDeactivate} className="soft-button" style={{ background: "#b02020", color: "#fff" }}>
@@ -176,6 +221,29 @@ export function PractitionerSettingsClient({
           </div>
         </div>
       )}
+
+      {/* Модалка смены пароля */}
+      <Dialog open={pwdModalOpen} onOpenChange={setPwdModalOpen}>
+        <DialogContent className="max-w-sm" data-testid="practitioner-password-modal">
+          <DialogHeader>
+            <DialogTitle>Смена пароля</DialogTitle>
+            <DialogDescription>Введите текущий пароль для подтверждения, затем новый.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSavePassword} className="space-y-3">
+            <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" placeholder="Текущий пароль" />
+            <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" placeholder="Новый пароль" />
+            <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" placeholder="Повторите новый пароль" />
+            <DialogFooter>
+              <button type="button" onClick={() => setPwdModalOpen(false)} className="soft-button soft-button-ghost" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                Отмена
+              </button>
+              <button type="submit" disabled={savingPwd || !currentPwd || !newPwd} className="soft-button soft-button-primary" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                {savingPwd ? "Сохранение…" : "Изменить пароль"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
