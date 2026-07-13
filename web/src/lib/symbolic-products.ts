@@ -10,7 +10,7 @@ import { computeHoraryFacts, horaryFactsForAI } from "@/lib/horary";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { humanDesignChannelHeading, humanDesignSectionHeadings } from "@/lib/human-design-result";
-import { analyzeSurname, surnameFactsForAI, type SurnameStory } from "@/lib/surname-story";
+import { analyzeSurname, surnameFactsForAI, surnameValueFromStructuredInput, type SurnameStory } from "@/lib/surname-story";
 import { log, serializeError } from "@/lib/logger";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { TAROT_DECK, type TarotCard } from "@/lib/tarot-deck";
@@ -586,6 +586,7 @@ function symbolicSectionHeadings(input: {
 
 function headingKey(value: string) {
   return value
+    .replace(/^[#*_`“”«»\s]+|[#*_`“”«»\s]+$/g, "")
     .replace(/^\d{1,2}[.)]\s*/, "")
     .replace(/[–-]/g, "—")
     .replace(/\s+/g, " ")
@@ -646,7 +647,25 @@ function symbolicQualityIssue(input: {
   };
   if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
   if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
-  const directAnswer = splitSections(input.text).find((section) => headingKey(section.title) === headingKey("Прямой ответ"));
+  const requiredHeadings = symbolicSectionHeadings({
+    productKey: input.productKey,
+    cards: input.cards,
+    numerology: input.numerology,
+    chart: input.chart,
+  }) ?? [];
+  const parsedSections = splitSections(input.text);
+  const actualHeadings = new Set(parsedSections.map((section) => headingKey(section.title)));
+  const missingHeadings = requiredHeadings.filter((heading) => !actualHeadings.has(headingKey(heading)));
+  if (missingHeadings.length > 0) return `нет обязательных разделов: ${missingHeadings.slice(0, 4).join(", ")}`;
+  const sectionMinimum = input.productKey === "surname-story" ? 220 : 160;
+  const weakSection = parsedSections.find((section) => (
+    requiredHeadings.some((heading) => headingKey(heading) === headingKey(section.title))
+    && headingKey(section.title) !== headingKey("Прямой ответ")
+    && section.body.replace(/^#{1,6}\s*$/gmu, "").trim().length < sectionMinimum
+  ));
+  if (weakSection) return `неполный раздел ${weakSection.title}`;
+  const directAnswer = parsedSections.find((section) => headingKey(section.title) === headingKey("Прямой ответ"));
+  if (requiredHeadings.some((heading) => headingKey(heading) === headingKey("Прямой ответ")) && !directAnswer) return "нет прямого ответа";
   if (directAnswer && directAnswer.body.replace(/^#{1,6}\s*$/gmu, "").trim().length < 350) {
     return "неполный прямой ответ";
   }
@@ -663,8 +682,6 @@ function symbolicQualityIssue(input: {
     }
   }
   if (input.productKey === "human-design" && input.chart) {
-    const headings = symbolicSectionHeadings({ productKey: "human-design", cards: null, numerology: null, chart: input.chart }) ?? [];
-    if (!headings.every((heading) => input.text.includes(`## ${heading}`))) return "нет обязательных персональных разделов бодиграфа";
     if (
       !input.text.includes(input.chart.typeName)
       || !input.text.includes(input.chart.strategy)
@@ -674,16 +691,10 @@ function symbolicQualityIssue(input: {
     ) return "интерпретация не цитирует ключевые рассчитанные значения бодиграфа";
   }
   if (input.productKey === "tarot" && input.cards) {
-    const requiredHeadings = symbolicSectionHeadings({ productKey: "tarot", cards: input.cards, numerology: null, chart: null }) ?? [];
-    const actualHeadings = new Set(splitSections(input.text).map((section) => headingKey(section.title)));
-    if (requiredHeadings.some((heading) => !actualHeadings.has(headingKey(heading)))) return "нет обязательных разделов расклада";
     const missingCard = input.cards.find((card) => !input.text.includes(card.name) || !input.text.includes(card.position));
     if (missingCard) return `нет трактовки карты ${missingCard.name} в позиции ${missingCard.position}`;
   }
   if (input.productKey === "natal-chart" && input.wheel) {
-    const requiredHeadings = symbolicSectionHeadings({ productKey: "natal-chart", cards: null, numerology: null, chart: null }) ?? [];
-    const actualHeadings = new Set(splitSections(input.text).map((section) => headingKey(section.title)));
-    if (requiredHeadings.some((heading) => !actualHeadings.has(headingKey(heading)))) return "нет обязательных разделов натальной карты";
     const distinctSigns = [...new Set(input.wheel.placements.map((placement) => placement.signName))];
     if (distinctSigns.filter((sign) => textMentionsZodiacSign(input.text, sign)).length < Math.min(4, distinctSigns.length)) return "текст не опирается на рассчитанные положения планет";
     const exactAspects = calculateNatalAspectLines(input.wheel.placements)
@@ -755,7 +766,8 @@ export async function generateSymbolicProductResult(input: {
   const hdChart = input.productKey === "human-design" ? computeHumanDesignFromText(input.userInput).chart : null;
   // B391: распознанная форма фамилии — детерминированно; храним в metadata (для
   // страницы/PDF) и передаём в AI как факты, чтобы разбор не выдумывал этимологию.
-  const surnameStory = input.productKey === "surname-story" ? analyzeSurname(input.userInput) : null;
+  const surnameInput = surnameValueFromStructuredInput(input.userInput);
+  const surnameStory = input.productKey === "surname-story" ? analyzeSurname(surnameInput) : null;
   // B451: числовой портрет — детерминированные ядровые числа (для визуала и фактов AI).
   const numerology = input.productKey === "numerology" ? computeNumerology(input.userInput) : null;
   const tarotBirthDate = input.productKey === "tarot-numerology" ? parseStrictBirthDate(input.userInput) : null;
@@ -844,7 +856,13 @@ export async function generateSymbolicProductResult(input: {
               3,
             ),
           ]
-        : chunkHeadings(headings, input.productKey === "tarot" ? 2 : Math.ceil(headings.length / 2));
+        : chunkHeadings(headings, input.productKey === "tarot" ? 2 : 3);
+      const natalAspectPairs = wheel
+        ? calculateNatalAspectLines(wheel.placements)
+            .sort((left, right) => left.aspect.orb - right.aspect.orb)
+            .slice(0, 3)
+            .map((line) => `${line.from.label} — ${line.to.label}: ${line.aspect.label.toLowerCase()}, орбис ${line.aspect.orb.toFixed(1)}°`)
+        : [];
       const generateSegment = (group: string[], index: number, repair = false) => aiComplete({
         feature,
         userId: input.userId,
@@ -866,6 +884,9 @@ export async function generateSymbolicProductResult(input: {
               input.productKey === "numerology" && group.some((heading) => matrixZoneHeadings.includes(heading))
                 ? "Для КАЖДОГО позиционного раздела дай не менее 900 знаков и обязательно сохрани подзаголовки `### В плюсе`, `### В минусе`, `### Практики`. Не сокращай одну позицию ради другой."
                 : "",
+              input.productKey === "natal-chart" && group.some((heading) => heading.startsWith("Аспекты:"))
+                ? `В главах аспектов дословно назови и истолкуй минимум две рассчитанные пары: ${natalAspectPairs.join("; ")}.`
+                : "",
               ...group.map((heading) => `## ${heading}`),
               userContext,
             ].join("\n"),
@@ -885,7 +906,11 @@ export async function generateSymbolicProductResult(input: {
 
       let issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
       if (issue) {
-        const repairHeadings = weakestSymbolicHeadings(headings, text);
+        const actual = new Set(splitSections(text).map((section) => headingKey(section.title)));
+        const missing = headings.filter((heading) => !actual.has(headingKey(heading)));
+        const repairHeadings = input.productKey === "natal-chart" && issue.includes("аспект")
+          ? ["Аспекты: главные ресурсы", "Аспекты: главные напряжения"]
+          : [...missing, ...weakestSymbolicHeadings(headings, text)].filter((heading, index, all) => all.indexOf(heading) === index).slice(0, 6);
         const repair = await aiComplete({
           feature,
           userId: input.userId,
@@ -904,6 +929,9 @@ export async function generateSymbolicProductResult(input: {
                   : "",
                 input.productKey === "numerology" && repairHeadings.some((heading) => matrixZoneHeadings.includes(heading))
                   ? "Каждый позиционный раздел должен содержать не менее 900 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Практики`."
+                  : "",
+                input.productKey === "natal-chart" && issue.includes("аспект")
+                  ? `Обязательно назови и истолкуй минимум две точные рассчитанные пары: ${natalAspectPairs.join("; ")}. Не заменяй их общими словами о гармонии или напряжении.`
                   : "",
                 ...repairHeadings.map((heading) => `## ${heading}`),
                 userContext,

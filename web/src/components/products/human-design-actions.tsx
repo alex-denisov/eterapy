@@ -10,6 +10,13 @@ import { useSymbolicService, type SymbolicResult } from "@/components/products/u
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { personalizeHumanDesignResultHeadings } from "@/lib/human-design-result";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+
+const HUMAN_DESIGN_BIRTH_EXAMPLES = [
+  "15.05.1990, 10:30, Москва",
+  "03.03.1988, 21:00, Кишинёв",
+  "24.09.1994, 06:45, Екатеринбург",
+];
 
 // B451: «Дизайн человека» — самодостаточная услуга по паттерну Таро/reframe.
 // Бодиграф/тип считаются детерминированно (server, по данным рождения), разбор
@@ -122,6 +129,7 @@ export function HumanDesignResultView({
 
 export function HumanDesignActions({ creditCost }: { creditCost: number }) {
   const [birth, setBirth] = useState("");
+  const birthPlaceholder = useRotatingPlaceholder(HUMAN_DESIGN_BIRTH_EXAMPLES, "human-design");
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
     useSymbolicService("human-design", (userInput) => {
@@ -178,7 +186,7 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
           id="hd-birth-input"
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 400))}
-          placeholder="15.05.1990, 10:30, Москва. Точное время и город важны для верного расчёта."
+          placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
           data-testid="hd-birth-input"

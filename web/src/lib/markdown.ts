@@ -49,7 +49,10 @@ export function normalizeMarkdownLists(markdown: string): string {
     .replace(/\r\n/g, "\n")
     .split("\n")
     .flatMap((rawLine) => {
-      let line = rawLine.replace(/^\s*[•–—]\s+/, "- ");
+      let line = rawLine
+        .replace(/^\s*\d{1,3}[.)]\s*$/, "")
+        .replace(/^\s*[•–—]\s+/, "- ")
+        .replace(/^\s*(\d{1,3})\)\s+/, "$1. ");
       const orderedMarkers = [...line.matchAll(/(?:^|\s)\d{1,2}[.)]\s+/g)];
       const bulletMarkers = [...line.matchAll(/(?:^|\s)[•-]\s+/g)];
       if (orderedMarkers.length + bulletMarkers.length < 2) return [line];
@@ -124,14 +127,19 @@ export function parseMarkdownBlocks(markdown: string | null | undefined): Markdo
       continue;
     }
 
-    const ordered = line.match(/^\d+\.\s+(.*)$/);
+    const ordered = line.match(/^(\d+)[.)]\s+(.*)$/);
     if (ordered) {
       flushParagraph();
       if (!list || !list.ordered) {
         flushList();
-        list = { ordered: true, start: orderedItemsInSection + 1, items: [] };
+        const explicitStart = Number(ordered[1]);
+        list = {
+          ordered: true,
+          start: explicitStart > orderedItemsInSection ? explicitStart : orderedItemsInSection + 1,
+          items: [],
+        };
       }
-      list.items.push(ordered[1]);
+      if (ordered[2].trim()) list.items.push(ordered[2]);
       continue;
     }
 
