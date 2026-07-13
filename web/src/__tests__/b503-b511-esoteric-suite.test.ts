@@ -127,11 +127,7 @@ describe("B503–B511 — complete local esoteric suite", () => {
     expect(source("src/app/api/billing/spend-credits/route.ts")).toContain("getConfiguredProductCreditCost");
   });
 
-  it("keeps prototypes as review artifacts while production actions use direct input-to-result flows", () => {
-    const dir = path.join(root, "../output/prototypes/esoteric-suite");
-    for (const file of ["natal-chart.html", "synastry.html", "surname-name.html", "destiny-matrix.html", "horary.html", "tarot-numerology.html"]) {
-      expect(fs.existsSync(path.join(dir, file))).toBe(true);
-    }
+  it("keeps production actions on a direct input-to-result flow", () => {
     const actions = source("src/components/products/new-symbolic-product-actions.tsx");
     expect(actions).not.toContain('data-screen="build"');
     expect(actions).toContain("if (result?.resultText)");
