@@ -20,8 +20,8 @@ function previewBody(title: string, chart: ReturnType<typeof computeHumanDesign>
 export default function B503HumanDesignPreviewPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  // Owner reference: 03.03.1988 21:00 Chisinau = 18:00 UTC for this fixture.
-  const chart = computeHumanDesign(new Date("1988-03-03T18:00:00.000Z"), true);
+  // Public preview fixture: 18.08.1991 07:20 Samara = 03:20 UTC.
+  const chart = computeHumanDesign(new Date("1991-08-18T03:20:00.000Z"), true);
   const headings = humanDesignSectionHeadings(chart);
   const resultText = headings.map((title) => `## ${title}\n\n${previewBody(title, chart)}`).join("\n\n");
   const result = {
@@ -44,7 +44,7 @@ export default function B503HumanDesignPreviewPage() {
       </p>
       <HumanDesignResultView
         result={result}
-        recap={{ birth: "03.03.1988, 21:00, Кишинёв" }}
+        recap={{ birth: "18.08.1991, 07:20, Самара" }}
         creditCost={2}
       />
     </main>

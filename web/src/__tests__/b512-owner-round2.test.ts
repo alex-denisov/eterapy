@@ -102,7 +102,7 @@ describe("B512 owner acceptance round 2", () => {
 
   it("uses a personalized atlas visual without SVG text truncation or generic fact/version/mirror cards", () => {
     const surname = source("src/components/products/surname-story-actions.tsx");
-    expect(surname).toContain("Атлас имени");
+    expect(surname).toContain("Фамильная роза");
     expect(surname).toContain("surname-atlas-traces");
     expect(surname).toContain("Что видно в написании");
     expect(surname).toContain("С чего начать проверку");

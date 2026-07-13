@@ -12,6 +12,18 @@ const PLANET_LABEL: Record<TraditionalPlanet, string> = {
   sun: "Солнце", moon: "Луна", mercury: "Меркурий", venus: "Венера", mars: "Марс", jupiter: "Юпитер", saturn: "Сатурн",
 };
 
+const RADICALITY_LABEL: Record<HoraryJudgementFacts["radicality"], string> = {
+  early: "ранний Асцендент — обстоятельства ещё формируются",
+  late: "поздний Асцендент — ситуация уже близка к развязке",
+  ordinary: "обычная степень Асцендента — вопрос созрел для рассмотрения",
+};
+
+const PHASE_LABEL: Record<NonNullable<HoraryJudgementFacts["contact"]>["phase"], string> = {
+  applying: "сходящийся",
+  separating: "расходящийся",
+  unknown: "фаза не определена",
+};
+
 const DOMICILES: Record<TraditionalPlanet, string[]> = {
   sun: ["leo"], moon: ["cancer"], mercury: ["gemini", "virgo"], venus: ["taurus", "libra"], mars: ["aries", "scorpio"], jupiter: ["sagittarius", "pisces"], saturn: ["capricorn", "aquarius"],
 };
@@ -120,12 +132,12 @@ export function horaryFactsForAI(facts: HoraryJudgementFacts) {
   return [
     "ТОЧНО РАССЧИТАНО ДЛЯ ХОРАРНОЙ КАРТЫ (не меняй сигнификаторы и дома):",
     `Выбранный по категории вопроса дом предмета: ${facts.subjectHouse}.`,
-    `ASC: ${facts.ascendantSign} ${Number((facts.ascendantDegree % 30).toFixed(2))}°. Радикальность по степени ASC: ${facts.radicality}.`,
+    `ASC: ${facts.ascendantSign} ${Number((facts.ascendantDegree % 30).toFixed(2))}°. Радикальность по степени ASC: ${RADICALITY_LABEL[facts.radicality]}.`,
     `Кверент: ${facts.querent.label}, ${facts.querent.placement.signName} ${Number(facts.querent.placement.degreeInSign.toFixed(2))}°, ${facts.querent.dignity}.`,
     `Предмет вопроса: ${facts.quesited.label}, ${facts.quesited.placement.signName} ${Number(facts.quesited.placement.degreeInSign.toFixed(2))}°, ${facts.quesited.dignity}.`,
-    facts.contact ? `Мажорный контакт сигнификаторов: ${facts.contact.kind}, орб ${facts.contact.orb}°, фаза ${facts.contact.phase}.` : "Текущего мажорного контакта сигнификаторов в заданном орбисе нет.",
+    facts.contact ? `Мажорный контакт сигнификаторов: ${facts.contact.kind}, орб ${facts.contact.orb}°, фаза: ${PHASE_LABEL[facts.contact.phase]}.` : "Текущего мажорного контакта сигнификаторов в заданном орбисе нет.",
     `Рецепции: ${facts.receptions.join(" ")}`,
-    `Мажорные контакты Луны: ${facts.moonContacts.length ? facts.moonContacts.map((item) => `${item.planet} — ${item.kind}, орб ${item.orb}°, ${item.phase}`).join("; ") : "нет в заданных орбисах"}.`,
-    "Фаза applying/separating рассчитана сравнением эфемерид через 10 минут. Точный календарный срок автоматически не вычислен: не выдумывай его; дай только осторожный диапазон или прямо обозначь границу расчёта.",
+    `Мажорные контакты Луны: ${facts.moonContacts.length ? facts.moonContacts.map((item) => `${item.planet} — ${item.kind}, орб ${item.orb}°, ${PHASE_LABEL[item.phase]}`).join("; ") : "нет в заданных орбисах"}.`,
+    "Схождение или расхождение рассчитано сравнением эфемерид через 10 минут. Точный календарный срок автоматически не вычислен: не выдумывай его; дай только осторожный диапазон или прямо обозначь границу расчёта.",
   ].join("\n");
 }
