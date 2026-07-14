@@ -26,15 +26,21 @@ function metadataValue<T>(result: SymbolicResult | null, key: string): T | null 
 
 const HORARY_FOCUS = ["покупка", "работа", "отношения", "деньги", "переезд", "срок", "другое"];
 const HORARY_QUESTION_EXAMPLES: Record<string, string[]> = {
-  default: ["Сначала выберите категорию, затем сформулируйте один точный вопрос", "Какой один исход вам важно прояснить сейчас?"],
-  покупка: ["Состоится ли покупка этой квартиры до конца месяца?", "Подпишем ли мы договор по этому объекту в ближайшие две недели?"],
-  работа: ["Получу ли я предложение по этой вакансии?", "Сохранится ли моя текущая работа до конца года?"],
-  отношения: ["Возобновятся ли наши отношения в ближайшие три месяца?", "Перейдёт ли это знакомство в серьёзные отношения?"],
-  деньги: ["Вернёт ли этот человек долг в оговорённый срок?", "Одобрят ли мне эту выплату в течение месяца?"],
-  переезд: ["Состоится ли мой переезд в выбранный город этой осенью?", "Подойдёт ли мне именно этот вариант переезда?"],
-  срок: ["Когда завершится согласование этого проекта?", "Произойдёт ли ожидаемое событие до конца месяца?"],
-  другое: ["Сформулируйте один вопрос, на который можно ответить по конкретному исходу", "Что именно должно произойти, чтобы вы сочли вопрос решённым?"],
+  default: ["Состоится ли важная встреча в назначенный день?", "Получу ли я ожидаемый ответ в течение недели?", "Разрешится ли эта ситуация до конца месяца?"],
+  покупка: ["Состоится ли покупка этой квартиры до конца месяца?", "Подпишем ли мы договор по этому объекту в ближайшие две недели?", "Будет ли выбранный автомобиль удачной покупкой для меня?"],
+  работа: ["Получу ли я предложение по этой вакансии?", "Сохранится ли моя текущая работа до конца года?", "Состоится ли моё повышение в ближайшие три месяца?"],
+  отношения: ["Возобновятся ли наши отношения в ближайшие три месяца?", "Перейдёт ли это знакомство в серьёзные отношения?", "Произойдёт ли примирение после нашего разговора?"],
+  деньги: ["Вернёт ли этот человек долг в оговорённый срок?", "Одобрят ли мне эту выплату в течение месяца?", "Получу ли я оплату по этому договору до конца недели?"],
+  переезд: ["Состоится ли мой переезд в выбранный город этой осенью?", "Подойдёт ли мне именно этот вариант переезда?", "Удастся ли оформить документы для переезда в срок?"],
+  срок: ["Когда завершится согласование этого проекта?", "Произойдёт ли ожидаемое событие до конца месяца?", "Будет ли вопрос решён до назначенной даты?"],
+  другое: ["Состоится ли задуманное событие в выбранный срок?", "Получит ли эта ситуация ожидаемое продолжение?", "Будет ли принято решение в мою пользу?"],
 };
+const HORARY_LOCATION_EXAMPLES = [
+  "Тула, Тульская область",
+  "Казань, Республика Татарстан",
+  "Сочи, Краснодарский край",
+  "Екатеринбург, Свердловская область",
+];
 const HORARY_CONTEXT_EXAMPLES: Record<string, string[]> = {
   default: ["Что уже произошло и какой срок для вас важен", "Кто участвует и что изменилось перед вопросом"],
   покупка: ["Объект выбран, продавец ждёт решение до пятницы", "Переговоры идут две недели, есть конкурирующий покупатель"],
@@ -63,6 +69,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
   const [focus, setFocus] = useState<string | null>(null);
   const questionPlaceholder = useRotatingPlaceholder(HORARY_QUESTION_EXAMPLES[focus ?? "default"] ?? HORARY_QUESTION_EXAMPLES.default, focus ?? "default");
   const contextPlaceholder = useRotatingPlaceholder(HORARY_CONTEXT_EXAMPLES[focus ?? "default"] ?? HORARY_CONTEXT_EXAMPLES.default, focus ?? "default");
+  const locationPlaceholder = useRotatingPlaceholder(HORARY_LOCATION_EXAMPLES, "horary-location");
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("horary", (userInput) => {
     const restored = parseHoraryInput(userInput);
     setQuestion(restored.question);
@@ -100,7 +107,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
         <label className="soft-eyebrow product-question-label" htmlFor="horary-question">один точный вопрос</label>
         <textarea id="horary-question" value={question} onChange={(event) => setQuestion(event.target.value.slice(0, 500))} placeholder={questionPlaceholder} className="soft-question-input product-question-input min-h-28" disabled={status === "loading"} data-testid="horary-question" />
         <label className="soft-eyebrow product-question-label" htmlFor="horary-location">где вы находитесь сейчас</label>
-        <LocationSuggestInput value={location} selected={selectedLocation} onChange={setLocation} onSelect={setSelectedLocation} disabled={status === "loading"} />
+        <LocationSuggestInput value={location} selected={selectedLocation} onChange={setLocation} onSelect={setSelectedLocation} placeholder={locationPlaceholder} disabled={status === "loading"} />
         <label className="soft-eyebrow product-question-label" htmlFor="horary-context">короткий контекст, необязательно</label>
         <textarea id="horary-context" value={context} onChange={(event) => setContext(event.target.value.slice(0, 800))} placeholder={contextPlaceholder} className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
         <div className="rounded-2xl bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]"><p className="font-medium text-[var(--soft-ink)]">Точное время вопроса будет использовано автоматически</p><p className="mt-1">Карта строится для момента, когда вы отправляете сформулированный вопрос.</p></div>

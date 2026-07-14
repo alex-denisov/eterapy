@@ -93,7 +93,7 @@ const GROUPS: ServiceGroup[] = [
       { id: "horary-d", title: "Хорарная астрология", desc: "Ответ карты момента на один вопрос", price: price("horary"), href: "/products/horary", icon: Compass },
       { id: "tarot-num-d", title: "Арканы рождения", desc: "Две карты Таро по дате рождения", price: price("tarot-numerology"), href: "/products/tarot-numerology", icon: Sparkles },
       { id: "hd-d", title: "Дизайн человека", desc: "Тип и бодиграф", price: price("human-design"), href: "/products/human-design", icon: Compass },
-      { id: "surname-d", title: "Тайна имени и фамилии", desc: "Происхождение, звучание и личный образ", price: price("surname-story"), href: "/products/surname-story", icon: Sparkles },
+      { id: "surname-d", title: "Кармический код фамилии", desc: "Число рода, Аркан, ресурс и тень", price: price("surname-story"), href: "/products/surname-story", icon: Sparkles },
     ],
   },
   {

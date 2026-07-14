@@ -69,36 +69,20 @@ function Week() {
   );
 }
 
-// B391: мотив «история фамилии» — стилизованное родовое древо (узлы поколений).
-function FamilyTree() {
-  const node = (x: number, y: number, fill: boolean) => (
-    <div style={{ position: "absolute", left: x, top: y, width: 34, height: 34, borderRadius: 17, background: fill ? "#b5623f" : "rgba(181,98,63,0.22)", border: "3px solid #b5623f" }} />
-  );
-  const edge = (x: number, y: number, w: number, rot: number) => (
-    <div style={{ position: "absolute", left: x, top: y, width: w, height: 3, background: "rgba(181,98,63,0.55)", transform: `rotate(${rot}deg)`, transformOrigin: "left center" }} />
-  );
+// B515: мотив кармического кода — печать с кольцом 22 Арканов и ядром числа.
+function LineageSeal() {
   return (
-    <div style={{ display: "flex", position: "relative", width: 260, height: 300 }}>
-      {edge(146, 50, 70, 50)}
-      {edge(116, 50, 70, 130)}
-      {edge(78, 132, 60, 55)}
-      {edge(60, 132, 60, 125)}
-      {edge(198, 132, 60, 55)}
-      {edge(180, 132, 60, 125)}
-      {node(130, 16, true)}
-      {node(70, 116, true)}
-      {node(190, 116, false)}
-      {node(30, 216, false)}
-      {node(108, 216, true)}
-      {node(160, 216, false)}
-      {node(230, 216, true)}
+    <div style={{ display: "flex", width: 310, height: 310, borderRadius: 155, border: "5px solid rgba(119,52,55,0.32)", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 20px rgba(181,98,63,0.08), inset 0 0 50px rgba(181,98,63,0.12)" }}>
+      <div style={{ display: "flex", width: 230, height: 230, borderRadius: 115, border: "3px dashed rgba(181,98,63,0.55)", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", width: 136, height: 136, borderRadius: 68, border: "4px solid rgba(111,139,108,0.55)", background: "rgba(255,250,245,0.88)", color: "#773437", alignItems: "center", justifyContent: "center", fontSize: 76, fontWeight: 650 }}>9</div>
+      </div>
     </div>
   );
 }
 
 function motifFor(kind: string) {
   if (kind === "human-design") return <Bodygraph />;
-  if (kind === "surname-story") return <FamilyTree />;
+  if (kind === "surname-story") return <LineageSeal />;
   if (kind === "weekly-summary") return <Week />;
   if (kind === "insight") return <Quote />;
   return <Wheel />;

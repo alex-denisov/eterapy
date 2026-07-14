@@ -46,7 +46,7 @@ export function shareText(kind: ShareArtifactKind, headline: string): string {
     case "human-design":
       return `${headline} — узнайте свой тип в Дизайне человека бесплатно:`;
     case "surname-story":
-      return `${headline} — узнайте историю своей фамилии бесплатно:`;
+      return `${headline} — рассчитайте кармический код своей фамилии:`;
     case "weekly-summary":
       return `Мой итог недели в ETerapy. Сделайте свой:`;
     case "insight":
