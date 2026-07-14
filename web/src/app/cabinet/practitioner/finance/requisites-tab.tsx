@@ -169,7 +169,7 @@ export function RequisitesTab({ data }: { data: RequisitesTabData }) {
         </Link>
         {taxVerified && isSelfEmployed && (
           <Link
-            href={appUrl("/practitioner/finance/receipts")}
+            href={appUrl("/practitioner/finance?tab=receipts")}
             className="mt-2.5 flex items-center gap-3 rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-3.5 transition-colors hover:bg-[var(--soft-paper-deep)]/40"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">

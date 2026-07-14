@@ -24,7 +24,8 @@ describe("Practitioner finance balance UX (B466)", () => {
     const tab = source("src/app/cabinet/practitioner/finance/balance-tab.tsx");
     expect(tab).toContain("Удержано");
     expect(tab).toContain("Hold по сессиям");
-    expect(tab).toContain("/practitioner/finance/movements");
+    // R9-5: «Движение средств» на десктопе — вкладка, а не отдельный drill-down роут
+    expect(tab).toContain("/practitioner/finance?tab=movements");
     expect(tab).not.toContain("chargeback");
     const movements = source("src/app/cabinet/practitioner/finance/movements/page.tsx");
     expect(movements).toContain("Удержания");

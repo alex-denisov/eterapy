@@ -29,7 +29,7 @@ export interface PractitionerFinanceData {
   monthNet: number;
   monthCount: number;
   monthKey: string;
-  byMonth: Array<{ month: string; count: number; net: number }>;
+  byMonth: Array<{ month: string; key: string; count: number; net: number; gross: number }>;
   movements: FinanceMovement[];
   completedCount: number;
 }
@@ -45,6 +45,20 @@ const DAY_FMT = new Intl.DateTimeFormat("ru-RU", {
   month: "long",
   timeZone: "Europe/Moscow",
 });
+
+// Стабильный YYYY-MM ключ месяца по МСК — для группировки и ссылок выгрузки отчётов.
+const ISO_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  timeZone: "Europe/Moscow",
+});
+
+function isoMonthKey(date: Date): string {
+  const parts = ISO_MONTH_FMT.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  return `${year}-${month}`;
+}
 
 export async function loadPractitionerFinance(practitionerId: string): Promise<PractitionerFinanceData> {
   const [practitioner, completedBookings, payouts, balance] = await Promise.all([
@@ -84,14 +98,25 @@ export async function loadPractitionerFinance(practitionerId: string): Promise<P
 
   const now = new Date();
   const monthKey = MONTH_FMT.format(now);
-  const byMonthMap = new Map<string, { count: number; net: number }>();
+  const byMonthMap = new Map<string, { count: number; net: number; gross: number; label: string }>();
   for (const b of completedBookings) {
-    const key = MONTH_FMT.format(b.createdAt);
-    const entry = byMonthMap.get(key) ?? { count: 0, net: 0 };
-    byMonthMap.set(key, { count: entry.count + 1, net: entry.net + netOf(b.priceRub, commissionOf(b)) });
+    const key = isoMonthKey(b.createdAt);
+    const entry = byMonthMap.get(key) ?? { count: 0, net: 0, gross: 0, label: MONTH_FMT.format(b.createdAt) };
+    byMonthMap.set(key, {
+      count: entry.count + 1,
+      net: entry.net + netOf(b.priceRub, commissionOf(b)),
+      gross: entry.gross + b.priceRub,
+      label: entry.label,
+    });
   }
-  const byMonth = [...byMonthMap.entries()].map(([month, data]) => ({ month, ...data }));
-  const monthEntry = byMonthMap.get(monthKey) ?? { count: 0, net: 0 };
+  const byMonth = [...byMonthMap.entries()].map(([key, data]) => ({
+    month: data.label,
+    key,
+    count: data.count,
+    net: data.net,
+    gross: data.gross,
+  }));
+  const monthEntry = byMonthMap.get(isoMonthKey(now)) ?? { count: 0, net: 0, gross: 0, label: monthKey };
 
   const movements: FinanceMovement[] = [
     ...completedBookings.map<FinanceMovement>((b) => {
