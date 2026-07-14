@@ -21,7 +21,7 @@ import db from "@/lib/db";
 import { formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
 import { PAYOUT_HOLD_DAYS_BY_PLAN, type PractitionerPayoutPlanKey } from "@/lib/payout-runs";
 import { practitionerTierName, type PractitionerTier } from "@/lib/practitioner-tier";
-import { AGENT_OFFER_VERSION } from "@/lib/practitioner-compliance";
+import { AGENT_OFFER_VERSION, AGENT_OFFER_VERSION_LABEL } from "@/lib/practitioner-compliance";
 import { TAX_STATUS_LABELS, type TaxStatusKey } from "@/lib/practitioner-tax-verification";
 import { appUrl, mainUrl } from "@/lib/subdomain";
 import { PractitionerAppbar } from "@/components/cabinet/practitioner-appbar";
@@ -390,7 +390,13 @@ export function FinanceRequisitesMobile({ data }: { data: RequisitesTabData }) {
         </div>
         {!agentOfferAccepted && (
           <div className="pcab-note" style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <span>Для выплат нужно принять агентскую оферту (версия {AGENT_OFFER_VERSION}).</span>
+            <span>
+              Для выплат нужно принять{" "}
+              <a href={mainUrl("/legal/agent-offer")} target="_blank" rel="noreferrer" style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>
+                агентскую оферту
+              </a>{" "}
+              ({AGENT_OFFER_VERSION_LABEL}).
+            </span>
             <AgentOfferAcceptButton accepted={agentOfferAccepted} />
           </div>
         )}

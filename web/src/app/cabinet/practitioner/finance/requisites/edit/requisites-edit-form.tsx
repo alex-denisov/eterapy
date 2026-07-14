@@ -42,8 +42,35 @@ export function RequisitesEditForm({
   const [corrAccount, setCorrAccount] = useState(initial?.corrAccount ?? "");
   const [saving, setSaving] = useState(false);
 
+  // B466 owner-fix 2026-07-14 #6: клиентская предвалидация зеркалит серверные
+  // правила /api/practitioner/payout-details — мгновенная обратная связь
+  // вместо похода на сервер; сервер остаётся источником истины.
+  function validate(): string | null {
+    if (method === "CARD") {
+      if (!/^\d{16,19}$/.test(account.replace(/\D/g, ""))) return "Введите номер карты (16–19 цифр)";
+      return null;
+    }
+    if (method === "SBP") {
+      if (!/^\+?\d{10,15}$/.test(account.replace(/(?!^\+)[^\d]/g, ""))) return "Введите номер телефона для СБП";
+      return null;
+    }
+    if (legalName.trim().length < 3) return "Укажите наименование организации или ИП";
+    if (!/^\d{20}$/.test(account.replace(/\D/g, ""))) return "Расчётный счёт — 20 цифр";
+    if (!/^\d{9}$/.test(bik.replace(/\D/g, ""))) return "БИК банка — 9 цифр";
+    const kppDigits = kpp.replace(/\D/g, "");
+    if (kppDigits && !/^\d{9}$/.test(kppDigits)) return "КПП — 9 цифр (или оставьте пустым для ИП)";
+    const corrDigits = corrAccount.replace(/\D/g, "");
+    if (corrDigits && !/^\d{20}$/.test(corrDigits)) return "Корреспондентский счёт — 20 цифр";
+    return null;
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setSaving(true);
     try {
       const payload = method === "ENTITY"

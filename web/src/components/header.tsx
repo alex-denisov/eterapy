@@ -525,7 +525,10 @@ export function Header() {
             3-column grid — and the byte-identical right cluster — stays stable.
             B315: justify-center keeps the nav in the middle of the 1fr track. */}
         {showPractitionerBridge ? (
-          <nav data-testid="practitioner-service-bridge" className="hidden items-center justify-center gap-1 md:flex">
+          // B466 owner-fix 2026-07-14 #2: «На сайт» sits right after the logo
+          // (justify-start), matching the client cabinet, instead of floating
+          // alone in the middle of the centre track.
+          <nav data-testid="practitioner-service-bridge" className="hidden items-center justify-start gap-1 md:flex">
             <Link
               href={mainUrl("/")}
               prefetch={false}
@@ -614,7 +617,16 @@ export function Header() {
                   <CircleHelp className="size-4" />
                 </Link>
               )}
-              <NotificationBell variant="header" />
+              <NotificationBell
+                variant="header"
+                settingsHref={
+                  isPractitioner
+                    ? appUrl("/practitioner/settings?tab=notifications")
+                    : isStaff
+                      ? undefined
+                      : appUrl("/settings#settings-notifications")
+                }
+              />
               <UserMenu
                 session={session}
                 cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}

@@ -68,7 +68,10 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
           <div key={dow} className={`flex items-center gap-3 rounded-[12px] border px-3.5 py-2.5 transition-colors ${
             rule.enabled ? "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]" : "border-[var(--soft-paper-deep)] bg-[var(--soft-paper-deep)]/30 opacity-70"
           }`}>
-            <div className="flex w-32 shrink-0 items-center gap-2.5">
+            {/* B466 owner-fix 2026-07-14 #3: w-44 — «Воскресенье» + тумблер не
+                помещались в w-32, и подпись слипалась со следующей колонкой
+                («ВоскресеньеВыходной»). */}
+            <div className="flex w-44 shrink-0 items-center gap-2.5">
               <ToggleSwitch
                 enabled={rule.enabled}
                 onToggle={() => updateRule(dow, { enabled: !rule.enabled })}
@@ -91,9 +94,6 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
                   className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:border-[var(--soft-terracotta)] focus:outline-none">
                   {HOURS.filter(h => h > rule.startHour).map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                 </select>
-                <span className="ml-2 text-xs text-muted-foreground/60">
-                  {rule.endHour - rule.startHour} ч
-                </span>
               </div>
             )}
             {!rule.enabled && <span className="text-xs text-muted-foreground">Выходной</span>}

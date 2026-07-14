@@ -1,4 +1,5 @@
 import { NotificationBell } from "@/components/notification-bell";
+import { appUrl } from "@/lib/subdomain";
 
 // B466 R9-4 P1 — appbar мобильного кокпита практика, 1-в-1 блок .appbar из
 // docs/Design/mockups/practitioner-*.html: градиентный аватар с инициалами,
@@ -29,7 +30,7 @@ export function PractitionerAppbar({
         {subtitle && <div className="pcab-appbar-sub truncate">{subtitle}</div>}
       </div>
       <div className="pcab-iconbtn-slot">
-        <NotificationBell variant="header" />
+        <NotificationBell variant="header" settingsHref={appUrl("/practitioner/settings?tab=notifications")} />
       </div>
     </div>
   );

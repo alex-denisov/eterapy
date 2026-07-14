@@ -43,6 +43,12 @@ export function TaxStatusForm({
 
   const expected = expectedInnLength(status);
   const localCheck = validateInn(inn, status);
+  // B466 owner-fix 2026-07-14 #6: требование к длине ИНН меняется вместе с
+  // переключателем статуса и подсвечивается inline (не только тостом) —
+  // иначе «проверка не выполняется» выглядит как молчаливо-неживая кнопка.
+  const innDigits = inn.replace(/\s+/g, "");
+  const innLengthMismatch = innDigits.length > 0 && innDigits.length !== expected;
+  const innChecksumFail = innDigits.length === expected && !localCheck.ok;
 
   async function post(step: "lookup" | "confirm") {
     const res = await fetch("/api/practitioner/tax-status", {
@@ -135,13 +141,25 @@ export function TaxStatusForm({
                 data-testid="practitioner-tax-inn-input-mobile"
               />
             </label>
-            <p className="pcab-fhint">Обязательно. 12 цифр — для самозанятого и ИП, 10 — для юр. лица. Только цифры.</p>
+            <p className="pcab-fhint" data-testid="practitioner-tax-inn-hint-mobile">
+              Для статуса «{TAX_STATUS_LABELS[status]}» ИНН — {expected} цифр. Только цифры.
+            </p>
+            {innLengthMismatch && (
+              <p className="pcab-fhint" style={{ color: "var(--pc-amber-ink,#6E5114)" }} data-testid="practitioner-tax-inn-progress-mobile">
+                Введено {innDigits.length} из {expected} цифр
+              </p>
+            )}
+            {innChecksumFail && (
+              <p className="pcab-fhint" style={{ color: "var(--pc-terracotta-dark)" }} data-testid="practitioner-tax-inn-checksum-mobile">
+                {localCheck.error}
+              </p>
+            )}
 
             <button
               type="button"
               className="pcab-btn block pcab-btn-primary"
               style={{ marginTop: 18 }}
-              disabled={busy || inn.replace(/\s+/g, "").length !== expected}
+              disabled={busy || innDigits.length !== expected}
               onClick={lookup}
               data-testid="practitioner-tax-verify-mobile"
             >
@@ -261,14 +279,24 @@ export function TaxStatusForm({
           className="soft-input mt-1 h-11 w-full text-base tracking-wide"
           data-testid="practitioner-tax-inn-input"
         />
-        <p className="mt-1.5 text-xs text-[var(--soft-ink-faint)]">
-          Обязательно. 12 цифр — для самозанятого и ИП, 10 — для юр. лица. Только цифры.
+        <p className="mt-1.5 text-xs text-[var(--soft-ink-faint)]" data-testid="practitioner-tax-inn-hint">
+          Для статуса «{TAX_STATUS_LABELS[status]}» ИНН — {expected} цифр. Только цифры.
         </p>
+        {innLengthMismatch && (
+          <p className="mt-1 text-xs font-medium" style={{ color: "var(--soft-amber-ink,#6E5114)" }} data-testid="practitioner-tax-inn-progress">
+            Введено {innDigits.length} из {expected} цифр
+          </p>
+        )}
+        {innChecksumFail && (
+          <p className="mt-1 text-xs font-medium" style={{ color: "var(--soft-terracotta-dark)" }} data-testid="practitioner-tax-inn-checksum">
+            {localCheck.error}
+          </p>
+        )}
 
         <button
           type="button"
           className="soft-button soft-button-primary mt-4 w-full justify-center sm:w-auto"
-          disabled={busy || inn.replace(/\s+/g, "").length !== expected}
+          disabled={busy || innDigits.length !== expected}
           onClick={lookup}
           data-testid="practitioner-tax-verify"
         >

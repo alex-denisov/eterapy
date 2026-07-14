@@ -3,6 +3,10 @@ import db from "@/lib/db";
 
 export const AGENT_OFFER_VERSION = "agent-offer-2026-06-18";
 
+/** B466 owner-fix 2026-07-14 #5: человекочитаемое название версии оферты —
+    технический слаг agent-offer-YYYY-MM-DD в UI не показываем. */
+export const AGENT_OFFER_VERSION_LABEL = "редакция от 18 июня 2026 года";
+
 export const practitionerComplianceSelect = {
   id: true,
   status: true,

@@ -12,7 +12,11 @@ import { PractitionerSettingsMobile } from "./settings-mobile";
 // (пароль), деактивация. Публичный профиль живёт отдельно —
 // /practitioner/profile (owner: split Профиль/Настройки).
 
-export default async function PractitionerAccountSettingsPage() {
+export default async function PractitionerAccountSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
@@ -38,6 +42,11 @@ export default async function PractitionerAccountSettingsPage() {
     username: practitioner.user.telegramUsername ?? null,
   };
 
+  // B466 owner-fix 2026-07-14 #4: «Настроить уведомления» из колокольчика
+  // открывает сразу суб-таб «Уведомления» (?tab=notifications).
+  const { tab } = await searchParams;
+  const initialTab = tab === "notifications" || tab === "interface" || tab === "danger" ? tab : "account";
+
   return (
     <>
       {/* МОБАЙЛ — 1-в-1 mockup practitioner-more-settings (pcab-native) */}
@@ -56,6 +65,7 @@ export default async function PractitionerAccountSettingsPage() {
           telegramStatus={telegramStatus}
           hasPassword={hasPassword}
           timezone={practitioner.user.timezone ?? "Europe/Moscow"}
+          initialTab={initialTab}
         />
       </div>
     </>
