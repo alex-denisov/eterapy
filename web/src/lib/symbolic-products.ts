@@ -761,11 +761,20 @@ function symbolicQualityIssue(input: {
         return `неполная расшифровка слоя ${heading}`;
       }
     }
-    if (input.surnameComparison && (
-      !input.text.includes(input.surnameComparison.source)
-      || !input.text.includes(input.surnameComparison.arcanaName)
-      || !input.text.includes(String(input.surnameComparison.sum))
-    )) return "сравнение не цитирует второй рассчитанный вариант";
+    if (input.surnameComparison) {
+      if (
+        !input.text.includes(input.surnameComparison.source)
+        || !input.text.includes(input.surnameComparison.arcanaName)
+        || !input.text.includes(String(input.surnameComparison.sum))
+      ) return "сравнение не цитирует второй рассчитанный вариант";
+      const comparisonHeading = input.surnameAudit?.mode === "change"
+        ? "Смена фамилии: что изменится"
+        : "Псевдоним или бренд: эффект образа";
+      const comparisonBody = sections.get(headingKey(comparisonHeading)) ?? "";
+      if (!/усил/iu.test(comparisonBody) || !/ослаб/iu.test(comparisonBody) || !/(?:цен[аыуе]|плат[аоы]|компромисс)/iu.test(comparisonBody)) {
+        return "сравнение не называет усиление, ослабление и цену перехода";
+      }
+    }
   }
   return null;
 }
