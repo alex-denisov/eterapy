@@ -751,7 +751,9 @@ function symbolicQualityIssue(input: {
   if (input.productKey === "surname-story" && input.surname) {
     const code = input.surname.code;
     if (!input.text.includes(String(code.sum)) || !input.text.includes(code.arcanaName)) return "текст меняет или не цитирует рассчитанный код фамилии";
-    if (/\b(?:бережн\w*|мягко исслед\w*|ответ находится внутри|вы уже достаточно)\b/iu.test(input.text)) return "текст сглаживает прямой эзотерический разбор";
+    const smoothingPattern = /\b(?:бережн\w*|мягко исслед\w*|ответ находится внутри|вы уже достаточно|однако это не означает, что вы не сможете|не стоит расстраиваться|всё обязательно получится)\b/iu;
+    const smoothingSection = parsedSections.find((section) => smoothingPattern.test(section.body));
+    if (smoothingSection) return `текст сглаживает прямой эзотерический разбор в разделе ${smoothingSection.title}`;
     if (/\b(?:проклят\w*|порч\w*|финансовый потолок|обреч[её]н\w*)\b/iu.test(input.text)) return "текст выдаёт запугивание или финансовый предел за факт";
     const richHeadings = ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"];
     const sections = new Map(parsedSections.map((section) => [headingKey(section.title), section.body]));
