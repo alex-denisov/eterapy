@@ -128,8 +128,8 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/surname-story": {
-    title: "Тайна имени и фамилии — происхождение и звучание — ETerapy",
-    description: "Личное досье имени и фамилии: происхождение, география, варианты латиницы, фоносемантика и честно обозначенный символический портрет.",
+    title: "Кармический код фамилии — число рода и Аркан — ETerapy",
+    description: "Рассчитайте число фамилии и Старший Аркан, разберите родовой ресурс, тень, деньги и отношения или сравните код до и после смены фамилии.",
     schemaKind: "Product",
   },
   "/all-modalities": {

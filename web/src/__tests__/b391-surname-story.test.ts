@@ -1,5 +1,7 @@
 import {
   analyzeSurname,
+  computeSurnameCode,
+  parseSurnameAuditInput,
   parseSurnameInput,
   surnameFactsForAI,
   type SurnameStory,
@@ -67,6 +69,28 @@ describe("B391 surname morphology — origin classification", () => {
 });
 
 describe("B391 parsing & robustness", () => {
+  it("shows one auditable letter sum and derives the 1–9 code and 1–22 Arcana in parallel", () => {
+    const code = computeSurnameCode("Романова")!;
+    expect(code.letters.map((item) => `${item.letter}${item.value}`).join(" ")).toBe("Р9 О7 М5 А1 Н6 О7 В3 А1");
+    expect(code.sum).toBe(39);
+    expect(code.baseNumber).toBe(3);
+    expect(code.arcanaIndex).toBe(17);
+    expect(code.arcanaName).toBe("Звезда");
+    expect(code.innerNumber).toBe(7);
+    expect(code.outerNumber).toBe(5);
+  });
+
+  it("parses the four audit scenarios and preserves comparison/context", () => {
+    expect(parseSurnameAuditInput("Режим: change\nИмя: Анна\nФамилия: Соколова\nНовая фамилия: Волкова\nФокус: деньги\nКонтекст: Что усилится?")).toEqual({
+      mode: "change",
+      name: "Анна",
+      surname: "Соколова",
+      comparison: "Волкова",
+      focus: "деньги",
+      context: "Что усилится?",
+    });
+  });
+
   it("extracts surname from free text", () => {
     expect(parseSurnameInput("моя фамилия Кузнецова")).toBe("Кузнецова");
     expect(parseSurnameInput("Петров Иван Сергеевич")).toBe("Петров");
@@ -113,16 +137,17 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
     expect(facts).not.toContain("основа/корень после снятия типового суффикса: «рукосу»");
   });
 
-  it("free teaser uses the recognized origin label", () => {
+  it("free teaser exposes the code and Arcana before purchase", () => {
     const teaser = buildSymbolicProductTeaser({ productKey: "surname-story", userInput: "Кузнецов", generatedText: "" });
-    expect(teaser).toContain("родовой разбор");
+    expect(teaser).toContain("Код фамилии");
+    expect(teaser).toContain("Аркан");
   });
 });
 
 describe("B391 product registration & pricing", () => {
   it("surname-story is a symbolic product with a definition", () => {
     expect(isSymbolicProductKey("surname-story")).toBe(true);
-    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("Тайна имени и фамилии");
+    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("Кармический код фамилии");
   });
 
   it("is a known paid product priced 590 ₽ / 2 балла", () => {
@@ -153,7 +178,7 @@ describe("B391 product registration & pricing", () => {
 
 describe("B391 viral surfaces", () => {
   it("share text + OG image cover the surname-story kind", () => {
-    expect(shareText("surname-story", "Кузнецов — фамилия от кузнечного дела")).toContain("историю своей фамилии");
+    expect(shareText("surname-story", "Кузнецов — код 4")).toContain("кармический код своей фамилии");
     expect(ogImageUrl("surname-story")).toBe("/api/og?kind=surname-story");
   });
 });

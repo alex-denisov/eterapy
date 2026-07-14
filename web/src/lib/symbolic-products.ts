@@ -10,7 +10,16 @@ import { computeHoraryFacts, horaryFactsForAI } from "@/lib/horary";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { humanDesignChannelHeading, humanDesignSectionHeadings } from "@/lib/human-design-result";
-import { analyzeSurname, surnameFactsForAI, surnameValueFromStructuredInput, type SurnameStory } from "@/lib/surname-story";
+import {
+  analyzeSurname,
+  computeSurnameCode,
+  parseSurnameAuditInput,
+  surnameFactsForAI,
+  surnameValueFromStructuredInput,
+  type ParsedSurnameAuditInput,
+  type SurnameCode,
+  type SurnameStory,
+} from "@/lib/surname-story";
 import { log, serializeError } from "@/lib/logger";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
 import { TAROT_DECK, type TarotCard } from "@/lib/tarot-deck";
@@ -70,13 +79,13 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     resultTitle: "Дизайн человека: ваш тип и стратегия",
   },
   {
-    // B391 (M26): «История фамилии». Короткая история фамилии считается бесплатно
-    // и детерминированно (surname-story.ts по форме); этот платный «родовой разбор»
-    // расширяет распознанную форму в тёплый нарратив про род человеческим языком.
+    // B515: «Кармический код фамилии». Число и Аркан считаются детерминированно;
+    // генеративная часть объясняет ресурс, тень и прикладной сценарий, не меняя
+    // видимую пользователю арифметику и не изобретая факты о предках.
     productKey: "surname-story",
-    title: "Тайна имени и фамилии",
-    promptLabel: "Ваши имя и фамилия",
-    resultTitle: "Тайна имени и фамилии: личное досье",
+    title: "Кармический код фамилии",
+    promptLabel: "Фамилия и сценарий аудита",
+    resultTitle: "Кармический аудит рода",
   },
 ] as const;
 
@@ -260,12 +269,12 @@ export function buildSymbolicProductTeaser(input: {
   }
 
   if (input.productKey === "surname-story") {
-    const story = analyzeSurname(input.userInput);
+    const story = analyzeSurname(surnameValueFromStructuredInput(input.userInput));
     return [
-      story ? story.originLabel : "Форма вашей фамилии",
-      story ? story.originStory : firstMeaningfulLine,
+      story ? `Код фамилии ${story.code.baseNumber} · ${story.code.arcanaGlyph} ${story.code.arcanaName}` : "Код вашей фамилии",
+      story ? `${story.code.letters.map((item) => `${item.letter}${item.value}`).join(" · ")} = ${story.code.sum}. Арканический индекс: ${story.code.arcanaIndex}.` : firstMeaningfulLine,
       "",
-      "Полный родовой разбор раскроет вероятное происхождение, родовую тему и что из этого может откликаться у вас сегодня.",
+      "Полный аудит раскроет ресурс, тень, денежный сценарий, семейную роль и практики интеграции.",
     ].join("\n");
   }
 
@@ -450,22 +459,20 @@ function humanDesignFallback(chart: HumanDesignChart | null): string {
 function surnameStoryFallback(story: SurnameStory | null): string {
   if (!story) {
     return [
-      "Тайна имени и фамилии",
+      "Кармический код фамилии",
       "",
-      "Чтобы рассказать историю фамилии, напишите саму фамилию — например «Кузнецов» или «Ковальчук». По её форме видно происхождение и вероятное занятие или местность предков.",
+      "Чтобы рассчитать код, укажите фамилию кириллицей. Каждая буква получает значение от 1 до 9; из общей суммы отдельно получаются базовое число и индекс Старшего Аркана.",
       "",
-      "Практический ориентир: укажите фамилию, и здесь появится её короткая история, вероятная форма происхождения и следы для проверки.",
+      "После расчёта появятся формула, Аркан, ресурс, тень и практический маршрут.",
     ].join("\n");
   }
   return [
-    `## Что говорит форма фамилии`,
-    "",
+    "## Формула фамилии",
+    `${story.code.letters.map((item) => `${item.letter}=${item.value}`).join(" + ")} = ${story.code.sum}. Базовое число: ${story.code.baseNumber}.`,
+    `## Код рода — ${story.code.baseNumber}: ${story.code.arcanaName}`,
+    `Арканический индекс ${story.code.arcanaIndex}, ${story.code.arcanaGlyph} «${story.code.arcanaName}». Внутренний код: ${story.code.innerNumber ?? "нет"}; внешний код: ${story.code.outerNumber ?? "нет"}.`,
+    "## Что говорит форма фамилии",
     `${story.surname}: ${story.originLabel}. ${story.originStory}`,
-    story.rootHint ? `## Профессия, статус или образ предка\nВероятно, фамилия связана с ${story.rootHint}.` : "",
-    story.regionHint ? `## География и исторический контекст\nТакая форма ${story.regionHint}.` : "",
-    `## Родовая тема\n${story.familyTheme}. Это тема для размышления, а не судьба и не приговор роду.`,
-    "",
-    "## Что проверить в семейной истории\nСпросите старших родственников о местах рождения, занятиях, старых документах, вариантах написания фамилии и семейных легендах.",
   ].filter(Boolean).join("\n");
 }
 
@@ -526,6 +533,8 @@ function symbolicSectionHeadings(input: {
   cards: TarotCard[] | null;
   numerology: NumerologyPortrait | null;
   chart: HumanDesignChart | null;
+  surname: SurnameStory | null;
+  surnameAudit: ParsedSurnameAuditInput | null;
 }): string[] | null {
   if (input.productKey === "tarot" && input.cards) {
     return [
@@ -573,7 +582,30 @@ function symbolicSectionHeadings(input: {
     return ["Прямой ответ", ...humanDesignSectionHeadings(input.chart)];
   }
   if (input.productKey === "surname-story") {
-    return ["Прямой ответ", "Что говорит форма фамилии", "Корень и словообразование", "Версии происхождения по степени вероятности", "География и историческая среда", "Профессия, статус, место или прозвище предка", "Социальная история фамилии", "Как фамилия могла меняться", "Звучание и фоносемантический образ", "Имя + фамилия: характер сочетания", "Черты характера: символическая гипотеза", "Эмоциональное зеркало", "Загадка имени", "Написание латиницей и варианты за рубежом", "Факты, версии и границы достоверности", "Что искать в архивах и семейной памяти"];
+    const scenarioHeading = input.surnameAudit?.mode === "change"
+      ? "Смена фамилии: что изменится"
+      : input.surnameAudit?.mode === "alias"
+        ? "Псевдоним или бренд: какой образ усиливается"
+        : input.surnameAudit?.mode === "name"
+          ? "Имя и фамилия: конфликт и усиление"
+          : "Где искать ресурс рода";
+    const codeHeading = input.surname
+      ? `Код рода — ${input.surname.code.baseNumber}: ${input.surname.code.arcanaName}`
+      : "Код рода и Аркан";
+    return [
+      "Прямой ответ",
+      "Формула фамилии",
+      codeHeading,
+      "Главный ресурс рода",
+      "Родовая тень",
+      "Деньги и реализация",
+      "Отношения, границы и семейная роль",
+      "Что вы можете нести из семьи",
+      "Что принадлежит вам, а не фамилии",
+      scenarioHeading,
+      "Практическая интеграция",
+      "Ответ на ваш вопрос",
+    ];
   }
   if (input.productKey === "horary") {
     return ["Прямой ответ", "Радикальность и можно ли судить вопрос", "Вы и ваш сигнификатор", "Предмет вопроса и его сигнификатор", "Луна как ход событий", "Главный сходящийся аспект", "Рецепции: желание и способность действовать", "Препятствия и скрытые условия", "Что поддерживает ответ", "Что ему противоречит", "Вероятный срок", "Что может изменить исход"];
@@ -623,6 +655,11 @@ function weakestSymbolicHeadings(headings: string[], text: string, limit = 4) {
     .slice(0, limit);
 }
 
+function headingsNamedInQualityIssue(issue: string, headings: string[]) {
+  const normalizedIssue = headingKey(issue);
+  return headings.filter((heading) => normalizedIssue.includes(headingKey(heading)));
+}
+
 function segmentedRequestId(requestId: string | undefined, suffix: string) {
   return requestId ? `${requestId}:${suffix}` : undefined;
 }
@@ -634,6 +671,8 @@ function symbolicQualityIssue(input: {
   wheel: NatalWheel | null;
   chart: HumanDesignChart | null;
   surname: SurnameStory | null;
+  surnameComparison: SurnameCode | null;
+  surnameAudit: ParsedSurnameAuditInput | null;
   numerology: NumerologyPortrait | null;
 }) {
   const minimumChars: Partial<Record<SymbolicProductKey, number>> = {
@@ -655,6 +694,8 @@ function symbolicQualityIssue(input: {
     cards: input.cards,
     numerology: input.numerology,
     chart: input.chart,
+    surname: input.surname,
+    surnameAudit: input.surnameAudit,
   }) ?? [];
   const parsedSections = splitSections(input.text);
   const actualHeadings = new Set(parsedSections.map((section) => headingKey(section.title)));
@@ -707,6 +748,36 @@ function symbolicQualityIssue(input: {
     if (exactAspects.length > 0 && citedAspects.length < Math.min(2, exactAspects.length)) return "текст не цитирует рассчитанные аспекты";
   }
   if (input.productKey === "surname-story" && input.surname && !input.text.includes(input.surname.surname)) return "текст не называет исследуемую фамилию";
+  if (input.productKey === "surname-story" && input.surname) {
+    const code = input.surname.code;
+    if (!input.text.includes(String(code.sum)) || !input.text.includes(code.arcanaName)) return "текст меняет или не цитирует рассчитанный код фамилии";
+    const smoothingPattern = /\b(?:бережн\w*|мягко исслед\w*|ответ находится внутри|вы уже достаточно|однако это не означает, что вы не сможете|не стоит расстраиваться|всё обязательно получится)\b/iu;
+    const smoothingSection = parsedSections.find((section) => smoothingPattern.test(section.body));
+    if (smoothingSection) return `текст сглаживает прямой эзотерический разбор в разделе ${smoothingSection.title}`;
+    if (/\b(?:проклят\w*|порч\w*|финансовый потолок|обреч[её]н\w*)\b/iu.test(input.text)) return "текст выдаёт запугивание или финансовый предел за факт";
+    const richHeadings = ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"];
+    const sections = new Map(parsedSections.map((section) => [headingKey(section.title), section.body]));
+    for (const heading of richHeadings) {
+      const body = sections.get(headingKey(heading)) ?? "";
+      if (body.length < 500 || !/В плюсе/iu.test(body) || !/В минусе/iu.test(body) || !/Как проверить у себя/iu.test(body) || !/Практик/iu.test(body)) {
+        return `неполная расшифровка слоя ${heading}`;
+      }
+    }
+    if (input.surnameComparison) {
+      if (
+        !input.text.includes(input.surnameComparison.source)
+        || !input.text.includes(input.surnameComparison.arcanaName)
+        || !input.text.includes(String(input.surnameComparison.sum))
+      ) return "сравнение не цитирует второй рассчитанный вариант";
+      const comparisonHeading = input.surnameAudit?.mode === "change"
+        ? "Смена фамилии: что изменится"
+        : "Псевдоним или бренд: эффект образа";
+      const comparisonBody = sections.get(headingKey(comparisonHeading)) ?? "";
+      if (!/усил/iu.test(comparisonBody) || !/ослаб/iu.test(comparisonBody) || !/(?:цен[аыуе]|плат[аоы]|компромисс)/iu.test(comparisonBody)) {
+        return "сравнение не называет усиление, ослабление и цену перехода";
+      }
+    }
+  }
   return null;
 }
 
@@ -770,7 +841,17 @@ export async function generateSymbolicProductResult(input: {
   // B391: распознанная форма фамилии — детерминированно; храним в metadata (для
   // страницы/PDF) и передаём в AI как факты, чтобы разбор не выдумывал этимологию.
   const surnameInput = surnameValueFromStructuredInput(input.userInput);
-  const surnameStory = input.productKey === "surname-story" ? analyzeSurname(surnameInput) : null;
+  const surnameAudit = input.productKey === "surname-story" ? parseSurnameAuditInput(input.userInput) : null;
+  const surnameStoryBase = input.productKey === "surname-story" ? analyzeSurname(surnameInput) : null;
+  const surnamePrimaryCode = input.productKey === "surname-story"
+    ? computeSurnameCode(surnameAudit?.surname || surnameInput)
+    : null;
+  const surnameStory = surnameStoryBase && surnamePrimaryCode
+    ? { ...surnameStoryBase, surname: surnamePrimaryCode.source, code: surnamePrimaryCode }
+    : surnameStoryBase;
+  const surnameComparison = input.productKey === "surname-story" && surnameAudit?.comparison
+    ? computeSurnameCode(surnameAudit.comparison)
+    : null;
   // B451: числовой портрет — детерминированные ядровые числа (для визуала и фактов AI).
   const numerology = input.productKey === "numerology" ? computeNumerology(input.userInput) : null;
   const tarotBirthDate = input.productKey === "tarot-numerology" ? parseStrictBirthDate(input.userInput) : null;
@@ -789,6 +870,8 @@ export async function generateSymbolicProductResult(input: {
     })) as unknown as Prisma.InputJsonValue } : {}),
     ...(hdChart ? { chart: hdChart as unknown as Prisma.InputJsonValue } : {}),
     ...(surnameStory ? { surname: surnameStory as unknown as Prisma.InputJsonValue } : {}),
+    ...(surnameComparison ? { surnameComparison: surnameComparison as unknown as Prisma.InputJsonValue } : {}),
+    ...(surnameAudit ? { surnameAudit: surnameAudit as unknown as Prisma.InputJsonValue } : {}),
     ...(numerology ? { numerology: numerology as unknown as Prisma.InputJsonValue } : {}),
     ...(horaryWheel ? { wheel: horaryWheel as unknown as Prisma.InputJsonValue } : {}),
     ...(horary ? { horary: horary as unknown as Prisma.InputJsonValue } : {}),
@@ -826,7 +909,7 @@ export async function generateSymbolicProductResult(input: {
       ? `\n\nЭто расклад "${tarotSpread?.label ?? "Таро"}" из ${cards.length} карт (${cards.map((card) => card.position).join(" / ")}). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте реального вопроса${tarotTheme ? ` (тематический фокус: "${tarotTheme}" — не ограничение сферы вопроса)` : ""}.`
       : "";
     const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
-    const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
+    const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory, surnameComparison, surnameAudit ?? undefined)}` : "";
     const natalNote = wheel ? `\n\n${natalFactsForAI(wheel, normalizeInput(input.userInput))}` : "";
     const numeroNote = numerology ? `\n\n${numerologyFactsForAI(numerology)}` : "";
     const horaryNote = horaryWheel && horary ? `\n\n${natalFactsForAI(horaryWheel, normalizeInput(input.userInput))}\n\n${horaryFactsForAI(horary)}` : "";
@@ -840,7 +923,7 @@ export async function generateSymbolicProductResult(input: {
       cards ? `Выпавшие карты: ${cards.map((card) => `${card.position} — ${card.name}${card.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
       `Данные для разбора: ${normalizeInput(input.userInput) || "Нужен полный персональный разбор."}`,
     ].filter(Boolean).join("\n");
-    const headings = symbolicSectionHeadings({ productKey: input.productKey, cards, numerology, chart: hdChart });
+    const headings = symbolicSectionHeadings({ productKey: input.productKey, cards, numerology, chart: hdChart, surname: surnameStory, surnameAudit });
     const responses = [] as Awaited<ReturnType<typeof aiComplete>>[];
     let text = "";
 
@@ -887,6 +970,12 @@ export async function generateSymbolicProductResult(input: {
               input.productKey === "numerology" && group.some((heading) => matrixZoneHeadings.includes(heading))
                 ? "Для КАЖДОГО позиционного раздела дай не менее 900 знаков и обязательно сохрани подзаголовки `### В плюсе`, `### В минусе`, `### Практики`. Не сокращай одну позицию ради другой."
                 : "",
+              input.productKey === "surname-story" && group.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
+                ? "Для КАЖДОГО смыслового слоя дай не менее 700 знаков и обязательно используй подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`. Пиши прямо, через наблюдаемое поведение и его цену; не утешай автоматически."
+                : "",
+              input.productKey === "surname-story" && surnameComparison && group.some((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
+                ? `Сравни оба рассчитанных варианта: ${surnameStory?.surname} → ${surnameComparison.source}. Назови, что усиливается, что ослабевает, что остаётся с человеком и какова цена перехода. Не обещай причинно изменить доход, характер или судьбу.`
+                : "",
               input.productKey === "natal-chart" && group.some((heading) => heading.startsWith("Аспекты:"))
                 ? `В главах аспектов дословно назови и истолкуй минимум две рассчитанные пары: ${natalAspectPairs.join("; ")}.`
                 : "",
@@ -907,13 +996,22 @@ export async function generateSymbolicProductResult(input: {
       responses.push(...segmentRepairs.filter((response): response is Awaited<ReturnType<typeof aiComplete>> => Boolean(response)));
       text = mergeSymbolicSections(input.productKey, headings, responses.map((response) => response.text));
 
-      let issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+      let issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, surnameComparison, surnameAudit, numerology });
       if (issue) {
         const actual = new Set(splitSections(text).map((section) => headingKey(section.title)));
         const missing = headings.filter((heading) => !actual.has(headingKey(heading)));
+        const issueHeadings = headingsNamedInQualityIssue(issue, headings);
+        const surnameComparisonHeading = input.productKey === "surname-story" && surnameComparison && issue.includes("сравнение")
+          ? headings.find((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
+          : null;
         const repairHeadings = input.productKey === "natal-chart" && issue.includes("аспект")
           ? ["Аспекты: главные ресурсы", "Аспекты: главные напряжения"]
-          : [...missing, ...weakestSymbolicHeadings(headings, text)].filter((heading, index, all) => all.indexOf(heading) === index).slice(0, 6);
+          : [
+              ...issueHeadings,
+              ...(surnameComparisonHeading ? [surnameComparisonHeading] : []),
+              ...missing,
+              ...weakestSymbolicHeadings(headings, text),
+            ].filter((heading, index, all) => all.indexOf(heading) === index).slice(0, 6);
         const repair = await aiComplete({
           feature,
           userId: input.userId,
@@ -933,6 +1031,9 @@ export async function generateSymbolicProductResult(input: {
                 input.productKey === "numerology" && repairHeadings.some((heading) => matrixZoneHeadings.includes(heading))
                   ? "Каждый позиционный раздел должен содержать не менее 900 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Практики`."
                   : "",
+                input.productKey === "surname-story" && repairHeadings.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
+                  ? "Каждый смысловой слой должен содержать не менее 700 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`."
+                  : "",
                 input.productKey === "natal-chart" && issue.includes("аспект")
                   ? `Обязательно назови и истолкуй минимум две точные рассчитанные пары: ${natalAspectPairs.join("; ")}. Не заменяй их общими словами о гармонии или напряжении.`
                   : "",
@@ -944,7 +1045,7 @@ export async function generateSymbolicProductResult(input: {
         });
         responses.push(repair);
         text = mergeSymbolicSections(input.productKey, headings, responses.map((response) => response.text));
-        issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+        issue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, surnameComparison, surnameAudit, numerology });
       }
     } else {
       const response = await aiComplete({
@@ -962,7 +1063,7 @@ export async function generateSymbolicProductResult(input: {
       text = normalizeResult(response.text);
     }
 
-    const qualityIssue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, numerology });
+    const qualityIssue = symbolicQualityIssue({ productKey: input.productKey, text, cards, wheel, chart: hdChart, surname: surnameStory, surnameComparison, surnameAudit, numerology });
     if (qualityIssue) {
       log.warn("symbolic-product-quality-failed", {
         requestId: input.requestId,

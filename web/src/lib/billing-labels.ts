@@ -29,7 +29,7 @@ export const PRODUCT_LABELS: Record<string, string> = {
   "natal-chart": "Натальная карта",
   "family-scenarios": "Семейные сценарии",
   "human-design": "Дизайн человека",
-  "surname-story": "Тайна имени и фамилии",
+  "surname-story": "Кармический код фамилии",
   synastry: "Совместимость по звёздам",
   numerology: "Матрица судьбы",
   horary: "Хорарная астрология",

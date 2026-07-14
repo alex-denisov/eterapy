@@ -177,4 +177,68 @@ describe("B502 segmented symbolic generation", () => {
     expect(result.text.match(/^## /gm)).toHaveLength(9);
     expect(mockAiComplete).toHaveBeenCalledTimes(5);
   });
+
+  it("repairs the exact surname layer named by the quality gate", async () => {
+    const richHeadings = new Set([
+      "Главный ресурс рода",
+      "Родовая тень",
+      "Деньги и реализация",
+      "Отношения, границы и семейная роль",
+    ]);
+    mockAiComplete.mockImplementation(async (request) => {
+      const userMessage = request.messages.find((message) => message.role === "user");
+      const content = typeof userMessage?.content === "string" ? userMessage.content : "";
+      const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
+      const exactFacts = "Романова: сумма 39, код 3, XVII Звезда. Волкова: сумма 28, код 1, VI Влюблённые. Вариант усиливает инициативу, ослабляет созерцательность; цена перехода — больше личной ответственности. ";
+      const compactBody = exactFacts.repeat(4);
+      const longBody = exactFacts.repeat(10);
+      const richBody = [
+        `### В плюсе\n${longBody}`,
+        `### В минусе\n${longBody}`,
+        `### Как проверить у себя\n${longBody}`,
+        `### Практики\n${longBody}`,
+      ].join("\n\n");
+      const isRepair = request.requestId?.endsWith(":repair");
+
+      return {
+        text: headings.map((heading) => {
+          if (heading === "Главный ресурс рода" && !isRepair) {
+            return `## ${heading}\n\n${exactFacts.repeat(5)}`;
+          }
+          if (richHeadings.has(heading)) return `## ${heading}\n\n${richBody}`;
+          if (["Прямой ответ", "Формула фамилии", "Код рода — 3: Звезда"].includes(heading)) {
+            return `## ${heading}\n\n${longBody}`;
+          }
+          return `## ${heading}\n\n${compactBody}`;
+        }).join("\n\n"),
+        provider: "yandex" as never,
+        model: "yandexgpt/latest",
+        tokensIn: 500,
+        tokensOut: 900,
+        latencyMs: 120,
+      };
+    });
+
+    const result = await generateSymbolicProductResult({
+      productKey: "surname-story",
+      userInput: [
+        "Режим: change",
+        "Фамилия: Романова",
+        "Новая фамилия: Волкова",
+        "Фокус: деньги",
+        "Контекст: Что усилится после смены фамилии?",
+      ].join("\n"),
+      userId: "user-surname-repair",
+      requestId: "req-surname-repair",
+    });
+
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 5 }));
+    expect(result.text).toContain("## Главный ресурс рода");
+    expect(result.text).toContain("### Как проверить у себя");
+    expect(mockAiComplete).toHaveBeenCalledTimes(5);
+    const repairRequest = mockAiComplete.mock.calls.at(-1)?.[0];
+    expect(repairRequest?.requestId).toBe("req-surname-repair:repair");
+    expect(repairRequest?.messages.find((message) => message.role === "user")?.content)
+      .toEqual(expect.stringContaining("## Главный ресурс рода"));
+  });
 });

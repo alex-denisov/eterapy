@@ -2678,6 +2678,574 @@
     .surname-rose-teaser { grid-template-columns: 6.25rem minmax(0, 1fr); }
   }
 
+  /* B515 — интерактивная «родовая печать»: прозрачная формула букв, число,
+     Старший Аркан и четыре прикладных слоя. Светлая поверхность сохраняет
+     визуальный контракт продукта и остаётся читаемой в PDF/скриншоте. */
+  .lineage-audit-intake {
+    overflow: hidden;
+  }
+
+  .lineage-teaser,
+  .lineage-seal-stage {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--soft-paper-edge) 86%, transparent);
+    background:
+      radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--soft-terracotta) 22%, transparent), transparent 17rem),
+      radial-gradient(circle at 90% 86%, color-mix(in srgb, var(--soft-sage) 18%, transparent), transparent 18rem),
+      linear-gradient(145deg, color-mix(in srgb, var(--soft-paper-card) 96%, white), var(--soft-paper-deep));
+    box-shadow: 0 22px 58px rgba(91, 64, 45, 0.09);
+  }
+
+  .lineage-teaser {
+    min-height: 13.5rem;
+    margin-top: 0.4rem;
+    border-radius: 24px;
+    padding: clamp(0.85rem, 2.5vw, 1.25rem);
+  }
+
+  .lineage-teaser::before,
+  .lineage-seal-stage::before {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(color-mix(in srgb, var(--soft-bordeaux) 18%, transparent) 0.7px, transparent 0.7px);
+    background-size: 17px 17px;
+    content: "";
+    mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.55), transparent 62%);
+    pointer-events: none;
+  }
+
+  .lineage-teaser > *,
+  .lineage-seal-stage > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .lineage-teaser:not(:has(.lineage-teaser-empty)) {
+    display: grid;
+    grid-template-columns: minmax(10.5rem, 0.72fr) minmax(15rem, 1fr);
+    align-items: center;
+    gap: clamp(0.8rem, 3vw, 1.8rem);
+  }
+
+  .lineage-teaser-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lineage-teaser-visual .lineage-seal-svg + .lineage-seal-svg {
+    margin-left: -3rem;
+  }
+
+  .lineage-teaser-copy h3,
+  .lineage-teaser-empty h3 {
+    margin-top: 0.3rem;
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(1.35rem, 3vw, 2rem);
+    font-weight: 600;
+    line-height: 1.08;
+  }
+
+  .lineage-teaser-copy > p:not(.soft-eyebrow),
+  .lineage-teaser-empty p {
+    margin-top: 0.55rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+
+  .lineage-teaser-compare {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--soft-terracotta-dark) !important;
+    font-weight: 650;
+  }
+
+  .lineage-teaser-compare svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .lineage-teaser-empty {
+    display: grid;
+    min-height: 11rem;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .lineage-teaser-orbit {
+    position: relative;
+    width: 8rem;
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--soft-bordeaux) 30%, transparent);
+    border-radius: 50%;
+  }
+
+  .lineage-teaser-orbit::before,
+  .lineage-teaser-orbit::after {
+    position: absolute;
+    inset: 17%;
+    border: 1px solid color-mix(in srgb, var(--soft-terracotta-dark) 28%, transparent);
+    border-radius: 50%;
+    content: "";
+  }
+
+  .lineage-teaser-orbit::after {
+    inset: 36%;
+    background: color-mix(in srgb, var(--soft-terracotta) 22%, var(--soft-paper-card));
+  }
+
+  .lineage-teaser-orbit span {
+    position: absolute;
+    width: 0.55rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--soft-terracotta-dark);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--soft-terracotta) 20%, transparent);
+  }
+
+  .lineage-teaser-orbit span:nth-child(1) { top: 5%; left: 48%; }
+  .lineage-teaser-orbit span:nth-child(2) { right: 8%; bottom: 22%; background: var(--soft-sage); }
+  .lineage-teaser-orbit span:nth-child(3) { bottom: 17%; left: 10%; background: #8a6a9c; }
+
+  .lineage-teaser-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    border-top: 1px solid var(--soft-paper-edge);
+    padding-top: 0.75rem;
+    color: var(--soft-ink-faint);
+    font-size: 0.78rem;
+  }
+
+  .lineage-seal {
+    margin: 0;
+  }
+
+  .lineage-seal-stage {
+    border-radius: 26px;
+    padding: clamp(0.85rem, 3vw, 1.5rem);
+  }
+
+  .lineage-seal-single {
+    display: grid;
+    grid-template-columns: minmax(17rem, 1fr) minmax(13rem, 0.72fr);
+    align-items: center;
+    gap: clamp(0.7rem, 3vw, 1.5rem);
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+
+  .lineage-seal-svg {
+    display: block;
+    width: min(100%, 31rem);
+    height: auto;
+    margin-inline: auto;
+    filter: drop-shadow(0 20px 28px rgba(91, 64, 45, 0.08));
+  }
+
+  .lineage-seal-svg.is-compact {
+    width: min(100%, 18rem);
+  }
+
+  .lineage-seal-ring,
+  .lineage-seal-arcana-tick {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .lineage-seal-ring.is-outer {
+    stroke: color-mix(in srgb, var(--soft-bordeaux) 48%, transparent);
+    stroke-width: 1.3;
+  }
+
+  .lineage-seal-ring.is-letter {
+    stroke: color-mix(in srgb, var(--soft-terracotta-dark) 36%, transparent);
+    stroke-dasharray: 2 8;
+    stroke-width: 1.2;
+  }
+
+  .lineage-seal-ring.is-code {
+    stroke: color-mix(in srgb, var(--soft-sage) 48%, transparent);
+    stroke-width: 1.2;
+  }
+
+  .lineage-seal-arcana-tick {
+    stroke: color-mix(in srgb, var(--soft-ink-faint) 34%, transparent);
+    stroke-linecap: round;
+    stroke-width: 1.4;
+  }
+
+  .lineage-seal-arcana-tick.is-active {
+    stroke: var(--soft-bordeaux);
+    stroke-width: 5;
+  }
+
+  .lineage-seal-letter-dot {
+    fill: color-mix(in srgb, var(--soft-paper-card) 94%, white);
+    stroke: color-mix(in srgb, var(--soft-ink-faint) 48%, transparent);
+    stroke-width: 1.1;
+  }
+
+  .lineage-seal-letter-dot.is-vowel {
+    fill: color-mix(in srgb, var(--soft-terracotta) 20%, var(--soft-paper-card));
+    stroke: var(--soft-terracotta-dark);
+  }
+
+  .lineage-seal-letter-dot.is-sign {
+    fill: color-mix(in srgb, #8a6a9c 12%, var(--soft-paper-card));
+    stroke: #8a6a9c;
+  }
+
+  .lineage-seal-letter,
+  .lineage-seal-letter-value,
+  .lineage-seal-arcana-glyph,
+  .lineage-seal-number,
+  .lineage-seal-arcana-name,
+  .lineage-seal-source {
+    pointer-events: none;
+  }
+
+  .lineage-seal-letter {
+    fill: var(--soft-ink);
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: 750;
+  }
+
+  .lineage-seal-letter-value {
+    fill: var(--soft-ink-faint);
+    font-family: var(--font-sans);
+    font-size: 8px;
+    font-weight: 650;
+  }
+
+  .lineage-seal-code-dot {
+    fill: color-mix(in srgb, var(--soft-sage) 62%, var(--soft-paper-card));
+  }
+
+  .lineage-seal-code-dot.is-active {
+    fill: var(--soft-bordeaux);
+    stroke: var(--soft-paper-card);
+    stroke-width: 3;
+  }
+
+  .lineage-seal-core-glow {
+    fill: color-mix(in srgb, var(--soft-terracotta) 48%, transparent);
+  }
+
+  .lineage-seal-core {
+    fill: color-mix(in srgb, var(--soft-paper-card) 94%, var(--soft-paper-deep));
+    stroke: color-mix(in srgb, var(--soft-bordeaux) 52%, var(--soft-paper-edge));
+    stroke-width: 1.5;
+  }
+
+  .lineage-seal-arcana-glyph {
+    fill: var(--soft-terracotta-dark);
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .lineage-seal-number {
+    fill: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 48px;
+    font-weight: 600;
+  }
+
+  .lineage-seal-arcana-name {
+    fill: var(--soft-ink);
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .lineage-seal-source {
+    fill: var(--soft-ink-faint);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .lineage-ledger {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--soft-paper-edge) 86%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--soft-paper-card) 88%, transparent);
+    padding: 0.85rem;
+    box-shadow: 0 12px 30px rgba(91, 64, 45, 0.06);
+  }
+
+  .lineage-ledger-letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.38rem;
+  }
+
+  .lineage-ledger-letters span {
+    display: grid;
+    width: 2rem;
+    min-height: 2.35rem;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--soft-paper-deep);
+    line-height: 1;
+  }
+
+  .lineage-ledger-letters b {
+    color: var(--soft-bordeaux);
+    font-size: 0.8rem;
+  }
+
+  .lineage-ledger-letters small {
+    color: var(--soft-ink-faint);
+    font-size: 0.65rem;
+  }
+
+  .lineage-ledger > p {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+  }
+
+  .lineage-ledger > p span {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+    padding: 0.3rem 0.48rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.67rem;
+    font-weight: 650;
+  }
+
+  .lineage-seal-comparison {
+    display: grid;
+    grid-template-columns: minmax(13rem, 1fr) 7.5rem minmax(13rem, 1fr);
+    align-items: center;
+    gap: clamp(0.5rem, 2vw, 1rem);
+  }
+
+  .lineage-seal-comparison > div:not(.lineage-transition) {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .lineage-seal-comparison .lineage-ledger {
+    margin-top: -1rem;
+    text-align: left;
+  }
+
+  .lineage-transition {
+    display: grid;
+    min-height: 8rem;
+    place-items: center;
+    align-content: center;
+    gap: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--soft-terracotta-dark) 28%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--soft-terracotta) 12%, var(--soft-paper-card));
+    padding: 0.75rem 0.45rem;
+    text-align: center;
+  }
+
+  .lineage-transition span {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 1.45rem;
+    font-weight: 600;
+  }
+
+  .lineage-transition small {
+    color: var(--soft-ink-faint);
+    font-size: 0.64rem;
+    line-height: 1.35;
+  }
+
+  .lineage-seal-index {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 1.15rem;
+  }
+
+  .lineage-seal-index button {
+    display: flex;
+    min-height: 4.5rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--soft-paper-card) 88%, transparent);
+    padding: 0.65rem;
+    color: var(--soft-ink-soft);
+    text-align: left;
+    transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+  }
+
+  .lineage-seal-index button:hover,
+  .lineage-seal-index button:focus-visible {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--soft-terracotta-dark) 55%, var(--soft-paper-edge));
+  }
+
+  .lineage-seal-index button.is-active {
+    border-color: color-mix(in srgb, var(--soft-bordeaux) 58%, var(--soft-paper-edge));
+    background: color-mix(in srgb, var(--soft-terracotta) 12%, var(--soft-paper-card));
+    color: var(--soft-bordeaux);
+  }
+
+  .lineage-seal-index button > svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex: 0 0 auto;
+  }
+
+  .lineage-seal-index button span {
+    min-width: 0;
+    font-size: 0.76rem;
+    font-weight: 720;
+  }
+
+  .lineage-seal-index button small {
+    display: block;
+    overflow: hidden;
+    margin-top: 0.18rem;
+    color: var(--soft-ink-faint);
+    font-size: 0.63rem;
+    font-weight: 520;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lineage-seal-detail {
+    margin-top: 0.65rem;
+    border-left: 3px solid var(--soft-terracotta-dark);
+    border-radius: 17px;
+    background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-paper-deep));
+    padding: clamp(0.9rem, 2.5vw, 1.25rem);
+  }
+
+  .lineage-seal-detail > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  .lineage-seal-detail h3 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(1.25rem, 2.5vw, 1.65rem);
+    font-weight: 600;
+  }
+
+  .lineage-seal-detail > div span {
+    color: var(--soft-terracotta-dark);
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .lineage-seal-detail > p:last-child {
+    margin-top: 0.55rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+
+  .lineage-method-note {
+    margin: 0.8rem 0 0;
+    color: var(--soft-ink-faint);
+    font-size: 0.67rem;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .lineage-teaser:not(:has(.lineage-teaser-empty)),
+    .lineage-seal-single {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lineage-teaser-visual .lineage-seal-svg {
+      max-width: 12.5rem;
+    }
+
+    .lineage-teaser-copy { text-align: center; }
+    .lineage-teaser-compare { justify-content: center; }
+
+    .lineage-seal-single .lineage-ledger {
+      margin-top: -1.4rem;
+    }
+
+    .lineage-seal-comparison {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lineage-transition {
+      min-height: auto;
+      border-radius: 17px;
+      padding: 0.65rem;
+    }
+
+    .lineage-transition small br { display: none; }
+
+    .lineage-seal-index {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .lineage-teaser {
+      min-height: 11rem;
+      border-radius: 20px;
+    }
+
+    .lineage-teaser-empty {
+      min-height: 9rem;
+      grid-template-columns: 5.5rem minmax(0, 1fr);
+      gap: 0.85rem;
+    }
+
+    .lineage-teaser-orbit { width: 5.5rem; }
+
+    .lineage-seal-stage {
+      margin-inline: -0.25rem;
+      border-radius: 20px;
+      padding: 0.65rem;
+    }
+
+    .lineage-seal-svg:not(.is-compact) {
+      width: min(100%, 19rem);
+    }
+
+    .lineage-seal-comparison .lineage-seal-svg.is-compact {
+      width: min(100%, 15.5rem);
+    }
+
+    .lineage-seal-index {
+      gap: 0.42rem;
+    }
+
+    .lineage-seal-index button {
+      min-height: 4.1rem;
+      padding: 0.55rem;
+    }
+
+    .lineage-seal-detail > div {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .lineage-seal-detail > div span { white-space: normal; }
+  }
+
   .tarot-autosaved-note {
     display: inline-flex;
     align-items: center;

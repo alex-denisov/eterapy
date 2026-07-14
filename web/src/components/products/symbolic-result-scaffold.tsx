@@ -22,7 +22,7 @@ const LEGACY_FINAL_SECTION_TITLES: Record<string, string> = {
   "natal-chart": "Как работать с этой картой дальше",
   synastry: "Что проверить в реальном разговоре",
   "human-design": "Как применять дизайн",
-  "surname-story": "Что проверить в семейной истории",
+  "surname-story": "Как интегрировать код фамилии",
 };
 
 const DIRECT_ANSWER_TITLES: Record<string, string> = {
@@ -33,7 +33,7 @@ const DIRECT_ANSWER_TITLES: Record<string, string> = {
   horary: "Ответ на поставленный вопрос",
   "tarot-numerology": "Ключевой вывод ваших арканов",
   "human-design": "Главный ключ вашего дизайна",
-  "surname-story": "Ключ к вашему имени и фамилии",
+  "surname-story": "Прямой итог родового аудита",
 };
 
 export function presentSymbolicSectionTitle(productKey: string, title: string) {
