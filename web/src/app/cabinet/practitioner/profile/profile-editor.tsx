@@ -7,8 +7,6 @@ import { BadgeCheck, Camera, ChevronLeft, ChevronRight, ExternalLink, ShieldAler
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
-import { SessionFormatsField } from "@/components/practitioner/session-formats-field";
 import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
 import { normalizeOfferedFormats } from "@/lib/session-formats";
 
@@ -52,10 +50,12 @@ export function PractitionerProfileEditor({
   const [title, setTitle] = useState(initialData.title);
   const [bio, setBio] = useState(initialData.bio);
   const [experience, setExperience] = useState(initialData.experience);
-  const [categories, setCategories] = useState<string[]>(initialData.categories);
-  const [directions, setDirections] = useState<string[]>(initialData.directions);
-  const [tasks, setTasks] = useState<string[]>(initialData.tags);
-  const [formats, setFormats] = useState<string[]>(normalizeOfferedFormats(initialData.formats));
+  // Таксономия правится на «Услугах» (directions-editor) — здесь read-only
+  // pass-through, чтобы partial-safe PATCH /api/practitioner/profile её не затирал.
+  const [categories] = useState<string[]>(initialData.categories);
+  const [directions] = useState<string[]>(initialData.directions);
+  const [tasks] = useState<string[]>(initialData.tags);
+  const [formats] = useState<string[]>(normalizeOfferedFormats(initialData.formats));
   const [languages] = useState<string[]>(initialData.languages.length ? initialData.languages : ["Русский"]);
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -218,106 +218,126 @@ export function PractitionerProfileEditor({
     );
   }
 
+  // ── ДЕСКТОП (mockup practitioner-desktop-profile-v2) ─────────────────────
+  // Карточка-редактор: фото + verif-чип + публичная ссылка + личные поля
+  // (Имя read-only · Специализация · О себе · Опыт · Языки). Таксономия/форматы
+  // — на «Услугах» (см. «Статус и проверки» рядом), здесь только pass-through.
   return (
-    <form onSubmit={handleSave} className="space-y-6">
-      {/* Аватар */}
-      <div className="soft-card">
-        <div className="p-5">
-          <h2 className="font-semibold mb-4">Фото профиля</h2>
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={() => fileRef.current?.click()}
-              className="relative group shrink-0">
-              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-border/40 group-hover:border-primary/50 transition-colors">
-                {displayAvatar ? (
-                  <Image src={displayAvatar} alt="Аватар" width={80} height={80} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="soft-avatar-fallback h-full w-full flex items-center justify-center font-heading text-3xl font-bold">
-                    {initial}
-                  </div>
-                )}
+    <form onSubmit={handleSave} className="soft-card p-5 md:p-6" data-testid="practitioner-profile-editor-desktop">
+      {/* Фото + верификация + публичная ссылка */}
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="relative shrink-0"
+          aria-label="Изменить фото"
+        >
+          <div className="h-[68px] w-[68px] overflow-hidden rounded-full border border-[var(--soft-paper-edge)]">
+            {displayAvatar ? (
+              <Image src={displayAvatar} alt="Фото профиля" width={68} height={68} className="h-full w-full object-cover" />
+            ) : (
+              <div className="soft-avatar-fallback flex h-full w-full items-center justify-center font-heading text-2xl font-bold">
+                {initial}
               </div>
-              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
-                Изменить
-              </div>
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-            <div>
-              <p className="text-sm font-medium">{initialData.name}</p>
-              <button type="button" onClick={() => fileRef.current?.click()}
-                className="text-xs text-primary hover:underline mt-0.5">
-                Загрузить фото
-              </button>
-              <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-0.5">JPG, PNG или WebP · до 5 МБ</p>
-              <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">{initialData.email}</p>
-            </div>
+            )}
           </div>
+          <span
+            className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--soft-paper-card)]"
+            style={{ background: "var(--soft-bordeaux)", color: "var(--soft-cream,#FBF1E4)" }}
+            aria-hidden="true"
+          >
+            <Camera size={12} />
+          </span>
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+        <div className="min-w-0">
+          {verified ? (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
+              style={{ background: "var(--soft-sage,#E4EADF)", color: "var(--soft-sage-ink,#4B6146)" }}
+            >
+              <BadgeCheck size={13} />
+              Профиль подтверждён
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
+              style={{ background: "var(--soft-amber-bg,#F2E2C2)", color: "var(--soft-amber-ink,#6E5114)" }}
+            >
+              <ShieldAlert size={13} />
+              Верификация не пройдена
+            </span>
+          )}
+          <a
+            href={publicProfileHref}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--soft-terracotta-dark)] hover:underline"
+            data-testid="practitioner-profile-public"
+          >
+            <ExternalLink size={13} />
+            Открыть публичную страницу
+          </a>
         </div>
       </div>
 
-      {/* Основные данные */}
-      <div className="soft-card">
-        <div className="p-5 space-y-4">
-          <h2 className="font-semibold">Основная информация</h2>
-          <div>
-            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Заголовок профиля</label>
-            <Input value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Таролог · Астролог · 7 лет практики"
-              className="bg-[rgba(255,255,255,0.035)]" />
-            <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-1">
-              Отображается в каталоге. Коротко и ёмко.
-            </p>
-          </div>
-          <div>
-            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Биография</label>
-            {/* B344 / Интерфейс 15: align the bio textarea to the same field
-                family as «Заголовок» / «Опыт» (premium-input, px-4, text-base
-                md:text-sm) so the three fields share one look instead of the
-                textarea standing apart with a smaller font + different border. */}
-            <textarea value={bio} onChange={e => setBio(e.target.value)}
-              placeholder="Расскажите о вашем пути, методах работы и чём вы помогаете..."
-              className="premium-input w-full px-4 py-2 text-base md:text-sm bg-[rgba(255,255,255,0.035)] resize-none h-32 outline-none focus:border-primary/50" />
-          </div>
-          <div>
-            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Опыт работы</label>
-            <Input value={experience} onChange={e => setExperience(e.target.value)}
-              placeholder="5 лет" className="bg-[rgba(255,255,255,0.035)] max-w-xs" />
-          </div>
-        </div>
-      </div>
-
-      {/* Таксономия: специализация → направление → задачи (W3) */}
-      <div className="soft-card">
-        <div className="p-5">
-          <h2 className="font-semibold mb-3">Специализация и задачи</h2>
-          <PractitionerTaxonomyFields
-            value={{ categories, directions, tasks }}
-            onChange={(next) => {
-              setCategories(next.categories);
-              setDirections(next.directions);
-              setTasks(next.tasks);
-            }}
+      {/* Поля */}
+      <div className="mt-5 space-y-4">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">
+            Имя <span className="text-[var(--soft-ink-faint)]">(из аккаунта, меняется в настройках)</span>
+          </label>
+          <Input
+            value={initialData.name}
+            readOnly
+            aria-label="Имя"
+            className="cursor-default bg-[var(--soft-paper-deep)]/40"
+            data-testid="practitioner-profile-name"
           />
-          <div className="mt-5 border-t border-border/30 pt-5">
-            <SessionFormatsField value={formats} onChange={setFormats} />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Специализация</label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Психолог · клинический подход"
+            data-testid="practitioner-profile-title"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">
+            О себе <span className="text-[var(--soft-ink-faint)]">(видят клиенты в каталоге)</span>
+          </label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="Расскажите о вашем пути, методах работы и чём вы помогаете…"
+            className="premium-input h-32 w-full resize-none px-4 py-2 text-base outline-none focus:border-primary/50 md:text-sm"
+            data-testid="practitioner-profile-bio"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Опыт</label>
+          <Input
+            value={experience}
+            onChange={(e) => setExperience(e.target.value)}
+            placeholder="8 лет"
+            className="max-w-xs"
+            data-testid="practitioner-profile-experience"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--soft-ink-soft)]">Языки</label>
+          <div className="flex flex-wrap gap-2">
+            {languages.map((lang) => (
+              <span key={lang} className="soft-chip cursor-default">{lang}</span>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Ссылка на публичный профиль */}
-      <div className="soft-map-tile flex items-center gap-3 px-4 py-3">
-        <span className="text-2xl">🔗</span>
-        <div className="flex-1">
-          <p className="text-sm font-medium">Публичный профиль</p>
-          <p className="text-xs text-[var(--soft-ink-soft)]">Клиенты видят ваш профиль по этой ссылке</p>
-        </div>
-        <a href={`/cabinet/practitioners/${practitionerId}`} target="_blank"
-          className="text-xs text-primary hover:underline">
-          Открыть ↗
-        </a>
-      </div>
-
-      <Button type="submit" disabled={saving} className="w-full sm:w-auto">
-        {saving ? "Сохранение..." : "Сохранить профиль"}
+      <Button type="submit" disabled={saving} className="mt-6 w-full sm:w-auto">
+        {saving ? "Сохранение…" : "Сохранить профиль"}
       </Button>
     </form>
   );

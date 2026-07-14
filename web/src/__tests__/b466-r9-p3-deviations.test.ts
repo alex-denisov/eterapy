@@ -37,9 +37,15 @@ describe("item 1 — форматы сессий: schema + shared editor", () =>
     expect(field).toContain("На цену не влияет");
   });
 
-  it("cabinet profile editor + superadmin modal both render the formats field & persist", () => {
+  it("session formats live on «Услуги» + superadmin modal; profile passes formats through", () => {
+    // R9-5 (-profile-v2): форматы сессий переехали с Профиля на «Услуги»
+    // (services-formats-editor). Десктоп-профиль их больше НЕ рендерит, но
+    // сохраняет через partial-safe pass-through, чтобы не затирать значение.
+    const services = source("src/app/cabinet/practitioner/services/services-formats-editor.tsx");
+    expect(services).toContain("SessionFormatsField");
+
     const editor = source("src/app/cabinet/practitioner/profile/profile-editor.tsx");
-    expect(editor).toContain("SessionFormatsField");
+    expect(editor).not.toContain("SessionFormatsField");
     expect(editor).toContain('formData.append("formats"');
 
     const modal = source("src/app/admin/users/user-edit-modal.tsx");

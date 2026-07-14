@@ -8,6 +8,7 @@ import { getActivePractitionerPlanKey } from "@/lib/practitioner-entitlements";
 import { practitionerTierBadge, practitionerTierFromPlanKey } from "@/lib/practitioner-tier";
 import { ActiveTariffsEditor } from "./active-tariffs-editor";
 import { ServicesDirectionsEditor } from "./services-directions-editor";
+import { ServicesFormatsEditor } from "./services-formats-editor";
 import { PractitionerServicesEditorMobile } from "./services-editor-mobile";
 
 export default async function PractitionerServicesPage() {
@@ -93,6 +94,11 @@ export default async function PractitionerServicesPage() {
                 Направления помогают клиентам найти вас в каталоге по запросу. Отражают ваши компетенции
                 из верификации.
               </p>
+            </section>
+
+            <section className="soft-card p-5 md:p-6">
+              <p className="soft-eyebrow mb-3.5">Форматы сессий</p>
+              <ServicesFormatsEditor initial={taxonomy} />
             </section>
 
             <section className="soft-card p-5 md:p-6" data-testid="practitioner-payout-card">
