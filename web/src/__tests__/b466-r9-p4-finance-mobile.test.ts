@@ -71,7 +71,8 @@ describe("R9-4 P4 — finance page renders mobile + hidden desktop", () => {
   it("loads appbar data and reuses balance data for both trees (single load)", () => {
     const src = page();
     expect(src).toContain("loadPractitionerAppbar");
-    expect(src).toContain('tab === "balance" ? await loadPractitionerFinance');
+    // R9-5: финанс-данные грузятся один раз для Баланса и Отчётов (byMonth)
+    expect(src).toContain('tab === "balance" || tab === "reports" ? await loadPractitionerFinance');
     // баланс отдаётся и мобильному, и десктопному компоненту из одной переменной
     expect(src).toContain("<FinanceBalanceMobile data={financeData}");
     expect(src).toContain("<BalanceTab data={financeData}");

@@ -42,7 +42,7 @@ export function BalanceTab({ data, tier }: { data: PractitionerFinanceData; tier
         {/* «Удержано» — только hold по сессиям; ведёт в «Движение средств». */}
         {data.heldPayout > 0 && (
           <Link
-            href={appUrl("/practitioner/finance/movements?filter=holds")}
+            href={appUrl("/practitioner/finance?tab=movements&filter=holds")}
             data-testid="practitioner-finance-held"
             className="mt-3 flex items-center gap-2 rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/50 px-3 py-2.5 text-sm transition-colors hover:bg-[var(--soft-paper-deep)]"
           >
@@ -76,7 +76,7 @@ export function BalanceTab({ data, tier }: { data: PractitionerFinanceData; tier
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
           <p className="soft-eyebrow">Движение средств</p>
-          <Link href={appUrl("/practitioner/finance/movements")} className="text-xs text-[var(--soft-terracotta-dark)]">
+          <Link href={appUrl("/practitioner/finance?tab=movements")} className="text-xs text-[var(--soft-terracotta-dark)]">
             всё →
           </Link>
         </div>

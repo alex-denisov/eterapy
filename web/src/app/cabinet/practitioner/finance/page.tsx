@@ -14,20 +14,25 @@ import { BalanceTab } from "./balance-tab";
 import { TariffTab } from "./tariff-tab";
 import { RequisitesTab, type RequisitesTabData } from "./requisites-tab";
 import { ReportsTab } from "./reports-tab";
+import { MovementsTab, normalizeMovementsFilter } from "./movements-tab";
+import { ReceiptsTab } from "./receipts-tab";
 import { FinanceMobileShell, FinanceBalanceMobile, FinanceRequisitesMobile, FinanceReportsMobile } from "./finance-mobile";
 import { FinanceTariffMobile } from "./finance-tariff-mobile";
 
-// B466 — «Финансы»: 4-tab switcher Баланс · Тариф · Реквизиты · Отчёты
-// (заменяет старые /earnings и /subscription, они редиректят сюда).
-// R9-4 P4: мобильный кокпит (md:hidden, 1-в-1 по mockups practitioner-finance-*)
-// + прежний десктоп (hidden md:block). Серверные загрузчики переиспользуются.
+// B466 — «Финансы».
+// Мобайл (R9-4): 4-tab switcher Баланс · Тариф · Реквизиты · Отчёты (Движение/
+// Чеки — drill-down роуты) — md:hidden, 1-в-1 по mockups practitioner-finance-*.
+// Десктоп (R9-5 -finance-v2, owner ROUND 4 #3): 6 вкладок Баланс · Тариф ·
+// Реквизиты · Движение · Отчёты · Чеки (hidden md:block). Серверные загрузчики
+// переиспользуются. Старые /earnings и /subscription редиректят сюда.
 
-const TAB_KEYS = new Set<FinanceTabKey>(["balance", "tariff", "requisites", "reports"]);
+const TAB_KEYS = new Set<FinanceTabKey>(["balance", "tariff", "requisites", "movements", "reports", "receipts"]);
+const MOBILE_TAB_KEYS = new Set<FinanceTabKey>(["balance", "tariff", "requisites", "reports"]);
 
 export default async function PractitionerFinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; filter?: string }>;
 }) {
   const session = await auth();
   if (!session) redirect(loginUrl());
@@ -59,8 +64,10 @@ export default async function PractitionerFinancePage({
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
-  const { tab: rawTab } = await searchParams;
+  const { tab: rawTab, filter: rawFilter } = await searchParams;
   const tab: FinanceTabKey = TAB_KEYS.has(rawTab as FinanceTabKey) ? (rawTab as FinanceTabKey) : "balance";
+  const mobileTab: FinanceTabKey = MOBILE_TAB_KEYS.has(tab) ? tab : "balance";
+  const movementsFilter = normalizeMovementsFilter(rawFilter);
   const planKey = await getActivePractitionerPlanKey(userId);
   const tier = practitionerTierFromPlanKey(planKey);
   const appbar = await loadPractitionerAppbar({
@@ -70,8 +77,8 @@ export default async function PractitionerFinancePage({
     title: practitioner.title,
   });
 
-  // Загружаем данные баланса один раз — общие для мобильного и десктопного дерева.
-  const financeData = tab === "balance" ? await loadPractitionerFinance(practitioner.id) : null;
+  // financeData нужен десктоп-Балансу, десктоп-Отчётам (byMonth) и мобильному Балансу.
+  const financeData = tab === "balance" || tab === "reports" ? await loadPractitionerFinance(practitioner.id) : null;
   const requisitesData: RequisitesTabData = {
     taxStatus: practitioner.taxStatus as TaxStatusKey | "UNKNOWN",
     taxReviewStatus: practitioner.taxReviewStatus,
@@ -84,15 +91,17 @@ export default async function PractitionerFinancePage({
 
   return (
     <>
-      {/* МОБАЙЛ — 1-в-1 по макетам, десктоп скрыт */}
-      <FinanceMobileShell appbar={appbar} tab={tab}>
-        {tab === "balance" && financeData && <FinanceBalanceMobile data={financeData} tier={tier} />}
-        {tab === "tariff" && <FinanceTariffMobile tier={tier} practitionerId={practitioner.id} userId={userId} />}
-        {tab === "requisites" && <FinanceRequisitesMobile data={requisitesData} />}
-        {tab === "reports" && <FinanceReportsMobile practitionerId={practitioner.id} />}
+      {/* МОБАЙЛ — 1-в-1 по макетам (4 вкладки), десктоп скрыт. Движение/Чеки —
+          drill-down роуты; ?tab=movements|receipts — десктоп-only, на мобиле
+          сегмент падает на «Баланс». */}
+      <FinanceMobileShell appbar={appbar} tab={mobileTab}>
+        {mobileTab === "balance" && financeData && <FinanceBalanceMobile data={financeData} tier={tier} />}
+        {mobileTab === "tariff" && <FinanceTariffMobile tier={tier} practitionerId={practitioner.id} userId={userId} />}
+        {mobileTab === "requisites" && <FinanceRequisitesMobile data={requisitesData} />}
+        {mobileTab === "reports" && <FinanceReportsMobile practitionerId={practitioner.id} />}
       </FinanceMobileShell>
 
-      {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
+      {/* ДЕСКТОП — 6 вкладок по -finance-v2 */}
       <div
         className="mx-auto hidden w-full max-w-3xl px-4 py-8 sm:px-6 md:block"
         style={{ paddingBottom: 80 }}
@@ -108,7 +117,9 @@ export default async function PractitionerFinancePage({
         {tab === "balance" && financeData && <BalanceTab data={financeData} tier={tier} />}
         {tab === "tariff" && <TariffTab tier={tier} practitionerId={practitioner.id} userId={userId} />}
         {tab === "requisites" && <RequisitesTab data={requisitesData} />}
-        {tab === "reports" && <ReportsTab practitionerId={practitioner.id} />}
+        {tab === "movements" && <MovementsTab practitionerId={practitioner.id} filter={movementsFilter} />}
+        {tab === "reports" && financeData && <ReportsTab practitionerId={practitioner.id} byMonth={financeData.byMonth} />}
+        {tab === "receipts" && <ReceiptsTab practitionerId={practitioner.id} taxStatus={practitioner.taxStatus} />}
       </div>
     </>
   );

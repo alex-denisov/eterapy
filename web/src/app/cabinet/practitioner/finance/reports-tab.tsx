@@ -1,11 +1,11 @@
-import Link from "next/link";
-import { ChevronRight, FileSpreadsheet, History, Receipt } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import db from "@/lib/db";
-import { appUrl } from "@/lib/subdomain";
+import type { PractitionerFinanceData } from "./finance-data";
 
-// B466 — «Финансы → Отчёты» (mockup -reports, owner round-2 #3): ТОЛЬКО акты
-// выполненных работ (законодательно обязательный документ; формирует платформа
-// как агент) + навигация «Финансовая история» → movements и «Чеки» → receipts.
+// B466 — «Финансы → Отчёты»: отчёты по периодам со скачиванием XLSX / CSV
+// (owner ROUND 4 #3а — реальная выгрузка через /api/practitioner/finance/export)
+// + акты выполненных работ (законодательно обязательный документ, формирует
+// платформа как агент). «Движение» и «Чеки» вынесены в отдельные вкладки.
 
 const MONTH_FMT = new Intl.DateTimeFormat("ru-RU", {
   month: "long",
@@ -13,22 +13,15 @@ const MONTH_FMT = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow",
 });
 
-function NavRow({ href, icon, title, meta }: { href: string; icon: React.ReactNode; title: string; meta: string }) {
-  return (
-    <Link href={href} className="flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-[var(--soft-paper-deep)]/40">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13.5px] font-medium">{title}</span>
-        <span className="mt-0.5 block truncate text-xs text-[var(--soft-ink-faint)]">{meta}</span>
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
-    </Link>
-  );
-}
+const EXPORT_BASE = "/api/practitioner/finance/export";
 
-export async function ReportsTab({ practitionerId }: { practitionerId: string }) {
+export async function ReportsTab({
+  practitionerId,
+  byMonth,
+}: {
+  practitionerId: string;
+  byMonth: PractitionerFinanceData["byMonth"];
+}) {
   const reports = await db.agentReport.findMany({
     where: { practitionerId },
     orderBy: { periodEnd: "desc" },
@@ -45,6 +38,47 @@ export async function ReportsTab({ practitionerId }: { practitionerId: string })
 
   return (
     <div className="mt-5 flex flex-col gap-4" data-testid="practitioner-finance-reports">
+      {/* Отчёты по периодам — со скачиванием XLSX / CSV */}
+      <section>
+        <p className="soft-eyebrow mb-2.5">Отчёты по периодам</p>
+        <div className="divide-y divide-[var(--soft-paper-deep)] overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
+          {byMonth.length === 0 ? (
+            <p className="px-4 py-5 text-sm text-[var(--soft-ink-faint)]">
+              Отчёты появятся после первой завершённой сессии.
+            </p>
+          ) : (
+            byMonth.map((m) => (
+              <div key={m.key} className="flex flex-wrap items-center gap-3 px-3.5 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13.5px] font-medium capitalize">{m.month}</p>
+                  <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+                    доход {m.gross.toLocaleString("ru")} ₽ · {m.count} сессий · {m.net.toLocaleString("ru")} ₽ чистыми
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <a
+                    href={`${EXPORT_BASE}?period=${m.key}&format=xlsx`}
+                    className="soft-button soft-button-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                    data-testid="finance-report-xlsx"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    XLSX
+                  </a>
+                  <a
+                    href={`${EXPORT_BASE}?period=${m.key}&format=csv`}
+                    className="soft-button soft-button-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                    data-testid="finance-report-csv"
+                  >
+                    CSV
+                  </a>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Акты выполненных работ — законодательно обязательный документ */}
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
           <p className="soft-eyebrow">Акты выполненных работ</p>
@@ -81,28 +115,10 @@ export async function ReportsTab({ practitionerId }: { practitionerId: string })
         </div>
       </section>
 
-      <section>
-        <p className="soft-eyebrow mb-2.5">Ещё в финансах</p>
-        <div className="divide-y divide-[var(--soft-paper-deep)] overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
-          <NavRow
-            href={appUrl("/practitioner/finance/movements")}
-            icon={<History className="h-[18px] w-[18px]" />}
-            title="Финансовая история"
-            meta="Все зачисления, выплаты и удержания"
-          />
-          <NavRow
-            href={appUrl("/practitioner/finance/receipts")}
-            icon={<Receipt className="h-[18px] w-[18px]" />}
-            title="Чеки"
-            meta="«Мой налог» · НПД, самозанятый"
-          />
-        </div>
-      </section>
-
       <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
         <span className="font-medium text-[var(--soft-ink-soft)]">По закону.</span> Обязательный документ — только
-        акт выполненных работ; платформа формирует его как ваш агент. Чеки для клиентов уходят в «Мой налог»
-        автоматически.
+        акт выполненных работ; платформа формирует его как ваш агент. Выгрузки XLSX/CSV — для вашего учёта. Чеки для
+        клиентов уходят в «Мой налог» автоматически (вкладка «Чеки»).
       </p>
     </div>
   );
