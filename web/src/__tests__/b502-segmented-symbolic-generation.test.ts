@@ -189,7 +189,7 @@ describe("B502 segmented symbolic generation", () => {
       const userMessage = request.messages.find((message) => message.role === "user");
       const content = typeof userMessage?.content === "string" ? userMessage.content : "";
       const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
-      const exactFacts = "Романова: сумма 39, код 3, XVII Звезда. Волкова: сумма 28, код 1, VI Влюблённые. ";
+      const exactFacts = "Романова: сумма 39, код 3, XVII Звезда. Волкова: сумма 28, код 1, VI Влюблённые. Вариант усиливает инициативу, ослабляет созерцательность; цена перехода — больше личной ответственности. ";
       const compactBody = exactFacts.repeat(4);
       const longBody = exactFacts.repeat(10);
       const richBody = [
