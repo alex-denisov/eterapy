@@ -256,14 +256,16 @@
     transform: scale(0.96);
   }
 
+  /* B512 — global CTA unify: primary actions are bordeaux across landing,
+     client cabinet and practitioner cockpit (owner-approved convergence). */
   .soft-button-primary {
-    background: var(--soft-terracotta) !important;
+    background: var(--soft-bordeaux) !important;
     color: #fff8f1 !important;
-    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72), inset 0 -2px 0 rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 12px 26px -14px rgba(92, 42, 44, 0.8), inset 0 -2px 0 rgba(0, 0, 0, 0.08) !important;
   }
 
   .soft-button-primary:hover {
-    background: var(--soft-terracotta-dark) !important;
+    background: color-mix(in srgb, var(--soft-bordeaux) 86%, black) !important;
   }
 
   .soft-button-ghost {
@@ -398,6 +400,21 @@
     border-color: color-mix(in srgb, var(--soft-terracotta) 40%, var(--soft-paper-edge));
   }
 
+  /* B512 §3.5 — result-moment share/gift: лиловое действие «Поделиться /
+     подарить» на строках разборов (лиловый = мост к сервисным механикам,
+     как в service-nudge). */
+  .soft-result-act-share {
+    color: #6e5ba6;
+    border-color: color-mix(in srgb, var(--soft-lilac, #a89bc9) 55%, var(--soft-paper-edge));
+    background: var(--soft-lilac-bg, #efeaf6);
+  }
+
+  .soft-result-act-share:hover {
+    color: #574a86;
+    border-color: var(--soft-lilac, #a89bc9);
+    background: color-mix(in srgb, var(--soft-lilac-bg, #efeaf6) 80%, white);
+  }
+
   /* Round-7 (item 1): the reversible «Скрыто · Вернуть» collapse state. Muted
      dashed row so it reads as removed but recoverable in place. */
   .soft-result-row-hidden {
@@ -526,13 +543,13 @@
   }
 
   .soft-header :where(.bg-primary, [class*="bg-primary"]) {
-    background: var(--soft-terracotta) !important;
+    background: var(--soft-bordeaux) !important;
     color: #fff8f1 !important;
-    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72) !important;
+    box-shadow: 0 10px 26px -12px rgba(92, 42, 44, 0.72) !important;
   }
 
   .soft-header :where(.bg-primary, [class*="bg-primary"]):hover {
-    background: var(--soft-terracotta-dark) !important;
+    background: color-mix(in srgb, var(--soft-bordeaux) 86%, black) !important;
   }
 
   .soft-header :where(.border-border\/40, [class*="border-border/40"]) {
@@ -595,6 +612,17 @@
     background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
   }
 
+  /* B512 §3.3 — в мобильном appbar кабинета клиента колокольчик — скруглённый
+     КВАДРАТ (r12, 38px) как практикский .iconbtn; чип баллов рядом остаётся
+     пилюлей. Только внутри .client-mobile-appbar, хедер не затронут. */
+  .client-mobile-appbar .soft-notification-trigger {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    border-radius: 12px;
+  }
+
   /* G1: compact header CTA. The generic .soft-button forces min-height:3rem
      (48px) which dwarfs the 28px user-pill / icon chips, so "Войти",
      "Начать диалог" and "Новый разбор" looked oversized. This dedicated
@@ -624,13 +652,13 @@
   }
 
   .soft-header-cta-primary {
-    background: var(--soft-terracotta);
+    background: var(--soft-bordeaux);
     color: #fff8f1;
-    box-shadow: 0 8px 20px -12px rgba(214, 117, 88, 0.72);
+    box-shadow: 0 8px 20px -12px rgba(92, 42, 44, 0.72);
   }
 
   .soft-header-cta-primary:hover {
-    background: var(--soft-terracotta-dark);
+    background: color-mix(in srgb, var(--soft-bordeaux) 86%, black);
   }
 
   .soft-header-cta-ghost {

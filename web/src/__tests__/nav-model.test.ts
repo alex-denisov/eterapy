@@ -4,6 +4,8 @@ import {
   CLIENT_MOBILE_TABS,
   GUEST_MOBILE_TABS,
   CLIENT_MORE_ITEMS,
+  CLIENT_MORE_SECTIONS,
+  CLIENT_MORE_HREFS,
   GUEST_MORE_ITEMS,
 } from "@/lib/nav-model";
 
@@ -76,32 +78,61 @@ describe("B464 IB0 nav-model — mobile bottom bar (state-aware)", () => {
     expect(s?.href).toContain("/products");
   });
 
-  it("marks the last tab «Ещё» so the component can open a sheet instead of navigating", () => {
+  it("B512: client «Ещё» NAVIGATES to the /cabinet/more hub; guest keeps the sheet", () => {
     expect(CLIENT_MOBILE_TABS.at(-1)?.label).toBe("Ещё");
+    expect(CLIENT_MOBILE_TABS.at(-1)?.href).toContain("/more");
     expect(GUEST_MOBILE_TABS.at(-1)?.label).toBe("Ещё");
+    expect(GUEST_MOBILE_TABS.at(-1)?.href).toBe("");
   });
 });
 
-describe("B464 IB0 nav-model — «Ещё» sheet contents", () => {
-  it("client «Ещё» carries the secondary cabinet pages without duplicating tabs", () => {
+describe("B512 nav-model — client «Ещё» hub sections", () => {
+  it("groups the hub into Кабинет · Платформа · Аккаунт", () => {
+    expect(CLIENT_MORE_SECTIONS.map((s) => s.heading)).toEqual([
+      "Кабинет",
+      "Платформа",
+      "Аккаунт",
+    ]);
+    expect(labels(CLIENT_MORE_SECTIONS[0].items)).toEqual([
+      "Записи",
+      "Сообщения",
+      "Кошелёк",
+      "Приглашения",
+    ]);
+    expect(labels(CLIENT_MORE_SECTIONS[1].items)).toEqual([
+      "Услуги",
+      "Специалисты",
+      "Библиотека",
+    ]);
+    expect(labels(CLIENT_MORE_SECTIONS[2].items)).toEqual([
+      "Настройки",
+      "Поддержка",
+    ]);
+  });
+
+  it("drops the bare «На сайт» row — «Платформа» covers the cross-shell exits", () => {
     const more = labels(CLIENT_MORE_ITEMS);
-    expect(more).toEqual(
-      expect.arrayContaining([
-        "Записи",
-        "Кошелёк",
-        "Приглашения",
-        "Настройки",
-        "Поддержка",
-        "На сайт",
-        "Выйти",
-      ]),
-    );
-    // Primary tabs must not be repeated in the sheet.
+    expect(more).not.toContain("На сайт");
+    expect(more).toContain("Выйти");
+    // Primary personal tabs are still not repeated in the hub.
     expect(more).not.toContain("Главная");
     expect(more).not.toContain("Дневник");
-    // «Подписка и оплата» is merged into Кошелёк (IB3) — no separate entry.
+    // «Подписка и оплата» stays merged into Кошелёк (IB3).
     expect(more).not.toContain("Подписка и оплата");
     expect(more).not.toContain("Подписка");
+  });
+
+  it("routes «Платформа» rows to the landing (mainUrl), cabinet rows to the app", () => {
+    for (const item of CLIENT_MORE_SECTIONS[1].items) {
+      expect(item.href).not.toContain("app.");
+    }
+  });
+
+  it("keeps the «Ещё» umbrella active-state hrefs in sync with the hub pages", () => {
+    expect(CLIENT_MORE_HREFS.some((href) => href.includes("/more"))).toBe(true);
+    for (const label of ["/bookings", "/messages", "/wallet", "/invite", "/settings", "/support"]) {
+      expect(CLIENT_MORE_HREFS.some((href) => href.includes(label))).toBe(true);
+    }
   });
 
   it("guest «Ещё» = Как работает · Библиотека · Тарифы (Войти is already a tab)", () => {

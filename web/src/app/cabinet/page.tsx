@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Gift, ArrowRight, LifeBuoy } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, Gift, LifeBuoy, Lock, Plus, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { CabinetResultRow } from "@/components/cabinet/cabinet-result-row";
@@ -87,7 +87,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, weekCards, weeklySummary, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats] = await Promise.all([
+  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, weekCards, weeklySummary, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats, nearestCreditExpiry] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -166,6 +166,13 @@ export default async function ClientCabinetPage() {
     listMissionChecklist(userId),
     getPracticeStreakSnapshot(userId),
     getReferralStats(userId),
+    // B512 §3.5 (P6): ближайшее истечение подтверждённых начислений — для
+    // тёплой строки «баллы действуют до …» (честно, без countdown-таймера).
+    db.clarityCreditLedgerEntry.findFirst({
+      where: { userId, status: "confirmed", type: "grant", expiresAt: { gt: new Date() } },
+      orderBy: { expiresAt: "asc" },
+      select: { expiresAt: true },
+    }).catch(() => null),
   ]);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
@@ -262,6 +269,7 @@ export default async function ClientCabinetPage() {
         title: d.title,
         when: d.updatedAt,
         label: dialogueTopicLabelRu(d.topic),
+        shareTopic: d.topic ?? "dialogue",
         href: mainUrl(`/checkin?dialogueId=${d.id}`),
       })),
     ...recentResults
@@ -273,6 +281,7 @@ export default async function ClientCabinetPage() {
         title: r.title,
         when: r.updatedAt,
         label: PRODUCT_LABELS[r.productKey] ?? "Разбор",
+        shareTopic: r.productKey,
         href: appUrl(`/cabinet/results/${r.id}`),
       })),
   ]
@@ -288,35 +297,72 @@ export default async function ClientCabinetPage() {
   // just states the current plan.
   const subscriptionQualified = showMonetization && !activeSubscription && (dialogueCount >= 2 || productCount >= 2);
 
-  return (
-    <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
+  // B512 (P6): warm expiry line for the Home wallet cue.
+  const creditExpiryLabel = clarityCredits > 0 && nearestCreditExpiry?.expiresAt
+    ? nearestCreditExpiry.expiresAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+    : null;
 
-      {/* ═══════ ZONE 1 · ACT — resume your thread ═══════ */}
-      <section
-        className="soft-card mb-4 p-5 md:p-6"
-        data-testid="client-primary-action"
-        style={{ background: "linear-gradient(155deg, var(--soft-paper-card) 0%, var(--soft-apricot) 100%)", border: "1px solid transparent" }}
-      >
+  // B512 — the lilac service-nudge renders in TWO slots (mobile: between
+  // результаты and вопрос дня; desktop: top of the right rail) per the
+  // approved mockups. One node, two responsive wrappers.
+  const serviceNudgeCard = showMonetization && serviceNudge && serviceNudgeHref ? (
+    <div
+      className="soft-card p-5"
+      data-testid="diary-recommendation"
+      data-nudge-key={serviceNudge.key}
+      style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
+    >
+      <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>что дальше по вашей теме</p>
+      <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
+        {serviceNudge.body}
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Link href={serviceNudgeHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
+          {serviceNudge.ctaLabel}
+        </Link>
+        <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost shrink-0" style={{ fontSize: 13 }}>
+          Подобрать специалиста
+        </Link>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="max-w-6xl px-4 py-6 sm:px-6 md:py-8" style={{ paddingBottom: 80 }}>
+
+      {/* ═══════ ZONE 1 · ACT — flattened greeting topbar (B512: no wrapper
+          card; the hero lives as its own card in the primary column). ═══════ */}
+      <section data-testid="client-primary-action">
         <p className="soft-eyebrow">с возвращением</p>
         <h1 className="soft-h1 mt-2">
           <span className="soft-italic">{firstName}</span>, ваша работа продолжается
         </h1>
 
-        {/* Spendable-balance pill (A3 reframed as spendable) */}
-        <div className="mt-4" data-testid="client-dashboard-balance">
+        {/* Spendable-balance pill (A3 reframed as spendable). B512: desktop
+            only — the mobile top bar carries the persistent balance chip, so
+            the in-hero pill would duplicate it. */}
+        <div className="mt-4 hidden md:block" data-testid="client-dashboard-balance">
           <Link
             href={appUrl("/wallet")}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-2 text-sm font-semibold"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-2 text-sm font-semibold"
             style={{ color: "var(--soft-bordeaux)" }}
           >
             <Sparkles className="size-4" aria-hidden="true" />
             {clarityCredits} {pointsWord(clarityCredits)} · на что потратить
           </Link>
         </div>
+      </section>
 
+      {/* ═══════ DASH — two columns on desktop (mockup client-desktop-home-v2):
+          primary = hero · результаты · вопрос дня; rail = nudge · встреча ·
+          кошелёк · приглашения · подписка. Mobile stacks primary first. ═══════ */}
+      <div className="mt-5 grid items-start gap-4 md:grid-cols-[1.55fr_1fr]">
+
+      {/* ── primary column ── */}
+      <div className="grid min-w-0 gap-4">
         {crisisGuard ? (
           /* Crisis-guard: calm continuity + support, no offers. */
-          <div className="mt-5 rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5" data-testid="client-crisis-continuity">
+          <section className="soft-card p-5" data-testid="client-crisis-continuity">
             <h2 className="soft-h3">Вы можете вернуться к этому в своём темпе</h2>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
               Здесь нет спешки. Если сейчас тяжело — рядом есть живая поддержка.
@@ -331,9 +377,13 @@ export default async function ClientCabinetPage() {
                 </Link>
               )}
             </div>
-          </div>
+          </section>
         ) : (
-          <div className="mt-5 rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5" data-hero-kind={hero.kind}>
+          <section
+            className="soft-card p-5"
+            data-hero-kind={hero.kind}
+            style={{ background: "linear-gradient(155deg, var(--soft-paper-card) 0%, #FBEEDF 100%)", borderLeft: "3px solid var(--soft-terracotta)" }}
+          >
             <p className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{hero.eyebrow}</p>
             <p className="soft-italic mt-1.5" style={{ fontSize: 18, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>
               {hero.title}
@@ -344,16 +394,15 @@ export default async function ClientCabinetPage() {
               </Link>
               <span className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{hero.hint}</span>
             </div>
-          </div>
+          </section>
         )}
-      </section>
 
       {/* ═══════ ZONE 2 · RESULTS + SERVICES ═══════ */}
 
       {/* «ваши результаты» — dialogues + product разборы merged (round-4 #3),
           recent 4, meta = «дата, время · категория», «все» → /diary (the full
           разборы list + hidden-item restore live in the Дневник). */}
-      <div className="soft-card mb-4 p-5" data-testid="client-recent-questions">
+      <div className="soft-card p-5" data-testid="client-recent-questions">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="soft-eyebrow">ваши результаты</p>
           {resultItems.length > 0 && (
@@ -377,6 +426,7 @@ export default async function ClientCabinetPage() {
                   id: item.id,
                   title: item.title,
                   topicLabel: item.label,
+                  shareTopic: item.shareTopic,
                   when: resultWhen(item.when),
                   href: item.href,
                 }}
@@ -386,46 +436,10 @@ export default async function ClientCabinetPage() {
         )}
       </div>
 
-      {/* «что дальше по вашей теме» — the cabinet→services lilac bridge, now a
-          rotating day-seeded recommendation with anti-repeat (round-4 #4).
-          Suppressed on crisis. */}
-      {showMonetization && serviceNudge && serviceNudgeHref && (
-        <div
-          className="soft-card mb-4 p-5"
-          data-testid="diary-recommendation"
-          data-nudge-key={serviceNudge.key}
-          style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
-        >
-          <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>что дальше по вашей теме</p>
-          <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
-            {serviceNudge.body}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Link href={serviceNudgeHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
-              {serviceNudge.ctaLabel}
-            </Link>
-            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost shrink-0" style={{ fontSize: 13 }}>
-              Подобрать специалиста
-            </Link>
-          </div>
-        </div>
-      )}
+        {/* Lilac service-nudge — MOBILE slot (между результатами и вопросом
+            дня, mockup client-mobile-home-v2). Desktop slot lives in the rail. */}
+        {serviceNudgeCard && <div className="md:hidden">{serviceNudgeCard}</div>}
 
-      {/* warm diary preview — rotating self-noticing the user owns (un-quoted,
-          no «дневник заметил» surveillance framing; round-4 #5): observation /
-          streak echo / entry-count invite, varies by day. */}
-      <div className="soft-card mb-4 flex items-center gap-4 p-5" data-testid="client-map-preview">
-        <div className="min-w-0 flex-1">
-          <p className="soft-eyebrow mb-2">ваш дневник</p>
-          <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
-            {diaryCardReco.text}
-          </p>
-        </div>
-        <Link href={appUrl("/diary")} className="soft-button soft-button-ghost shrink-0">{diaryCardReco.ctaLabel}</Link>
-      </div>
-
-      {/* ═══════ ZONE 3 · GROW (free) ═══════ */}
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
         {/* Daily-Q «по вашим разборам» — the FULL ritual right here (round-4 #6):
             the client writes their answer/question, gets взгляд+шаг immediately,
             and the entry lands in «ваши записи» Дневника. NOT /checkin. */}
@@ -491,47 +505,27 @@ export default async function ClientCabinetPage() {
           )}
         </section>
 
-        {/* Referral card — warm gift framing + staged counter (owner copy locked).
-            Suppressed on crisis. Full copy/clipboard lives on /cabinet/invite. */}
-        {showMonetization ? (
-          <section
-            className="soft-card p-5"
-            data-testid="client-referral-card"
-            style={{ background: "linear-gradient(155deg, var(--soft-apricot) 0%, #F8E6D1 100%)", border: "1px solid transparent" }}
-          >
-            <p className="soft-eyebrow">подарите разбор — получите баллы</p>
-            <h2 className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>Подарите кому-то первый разбор — и пополните свой баланс</h2>
-            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-bordeaux)", opacity: 0.85 }}>
-              Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим.
+        {/* warm diary preview — rotating self-noticing the user owns (un-quoted,
+            no «дневник заметил» surveillance framing; round-4 #5): observation /
+            streak echo / entry-count invite, varies by day. */}
+        <div className="soft-card flex items-center gap-4 p-5" data-testid="client-map-preview">
+          <div className="min-w-0 flex-1">
+            <p className="soft-eyebrow mb-2">ваш дневник</p>
+            <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
+              {diaryCardReco.text}
             </p>
-            <div className="mt-4 flex gap-6">
-              {[
-                { n: referralStats.invited, label: "приглашены" },
-                { n: referralStats.tried, label: "попробовали" },
-                { n: referralStats.stayed, label: "остались" },
-              ].map((s) => (
-                <div key={s.label}>
-                  <p className="soft-italic" style={{ fontSize: 22, color: "var(--soft-bordeaux)" }}>{s.n}</p>
-                  <p className="text-[11px]" style={{ color: "var(--soft-ink-soft)" }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-4 shrink-0">
-              <Gift className="size-4" aria-hidden="true" /> Пригласить друга
-            </Link>
-          </section>
-        ) : (
-          <section className="soft-card p-5" data-testid="client-referral-card-suppressed" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="soft-eyebrow">вы не одни</p>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-              Если сейчас непросто, можно написать в поддержку или вернуться к разбору позже.
-            </p>
-          </section>
-        )}
+          </div>
+          <Link href={appUrl("/diary")} className="soft-button soft-button-ghost shrink-0">{diaryCardReco.ctaLabel}</Link>
+        </div>
       </div>
 
-      {/* Next meeting + quiet subscription. */}
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
+      {/* ── rail (right column on desktop, mockup order: nudge · встреча ·
+          кошелёк · приглашения · подписка) ── */}
+      <div className="grid min-w-0 gap-4">
+        {/* Lilac service-nudge — DESKTOP slot (top of the rail). */}
+        {serviceNudgeCard && <div className="hidden md:block">{serviceNudgeCard}</div>}
+
+        {/* Next meeting / continue-with-specialist / explore. */}
         {upcomingBooking ? (
           <section className="soft-card p-5" style={{ borderLeft: "3px solid var(--soft-bordeaux)" }} data-testid="client-next-meeting">
             <p className="soft-eyebrow">ближайшая встреча</p>
@@ -584,32 +578,143 @@ export default async function ClientCabinetPage() {
           </section>
         )}
 
-        {/* Subscription: a quiet offer only when qualified, else the current plan. */}
-        <section className="soft-card p-5" data-testid="client-subscription-status">
-          {subscriptionQualified ? (
-            <>
-              <p className="soft-eyebrow">если хотите возвращаться чаще</p>
-              <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                В подписке — больше баллов каждый месяц и расширенный дневник. Спокойно сравните, без спешки.
-              </p>
-              <Link href={appUrl("/wallet")} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
-                Сравнить тарифы →
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="soft-eyebrow">подписка</p>
-              <p className="mt-2" style={{ fontFamily: "var(--font-heading-v4, serif)", fontSize: 22, color: "var(--soft-bordeaux)", fontWeight: 500 }}>{subscriptionLabel}</p>
-              <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-                {subscriptionStatus}
-                {activeSubscription?.currentPeriodEnd
-                  ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
-                  : ""}
-              </p>
-              <Link href={appUrl("/wallet")} className="soft-chip mt-4 min-h-11">Управлять →</Link>
-            </>
+        {/* Кошелёк — B512 rail card (mockup): баланс + тёплая строка срока
+            действия баллов (P6, честно и без таймера) + спокойный top-up. */}
+        <section className="soft-card p-5" data-testid="client-home-wallet-card">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <p className="soft-eyebrow">Кошелёк</p>
+            <Link href={appUrl("/wallet")} className="text-xs font-semibold" style={{ color: "var(--soft-ink-soft)" }}>
+              Подробнее →
+            </Link>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-heading text-[26px] font-semibold leading-none" style={{ color: "var(--soft-bordeaux)" }}>{clarityCredits}</span>
+            <span className="text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>{pointsWord(clarityCredits)} на балансе</span>
+          </div>
+          {creditExpiryLabel && (
+            <p
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px]"
+              data-testid="client-credit-expiry"
+              style={{ background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }}
+            >
+              <Clock className="size-3 shrink-0" aria-hidden="true" />
+              Баллы действуют до {creditExpiryLabel}
+            </p>
           )}
+          <Link
+            href={appUrl("/wallet")}
+            className="mt-4 flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[var(--soft-terracotta)] px-4 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[#F6E7DD]"
+            style={{ background: "#FBF3EC", color: "var(--soft-bordeaux)" }}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Пополнить баллы
+          </Link>
         </section>
+
+        {/* Referral card — warm gift framing + staged counter (owner copy locked).
+            Suppressed on crisis. Full copy/clipboard lives on /cabinet/invite. */}
+        {showMonetization ? (
+          <section
+            className="soft-card p-5"
+            data-testid="client-referral-card"
+            style={{ background: "linear-gradient(155deg, var(--soft-apricot) 0%, #F8E6D1 100%)", border: "1px solid transparent" }}
+          >
+            <p className="soft-eyebrow">подарите разбор — получите баллы</p>
+            <h2 className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>Подарите кому-то первый разбор — и пополните свой баланс</h2>
+            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-bordeaux)", opacity: 0.85 }}>
+              Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим.
+            </p>
+            <div className="mt-4 flex gap-6">
+              {[
+                { n: referralStats.invited, label: "приглашены" },
+                { n: referralStats.tried, label: "попробовали" },
+                { n: referralStats.stayed, label: "остались" },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="soft-italic" style={{ fontSize: 22, color: "var(--soft-bordeaux)" }}>{s.n}</p>
+                  <p className="text-[11px]" style={{ color: "var(--soft-ink-soft)" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-4 shrink-0">
+              <Gift className="size-4" aria-hidden="true" /> Пригласить друга
+            </Link>
+          </section>
+        ) : (
+          <section className="soft-card p-5" data-testid="client-referral-card-suppressed" style={{ background: "var(--soft-paper-deep)" }}>
+            <p className="soft-eyebrow">вы не одни</p>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+              Если сейчас непросто, можно написать в поддержку или вернуться к разбору позже.
+            </p>
+          </section>
+        )}
+
+        {/* Subscription — B512: the qualified moment gets the bordeaux GROW
+            card (mockup .grow, real frozen numbers: Pro = 20 разборов/мес);
+            otherwise the quiet current-plan card. Value-before-paywall gating
+            (≥2 разборов) preserved from B464. */}
+        {subscriptionQualified ? (
+          <section
+            className="soft-card relative overflow-hidden p-5"
+            data-testid="client-subscription-status"
+            style={{ background: "linear-gradient(155deg, #6B3030, var(--soft-bordeaux) 70%)", border: "1px solid transparent", boxShadow: "0 18px 40px -22px rgba(92, 42, 44, 0.9)" }}
+          >
+            <p className="soft-eyebrow flex items-center gap-1.5" style={{ color: "#E9C9B6" }}>
+              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+              если хотите возвращаться чаще
+            </p>
+            <h2 className="mt-2.5 font-heading text-lg font-semibold" style={{ color: "#FBF1E4" }}>
+              В подписке — больше баллов каждый месяц
+            </h2>
+            <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: "rgba(251, 241, 228, 0.84)" }}>
+              Pro — <b style={{ color: "#F1D9A6", fontWeight: 600 }}>20 разборов в месяц</b> и расширенный дневник.
+              Спокойно сравните форматы — без спешки и обязательств.
+            </p>
+            <Link
+              href={appUrl("/wallet")}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[13px] font-semibold"
+              style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }}
+            >
+              Сравнить тарифы <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
+            <p className="mt-3 text-[11px]" style={{ color: "rgba(251, 241, 228, 0.6)" }}>
+              Сейчас: {subscriptionLabel} · разовые баллы по мере надобности
+            </p>
+          </section>
+        ) : (
+          <section className="soft-card p-5" data-testid="client-subscription-status">
+            <p className="soft-eyebrow">подписка</p>
+            <p className="mt-2" style={{ fontFamily: "var(--font-heading-v4, serif)", fontSize: 22, color: "var(--soft-bordeaux)", fontWeight: 500 }}>{subscriptionLabel}</p>
+            <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {subscriptionStatus}
+              {activeSubscription?.currentPeriodEnd
+                ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
+                : ""}
+            </p>
+            <Link href={appUrl("/wallet")} className="soft-chip mt-4 min-h-11">Управлять →</Link>
+          </section>
+        )}
+      </div>
+      </div>
+
+      {/* Trust strip — приватность (mockup): разборы и дневник видит только
+          владелец; PIN на дневнике; 152-ФЗ. */}
+      <div
+        className="mb-4 mt-4 flex items-center gap-3.5 rounded-[13px] border border-[var(--soft-paper-edge)] px-4 py-3"
+        data-testid="client-trust-strip"
+        style={{ background: "color-mix(in srgb, var(--soft-paper-deep) 62%, var(--soft-paper))" }}
+      >
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]" style={{ color: "var(--soft-sage-ink, #4B6146)" }}>
+          <Lock className="size-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12.5px] font-medium" style={{ color: "var(--soft-ink)" }}>Ваши разборы и Дневник видите только вы</p>
+          <p className="text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>Дневник можно закрыть PIN-кодом. Хранение и обработка — по 152-ФЗ.</p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold" style={{ background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" }}>
+          <CheckCircle2 className="size-3" aria-hidden="true" />
+          Приватно
+        </span>
       </div>
 
       {/* Time-boxed onboarding «первые шаги» — auto-hides once every reward is

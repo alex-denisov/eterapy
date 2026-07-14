@@ -25,11 +25,11 @@ interface TelegramStatus {
 
 type LoginProvider = "google" | "vk" | "telegram" | "apple";
 
-const LOGIN_PROVIDER_LABELS: Record<LoginProvider, string> = {
-  google: "Google",
+// B512 §3.4 — «Способы входа» сузены до VK: единственный реально включённый
+// соцлогин на платформе (вход только через ВКонтакте или email+пароль).
+// Для email+password-аккаунтов блок скрыт целиком.
+const LOGIN_PROVIDER_LABELS: Partial<Record<LoginProvider, string>> = {
   vk: "ВКонтакте",
-  telegram: "Telegram",
-  apple: "Apple",
 };
 
 // Round-6 #1 — mockup `.srow`: отдельная скруглённая строка-карточка с иконкой,
@@ -82,6 +82,8 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
   const [nameError, setNameError] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [currentPwd, setCurrentPwd] = useState("");
@@ -90,7 +92,10 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
   const [savingPwd, setSavingPwd] = useState(false);
   const [requestingSetPassword, setRequestingSetPassword] = useState(false);
   const [unlinkingProvider, setUnlinkingProvider] = useState<LoginProvider | null>(null);
-  const [connectedProviders, setConnectedProviders] = useState<LoginProvider[]>(linkedProviders);
+  // B512 §3.4: показываем только VK (единственный включённый соцлогин).
+  const [connectedProviders, setConnectedProviders] = useState<LoginProvider[]>(
+    linkedProviders.filter((provider) => provider === "vk"),
+  );
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteConfirmError, setDeleteConfirmError] = useState<string | null>(null);
@@ -133,9 +138,35 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Максимум 5 МБ"); return; }
     setAvatarFile(file);
+    setAvatarRemoved(false);
     const reader = new FileReader();
     reader.onload = ev => setAvatarPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+  }
+
+  // B512 §3.4 — удаление профиль-фото (сразу, без ожидания «Сохранить»).
+  async function handleRemoveAvatar() {
+    setRemovingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("name", currentName || `${fn} ${ln}`.trim());
+      formData.append("removeAvatar", "1");
+      const res = await fetch("/api/auth/update-profile", { method: "POST", body: formData });
+      const d = await res.json().catch(() => ({ ok: false, error: "Не удалось удалить фото" }));
+      if (res.ok && d.ok) {
+        setAvatarPreview(null);
+        setAvatarFile(null);
+        setAvatarRemoved(true);
+        await update({});
+        toast.success("Фото удалено");
+      } else {
+        toast.error(d.error || "Не удалось удалить фото");
+      }
+    } catch {
+      toast.error("Ошибка сети — попробуйте ещё раз");
+    } finally {
+      setRemovingAvatar(false);
+    }
   }
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -197,7 +228,7 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
       const d = await res.json().catch(() => ({ ok: false, error: "Не удалось отключить способ входа" }));
       if (res.ok && d.ok) {
         setConnectedProviders((prev) => prev.filter((item) => item !== provider));
-        toast.success(`${LOGIN_PROVIDER_LABELS[provider]} отключён`);
+        toast.success(`${LOGIN_PROVIDER_LABELS[provider] ?? provider} отключён`);
       } else {
         toast.error(d.error || "Не удалось отключить способ входа");
       }
@@ -230,7 +261,7 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
     finally { setDeleting(false); }
   }
 
-  const displayAvatar = avatarPreview ?? (session.user?.image || null);
+  const displayAvatar = avatarRemoved ? null : avatarPreview ?? (session.user?.image || null);
   const initial = currentName[0]?.toUpperCase() ?? "?";
 
   const isClient = role === "CLIENT";
@@ -307,9 +338,23 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               <div>
                 <p className="text-sm font-medium">{currentName}</p>
-                <button type="button" onClick={() => fileRef.current?.click()} className="mt-0.5 text-xs text-[var(--soft-bordeaux)] hover:underline">
-                  Загрузить фото
-                </button>
+                <div className="mt-0.5 flex items-center gap-3">
+                  <button type="button" onClick={() => fileRef.current?.click()} className="text-xs text-[var(--soft-bordeaux)] hover:underline">
+                    {displayAvatar ? "Изменить фото" : "Загрузить фото"}
+                  </button>
+                  {/* B512 §3.4 — фото можно и удалить, не только заменить. */}
+                  {displayAvatar && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={removingAvatar}
+                      className="text-xs text-[var(--soft-ink-faint)] hover:text-[var(--soft-bordeaux)] hover:underline"
+                      data-testid="settings-avatar-remove"
+                    >
+                      {removingAvatar ? "Удаляем..." : "Удалить фото"}
+                    </button>
+                  )}
+                </div>
                 <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">JPG, PNG или WebP · до 5 МБ</p>
               </div>
             </div>
@@ -326,13 +371,18 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
             </div>
             {nameError && <p className="-mt-3 text-xs text-destructive">{nameError}</p>}
 
+            {/* B512 §3.4 — email показан отключённым полем: менять его здесь
+                нельзя (только через поддержку). */}
+            <div>
+              <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">Email</label>
+              <Input value={email} disabled readOnly aria-disabled="true" data-testid="settings-email-disabled" className="max-w-sm opacity-70" />
+              <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">Для изменения email напишите на support@eterapy.com</p>
+            </div>
+
             <button type="submit" disabled={saving} className="soft-button soft-button-primary">
               {saving ? "Сохранение..." : "Сохранить профиль"}
             </button>
           </form>
-          <p className="mt-5 border-t border-[var(--soft-paper-edge)] pt-3 text-xs text-[var(--soft-ink-faint)]">
-            Email: <span className="font-medium text-[var(--soft-ink-soft)]">{email}</span> · для изменения напишите на support@eterapy.com
-          </p>
         </SettingsHubRow>
 
         {/* ── Безопасность ── */}
@@ -367,29 +417,34 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
               </form>
             )}
 
-          <div className="mt-6" data-testid="linked-login-methods">
-            <p className="mb-3 text-sm font-semibold text-[var(--soft-ink)]">Способы входа</p>
-            <div className="space-y-2">
-              {connectedProviders.length === 0 ? (
-                <p className="text-sm text-[var(--soft-ink-soft)]">Социальные входы не подключены.</p>
-              ) : connectedProviders.map((provider) => (
-                <div key={provider} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--soft-ink)]">{LOGIN_PROVIDER_LABELS[provider]}</p>
-                    <p className="text-xs text-[var(--soft-ink-soft)]">Подключён как способ входа</p>
+          {/* B512 §3.4 — «Способы входа»: VK-only; для email+password-аккаунтов
+              (нет подключённых провайдеров) блок скрыт целиком. */}
+          {connectedProviders.length > 0 && (
+            <div className="mt-6" data-testid="linked-login-methods">
+              <p className="mb-1 text-sm font-semibold text-[var(--soft-ink)]">Способы входа</p>
+              <p className="mb-3 text-xs text-[var(--soft-ink-faint)]">
+                Раздел виден только для аккаунтов, привязанных к ВКонтакте.
+              </p>
+              <div className="space-y-2">
+                {connectedProviders.map((provider) => (
+                  <div key={provider} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--soft-ink)]">{LOGIN_PROVIDER_LABELS[provider] ?? provider}</p>
+                      <p className="text-xs text-[var(--soft-ink-soft)]">Подключён как способ входа</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUnlinkProvider(provider)}
+                      disabled={unlinkingProvider === provider}
+                      className="soft-button soft-button-ghost h-9 px-4 text-sm"
+                    >
+                      {unlinkingProvider === provider ? "Отключаем..." : "Отключить"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleUnlinkProvider(provider)}
-                    disabled={unlinkingProvider === provider}
-                    className="soft-button soft-button-ghost h-9 px-4 text-sm"
-                  >
-                    {unlinkingProvider === provider ? "Отключаем..." : "Отключить"}
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </SettingsHubRow>
 
         {/* ── Уведомления ── */}

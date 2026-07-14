@@ -23,18 +23,19 @@ import {
   Star,
   ShieldCheck,
 } from "lucide-react";
-import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import { appUrl, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { DIARY_PIN_CHANGED_EVENT, hasDiaryPinStored } from "@/lib/diary-pin";
 import {
   CLIENT_MOBILE_TABS,
-  CLIENT_MORE_ITEMS,
+  CLIENT_MORE_HREFS,
   PRACTITIONER_TABS,
   PRACTITIONER_MORE_HREFS,
   MORE_LABEL,
-  LOGOUT_LABEL,
 } from "@/lib/nav-model";
 import { NAV_ICONS } from "@/components/nav/nav-icons";
 import { NotificationBell } from "@/components/notification-bell";
+import { ClientBalanceChip } from "@/components/cabinet/client-balance-chip";
+import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 interface NavItem {
   href: string;
@@ -46,7 +47,6 @@ interface MobileRenderTab {
   href: string;
   label: string;
   Icon: React.ElementType;
-  isMore: boolean;
   activeHrefs?: string[];
 }
 
@@ -162,7 +162,6 @@ export function CabinetShell({
   // caused React #418. Once mounted the proxy contract guarantees
   // both server and client converge on the cabinet pathname.
   const [hydrated, setHydrated] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     // Intentional post-mount flip — see header.tsx comment. Required
     // to keep `usePathname()` consistent between SSR (proxy-rewritten
@@ -250,38 +249,33 @@ export function CabinetShell({
   }
 
   // B464 IB0 — the client mobile bar is sourced from the shared nav-model so it
-  // is byte-identical to the landing bar. B466 — the practitioner bar carries
-  // the full 5-tab «Practice cockpit» model; its «Ещё» navigates to the hub
-  // page (with umbrella active-state) instead of opening a sheet.
+  // is byte-identical to the landing bar. B466/B512 — BOTH bars now navigate
+  // from «Ещё» to a real hub page (/practitioner/more, /cabinet/more) with an
+  // umbrella active-state; the client bottom-sheet is gone (owner: page).
   const mobileTabs: MobileRenderTab[] = isClient
     ? CLIENT_MOBILE_TABS.map((t) => ({
         href: t.href,
         label: t.label,
         Icon: NAV_ICONS[t.iconKey],
-        isMore: t.label === MORE_LABEL,
-        activeHrefs:
-          t.label === MORE_LABEL
-            ? CLIENT_MORE_ITEMS.map((m) => m.href).filter(Boolean)
-            : undefined,
+        isMore: false,
+        activeHrefs: t.label === MORE_LABEL ? CLIENT_MORE_HREFS : undefined,
       }))
     : role === "PRACTITIONER"
     ? PRACTITIONER_TABS.map((t) => ({
         href: t.href,
         label: t.label,
         Icon: NAV_ICONS[t.iconKey],
-        isMore: false,
         activeHrefs: t.label === MORE_LABEL ? PRACTITIONER_MORE_HREFS : undefined,
       }))
     : nav.filter((_, index) => index < 4).map((n) => ({
         href: n.href,
         label: n.label,
         Icon: n.icon,
-        isMore: false,
       }));
 
   function isMobileActive(item: MobileRenderTab) {
     if (item.activeHrefs?.length) return item.activeHrefs.some((href) => isActive(href));
-    if (item.isMore || !item.href) return false;
+    if (!item.href) return false;
     return isActive(item.href);
   }
 
@@ -423,50 +417,6 @@ export function CabinetShell({
         </div>
       </aside>
 
-      {/* Mobile «Ещё» bottom sheet — client only */}
-      {isClient && moreOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Закрыть меню"
-            className="fixed inset-0 z-40 bg-[rgba(60,30,20,0.28)] md:hidden"
-            onClick={() => setMoreOpen(false)}
-          />
-          <div
-            data-testid="app-shell-mobile-sheet"
-            className="soft-mobile-sheet fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-50 md:hidden"
-          >
-            {CLIENT_MORE_ITEMS.map((item) => {
-              const Icon = NAV_ICONS[item.iconKey];
-              if (item.label === LOGOUT_LABEL) {
-                return (
-                  <button
-                    key="more-logout"
-                    type="button"
-                    onClick={() => { setMoreOpen(false); window.location.href = logoutUrl(); }}
-                    className="soft-mobile-sheet-row flex w-full items-center gap-3"
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
-                    {item.label}
-                  </button>
-                );
-              }
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMoreOpen(false)}
-                  className="soft-mobile-sheet-row flex items-center gap-3"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </>
-      )}
-
       {/* Mobile nav. B466 R9-4: у практика бар получает pcab-tabbar — вид
           1-в-1 из мобильных макетов (непрозрачная карточка, edge-бордер,
           10.5px подписи, активная вкладка бордо); клиентский бар не тронут. */}
@@ -500,27 +450,11 @@ export function CabinetShell({
               )}
             </span>
           );
-          if (item.isMore) {
-            return (
-              <button
-                key="more"
-                type="button"
-                data-testid="app-shell-mobile-more"
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((v) => !v)}
-                className={base}
-              >
-                {iconWithBadge}
-                {item.label}
-              </button>
-            );
-          }
           return (
             <Link
               key={item.href}
               href={item.href}
               data-testid="app-shell-mobile-tab"
-              onClick={() => setMoreOpen(false)}
               className={base}
             >
               {iconWithBadge}
@@ -541,30 +475,24 @@ export function CabinetShell({
           isPractitionerBar ? "md:pb-20 md:pt-8" : "md:pb-0"
         }`}
       >
-        {/* B466 R9-5 — клиентский мобильный «верх» 1-в-1 с практиком: публичный
-            nav-хедер на мобиле скрыт (data-cabinet-mobile-top), а сверху экрана —
-            свой минимальный appbar (аватар + имя/тариф + колокольчик). Десктоп не
-            тронут (md:hidden), у практика — свои per-screen appbar'ы. */}
+        {/* B512 §3.3 — клиентский мобильный «верх» по утверждённому макету v3:
+            логотип слева, справа — persistent чип баллов (Sparkles) + колокол-
+            квадрат (r12, как практикский .iconbtn). Публичный nav-хедер на
+            мобиле скрыт (data-cabinet-mobile-top); десктоп не тронут
+            (md:hidden), у практика — свои per-screen appbar'ы. */}
         {isClient && (
           <div
             data-cabinet-mobile-top
             data-testid="client-mobile-appbar"
-            className="mb-5 flex items-center gap-3 md:hidden"
+            className="client-mobile-appbar mb-4 flex items-center gap-2.5 md:hidden"
           >
-            <div
-              className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-base font-semibold"
-              style={{ fontFamily: "var(--font-heading-v4)" }}
-              aria-hidden="true"
-            >
-              {initial}
+            <Link href={mainUrl("/")} aria-label="ETerapy — на сайт" className="flex shrink-0 items-center">
+              <VectorBrandLogo height={24} theme="light" />
+            </Link>
+            <div className="ml-auto flex items-center gap-2">
+              <ClientBalanceChip />
+              <NotificationBell variant="header" settingsHref={appUrl("/settings#settings-notifications")} />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-[var(--soft-ink)]">
-                {user?.name ?? "Мой кабинет"}
-              </p>
-              <p className="truncate text-xs text-[var(--soft-ink-faint)]">{displaySubLabel}</p>
-            </div>
-            <NotificationBell variant="header" settingsHref={appUrl("/settings#settings-notifications")} />
           </div>
         )}
         {children}

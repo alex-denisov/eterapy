@@ -54,8 +54,10 @@ function WalletBalanceHeader({ balance }: { balance: number }) {
               <span style={{ fontSize: "clamp(2rem, 6vw, 2.5rem)" }}>{balance}</span>
               <span className="ml-1.5 text-base font-normal text-[var(--soft-ink-soft)]">{pointsWord(balance)}</span>
             </p>
+            {/* B512 §3.6 — honest copy: форматы стоят по-разному, «1 балл ≈
+                один разбор» было неправдой. */}
             <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              1 балл ≈ один разбор · списываются при открытии услуги
+              Баллами открываются цифровые разборы · стоимость зависит от формата
             </p>
           </div>
           <Link href="#wallet-topup" className="soft-button soft-button-primary shrink-0">
@@ -214,15 +216,21 @@ export default async function CabinetWalletPage() {
       <WalletBreakdown items={wallet.breakdown} />
 
       {/* Slim spend-bridge: the catalog itself lives on the landing «Услуги»
-          (round-2 #6) — the wallet only points there, no duplicated grid. */}
-      <section className="soft-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5" data-testid="wallet-spend-bridge">
+          (round-2 #6) — the wallet only points there, no duplicated grid.
+          B512: лиловый мост (mockup) — лиловый = «ведёт к сервисам», как
+          service-nudge на Главной. */}
+      <section
+        className="soft-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5"
+        data-testid="wallet-spend-bridge"
+        style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
+      >
         <div className="min-w-0">
-          <p className="soft-eyebrow">на что потратить баллы</p>
-          <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+          <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>на что потратить баллы</p>
+          <p className="mt-1 text-sm" style={{ color: "#43356E" }}>
             Все разборы и форматы — в каталоге услуг. Баллы спишутся при открытии.
           </p>
         </div>
-        <Link href={mainUrl("/products")} className="soft-button soft-button-primary shrink-0">
+        <Link href={mainUrl("/products")} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }}>
           Открыть каталог услуг
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
