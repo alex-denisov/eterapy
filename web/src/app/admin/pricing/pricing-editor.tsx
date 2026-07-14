@@ -54,7 +54,7 @@ const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.tarot-numerology.price", label: "Арканы рождения", unit: "₽", recommended: 890 },
   { key: "product.family-scenarios.price", label: "Семейные сценарии", unit: "₽", recommended: 1090 },
   { key: "product.human-design.price", label: "Human Design", unit: "₽", recommended: 590 },
-  { key: "product.surname-story.price", label: "Тайна имени и фамилии", unit: "₽", recommended: 590 },
+  { key: "product.surname-story.price", label: "Кармический код фамилии", unit: "₽", recommended: 590 },
   { key: "product.circle.price", label: "Круг", unit: "₽", recommended: 890 },
   { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽", recommended: 890 },
   { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 890 },
@@ -75,7 +75,7 @@ const PRODUCT_CREDIT_KEYS: PriceKey[] = [
   { key: "product.tarot-numerology.credits", label: "Арканы рождения", unit: "баллы", recommended: 3 },
   { key: "product.family-scenarios.credits", label: "Семейные сценарии", unit: "баллы", recommended: 4 },
   { key: "product.human-design.credits", label: "Human Design", unit: "баллы", recommended: 2 },
-  { key: "product.surname-story.credits", label: "Тайна имени и фамилии", unit: "баллы", recommended: 2 },
+  { key: "product.surname-story.credits", label: "Кармический код фамилии", unit: "баллы", recommended: 2 },
 ];
 
 const DURATION_LABELS: Record<number, string> = {

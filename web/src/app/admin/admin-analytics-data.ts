@@ -18,7 +18,7 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "natal-chart": "Натальная карта",
   "family-scenarios": "Семейные сценарии",
   "human-design": "Дизайн человека",
-  "surname-story": "Тайна имени и фамилии",
+  "surname-story": "Кармический код фамилии",
   perspectives: "Переосмысление",
   "seven-days": "Недельное резюме",
   numerology: "Матрица судьбы",

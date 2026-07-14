@@ -35,7 +35,7 @@ describe("B512 owner acceptance round 2", () => {
     expect(presentSymbolicSectionTitle("synastry", "Прямой ответ")).toBe("Главный вывод о вашей связи");
     expect(presentSymbolicSectionTitle("numerology", "Прямой ответ")).toBe("Главный вывод матрицы");
     expect(presentSymbolicSectionTitle("human-design", "Прямой ответ")).toBe("Главный ключ вашего дизайна");
-    expect(presentSymbolicSectionTitle("surname-story", "Прямой ответ")).toBe("Ключ к вашему имени и фамилии");
+    expect(presentSymbolicSectionTitle("surname-story", "Прямой ответ")).toBe("Прямой итог родового аудита");
   });
 
   it("keeps current expert structure and runtime facts when a legacy admin prompt has no placeholder", () => {
@@ -100,12 +100,12 @@ describe("B512 owner acceptance round 2", () => {
     for (const value of [hook, tarot, synastry]) expect(value).toMatch(/не найден или недоступен/u);
   });
 
-  it("uses a personalized atlas visual without SVG text truncation or generic fact/version/mirror cards", () => {
+  it("uses an auditable lineage seal without SVG text truncation or generic fact/version/mirror cards", () => {
     const surname = source("src/components/products/surname-story-actions.tsx");
-    expect(surname).toContain("Фамильная роза");
-    expect(surname).toContain("surname-atlas-traces");
-    expect(surname).toContain("Что видно в написании");
-    expect(surname).toContain("С чего начать проверку");
+    expect(surname).toContain("Родовая печать");
+    expect(surname).toContain("lineage-seal-arcana-tick");
+    expect(surname).toContain("LetterLedger");
+    expect(surname).toContain("Сумма");
     expect(surname).not.toContain("slice(0, 20)");
     expect(surname).not.toContain(">факт<");
     expect(surname).not.toContain(">версия<");

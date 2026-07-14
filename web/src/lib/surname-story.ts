@@ -1,10 +1,40 @@
-// B391 (M26) — «История фамилии». Бесплатный магнит считается ДЕТЕРМИНИРОВАННО
-// по морфологии фамилии (суффикс/корень) — без AI-вызова, мгновенно, стабильно
-// для расшаривания и без риска абьюза анонимного эндпоинта. Платный «родовой
-// разбор» (через symbolic-пайплайн) строится поверх этих фактов с помощью AI.
-//
-// Тон: честно и мягко, БЕЗ ФАТАЛИЗМА. Мы говорим о ФОРМЕ фамилии и о том, что она
-// исторически означала, а не о судьбе человека или «карме рода».
+// B515 — «Кармический код фамилии». Calculation is deterministic and client-safe:
+// a visible Cyrillic 1–9 ledger, a base code and a parallel 1–22 Major Arcana
+// index. The LLM receives the finished calculation and may interpret it, but can
+// never replace the arithmetic or invent genealogy.
+
+export const SURNAME_CODE_METHOD = "eterapy-cyrillic-lineage-code-v1";
+
+export type SurnameAuditMode = "resource" | "change" | "name" | "alias";
+
+export type SurnameLetterValue = {
+  letter: string;
+  value: number;
+  kind: "vowel" | "consonant" | "sign";
+};
+
+export type SurnameCode = {
+  method: typeof SURNAME_CODE_METHOD;
+  source: string;
+  normalized: string;
+  letters: SurnameLetterValue[];
+  sum: number;
+  baseNumber: number;
+  innerNumber: number | null;
+  outerNumber: number | null;
+  arcanaIndex: number;
+  arcanaName: string;
+  arcanaGlyph: string;
+};
+
+export type ParsedSurnameAuditInput = {
+  mode: SurnameAuditMode;
+  name: string;
+  surname: string;
+  comparison: string;
+  focus: string;
+  context: string;
+};
 
 export type SurnameOriginKind =
   | "patronymic"   // -ов/-ев/-ин: от имени или прозвища предка
@@ -18,6 +48,7 @@ export type SurnameOriginKind =
 
 export type SurnameStory = {
   surname: string;
+  code: SurnameCode;
   originKind: SurnameOriginKind;
   originLabel: string;
   originStory: string;
@@ -34,7 +65,88 @@ export type SurnameStory = {
   } | null;
 };
 
-const KNOWN_SURNAME_STORIES: Record<string, Omit<SurnameStory, "surname">> = {
+const CYRILLIC_GROUPS = [
+  "АИСЪ",
+  "БЙТЫ",
+  "ВКУЬ",
+  "ГЛФЭ",
+  "ДМХЮ",
+  "ЕНЦЯ",
+  "ЁОЧ",
+  "ЖПШ",
+  "ЗРЩ",
+] as const;
+
+const CYRILLIC_VALUE = new Map<string, number>(
+  CYRILLIC_GROUPS.flatMap((letters, index) => [...letters].map((letter) => [letter, index + 1] as const)),
+);
+
+const ARCANA_1_TO_22 = [
+  ["Маг", "I"],
+  ["Верховная Жрица", "II"],
+  ["Императрица", "III"],
+  ["Император", "IV"],
+  ["Иерофант", "V"],
+  ["Влюблённые", "VI"],
+  ["Колесница", "VII"],
+  ["Сила", "VIII"],
+  ["Отшельник", "IX"],
+  ["Колесо Фортуны", "X"],
+  ["Справедливость", "XI"],
+  ["Повешенный", "XII"],
+  ["Смерть", "XIII"],
+  ["Умеренность", "XIV"],
+  ["Дьявол", "XV"],
+  ["Башня", "XVI"],
+  ["Звезда", "XVII"],
+  ["Луна", "XVIII"],
+  ["Солнце", "XIX"],
+  ["Суд", "XX"],
+  ["Мир", "XXI"],
+  ["Шут", "0 / XXII"],
+] as const;
+
+const VOWELS = new Set(["А", "Е", "Ё", "И", "О", "У", "Ы", "Э", "Ю", "Я"]);
+const SIGNS = new Set(["Ъ", "Ь"]);
+
+function digitalRoot(value: number) {
+  return value > 0 ? 1 + ((value - 1) % 9) : 0;
+}
+
+export function computeSurnameCode(input: string): SurnameCode | null {
+  const source = input.trim().replace(/\s+/gu, " ");
+  const normalized = source.toLocaleUpperCase("ru").replace(/[^А-ЯЁ]/gu, "");
+  const letters = [...normalized].flatMap<SurnameLetterValue>((letter) => {
+    const value = CYRILLIC_VALUE.get(letter);
+    if (!value) return [];
+    return [{
+      letter,
+      value,
+      kind: SIGNS.has(letter) ? "sign" : VOWELS.has(letter) ? "vowel" : "consonant",
+    }];
+  });
+  if (letters.length < 2) return null;
+  const sum = letters.reduce((total, item) => total + item.value, 0);
+  const vowelSum = letters.filter((item) => item.kind === "vowel").reduce((total, item) => total + item.value, 0);
+  const consonantSum = letters.filter((item) => item.kind === "consonant").reduce((total, item) => total + item.value, 0);
+  const arcanaIndex = 1 + ((sum - 1) % 22);
+  const [arcanaName, arcanaGlyph] = ARCANA_1_TO_22[arcanaIndex - 1];
+  return {
+    method: SURNAME_CODE_METHOD,
+    source,
+    normalized,
+    letters,
+    sum,
+    baseNumber: digitalRoot(sum),
+    innerNumber: vowelSum > 0 ? digitalRoot(vowelSum) : null,
+    outerNumber: consonantSum > 0 ? digitalRoot(consonantSum) : null,
+    arcanaIndex,
+    arcanaName,
+    arcanaGlyph,
+  };
+}
+
+const KNOWN_SURNAME_STORIES: Record<string, Omit<SurnameStory, "surname" | "code">> = {
   "рукосуев": {
     originKind: "descriptive",
     originLabel: "Фамилия от мирского прозвища",
@@ -66,7 +178,22 @@ const STOP_WORDS = new Set([
 ]);
 
 export function surnameValueFromStructuredInput(input: string) {
-  return input.match(/^Фамилия:\s*(.+)$/imu)?.[1]?.trim() ?? input;
+  return input.match(/^(?:Фамилия|Фамилия сейчас):\s*(.+)$/imu)?.[1]?.trim() ?? input;
+}
+
+export function parseSurnameAuditInput(input: string): ParsedSurnameAuditInput {
+  const modeValue = input.match(/^Режим:\s*(.+)$/imu)?.[1]?.trim();
+  const mode: SurnameAuditMode = modeValue === "change" || modeValue === "name" || modeValue === "alias"
+    ? modeValue
+    : "resource";
+  return {
+    mode,
+    name: input.match(/^Имя:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    surname: surnameValueFromStructuredInput(input),
+    comparison: input.match(/^(?:Новая фамилия|Новый вариант|Второй вариант):\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    focus: input.match(/^Фокус:\s*(.+)$/imu)?.[1]?.trim() ?? "",
+    context: input.match(/^(?:Контекст|Вопрос):\s*(.+)$/imu)?.[1]?.trim() ?? "",
+  };
 }
 
 // Достать фамилию из свободного ввода: кириллическое слово длиной ≥3, не стоп-слово.
@@ -195,11 +322,13 @@ const THEME_BY_KIND: Record<SurnameOriginKind, readonly string[]> = {
 export function analyzeSurname(input: string): SurnameStory | null {
   const surname = parseSurnameInput(input);
   if (!surname) return null;
+  const code = computeSurnameCode(surname);
+  if (!code) return null;
 
   const lower = surname.toLowerCase();
   const knownKey = lower.endsWith("а") ? lower.slice(0, -1) : lower;
   const known = KNOWN_SURNAME_STORIES[knownKey];
-  if (known) return { surname, ...known };
+  if (known) return { surname, code, ...known };
 
   const detected = detectOriginKind(lower);
   const stem = stemOf(lower);
@@ -222,6 +351,7 @@ export function analyzeSurname(input: string): SurnameStory | null {
 
   return {
     surname,
+    code,
     originKind,
     originLabel,
     originStory,
@@ -235,10 +365,23 @@ export function analyzeSurname(input: string): SurnameStory | null {
 
 // Факты для AI — чтобы платный разбор опирался на распознанную форму, а не выдумывал
 // этимологию. AI расширяет это в тёплый родовой нарратив, без фатализма.
-export function surnameFactsForAI(story: SurnameStory): string {
+export function surnameFactsForAI(
+  story: SurnameStory,
+  comparison: SurnameCode | null = null,
+  auditInput?: ParsedSurnameAuditInput,
+): string {
   const lower = story.surname.toLowerCase();
   const stem = stemOf(lower);
+  const formula = story.code.letters.map((item) => `${item.letter}=${item.value}`).join(" + ");
+  const comparisonFormula = comparison?.letters.map((item) => `${item.letter}=${item.value}`).join(" + ") ?? "";
   return [
+    "ТОЧНО РАССЧИТАНО ПО МЕТОДУ ETerapy CYRILLIC LINEAGE CODE V1 (не меняй числа, буквы и Арканы):",
+    `Основная формула: ${formula} = ${story.code.sum}. Базовое число 1–9: ${story.code.baseNumber}. Арканический индекс 1–22: ${story.code.arcanaIndex}, ${story.code.arcanaGlyph} «${story.code.arcanaName}». Внутренний код гласных: ${story.code.innerNumber ?? "нет"}. Внешний код согласных: ${story.code.outerNumber ?? "нет"}.`,
+    comparison
+      ? `Формула второго варианта: ${comparisonFormula} = ${comparison.sum}. Базовое число: ${comparison.baseNumber}. Арканический индекс: ${comparison.arcanaIndex}, ${comparison.arcanaGlyph} «${comparison.arcanaName}». Внутренний код: ${comparison.innerNumber ?? "нет"}. Внешний код: ${comparison.outerNumber ?? "нет"}.`
+      : "",
+    auditInput ? `Сценарий: ${auditInput.mode}. Фокус: ${auditInput.focus || "не задан"}. Контекст пользователя: ${auditInput.context || "не задан"}.` : "",
+    "Расчётный статус: арифметика и соответствие Аркану детерминированы системой. Родовой ресурс, тень, денежный сценарий и черты характера — символическая интерпретация, а не доказанные факты семьи.",
     "ОНОМАСТИЧЕСКИЙ КАРКАС (опирайся на него, не подменяй общей догадкой по суффиксу):",
     `Фамилия: ${story.surname}. Тип: ${story.originLabel}. ${story.originStory}`,
     story.evidence ? "Источниковый статус: есть словарные и документальные подсказки; цитируй их как подсказки, не как доказательство родства." : "Источниковый статус: эвристика по форме фамилии. Нельзя утверждать конкретную географию, занятие предка или историю рода как подтверждённый факт.",
@@ -251,7 +394,8 @@ export function surnameFactsForAI(story: SurnameStory): string {
     story.evidence ? `Документальные следы: ${story.evidence.historicalMentions.join("; ")}.` : "",
     story.evidence ? `География носителей/версии: ${story.evidence.geography.join(", ")}.` : "",
     story.evidence ? `Источниковые подсказки: ${story.evidence.sourceNotes.join("; ")}. Не превращай их в доказательство родства конкретной семьи.` : "",
-    `Символическая тема для самопроверки: ${story.familyTheme}. Не выдавай её за факт о характере или роде.`,
+    `Символическая тема для самопроверки: ${story.familyTheme}. Не выдавай её за установленный факт о характере или роде.`,
     "Чётко раздели: документированный след, словарное значение, наиболее вероятную этимологию и альтернативную версию. Можно прямо назвать неудобное историческое значение слова, но не переносить его на заказчика или современных носителей фамилии.",
+    "Не пересчитывай формулы, не добавляй случайные карты, не выдумывай предков, семейные события, проклятия, диагнозы, уровень интеллекта или финансовый потолок.",
   ].filter(Boolean).join("\n");
 }

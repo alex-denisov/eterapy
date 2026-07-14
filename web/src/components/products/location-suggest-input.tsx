@@ -9,12 +9,14 @@ export function LocationSuggestInput({
   selected,
   onChange,
   onSelect,
+  placeholder = "Тула, Тульская область",
   disabled = false,
 }: {
   value: string;
   selected: RussianLocality | null;
   onChange: (value: string) => void;
   onSelect: (value: RussianLocality | null) => void;
+  placeholder?: string;
   disabled?: boolean;
 }) {
   const listboxId = useId();
@@ -98,7 +100,7 @@ export function LocationSuggestInput({
               setOpen(false);
             }
           }}
-          placeholder="Ивантеевка, Московская область"
+          placeholder={placeholder}
           className="soft-question-input product-question-input product-line-input pl-11 pr-11"
           disabled={disabled}
           role="combobox"
@@ -139,7 +141,6 @@ export function LocationSuggestInput({
 
       <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
         {selected ? `Выбрано: ${selected.label}` : "Начните вводить город и выберите вариант с регионом. Можно также указать координаты."}
-        {" "}<a href="https://www.geonames.org/" target="_blank" rel="noreferrer" className="underline decoration-[var(--soft-paper-edge)] underline-offset-2">Данные GeoNames</a>.
       </p>
     </div>
   );
