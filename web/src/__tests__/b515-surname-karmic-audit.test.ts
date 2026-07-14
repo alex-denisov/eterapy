@@ -38,6 +38,7 @@ describe("B515 — Кармический код фамилии", () => {
       "### Как проверить у себя",
       "### Практики",
       "без автоматического утешения",
+      "однако это не означает, что вы не сможете",
       "назови усиление, ослабление",
     ]) expect(prompt).toContain(marker);
     expect(prompt.toLocaleLowerCase("ru")).toContain("не выдумывай предков");
@@ -73,5 +74,13 @@ describe("B515 — Кармический код фамилии", () => {
     expect(css).toContain("@media (max-width: 480px)");
     expect(css).toContain("var(--soft-paper-card)");
     expect(css).not.toMatch(/\.lineage-(?:seal|teaser)[\s\S]{0,180}background:\s*(?:#0|rgb\(0)/u);
+  });
+
+  it("routes a smoothing phrase back to the exact section repair", () => {
+    const symbolic = source("src/lib/symbolic-products.ts");
+    expect(symbolic).toContain("однако это не означает, что вы не сможете");
+    expect(symbolic).toContain("const smoothingSection = parsedSections.find");
+    expect(symbolic).toContain("в разделе ${smoothingSection.title}");
+    expect(symbolic).toContain("headingsNamedInQualityIssue(issue, headings)");
   });
 });
