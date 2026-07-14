@@ -21,12 +21,17 @@ describe("V8 — practitioner category taxonomy is a single canonical source", (
     expect(display).not.toContain('DREAMS: "Сны"');
   });
 
-  it("the practitioner profile editor uses the W3 three-level taxonomy picker", () => {
+  it("the W3 three-level taxonomy picker drives directions on «Услуги» + superadmin", () => {
+    // R9-5 (-profile-v2): десктоп-профиль больше НЕ встраивает пикер таксономии —
+    // направления правятся на «Услугах»; профиль лишь зеркалит specialties при save.
     const editor = read("src/app/cabinet/practitioner/profile/profile-editor.tsx");
-    // V8's flat specialty picker is superseded by the W3 shared picker
-    expect(editor).toContain("PractitionerTaxonomyFields");
+    expect(editor).not.toContain("PractitionerTaxonomyFields");
     expect(editor).toContain("specialtiesForDirections");
-    expect(editor).toContain("Специализация и задачи");
+    const services = read("src/app/cabinet/practitioner/services/services-directions-editor.tsx");
+    expect(services).toContain("directionsForCategories");
+    expect(services).toContain("specialtiesForDirections");
+    const modal = read("src/app/admin/users/user-edit-modal.tsx");
+    expect(modal).toContain("PractitionerTaxonomyFields");
   });
 
   it("the public cards resolve chip labels through the shared canonical helper", () => {
