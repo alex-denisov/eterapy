@@ -655,6 +655,11 @@ function weakestSymbolicHeadings(headings: string[], text: string, limit = 4) {
     .slice(0, limit);
 }
 
+function headingsNamedInQualityIssue(issue: string, headings: string[]) {
+  const normalizedIssue = headingKey(issue);
+  return headings.filter((heading) => normalizedIssue.includes(headingKey(heading)));
+}
+
 function segmentedRequestId(requestId: string | undefined, suffix: string) {
   return requestId ? `${requestId}:${suffix}` : undefined;
 }
@@ -984,9 +989,18 @@ export async function generateSymbolicProductResult(input: {
       if (issue) {
         const actual = new Set(splitSections(text).map((section) => headingKey(section.title)));
         const missing = headings.filter((heading) => !actual.has(headingKey(heading)));
+        const issueHeadings = headingsNamedInQualityIssue(issue, headings);
+        const surnameComparisonHeading = input.productKey === "surname-story" && surnameComparison && issue.includes("сравнение")
+          ? headings.find((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
+          : null;
         const repairHeadings = input.productKey === "natal-chart" && issue.includes("аспект")
           ? ["Аспекты: главные ресурсы", "Аспекты: главные напряжения"]
-          : [...missing, ...weakestSymbolicHeadings(headings, text)].filter((heading, index, all) => all.indexOf(heading) === index).slice(0, 6);
+          : [
+              ...issueHeadings,
+              ...(surnameComparisonHeading ? [surnameComparisonHeading] : []),
+              ...missing,
+              ...weakestSymbolicHeadings(headings, text),
+            ].filter((heading, index, all) => all.indexOf(heading) === index).slice(0, 6);
         const repair = await aiComplete({
           feature,
           userId: input.userId,
