@@ -6,10 +6,10 @@ import db from "@/lib/db";
 import { loadPractitionerAppbar } from "@/lib/practitioner-appbar";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { CalendarTabs, type CalendarTabKey } from "./calendar-tabs";
-import { ScheduleTab } from "./schedule-tab";
 import { RequestsTab } from "./requests-tab";
 import { AvailabilityTab } from "./availability-tab";
 import { AvailabilityMobile } from "./availability-mobile";
+import { WeekGrid, mskMondayISO, normalizeWeekParam } from "./week-grid";
 import {
   CalendarRequestsMobile,
   CalendarScheduleMobile,
@@ -17,14 +17,15 @@ import {
 } from "./calendar-mobile";
 
 // B466 — «Календарь»: Расписание · Заявки · Доступность (заменяет старые
-// /schedule и /requests — они редиректят сюда).
+// /schedule и /requests — они редиректят сюда). R9-5 desktop: «Расписание» —
+// недельная сетка (week-grid) с навигацией по ?week=; мобайл — прежний список.
 
 const TAB_KEYS = new Set<CalendarTabKey>(["schedule", "requests", "availability"]);
 
 export default async function PractitionerCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; week?: string }>;
 }) {
   const session = await auth();
   if (!session) redirect(loginUrl());
@@ -36,8 +37,9 @@ export default async function PractitionerCalendarPage({
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
-  const { tab: rawTab } = await searchParams;
+  const { tab: rawTab, week: rawWeek } = await searchParams;
   const tab: CalendarTabKey = TAB_KEYS.has(rawTab as CalendarTabKey) ? (rawTab as CalendarTabKey) : "schedule";
+  const weekStartISO = normalizeWeekParam(rawWeek) ?? mskMondayISO(new Date());
 
   const [pendingCount, changeCount, appbar] = await Promise.all([
     db.booking.count({ where: { practitionerId: practitioner.id, status: "PENDING" } }),
@@ -97,7 +99,7 @@ export default async function PractitionerCalendarPage({
         </p>
         <CalendarTabs active={tab} requestCount={pendingCount + changeCount} />
 
-        {tab === "schedule" && <ScheduleTab practitionerId={practitioner.id} />}
+        {tab === "schedule" && <WeekGrid practitionerId={practitioner.id} weekStartISO={weekStartISO} />}
         {tab === "requests" && <RequestsTab practitionerId={practitioner.id} />}
         {tab === "availability" && <AvailabilityTab practitionerId={practitioner.id} />}
       </div>
