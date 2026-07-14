@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
-import { ArrowRight, Bookmark, BookOpen, Eye, EyeOff, Globe, Share2, Trash2 } from "lucide-react";
+import { ArrowRight, Bookmark, BookOpen, Eye, EyeOff, Globe, Trash2 } from "lucide-react";
+import { ResultShareAction } from "@/components/cabinet/result-share-action";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -21,10 +22,6 @@ import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { DiaryPinGate } from "@/components/cabinet/diary-pin-gate";
 import { canGrantConsent, canWithdrawConsent, consentBadge, grantConsentPatch, withdrawConsentPatch } from "@/lib/library-consent";
-
-function shareHref(title: string, topic: string) {
-  return mainUrl(`/share?from=diary&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
-}
 
 // T17: map every item status to a Russian label — no raw "answered"/"ready".
 const MAP_STATUS_LABELS_RU: Record<string, string> = {
@@ -481,11 +478,14 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                       <Link href={item.href} className="soft-result-act soft-result-act-primary" aria-label={`Открыть: ${item.title}`} title="Открыть">
                         <ArrowRight className="size-[18px]" aria-hidden="true" />
                       </Link>
-                      <a href={shareHref(item.title, item.shareTopic)} className="soft-result-act" title="Поделиться"
-                        aria-label={`Поделиться: ${item.title}`}
-                        data-analytics-event="my_map_share_clicked" data-analytics-surface="my_map" data-analytics-target={item.kind}>
-                        <Share2 className="size-[18px]" aria-hidden="true" />
-                      </a>
+                      {/* B512 §3.5 — лиловое share/gift-меню (анонимный инсайт
+                          или подарить разбор) вместо прямой share-ссылки. */}
+                      <ResultShareAction
+                        title={item.title}
+                        shareTopic={item.shareTopic}
+                        surface="my_map"
+                        kind={item.kind}
+                      />
                       <form action={item.hidden ? unhideMapItem : hideMapItem}>
                         <input type="hidden" name="kind" value={item.kind} />
                         <input type="hidden" name="id" value={item.id} />

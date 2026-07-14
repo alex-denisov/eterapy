@@ -4,18 +4,22 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, EyeOff, Loader2, Undo2 } from "lucide-react";
+import { ResultShareAction } from "@/components/cabinet/result-share-action";
 
 // B464 round-6 #6 — redesigned разбор row per the recovered b464-home mockup
 // (.row/.topic-chip/.acts): colour topic-chip anchor + title/date + a compact
 // icon-action cluster. «Открыть» opens the разбор; «Скрыть» removes it from
-// the preview and the diary map (reversible on /diary). Destructive delete and
-// token-share stay on the fuller /diary management surface.
+// the preview and the diary map (reversible on /diary). Destructive delete
+// stays on the fuller /diary management surface. B512 §3.5: every row carries
+// the lilac result-moment «Поделиться / подарить» action (M4 mechanic).
 
 export interface CabinetResultRowItem {
   kind: "dialogue" | "product";
   id: string;
   title: string;
   topicLabel: string;
+  /** Raw topic key / productKey for the anonymized /share link (B512 M4). */
+  shareTopic: string;
   when: string;
   href: string;
 }
@@ -79,6 +83,12 @@ export function CabinetResultRow({ item }: { item: CabinetResultRowItem }) {
         <span className="soft-result-date">{item.when}</span>
       </Link>
       <div className="soft-result-acts">
+        <ResultShareAction
+          title={item.title}
+          shareTopic={item.shareTopic}
+          surface="cabinet_home"
+          kind={item.kind}
+        />
         <Link
           href={item.href}
           className="soft-result-act soft-result-act-primary"

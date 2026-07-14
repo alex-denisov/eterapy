@@ -75,6 +75,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "По этой сессии уже есть открытый запрос — дождитесь решения" }, { status: 409 });
   }
 
+  // B512 §3.6 — bounded reschedule cycle: у каждой стороны ОДНО предложение
+  // переноса на цикл. Если ваше предложение отклонили — контр-предложений нет
+  // (получатель только принимает/отклоняет). Одобренный перенос начинает новый
+  // цикл: пересенесённую сессию при необходимости можно переносить снова.
+  if (type === "RESCHEDULE") {
+    const lastApproved = await db.bookingChangeRequest.findFirst({
+      where: { bookingId: booking.id, type: "RESCHEDULE", status: "APPROVED" },
+      orderBy: { resolvedAt: "desc" },
+      select: { resolvedAt: true },
+    });
+    const declinedThisCycle = await db.bookingChangeRequest.count({
+      where: {
+        bookingId: booking.id,
+        initiatedBy: party,
+        type: "RESCHEDULE",
+        status: "DECLINED",
+        ...(lastApproved?.resolvedAt ? { resolvedAt: { gt: lastApproved.resolvedAt } } : {}),
+      },
+    });
+    if (declinedThisCycle >= 1) {
+      return NextResponse.json(
+        { error: "Ваше предложение переноса уже отклонили. Дождитесь встречного предложения, договоритесь о времени напрямую или отмените сессию." },
+        { status: 409 },
+      );
+    }
+  }
+
   const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : null;
   const penaltyApplies = penaltyAppliesFor({
     initiatedBy: party,

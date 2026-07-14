@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, getSubdomain, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
-import { BALANCE_CHANGED_EVENT } from "@/lib/balance-events";
+import { useClarityCreditBalance } from "@/components/use-clarity-credit-balance";
 import { NotificationBell } from "@/components/notification-bell";
 import { useMiniApp } from "@/components/miniapp-provider";
 import {
@@ -69,36 +69,6 @@ function usePractitionerBalance(userId: string | null | undefined, enabled: bool
   }, [enabled, userId]);
 
   return userId && enabled ? practitionerBalanceKopecks : 0;
-}
-
-function useClarityCreditBalance(userId: string | null | undefined, enabled = true) {
-  const [credits, setCredits] = useState(0);
-
-  const refresh = useCallback(() => {
-    if (!userId || !enabled) return;
-    fetch("/api/billing/transactions")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        const balance = Array.isArray(d?.clarityCredits)
-          ? d.clarityCredits
-              .filter((entry: { status?: string }) => entry.status === "confirmed")
-              .reduce((sum: number, entry: { amount?: number }) => sum + (entry.amount ?? 0), 0)
-          : 0;
-        setCredits(Math.max(0, balance));
-      })
-      .catch(() => {});
-  }, [enabled, userId]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  useEffect(() => {
-    if (!userId || !enabled || typeof window === "undefined") return;
-    const handler = () => refresh();
-    window.addEventListener(BALANCE_CHANGED_EVENT, handler);
-    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, handler);
-  }, [refresh, userId, enabled]);
-
-  return userId && enabled ? credits : 0;
 }
 
 function formatBalanceRub(balanceKopecks: number) {
@@ -171,7 +141,7 @@ function MoneyBalanceLink({
   );
 }
 
-function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string }; className?: string }) {
+function UserMenu({ session, cabinetDoor, slim, className }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string }; slim?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -188,7 +158,10 @@ function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<Re
   // (CLIENT_NAV / PRACTITIONER_NAV in components/cabinet/cabinet-shell.tsx)
   // one-to-one, including order, labels and icons. Admin/superadmin use a
   // curated subset of the admin shell entry points.
-  const menuItems = role === "PRACTITIONER" ? [
+  // B512 (D1): `slim` — inside the cabinet on desktop the sidebar already
+  // carries the full navigation, so the dropdown collapses to account/logout
+  // only (no third copy of the nav).
+  const menuItems = slim ? [] : role === "PRACTITIONER" ? [
     // B466: mirrors the «Practice cockpit» sidebar (PRACTITIONER_TABS) one-to-one.
     { href: appUrl("/practitioner"), label: "Сегодня", icon: Sun },
     { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Users },
@@ -352,7 +325,7 @@ function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<Re
               </div>
             </div>
           </div>
-          <div className="py-1">
+          {menuItems.length > 0 && <div className="py-1">
             {menuItems.map((item, i) => {
               const Icon = item.icon;
               return (
@@ -371,7 +344,7 @@ function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<Re
                 </Link>
               );
             })}
-          </div>
+          </div>}
           <div className="border-t border-[var(--soft-paper-edge)] py-1">
             <button
               role="menuitem"
@@ -410,7 +383,7 @@ export function Header() {
   const isPractitioner = role === "PRACTITIONER";
   const balanceUserId = session?.user?.id ?? null;
   const practitionerBalanceKopecks = usePractitionerBalance(balanceUserId, isPractitioner);
-  const clarityCredits = useClarityCreditBalance(balanceUserId, !isStaff && !isPractitioner);
+  const clarityCredits = useClarityCreditBalance(Boolean(balanceUserId) && !isStaff && !isPractitioner);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -630,6 +603,7 @@ export function Header() {
               <UserMenu
                 session={session}
                 cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}
+                slim={showCabinetBridge}
                 className={cabinetMobileBellOnly ? "hidden md:flex" : undefined}
               />
               {/* B321: ALL header items at canonical v4.2 user-pill height —
@@ -732,7 +706,9 @@ export function Header() {
             {mobileTabs.map((item) => {
               const Icon = NAV_ICONS[item.iconKey];
               const base = "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors";
-              if (item.label === MORE_LABEL) {
+              // B512: the client «Ещё» tab carries a real href (the /cabinet/more
+              // hub) and NAVIGATES; only the guest tab (href: "") keeps the sheet.
+              if (item.label === MORE_LABEL && !item.href) {
                 return (
                   <button
                     key="more"

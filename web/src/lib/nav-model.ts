@@ -71,13 +71,15 @@ export const CABINET_BRIDGE: NavLink[] = [
 ];
 
 // ── Mobile bottom bar — logged-in client. Slot 1 returns to the cabinet home;
-//    «Вопрос»/«Услуги» reach the free door + services (cross-shell). ──────────
+//    «Вопрос»/«Услуги» reach the free door + services (cross-shell). B512: the
+//    «Ещё» tab NAVIGATES to the real hub page (/cabinet/more), mirroring the
+//    practitioner cockpit — the bottom-sheet is gone. ─────────────────────────
 export const CLIENT_MOBILE_TABS: MobileTab[] = [
   { href: appUrl("/"), label: "Главная", iconKey: "home" },
   { href: mainUrl("/checkin"), label: "Вопрос", iconKey: "question" },
   { href: mainUrl("/products"), label: "Услуги", iconKey: "services" },
   { href: appUrl("/diary"), label: "Дневник", iconKey: "diary" },
-  { href: "", label: MORE_LABEL, iconKey: "more" },
+  { href: appUrl("/more"), label: MORE_LABEL, iconKey: "more" },
 ];
 
 // ── Mobile bottom bar — guest. Slot 1 = «Войти» (owner decision). ────────────
@@ -89,19 +91,62 @@ export const GUEST_MOBILE_TABS: MobileTab[] = [
   { href: "", label: MORE_LABEL, iconKey: "more" },
 ];
 
-// ── «Ещё» sheet — logged-in client secondary destinations. No overlap with the
-//    primary tabs; «Подписка» is merged into «Кошелёк» (IB3). ─────────────────
+// ── B512 — client «Ещё» hub page sections (/cabinet/more, mirrors the
+//    practitioner hub). «Кабинет» = cabinet surfaces off the primary tabs;
+//    «Платформа» = cross-shell landing destinations (replaces the bare
+//    «На сайт» row — owner: Платформа covers it); «Аккаунт» = settings +
+//    support. «Выйти» renders as its own row on the page. ────────────────────
+export interface MoreSection {
+  heading: string;
+  items: MobileTab[];
+}
+
+export const CLIENT_MORE_SECTIONS: MoreSection[] = [
+  {
+    heading: "Кабинет",
+    items: [
+      { href: appUrl("/bookings"), label: "Записи", iconKey: "bookings" },
+      // B478: односторонние материалы от специалиста — под «Ещё», НЕ
+      // центральный таб (owner: «не мессенджер»).
+      { href: appUrl("/messages"), label: "Сообщения", iconKey: "messages" },
+      { href: appUrl("/wallet"), label: "Кошелёк", iconKey: "wallet" },
+      { href: appUrl("/invite"), label: "Приглашения", iconKey: "invite" },
+    ],
+  },
+  {
+    heading: "Платформа",
+    items: [
+      { href: mainUrl("/products"), label: "Услуги", iconKey: "services" },
+      { href: mainUrl("/practitioners"), label: "Специалисты", iconKey: "specialists" },
+      { href: mainUrl("/library"), label: "Библиотека", iconKey: "library" },
+    ],
+  },
+  {
+    heading: "Аккаунт",
+    items: [
+      { href: appUrl("/settings"), label: "Настройки", iconKey: "settings" },
+      { href: appUrl("/support"), label: "Поддержка", iconKey: "support" },
+    ],
+  },
+];
+
+// Flat legacy view of the hub destinations — kept for the landing-header
+// mobile sheet fallback and the «Ещё» umbrella active-state.
 export const CLIENT_MORE_ITEMS: MobileTab[] = [
-  { href: appUrl("/bookings"), label: "Записи", iconKey: "bookings" },
-  // B478: односторонние материалы от специалиста — под «Ещё», НЕ центральный
-  // таб (owner: «не мессенджер»).
-  { href: appUrl("/messages"), label: "Сообщения", iconKey: "messages" },
-  { href: appUrl("/wallet"), label: "Кошелёк", iconKey: "wallet" },
-  { href: appUrl("/invite"), label: "Приглашения", iconKey: "invite" },
-  { href: appUrl("/settings"), label: "Настройки", iconKey: "settings" },
-  { href: appUrl("/support"), label: "Поддержка", iconKey: "support" },
-  { href: mainUrl("/"), label: "На сайт", iconKey: "back" },
+  ...CLIENT_MORE_SECTIONS.flatMap((section) => section.items),
   { href: "", label: LOGOUT_LABEL, iconKey: "logout" },
+];
+
+// Sub-routes under the client «Ещё» umbrella — the tab lights up when any of
+// these cabinet routes is active (cross-shell «Платформа» rows excluded).
+export const CLIENT_MORE_HREFS: string[] = [
+  appUrl("/more"),
+  appUrl("/bookings"),
+  appUrl("/messages"),
+  appUrl("/wallet"),
+  appUrl("/invite"),
+  appUrl("/settings"),
+  appUrl("/support"),
 ];
 
 // ── «Ещё» sheet — guest. «Войти» is already a primary tab, so it is omitted. ──

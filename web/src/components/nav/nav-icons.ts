@@ -14,7 +14,6 @@ import {
   MessageCircle,
   MoreHorizontal,
   Settings,
-  Sparkles,
   Sun,
   Tag,
   Users,
@@ -27,7 +26,9 @@ import type { NavIconKey } from "@/lib/nav-model";
 export const NAV_ICONS: Record<NavIconKey, React.ElementType> = {
   home: LayoutDashboard,
   question: MessageCircle,
-  services: Sparkles,
+  // B512: Compass (was Sparkles) — resolves the ✦ collision with the new
+  // persistent balance chip in the mobile top bar (client + guest bars).
+  services: Compass,
   specialists: Users,
   diary: BookOpen,
   more: MoreHorizontal,

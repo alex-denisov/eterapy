@@ -82,6 +82,9 @@ describe("M11 client retention surfaces", () => {
   it("implements the diary as a unified save, hide, delete, and share surface", () => {
     const page = source("src/app/cabinet/diary/page.tsx");
     const helper = source("src/lib/diary.ts");
+    // B512 §3.5: the share affordance is the shared result-moment share/gift
+    // menu (anonymized /share link + gift-a-разбор), same as the Главная rows.
+    const shareAction = source("src/components/cabinet/result-share-action.tsx");
 
     expect(page).toContain('data-testid="diary-page"');
     expect(page).toContain('data-testid="diary-items"');
@@ -90,7 +93,8 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain("async function deleteMapItem");
     expect(page).toContain("async function saveMapItem");
     expect(page).toContain("hiddenFromMap");
-    expect(page).toContain("/share?from=diary");
+    expect(page).toContain("ResultShareAction");
+    expect(shareAction).toContain("/share?from=");
     expect(page).toContain('status: "DELETED"');
     expect(page).toContain('status: "CANCELLED"');
     expect(helper).toContain("db.dialogue.findMany");
@@ -179,7 +183,12 @@ describe("M11 client retention surfaces", () => {
     // B464 IB1: the dashboard daily-Q now drives the in-cabinet reflect flow
     // (DailyPracticeActions) instead of the two old «Разобрать/Поделиться»
     // buttons, so those two analytics events moved off the dashboard.
-    expect(map).toContain("my_map_share_clicked");
+    // B512 §3.5: share analytics now fire from the shared share/gift menu
+    // (result_share_clicked / result_gift_clicked with the my_map surface).
+    const shareAction = source("src/components/cabinet/result-share-action.tsx");
+    expect(shareAction).toContain("result_share_clicked");
+    expect(shareAction).toContain("result_gift_clicked");
+    expect(map).toContain('surface="my_map"');
     expect(map).toContain("my_map_hide_clicked");
     expect(map).toContain("my_map_delete_clicked");
   });

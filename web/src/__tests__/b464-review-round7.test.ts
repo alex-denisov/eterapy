@@ -154,8 +154,10 @@ describe("R7 audit polish — B9 padding rhythm + B10 tap targets", () => {
     // «Все разборы», «Сравнить тарифы», «Управлять» links
     expect(home).toContain("inline-flex min-h-11 items-center text-sm font-semibold");
     expect(home).toContain('className="soft-chip mt-4 min-h-11"');
-    // primary p-6 card normalised to p-5 md:p-6 (mobile rhythm)
-    expect(home).toContain("soft-card mb-4 p-5 md:p-6");
+    // B512: the greeting wrapper card is flattened (topbar); the balance pill
+    // keeps a 44px tap target.
+    expect(home).toContain('<section data-testid="client-primary-action">');
+    expect(home).toContain("inline-flex min-h-11 items-center gap-2 rounded-full");
   });
 
   it("billing cards use p-5 md:p-6 and «Сравнить тарифы» is 44px", () => {

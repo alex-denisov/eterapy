@@ -6,13 +6,17 @@ const source = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 
 describe("B442 balance + card formations + cross-domain consent", () => {
   it("#3 header balance re-fetches on a balance-changed event after a credit spend", () => {
+    // B512: the balance hook moved to a shared file so the header pill and the
+    // mobile balance chip read from ONE live-refreshing source.
     const header = source("src/components/header.tsx");
+    const hook = source("src/components/use-clarity-credit-balance.ts");
     const purchase = source("src/components/products/product-purchase-controls.tsx");
     const lib = source("src/lib/balance-events.ts");
     expect(lib).toContain("BALANCE_CHANGED_EVENT");
     expect(lib).toContain("dispatchBalanceChanged");
-    expect(header).toContain("BALANCE_CHANGED_EVENT");
-    expect(header).toContain("addEventListener(BALANCE_CHANGED_EVENT");
+    expect(header).toContain("useClarityCreditBalance");
+    expect(hook).toContain("BALANCE_CHANGED_EVENT");
+    expect(hook).toContain("addEventListener(BALANCE_CHANGED_EVENT");
     expect(purchase).toContain("dispatchBalanceChanged()");
   });
 
