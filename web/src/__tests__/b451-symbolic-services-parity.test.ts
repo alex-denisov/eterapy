@@ -36,7 +36,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     const cases: Array<[string, string[]]> = [
       ["product-numerology", ["Матрицы судьбы", "Личность, Талант, Социум, Задача, Центр, Внутренний центр", "### В плюсе", "### В минусе", "### Практики"]],
       ["product-human-design", ["Дизайна человека", "Тип, стратегия, авторитет, профиль и определение всегда идут пятью отдельными разделами", "Каждый заголовок начинай с `##`"]],
-      ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Загадка имени"]],
+      ["product-surname-story", ["нумеролог буквенного кода", "## Формула фамилии", "### Как проверить у себя", "без автоматического утешения"]],
       ["product-family-scenarios", ["системной семейной терапии", "## Что вы описали — узор повторов", "## Бережные шаги на ближайшее время"]],
       ["product-synastry", ["астролог по синастрии", "## Главная ось связи", "## Итог в выбранном слое отношений"]],
     ];
@@ -122,9 +122,11 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
       expect(src).not.toContain("soft-badge");
     });
 
-    it("removes generic topic chips from human-design and surname-story intake", () => {
+    it("removes generic topic chips from human-design and uses scenario-specific chips for surname audit", () => {
       expect(source("src/components/products/human-design-actions.tsx")).not.toContain("OptionScrollStrip");
-      expect(source("src/components/products/surname-story-actions.tsx")).not.toContain("OptionScrollStrip");
+      expect(source("src/components/products/surname-story-actions.tsx")).toContain("OptionScrollStrip");
+      expect(source("src/components/products/surname-story-actions.tsx")).toContain("Смена фамилии");
+      expect(source("src/components/products/surname-story-actions.tsx")).toContain("Псевдоним / бренд");
     });
 
     it("uses compact one-line inputs for numerology and surname fields", () => {

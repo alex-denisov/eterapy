@@ -46,15 +46,15 @@ describe("B512 owner acceptance round 3", () => {
     expect(actions).toContain('{ label: "Вопрос", value: question }');
   });
 
-  it("ships a region-aware combobox and the interactive six-layer surname rose", () => {
+  it("ships a region-aware combobox and the interactive four-layer lineage seal", () => {
     const actions = source("src/components/products/new-symbolic-product-actions.tsx");
     const surname = source("src/components/products/surname-story-actions.tsx");
     expect(actions).toContain("<LocationSuggestInput");
-    expect(surname).toContain("Фамильная роза");
+    expect(surname).toContain("Родовая печать");
     expect(surname).toContain('role="tablist"');
     expect(surname).toContain('role="tabpanel"');
-    expect(surname).toContain("Образ характера");
-    expect(surname).toContain("Архивный след");
+    expect(surname).toContain("Ресурс");
+    expect(surname).toContain("Деньги");
     expect(surname).not.toContain("слоговых ударов");
   });
 
