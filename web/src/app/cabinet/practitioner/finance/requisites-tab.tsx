@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, CreditCard, FileText, Landmark, Receipt, ShieldAlert, ShieldCheck } from "lucide-react";
-import { AGENT_OFFER_VERSION } from "@/lib/practitioner-compliance";
+import { AGENT_OFFER_VERSION, AGENT_OFFER_VERSION_LABEL } from "@/lib/practitioner-compliance";
 import { TAX_STATUS_LABELS, type TaxStatusKey } from "@/lib/practitioner-tax-verification";
 import { appUrl, mainUrl } from "@/lib/subdomain";
 import { AgentOfferAcceptButton } from "../earnings/agent-offer-accept-button";
@@ -199,7 +199,16 @@ export function RequisitesTab({ data }: { data: RequisitesTabData }) {
         {!agentOfferAccepted && (
           <div className="soft-card mt-2.5 flex flex-wrap items-center justify-between gap-3 p-3.5">
             <p className="text-sm text-[var(--soft-ink-soft)]">
-              Для выплат нужно принять агентскую оферту (версия {AGENT_OFFER_VERSION}).
+              Для выплат нужно принять{" "}
+              <a
+                href={mainUrl("/legal/agent-offer")}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[var(--soft-terracotta-dark)] underline underline-offset-2 hover:text-[var(--soft-bordeaux)]"
+              >
+                агентскую оферту
+              </a>{" "}
+              ({AGENT_OFFER_VERSION_LABEL}).
             </p>
             <AgentOfferAcceptButton accepted={agentOfferAccepted} />
           </div>

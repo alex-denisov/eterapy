@@ -42,14 +42,18 @@ export function PractitionerSettingsClient({
   telegramStatus,
   hasPassword,
   timezone: initialTimezone,
+  initialTab = "account",
 }: {
   name: string;
   email: string;
   telegramStatus: TelegramStatus;
   hasPassword: boolean;
   timezone: string;
+  /** B466 owner-fix #4: стартовый суб-таб из ?tab= (колокольчик →
+      «Настроить уведомления» открывает сразу блок «Уведомления»). */
+  initialTab?: Tab;
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>("account");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [timezone, setTimezone] = useState(initialTimezone);
   const [savingTz, setSavingTz] = useState(false);
 

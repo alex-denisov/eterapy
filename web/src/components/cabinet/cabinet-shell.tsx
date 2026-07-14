@@ -348,13 +348,21 @@ export function CabinetShell({
   return (
     <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
       <div className="soft-shell soft-app-layout">
-      {/* Sidebar — v4.2 card-style navigation */}
+      {/* Sidebar — v4.2 card-style navigation. B466 owner-fix 2026-07-14 #1:
+          practitioner desktop sidebar is a full-bleed column glued to the
+          header, the left screen edge and the footer (the grid row stretches
+          to the layout height); the nav itself stays sticky inside it. The
+          client sidebar keeps the original floating card until B512. */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="sticky top-16 hidden shrink-0 self-start md:flex"
+        className={
+          isPractitionerBar
+            ? "soft-app-sidebar-col hidden shrink-0 md:block"
+            : "sticky top-16 hidden shrink-0 self-start md:flex"
+        }
       >
-        <div className="soft-app-sidebar-card flex flex-col overflow-hidden p-3.5">
+        <div className={`soft-app-sidebar-card flex flex-col overflow-hidden p-3.5${isPractitionerBar ? " sticky top-16" : ""}`}>
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">
@@ -524,7 +532,15 @@ export function CabinetShell({
 
       {/* Main — reserve the bottom bar height + the iPhone home-indicator inset
           so no content hides behind the frosted tab bar (audit A2). */}
-      <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+      {/* B466 owner-fix #1: with the practitioner layout full-bleed the main
+          column carries its own vertical rhythm (md:pt-8/md:pb-20) — the
+          layout padding that used to provide it is zeroed for practitioners. */}
+      <main
+        data-testid="app-shell-main"
+        className={`soft-app-main min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] ${
+          isPractitionerBar ? "md:pb-20 md:pt-8" : "md:pb-0"
+        }`}
+      >
         {/* B466 R9-5 — клиентский мобильный «верх» 1-в-1 с практиком: публичный
             nav-хедер на мобиле скрыт (data-cabinet-mobile-top), а сверху экрана —
             свой минимальный appbar (аватар + имя/тариф + колокольчик). Десктоп не
@@ -548,7 +564,7 @@ export function CabinetShell({
               </p>
               <p className="truncate text-xs text-[var(--soft-ink-faint)]">{displaySubLabel}</p>
             </div>
-            <NotificationBell variant="header" />
+            <NotificationBell variant="header" settingsHref={appUrl("/settings#settings-notifications")} />
           </div>
         )}
         {children}

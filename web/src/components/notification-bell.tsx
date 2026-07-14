@@ -171,12 +171,16 @@ function NotificationItem({
 
 interface NotificationBellProps {
   variant?: "header" | "cabinet";
+  /** B466 owner-fix 2026-07-14 #4: куда ведёт «Настроить уведомления» — блок
+      «Уведомления» настроек текущей роли (практик: ?tab=notifications;
+      клиент: #settings-notifications). Дефолт — хаб настроек клиента. */
+  settingsHref?: string;
 }
 
 const POLL_MS = 30_000;
 type Filter = "all" | "unread";
 
-export function NotificationBell({ variant = "header" }: NotificationBellProps) {
+export function NotificationBell({ variant = "header", settingsHref }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState(false);
@@ -413,7 +417,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
             style={{ borderColor: "var(--soft-paper-edge)" }}
           >
             <a
-              href={appUrl("/settings")}
+              href={settingsHref ?? appUrl("/settings")}
               onClick={() => setOpen(false)}
               className="soft-chip w-full justify-center"
               style={{ fontSize: 12, padding: "6px 12px" }}

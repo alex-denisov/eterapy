@@ -4387,6 +4387,36 @@
     box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
   }
 
+  /* B466 owner-fix 2026-07-14 #1 — the practitioner sidebar must not float:
+     it glues to the sticky header (no top padding), the left screen edge
+     (the layout goes full-bleed) and the footer (the grid row stretches to
+     the layout bottom; the column carries the background/border so the
+     surface runs past the sticky nav down to the footer). Client cabinet
+     keeps the centered .soft-shell layout until B512. */
+  @media (min-width: 768px) {
+    .soft-app-shell[data-shell-role="PRACTITIONER"] .soft-app-layout {
+      width: 100%;
+      margin-inline: 0;
+      padding-block: 0;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .soft-app-sidebar-col {
+      border-right: 1px solid var(--soft-paper-edge);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.18)),
+        color-mix(in srgb, var(--soft-paper-deep) 91%, white);
+      box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
+    }
+
+    .soft-app-sidebar-col .soft-app-sidebar-card {
+      border-right: none;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
   .soft-app-avatar {
     border: 1px solid rgba(214, 117, 88, 0.2);
     border-radius: 50%;
