@@ -107,6 +107,7 @@ describe("B469 AI search readiness", () => {
     expect(auth).toContain("# ETerapy auth.md");
     expect(auth).toContain("No agent registration or credential provisioning endpoint is offered");
     expect(nextConfig).toContain('rel="api-catalog"');
+    expect(source("src/app/mcp/route.ts")).toContain('"https://staging.eterapy.com"');
     expect(webMcp).toContain("navigator.modelContext.registerTool");
     expect(webMcp).toContain("cannot access accounts, personal questions, payments or health information");
   });
