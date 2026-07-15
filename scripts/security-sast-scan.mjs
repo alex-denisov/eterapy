@@ -24,6 +24,11 @@ const allowlist = new Set([
   "web/src/app/library/[slug]/page.tsx:react-dangerous-html",
   "web/src/components/analytics.tsx:react-dangerous-html",
   "web/src/components/seo/public-json-ld.tsx:react-dangerous-html",
+  "web/src/app/help/page.tsx:react-dangerous-html",
+  "web/src/components/landing/authority-article.tsx:react-dangerous-html",
+  // The SVG template is static; injected style values are bounded numeric gates
+  // and enum-indexed center/color constants produced by the deterministic chart.
+  "web/src/components/products/human-design-bodygraph.tsx:react-dangerous-html",
 ]);
 
 const findings = [];
