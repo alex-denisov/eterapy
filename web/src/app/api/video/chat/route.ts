@@ -13,6 +13,25 @@ const ALLOWED_CHAT_MIME = [
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
+function participantScope(videoSessionId: string, userId: string) {
+  return {
+    id: videoSessionId,
+    booking: {
+      OR: [
+        { clientId: userId },
+        { practitioner: { userId } },
+      ],
+    },
+  };
+}
+
+async function canAccessVideoSession(videoSessionId: string, userId: string) {
+  return db.videoSession.findFirst({
+    where: participantScope(videoSessionId, userId),
+    select: { id: true },
+  });
+}
+
 /** POST /api/video/chat — сохранить сообщение (текст или файл) */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -24,6 +43,7 @@ export async function POST(req: NextRequest) {
   let fileUrl: string | null = null;
   let fileName: string | null = null;
   let fileMime: string | null = null;
+  let pendingFile: File | null = null;
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await req.formData();
@@ -44,10 +64,7 @@ export async function POST(req: NextRequest) {
       if (!ext || BLOCKED_EXTS.includes(ext)) {
         return NextResponse.json({ error: "Этот тип файла запрещён" }, { status: 400 });
       }
-      const { url } = await storeFile(session.user.id, file, "DOCUMENT");
-      fileUrl = url;
-      fileName = file.name;
-      fileMime = file.type;
+      pendingFile = file;
     }
   } else {
     const body = await req.json();
@@ -56,7 +73,18 @@ export async function POST(req: NextRequest) {
   }
 
   if (!videoSessionId) return NextResponse.json({ error: "videoSessionId обязателен" }, { status: 400 });
-  if (!text && !fileUrl) return NextResponse.json({ error: "Текст или файл обязателен" }, { status: 400 });
+  if (!text && !pendingFile) return NextResponse.json({ error: "Текст или файл обязателен" }, { status: 400 });
+
+  const videoSession = await canAccessVideoSession(videoSessionId, session.user.id);
+  if (!videoSession) return NextResponse.json({ error: "Сессия не найдена" }, { status: 404 });
+
+  // Store an attachment only after the booking-participant ownership check.
+  if (pendingFile) {
+    const { url } = await storeFile(session.user.id, pendingFile, "DOCUMENT");
+    fileUrl = url;
+    fileName = pendingFile.name;
+    fileMime = pendingFile.type;
+  }
 
   const message = await db.chatMessage.create({
     data: {
@@ -80,6 +108,9 @@ export async function GET(req: NextRequest) {
 
   const videoSessionId = req.nextUrl.searchParams.get("videoSessionId");
   if (!videoSessionId) return NextResponse.json({ error: "videoSessionId обязателен" }, { status: 400 });
+
+  const videoSession = await canAccessVideoSession(videoSessionId, session.user.id);
+  if (!videoSession) return NextResponse.json({ error: "Сессия не найдена" }, { status: 404 });
 
   const messages = await db.chatMessage.findMany({
     where: { videoSessionId },
