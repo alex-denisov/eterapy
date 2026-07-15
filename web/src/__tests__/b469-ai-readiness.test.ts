@@ -3,6 +3,13 @@ import path from "node:path";
 import { GET as llms } from "@/app/llms.txt/route";
 import { GET as llmsFull } from "@/app/llms-full.txt/route";
 import { homeAuthorityJsonLd, HOME_FAQS } from "@/lib/home-authority-content";
+import { GET as mcpCard } from "@/app/.well-known/mcp/server-card.json/route";
+import { GET as agentCard } from "@/app/.well-known/agent-card.json/route";
+import { GET as skillsIndex } from "@/app/.well-known/agent-skills/index.json/route";
+import { GET as skillArtifact } from "@/app/.well-known/agent-skills/understand-eterapy/SKILL.md/route";
+import { GET as apiCatalog } from "@/app/.well-known/api-catalog/route";
+import { GET as authMd } from "@/app/auth.md/route";
+import { createHash } from "node:crypto";
 
 const root = process.cwd();
 
@@ -54,5 +61,54 @@ describe("B469 AI search readiness", () => {
     expect(component).toContain("<details");
     expect(component).toContain("редакция ETerapy");
     expect(page).toContain("<HomeAuthorityArticle />");
+    expect(page.indexOf("<HomeAuthorityArticle />")).toBeLessThan(page.indexOf("<ScenariosSection />"));
+    expect(component).toContain("Короткий ответ");
+    expect(component).toContain("Вывод и следующий шаг");
+    expect(component).toContain("Автор: редакция ETerapy");
+  });
+
+  it("publishes truthful agent discovery cards and a verifiable skill", async () => {
+    const mcp = await mcpCard().json();
+    const a2a = await agentCard().json();
+    const index = await skillsIndex().json();
+    const skill = await skillArtifact().text();
+    const digest = `sha256:${createHash("sha256").update(skill).digest("hex")}`;
+
+    expect(mcp).toEqual(expect.objectContaining({
+      serverInfo: { name: "eterapy-public-info", version: "1.0.0" },
+      transport: expect.objectContaining({ endpoint: "https://eterapy.com/mcp" }),
+      authentication: { required: false },
+    }));
+    expect(a2a).toEqual(expect.objectContaining({
+      name: "ETerapy Public Information Agent",
+      supportedInterfaces: expect.arrayContaining([
+        expect.objectContaining({ url: "https://eterapy.com/a2a", protocolBinding: "JSONRPC" }),
+      ]),
+    }));
+    expect(index.$schema).toBe("https://schemas.agentskills.io/discovery/0.2.0/schema.json");
+    expect(index.skills[0].digest).toBe(digest);
+    expect(skill).toContain("Do not use this skill for diagnosis");
+  });
+
+  it("publishes API discovery and self-contained anonymous auth policy", async () => {
+    const catalogResponse = apiCatalog();
+    const catalog = await catalogResponse.json();
+    const auth = await authMd().text();
+    const nextConfig = source("next.config.ts");
+    const webMcp = source("src/components/landing/webmcp-registration.tsx");
+
+    expect(catalogResponse.headers.get("content-type")).toContain("application/linkset+json");
+    expect(catalog.linkset[0]).toEqual(expect.objectContaining({
+      anchor: "https://eterapy.com/mcp",
+      "service-desc": expect.any(Array),
+      "service-doc": expect.any(Array),
+      status: expect.any(Array),
+    }));
+    expect(auth).toContain("# ETerapy auth.md");
+    expect(auth).toContain("No agent registration or credential provisioning endpoint is offered");
+    expect(nextConfig).toContain('rel="api-catalog"');
+    expect(source("src/app/mcp/route.ts")).toContain('"https://staging.eterapy.com"');
+    expect(webMcp).toContain("navigator.modelContext.registerTool");
+    expect(webMcp).toContain("cannot access accounts, personal questions, payments or health information");
   });
 });
