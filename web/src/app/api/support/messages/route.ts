@@ -5,24 +5,21 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { log, serializeError } from "@/lib/logger";
-import { sendTelegramSupport, createSupportForumTopic } from "@/lib/telegram";
+import { sendTelegramSupport } from "@/lib/telegram";
+import { absoluteAdminUrl } from "@/lib/subdomain";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import { canReuseSupportSession, isSupportSessionStale } from "@/lib/support-sessions";
 
-// B333 · Cabinet ↔ Telegram support chat.
+// B482 · Cabinet ↔ first-party support chat.
 //
 // GET  /api/support/messages?since=ISO  → last N messages for the current
 //                                          user's open conversation.
-// POST /api/support/messages            → append a USER message, lazily
-//                                          open a conversation, forward to
-//                                          the Telegram support group.
-//
-// Staff replies arrive through /api/telegram/webhook (separate handler)
-// which writes role=STAFF messages into the same conversation; this poll
-// endpoint surfaces them on the next 3s tick.
+// POST /api/support/messages            → append a USER message, lazily open a
+//                                          conversation, and emit a content-free
+//                                          availability alert to Telegram.
+// Staff replies are created only by an authenticated operator with support.manage.
 
-const SUPPORT_GROUP_CHAT_ID =
-  process.env.TELEGRAM_SUPPORT_CHAT_ID ?? process.env.SUPPORT_TELEGRAM_CHAT_ID ?? null;
+const SUPPORT_ALERT_CHAT_ID = process.env.TELEGRAM_SUPPORT_ALERT_CHAT_ID ?? null;
 const MESSAGE_MAX = 2000;
 const RETURN_LIMIT = 100;
 
@@ -72,7 +69,7 @@ async function lastActivityAt(conversation: { id: string; createdAt: Date }): Pr
 //   иначе legacy: свежая (< 30 мин активности) открытая сессия
 //     переиспользуется, устаревшая лениво закрывается и создаётся новая.
 type ConversationResolution =
-  | { ok: true; conversation: { id: string; status: string; telegramChatId: string | null; telegramThreadId: number | null; createdAt: Date } }
+  | { ok: true; conversation: { id: string; status: string; createdAt: Date } }
   | { ok: false; status: number; code: string; message: string };
 
 async function resolveConversation(
@@ -230,60 +227,25 @@ export async function POST(request: NextRequest) {
     select: { id: true, role: true, content: true, createdAt: true },
   });
 
-  // Forward to the Telegram support group. Best-effort: a failure here
-  // does NOT undo the saved message — the staff will see it later via
-  // an admin panel or, eventually, via a sweeper job.
-  if (SUPPORT_GROUP_CHAT_ID) {
-    const userLabel = session.user?.name ?? session.user?.email ?? `user:${userId.slice(0, 8)}`;
+  // Telegram is an owner-only pager, not a support data channel. The alert is
+  // deliberately identical for every client and contains no content, identity,
+  // conversation id, attachments or routing metadata. Best-effort delivery can
+  // never undo the canonical message already stored above.
+  if (SUPPORT_ALERT_CHAT_ID) {
     try {
-      // N1d multichat: give every conversation its own forum topic in the
-      // support supergroup, so staff can reply per-client (routed back by
-      // message_thread_id). Create the topic lazily on the first message.
-      let threadId = conversation.telegramThreadId ?? undefined;
-      let firstInTopic = false;
-      if (!threadId) {
-        const created = await createSupportForumTopic(
-          SUPPORT_GROUP_CHAT_ID,
-          `${userLabel} · ${conversation.id.slice(0, 6)}`,
-        );
-        if (created) {
-          threadId = created;
-          firstInTopic = true;
-          await db.supportConversation.update({
-            where: { id: conversation.id },
-            data: { telegramChatId: SUPPORT_GROUP_CHAT_ID, telegramThreadId: created },
-          });
-        }
-      }
-
-      // The header carries the conversation marker (reply-to fallback) and tells
-      // staff how to answer. Inside a topic only the first message needs it —
-      // later messages read like a normal chat thread.
-      const header =
-        `<b>ETerapy support</b>\n` +
-        `от: ${userLabel} (${userId})\n` +
-        `conversation: ${conversation.id}\n` +
-        (threadId
-          ? `Отвечайте прямо в этой теме — ответ дойдёт клиенту.\n\n`
-          : `↩️ Ответьте на это сообщение (Reply), чтобы ответ дошёл клиенту.\n\n`);
-      const body = threadId && !firstInTopic ? parsed.data.content : `${header}${parsed.data.content}`;
-
-      // B7: forward via the dedicated support bot so staff replies come back
-      // through the support bot's webhook (not the notification bot).
       await sendTelegramSupport(
-        SUPPORT_GROUP_CHAT_ID,
-        body,
-        threadId ? { messageThreadId: threadId } : undefined,
+        SUPPORT_ALERT_CHAT_ID,
+        `<b>Новое сообщение в поддержке ETerapy</b>\nОткройте консоль: ${absoluteAdminUrl("/admin/support")}`,
       );
     } catch (error) {
-      log.warn("support.forward_to_telegram_failed", {
+      log.warn("support.telegram_alert_failed", {
         requestId: context.requestId,
         conversationId: conversation.id,
         error: serializeError(error),
       });
     }
   } else {
-    log.warn("support.telegram_group_not_configured", { conversationId: conversation.id });
+    log.warn("support.telegram_alert_not_configured", { conversationId: conversation.id });
   }
 
   return jsonWithRequestContext(

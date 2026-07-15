@@ -115,11 +115,6 @@ const SUPPORT_BOT_TOKEN = process.env.TELEGRAM_SUPPORT_BOT_TOKEN ?? "";
 const SUPPORT_API_BASE = process.env.TELEGRAM_SUPPORT_API_BASE?.trim()
   || (SUPPORT_BOT_TOKEN ? `https://api.telegram.org/bot${SUPPORT_BOT_TOKEN}` : "");
 
-/** True when a dedicated support bot is configured. */
-export function hasSupportBot(): boolean {
-  return Boolean(SUPPORT_BOT_TOKEN);
-}
-
 /**
  * Sends a message via the dedicated support bot. Falls back to the main bot
  * if the support bot is not configured, so the thread keeps working while the
@@ -154,64 +149,6 @@ export async function sendTelegramSupport(
     if (!res.ok) throw new Error(`Telegram API error: ${await res.text()}`);
   } finally {
     clearTimeout(timeout);
-  }
-}
-
-/**
- * N1d multichat: create a dedicated forum topic in the support supergroup for a
- * conversation, so every client gets their own thread. Returns the topic's
- * message_thread_id, or null if the group isn't a forum / the bot lacks rights
- * (the caller then falls back to the General topic + a conversation marker).
- */
-export async function createSupportForumTopic(chatId: string, name: string): Promise<number | null> {
-  const base = SUPPORT_BOT_TOKEN ? SUPPORT_API_BASE : API_BASE;
-  if ((!SUPPORT_BOT_TOKEN && !BOT_TOKEN) || !base) return null;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const res = await fetch(`${base}/createForumTopic`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, name: name.slice(0, 128) }),
-      signal: controller.signal,
-    });
-    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: { message_thread_id?: number } };
-    if (!data.ok || typeof data.result?.message_thread_id !== "number") {
-      log.warn("telegram.support_create_topic_failed", { response: data });
-      return null;
-    }
-    return data.result.message_thread_id;
-  } catch (error) {
-    log.warn("telegram.support_create_topic_error", { error: serializeError(error) });
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/** Registers the support bot's webhook (superadmin action). */
-export async function setSupportTelegramWebhook(webhookUrl: string): Promise<{ ok: boolean; error?: string; username?: string }> {
-  if (!SUPPORT_BOT_TOKEN) return { ok: false, error: "TELEGRAM_SUPPORT_BOT_TOKEN not set" };
-  try {
-    const me = await fetch(`${SUPPORT_API_BASE}/getMe`).then((r) => r.json()).catch(() => ({}));
-    const res = await fetch(`${SUPPORT_API_BASE}/setWebhook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: webhookUrl,
-        secret_token: (process.env.TELEGRAM_SUPPORT_WEBHOOK_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET) || undefined,
-        allowed_updates: ["message"],
-      }),
-    });
-    const d = await res.json();
-    if (!d.ok) {
-      log.error("telegram.support_set_webhook_failed", { response: d });
-      return { ok: false, error: d.description };
-    }
-    log.info("telegram.support_set_webhook_ok", { webhookUrl });
-    return { ok: true, username: me?.result?.username };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 

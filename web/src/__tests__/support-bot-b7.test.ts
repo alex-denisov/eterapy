@@ -3,43 +3,48 @@ import path from "node:path";
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
-describe("B7 — dedicated Telegram support bot", () => {
-  it("adds a support-bot sender that uses TELEGRAM_SUPPORT_BOT_TOKEN", () => {
+describe("B482 — Telegram is an owner-only availability pager", () => {
+  it("keeps the dedicated bot sender for content-free alerts", () => {
     const lib = source("src/lib/telegram.ts");
     expect(lib).toContain("TELEGRAM_SUPPORT_BOT_TOKEN");
     expect(lib).toContain("export async function sendTelegramSupport");
-    expect(lib).toContain("export async function setSupportTelegramWebhook");
-    expect(lib).toContain("export function hasSupportBot");
+    expect(lib).not.toContain("createSupportForumTopic");
+    expect(lib).not.toContain("setSupportTelegramWebhook");
   });
 
-  it("forwards cabinet support messages via the support bot into a per-client topic", () => {
+  it("sends a generic admin alert without client data or routing metadata", () => {
     const route = source("src/app/api/support/messages/route.ts");
-    expect(route).toContain("sendTelegramSupport(");
-    expect(route).toContain("SUPPORT_GROUP_CHAT_ID");
-    // N1d multichat: each conversation gets its own forum topic.
-    expect(route).toContain("createSupportForumTopic");
-    expect(route).toContain("messageThreadId");
-    expect(route).not.toContain("await sendTelegram(SUPPORT_GROUP_CHAT_ID");
+    const alertBlock = route.slice(route.indexOf("// Telegram is an owner-only pager"));
+    expect(route).toContain("TELEGRAM_SUPPORT_ALERT_CHAT_ID");
+    expect(route).not.toContain("process.env.TELEGRAM_SUPPORT_CHAT_ID ??");
+    expect(alertBlock).toContain("Новое сообщение в поддержке ETerapy");
+    expect(alertBlock).toContain('absoluteAdminUrl("/admin/support")');
+    expect(alertBlock).not.toContain("parsed.data.content");
+    expect(alertBlock).not.toContain("session.user");
+    expect(alertBlock).not.toContain("conversation.id}");
+    expect(alertBlock).not.toContain("createSupportForumTopic");
   });
 
-  it("has a dedicated support webhook that only bridges staff replies", () => {
+  it("does not parse or persist inbound support-bot messages", () => {
     const route = source("src/app/api/telegram/support-webhook/route.ts");
-    expect(route).toContain('role: "STAFF"');
-    expect(route).toContain("conversation:");
-    // no account-linking / command spam in the support bot
-    expect(route).not.toContain('text.startsWith("/start")');
-    expect(route).not.toContain("Доступные команды");
-    expect(route).toContain('result: "ignored"');
+    expect(route).toContain("supportRepliesDisabled: true");
+    expect(route).not.toContain("req.json");
+    expect(route).not.toContain("supportMessage.create");
+    expect(route).not.toContain('role: "STAFF"');
   });
 
-  it("silences the notification bot inside the support group (no /start spam)", () => {
+  it("ignores the old group before storing a webhook idempotency payload", () => {
     const route = source("src/app/api/telegram/webhook/route.ts");
-    expect(route).toContain('result: "support-group-ignored"');
+    const ignore = route.indexOf("supportGroupIgnored: true");
+    const claim = route.indexOf("claimWebhookEvent({");
+    expect(ignore).toBeGreaterThan(-1);
+    expect(claim).toBeGreaterThan(ignore);
   });
 
-  it("exposes a superadmin endpoint to register the support webhook", () => {
+  it("prevents the legacy registration endpoint from restoring reply ingress", () => {
     const route = source("src/app/api/admin/telegram/register-support-webhook/route.ts");
     expect(route).toContain('session?.user?.role !== "SUPERADMIN"');
-    expect(route).toContain("setSupportTelegramWebhook");
+    expect(route).toContain("status: 410");
+    expect(route).not.toContain("setSupportTelegramWebhook");
   });
 });

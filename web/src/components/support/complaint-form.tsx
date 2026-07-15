@@ -6,8 +6,8 @@ import { Check, ChevronDown, Send, ShieldCheck } from "lucide-react";
 // G8 · Жалоба или нарушение.
 //
 // A complaint is a structured support message: category + description POSTed to
-// /api/support/messages, which stores it and forwards it to the Telegram support
-// group. The reply lands in the in-cabinet support chat — no email round-trip.
+// /api/support/messages, which stores it for the first-party support console.
+// The reply lands in the in-cabinet support chat — no email round-trip.
 //
 // N1a: the whole form stays collapsed behind a trigger until the user opens it,
 // so the support page isn't dominated by a big form by default.

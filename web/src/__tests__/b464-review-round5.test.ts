@@ -264,11 +264,11 @@ describe("R18 item 13 — support chat sessions", () => {
     expect(route).toContain("canContinue: c.id === latestId");
   });
 
-  it("staff replies still reach sessions closed by the timeout", () => {
-    const supportHook = read("app/api/telegram/support-webhook/route.ts");
-    expect(supportHook).not.toContain('telegramThreadId: msg.message_thread_id, status: "OPEN"');
-    const mainHook = read("app/api/telegram/webhook/route.ts");
-    expect(mainHook).not.toContain('conversation && conversation.status === "OPEN"');
+  it("closed sessions can be reopened by superadmin before replying", () => {
+    const adminThread = read("app/api/admin/support/conversations/[id]/route.ts");
+    expect(adminThread).toContain('z.enum(["OPEN", "CLOSED"])');
+    expect(adminThread).toContain('error: "Сначала переоткройте обращение"');
+    expect(adminThread).toContain('role: "STAFF"');
   });
 
   it("the chat widget auto-starts with no sessions and offers view/continue with history", () => {
