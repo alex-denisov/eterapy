@@ -26,13 +26,17 @@ describe("B512 §3.1 — global CTA → bordeaux", () => {
   });
 });
 
-describe("B512 §3.2 — desktop chrome", () => {
+describe("B512 §3.2 / R1-2 — desktop chrome", () => {
   const header = source("src/components/header.tsx");
 
-  it("slims the client dropdown to account/logout inside the cabinet (D1)", () => {
-    expect(header).toContain("slim?: boolean");
-    expect(header).toContain("slim={showCabinetBridge}");
-    expect(header).toContain("const menuItems = slim ? []");
+  it("R1-2: landing shows ONE split pill (main → cabinet, chevron → user menu)", () => {
+    expect(header).toContain("soft-user-pill-split");
+    expect(header).toContain("soft-user-pill-main");
+    expect(header).toContain("soft-user-pill-chevron");
+    expect(header).toContain('data-testid="header-cabinet-door"');
+    // Внутри кабинета дропдаун — разделы ЛК (slim-вариант отменён owner'ом).
+    expect(header).not.toContain("slim ? []");
+    expect(header).toContain('label: "Кошелёк"');
   });
 
   it("«Ещё» on the landing bar navigates for clients (href) and keeps the guest sheet", () => {
@@ -105,9 +109,11 @@ describe("B512 — Главная (client-desktop-home-v2 / client-mobile-home-v
     expect(home).not.toContain("осталось дней");
   });
 
-  it("renders the privacy trust strip", () => {
-    expect(home).toContain('data-testid="client-trust-strip"');
-    expect(home).toContain("152-ФЗ");
+  it("renders the privacy trust strip (R1-6: clickable PIN control)", () => {
+    expect(home).toContain("HomePinStrip");
+    const strip = source("src/components/cabinet/home-pin-strip.tsx");
+    expect(strip).toContain('data-testid="client-trust-strip"');
+    expect(strip).toContain("152-ФЗ");
   });
 
   it("keeps crisis-guard and the B464 mechanics intact", () => {

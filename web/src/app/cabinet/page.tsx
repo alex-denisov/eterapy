@@ -2,10 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, Gift, LifeBuoy, Lock, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronDown, Clock, Gift, LifeBuoy, Plus, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { CabinetResultRow } from "@/components/cabinet/cabinet-result-row";
+import { HomePinStrip } from "@/components/cabinet/home-pin-strip";
+import { PinBlurGate } from "@/components/cabinet/pin-blur-gate";
 import db from "@/lib/db";
 import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
@@ -306,6 +308,7 @@ export default async function ClientCabinetPage() {
   // результаты and вопрос дня; desktop: top of the right rail) per the
   // approved mockups. One node, two responsive wrappers.
   const serviceNudgeCard = showMonetization && serviceNudge && serviceNudgeHref ? (
+    <PinBlurGate label="Что дальше по вашей теме">
     <div
       className="soft-card p-5"
       data-testid="diary-recommendation"
@@ -325,6 +328,7 @@ export default async function ClientCabinetPage() {
         </Link>
       </div>
     </div>
+    </PinBlurGate>
   ) : null;
 
   return (
@@ -402,6 +406,8 @@ export default async function ClientCabinetPage() {
       {/* «ваши результаты» — dialogues + product разборы merged (round-4 #3),
           recent 4, meta = «дата, время · категория», «все» → /diary (the full
           разборы list + hidden-item restore live in the Дневник). */}
+      {/* B512 R1-12: приватный блок — под PIN Дневника блюрится по-блочно. */}
+      <PinBlurGate label="Ваши результаты">
       <div className="soft-card p-5" data-testid="client-recent-questions">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="soft-eyebrow">ваши результаты</p>
@@ -435,6 +441,7 @@ export default async function ClientCabinetPage() {
           </div>
         )}
       </div>
+      </PinBlurGate>
 
         {/* Lilac service-nudge — MOBILE slot (между результатами и вопросом
             дня, mockup client-mobile-home-v2). Desktop slot lives in the rail. */}
@@ -507,7 +514,8 @@ export default async function ClientCabinetPage() {
 
         {/* warm diary preview — rotating self-noticing the user owns (un-quoted,
             no «дневник заметил» surveillance framing; round-4 #5): observation /
-            streak echo / entry-count invite, varies by day. */}
+            streak echo / entry-count invite, varies by day. R1-12: приватный. */}
+        <PinBlurGate label="Ваш дневник">
         <div className="soft-card flex items-center gap-4 p-5" data-testid="client-map-preview">
           <div className="min-w-0 flex-1">
             <p className="soft-eyebrow mb-2">ваш дневник</p>
@@ -517,6 +525,65 @@ export default async function ClientCabinetPage() {
           </div>
           <Link href={appUrl("/diary")} className="soft-button soft-button-ghost shrink-0">{diaryCardReco.ctaLabel}</Link>
         </div>
+        </PinBlurGate>
+
+        {/* B512 R1-6 — кликабельный trust-strip: управление PIN-кодом Дневника
+            прямо с Главной (та же модалка, что в разделе «Дневник»). R1-5: блок
+            переехал в ЛЕВУЮ колонку, чтобы rail не оставлял пустоту слева. */}
+        <HomePinStrip />
+
+        {/* Time-boxed onboarding «первые шаги» — auto-hides once every reward
+            is granted; collapsed by default. R1-5: в левой колонке. R1-10:
+            явный CTA-призыв развернуть блок. */}
+        {missionChecklist.completedCount < missionChecklist.totalCount && (
+          <details className="soft-card mb-4 p-5" data-testid="client-first-steps" open={false}>
+            <summary className="group flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
+              <div className="min-w-0">
+                <p className="soft-eyebrow">первые шаги</p>
+                <h2 className="soft-h3 mt-2">
+                  {missionChecklist.completedCount} из {missionChecklist.totalCount} — осталось немного
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                  Награды начисляются за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)}. Блок исчезнет, когда закончите.
+                </p>
+                <span
+                  className="soft-chip mt-3 inline-flex items-center gap-1.5"
+                  data-testid="client-first-steps-cta"
+                >
+                  <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  <span className="group-open:hidden">Показать шаги</span>
+                  <span className="hidden group-open:inline">Свернуть</span>
+                </span>
+              </div>
+            </summary>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {missionChecklist.items.map((mission) => (
+                <Link
+                  key={mission.key}
+                  href={missionHref(mission.actionHref)}
+                  className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
+                  data-testid={`client-mission-${mission.key}`}
+                  style={{ background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)", color: "var(--soft-ink)" }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
+                      +{mission.rewardCredits} {pointsWord(mission.rewardCredits)}
+                    </span>
+                    {mission.completed ? (
+                      <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
+                    ) : (
+                      <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
+                  <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                    {mission.completed ? "получено" : mission.description}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
       {/* ── rail (right column on desktop, mockup order: nudge · встреча ·
@@ -525,7 +592,9 @@ export default async function ClientCabinetPage() {
         {/* Lilac service-nudge — DESKTOP slot (top of the rail). */}
         {serviceNudgeCard && <div className="hidden md:block">{serviceNudgeCard}</div>}
 
-        {/* Next meeting / continue-with-specialist / explore. */}
+        {/* Next meeting / continue-with-specialist / explore.
+            R1-12: приватный блок — работа со специалистом видна только после PIN. */}
+        <PinBlurGate label="Работа со специалистом">
         {upcomingBooking ? (
           <section className="soft-card p-5" style={{ borderLeft: "3px solid var(--soft-bordeaux)" }} data-testid="client-next-meeting">
             <p className="soft-eyebrow">ближайшая встреча</p>
@@ -577,6 +646,7 @@ export default async function ClientCabinetPage() {
             <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost mt-4 shrink-0">Посмотреть специалистов</Link>
           </section>
         )}
+        </PinBlurGate>
 
         {/* Кошелёк — B512 rail card (mockup): баланс + тёплая строка срока
             действия баллов (P6, честно и без таймера) + спокойный top-up. */}
@@ -696,70 +766,6 @@ export default async function ClientCabinetPage() {
         )}
       </div>
       </div>
-
-      {/* Trust strip — приватность (mockup): разборы и дневник видит только
-          владелец; PIN на дневнике; 152-ФЗ. */}
-      <div
-        className="mb-4 mt-4 flex items-center gap-3.5 rounded-[13px] border border-[var(--soft-paper-edge)] px-4 py-3"
-        data-testid="client-trust-strip"
-        style={{ background: "color-mix(in srgb, var(--soft-paper-deep) 62%, var(--soft-paper))" }}
-      >
-        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]" style={{ color: "var(--soft-sage-ink, #4B6146)" }}>
-          <Lock className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-medium" style={{ color: "var(--soft-ink)" }}>Ваши разборы и Дневник видите только вы</p>
-          <p className="text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>Дневник можно закрыть PIN-кодом. Хранение и обработка — по 152-ФЗ.</p>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold" style={{ background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" }}>
-          <CheckCircle2 className="size-3" aria-hidden="true" />
-          Приватно
-        </span>
-      </div>
-
-      {/* Time-boxed onboarding «первые шаги» — auto-hides once every reward is
-          granted; collapsed by default. */}
-      {missionChecklist.completedCount < missionChecklist.totalCount && (
-        <details className="soft-card mb-4 p-5" data-testid="client-first-steps" open={false}>
-          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="soft-eyebrow">первые шаги</p>
-              <h2 className="soft-h3 mt-2">
-                {missionChecklist.completedCount} из {missionChecklist.totalCount} — осталось немного
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                Награды начисляются за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)}. Блок исчезнет, когда закончите.
-              </p>
-            </div>
-          </summary>
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
-            {missionChecklist.items.map((mission) => (
-              <Link
-                key={mission.key}
-                href={missionHref(mission.actionHref)}
-                className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
-                data-testid={`client-mission-${mission.key}`}
-                style={{ background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)", color: "var(--soft-ink)" }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
-                    +{mission.rewardCredits} {pointsWord(mission.rewardCredits)}
-                  </span>
-                  {mission.completed ? (
-                    <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
-                  ) : (
-                    <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                  )}
-                </div>
-                <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
-                <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                  {mission.completed ? "получено" : mission.description}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </details>
-      )}
     </div>
   );
 }

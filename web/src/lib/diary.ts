@@ -155,8 +155,10 @@ export async function listDiaryItems(
       where: {
         userId,
         deletedAt: null,
+        // B512 R1-7 (owner 2026-07-15): ВСЕ готовые разборы попадают в Дневник
+        // автоматически — ручной шаг «Сохранить» больше не требуется (фильтр
+        // savedAt снят; скрытие/удаление по-прежнему уважаются).
         status: "READY",
-        savedAt: { not: null },
       },
       orderBy: { updatedAt: "desc" },
       take: 40,

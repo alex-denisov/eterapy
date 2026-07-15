@@ -15,6 +15,14 @@ export function useClarityCreditBalance(enabled: boolean) {
     fetch("/api/billing/transactions")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
+        // B512 R1-3 — единственный источник истины: серверный баланс
+        // (getClarityCreditBalance по ПОЛНОМУ леджеру). Суммирование последних
+        // 50 записей из ответа расходилось с реальным балансом и оставлено
+        // только как fallback для кэшированных старых ответов.
+        if (typeof d?.clarityCreditBalance === "number") {
+          setCredits(Math.max(0, d.clarityCreditBalance));
+          return;
+        }
         const balance = Array.isArray(d?.clarityCredits)
           ? d.clarityCredits
               .filter((entry: { status?: string }) => entry.status === "confirmed")

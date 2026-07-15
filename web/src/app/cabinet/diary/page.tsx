@@ -12,7 +12,8 @@ import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { practiceWeekDays, startOfPracticeWeek } from "@/lib/weekly-summary";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { daysWord, effectivePracticeStreak } from "@/lib/streak-display";
-import { listJournalEntries, type JournalEntry } from "@/lib/journal-entries";
+import { listJournalEntries } from "@/lib/journal-entries";
+import { JournalCardsStrip } from "@/components/cabinet/journal-cards-strip";
 import { topObservation } from "@/lib/diary-recommendation";
 import { deepeningForTopic } from "@/lib/cabinet-recommendations";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
@@ -40,39 +41,6 @@ function mapItemStatusRu(kind: DiaryItemKind, status: string): string {
 }
 
 // B464 IB2: one journaling-history entry (question + expandable взгляд/шаг).
-function JournalEntryCard({ entry }: { entry: JournalEntry }) {
-  const hasBeats = Boolean(entry.perspective || entry.step);
-  return (
-    <details className="rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="diary-journal-entry">
-      <summary className="cursor-pointer list-none">
-        <span className="text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>
-          {entry.date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} · {entry.own ? "ваш вопрос" : "вопрос дня"}
-        </span>
-        <p className="soft-italic mt-1" style={{ fontSize: 16, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>«{entry.question}»</p>
-        {hasBeats && (
-          <span className="mt-1.5 inline-block text-[12.5px]" style={{ color: "var(--soft-ink-faint)" }}>посмотреть взгляд и шаг ↓</span>
-        )}
-      </summary>
-      {hasBeats && (
-        <div className="mt-3 space-y-3 border-t border-[var(--soft-paper-edge)] pt-3">
-          {entry.perspective && (
-            <div>
-              <p className="soft-eyebrow">взгляд дня</p>
-              <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{entry.perspective}</p>
-            </div>
-          )}
-          {entry.step && (
-            <div>
-              <p className="soft-eyebrow">маленький шаг</p>
-              <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{entry.step}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </details>
-  );
-}
-
 async function hideMapItem(formData: FormData) {
   "use server";
   const session = await auth();
@@ -242,7 +210,8 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
       select: { cardDate: true },
     }),
     getPracticeStreakSnapshot(userId),
-    listJournalEntries(userId, 30),
+    // B512 R1-8: в полосе карточек показываем только последние 7 дней.
+    listJournalEntries(userId, 7),
   ]);
 
   const hiddenCount = allItems.filter((item) => item.hidden).length;
@@ -358,19 +327,27 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      {/* Journaling history «ваши записи» (owner #1) — EVERY completed practice
-          day (round-4 #12): свой вопрос или вопрос дня, recent 4 + «показать ещё». */}
+      {/* Journaling history «ваши записи» — B512 R1-8 (owner 2026-07-15):
+          последние 7 дней компактными квадратными карточками в ряд (календарь
+          заданных вопросов); клик по карточке раскрывает её контент снизу. */}
       {journalEntries.length > 0 && (
         <section className="soft-card mb-4 p-5" data-testid="diary-journal-history">
           <p className="soft-eyebrow">ваши записи</p>
           <p className="mb-3 mt-1 text-[12.5px]" style={{ color: "var(--soft-ink-faint)" }}>
-            Здесь каждый день, когда вы отвечали на вопрос дня, — ваш вопрос, взгляд и маленький шаг.
+            Последние 7 дней практики — выберите день, чтобы увидеть вопрос, взгляд и маленький шаг.
           </p>
-          <RevealList initial={4} step={4} className="grid gap-2.5" moreLabel="Показать ещё">
-            {journalEntries.map((entry) => (
-              <JournalEntryCard key={entry.id} entry={entry} />
-            ))}
-          </RevealList>
+          <JournalCardsStrip
+            entries={journalEntries.slice(0, 7).map((entry) => ({
+              id: entry.id,
+              dayLabel: String(entry.date.getDate()),
+              monthLabel: entry.date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", ""),
+              fullDateLabel: entry.date.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }),
+              question: entry.question,
+              own: entry.own,
+              perspective: entry.perspective,
+              step: entry.step,
+            }))}
+          />
         </section>
       )}
 

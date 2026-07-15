@@ -123,6 +123,7 @@ export function SynastryResultView({
 
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="synastry"
       eyebrow="совместимость по звёздам"
       heading="Ваша карта пары"

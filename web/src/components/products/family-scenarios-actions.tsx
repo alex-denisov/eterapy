@@ -98,6 +98,7 @@ export function FamilyScenariosResultView({
 
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="family-scenarios"
       eyebrow="семейные сценарии"
       heading="Карта повторов вашего рода"

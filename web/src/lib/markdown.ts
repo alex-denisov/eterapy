@@ -53,13 +53,16 @@ export function normalizeMarkdownLists(markdown: string): string {
         .replace(/^\s*\d{1,3}[.)]\s*$/, "")
         .replace(/^\s*[•–—]\s+/, "- ")
         .replace(/^\s*(\d{1,3})\)\s+/, "$1. ");
+      // B512 R1-11d: inline-разворачивание применяется к «1. … 2. …» и «• … • …»,
+      // но НЕ к голым дефисам — в русском тексте «слово - слово» это тире, и
+      // прежняя эвристика резала обычные предложения на псевдо-списки.
       const orderedMarkers = [...line.matchAll(/(?:^|\s)\d{1,2}[.)]\s+/g)];
-      const bulletMarkers = [...line.matchAll(/(?:^|\s)[•-]\s+/g)];
+      const bulletMarkers = [...line.matchAll(/(?:^|\s)•\s+/g)];
       if (orderedMarkers.length + bulletMarkers.length < 2) return [line];
 
       line = line
         .replace(/\s+(?=\d{1,2}[.)]\s+)/g, "\n")
-        .replace(/\s+(?=[•-]\s+)/g, "\n")
+        .replace(/\s+(?=•\s+)/g, "\n")
         .replace(/^•\s+/gm, "- ");
       return line.split("\n");
     })

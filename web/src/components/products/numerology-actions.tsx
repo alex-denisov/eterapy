@@ -212,6 +212,7 @@ export function NumerologyResultView({
 
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="numerology"
       eyebrow="матрица судьбы · 22 энергии"
       heading="Ваша Матрица судьбы"

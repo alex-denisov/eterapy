@@ -612,6 +612,39 @@
     background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
   }
 
+  /* B512 R1-2 — split-пилюля «Кабинет | ▾» на лендинге: основная часть ведёт
+     в кабинет, стрелка открывает меню пользователя; визуально ОДНА пилюля. */
+  .soft-user-pill-split {
+    display: inline-flex;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .soft-user-pill-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 100%;
+    padding: 0 0.5rem 0 0.4rem;
+    color: inherit;
+  }
+
+  .soft-user-pill-main:hover {
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-user-pill-chevron {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 0.55rem 0 0.4rem;
+    border-left: 1px solid var(--soft-paper-edge);
+  }
+
+  .soft-user-pill-chevron:hover {
+    background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
+  }
+
   /* B512 §3.3 — в мобильном appbar кабинета клиента колокольчик — скруглённый
      КВАДРАТ (r12, 38px) как практикский .iconbtn; чип баллов рядом остаётся
      пилюлей. Только внутри .client-mobile-appbar, хедер не затронут. */
@@ -4419,10 +4452,12 @@
      it glues to the sticky header (no top padding), the left screen edge
      (the layout goes full-bleed) and the footer (the grid row stretches to
      the layout bottom; the column carries the background/border so the
-     surface runs past the sticky nav down to the footer). Client cabinet
-     keeps the centered .soft-shell layout until B512. */
+     surface runs past the sticky nav down to the footer).
+     B512 R1-4 (owner 2026-07-15): клиентский сайдбар — ТАКОЙ ЖЕ sticky, как у
+     практика; схема распространена на CLIENT. */
   @media (min-width: 768px) {
-    .soft-app-shell[data-shell-role="PRACTITIONER"] .soft-app-layout {
+    .soft-app-shell[data-shell-role="PRACTITIONER"] .soft-app-layout,
+    .soft-app-shell[data-shell-role="CLIENT"] .soft-app-layout {
       width: 100%;
       margin-inline: 0;
       padding-block: 0;

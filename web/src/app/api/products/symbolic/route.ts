@@ -7,6 +7,8 @@ import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
+import { getProductLabel } from "@/lib/billing-labels";
 import { parseStrictBirthDate } from "@/lib/destiny-matrix";
 import { canResolveAstrologicalLocation } from "@/lib/natal-ephemeris";
 import { classifyProductSafety } from "@/lib/product-safety";
@@ -71,6 +73,41 @@ function serializeResult(result: {
 function parseProductKey(value: string | null): SymbolicProductKey | null {
   if (!value || !isSymbolicProductKey(value)) return null;
   return value;
+}
+
+// B512 R1-11 — компактная история тем клиента для «Семейных сценариев»:
+// доминирующие темы его вопросов + заголовки последних готовых разборов.
+// Только первопартийные данные самого клиента; ошибки БД не валят генерацию.
+async function buildFamilyClientContext(userId: string): Promise<string | undefined> {
+  try {
+    const [topicGroups, recentResults] = await Promise.all([
+      db.dialogue.groupBy({
+        by: ["topic"],
+        where: { userId, deletedAt: null, topic: { not: null } },
+        _count: { _all: true },
+      }),
+      db.productResult.findMany({
+        where: { userId, deletedAt: null, status: "READY", productKey: { not: "family-scenarios" } },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: { title: true, productKey: true },
+      }),
+    ]);
+    const topics = topicGroups
+      .filter((group) => group.topic)
+      .sort((a, b) => b._count._all - a._count._all)
+      .slice(0, 5)
+      .map((group) => `${dialogueTopicLabelRu(group.topic)} × ${group._count._all}`);
+    const results = recentResults.map((result) => `«${result.title}» (${getProductLabel(result.productKey) || result.productKey})`);
+    if (topics.length === 0 && results.length === 0) return undefined;
+    return [
+      "ИСТОРИЯ ТЕМ КЛИЕНТА НА ПЛАТФОРМЕ (его собственные вопросы и разборы; используй как контекст повторов и явно связывай карту рода с этими темами, но не цитируй дословно и не выдавай за семейные факты):",
+      topics.length > 0 ? `Темы вопросов: ${topics.join("; ")}.` : "",
+      results.length > 0 ? `Недавние разборы: ${results.join("; ")}.` : "",
+    ].filter(Boolean).join("\n");
+  } catch {
+    return undefined;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -177,6 +214,13 @@ export async function POST(request: NextRequest) {
     ...(productKey === "tarot" && parsed.data.tarotTheme ? { tarotTheme: parsed.data.tarotTheme } : {}),
     ...(fixedAt ? { fixedAt: fixedAt.toISOString() } : {}),
   };
+  // B512 R1-11 — «Семейные сценарии» активируются платформой по истории тем
+  // клиента, поэтому карта рода ОБЯЗАНА опираться на его прошлые вопросы и
+  // разборы. Передаём компактную первопартийную сводку в системный промт.
+  const clientContextNote = productKey === "family-scenarios"
+    ? await buildFamilyClientContext(userId)
+    : undefined;
+
   const generated = await generateSymbolicProductResult({
     productKey,
     userInput,
@@ -184,6 +228,7 @@ export async function POST(request: NextRequest) {
     requestId: context.requestId,
     tarotSpread: parsed.data.tarotSpread,
     tarotTheme: parsed.data.tarotTheme,
+    clientContextNote,
   });
   const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });
 

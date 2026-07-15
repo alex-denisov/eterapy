@@ -342,21 +342,16 @@ export function CabinetShell({
   return (
     <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
       <div className="soft-shell soft-app-layout">
-      {/* Sidebar — v4.2 card-style navigation. B466 owner-fix 2026-07-14 #1:
-          practitioner desktop sidebar is a full-bleed column glued to the
-          header, the left screen edge and the footer (the grid row stretches
-          to the layout height); the nav itself stays sticky inside it. The
-          client sidebar keeps the original floating card until B512. */}
+      {/* Sidebar — v4.2 card-style navigation. B466 owner-fix #1 + B512 R1-4:
+          BOTH cabinets get the full-bleed column glued to the header, the left
+          screen edge and the footer (the grid row stretches to the layout
+          height); the nav itself stays sticky inside it. */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className={
-          isPractitionerBar
-            ? "soft-app-sidebar-col hidden shrink-0 md:block"
-            : "sticky top-16 hidden shrink-0 self-start md:flex"
-        }
+        className="soft-app-sidebar-col hidden shrink-0 md:block"
       >
-        <div className={`soft-app-sidebar-card flex flex-col overflow-hidden p-3.5${isPractitionerBar ? " sticky top-16" : ""}`}>
+        <div className="soft-app-sidebar-card sticky top-16 flex flex-col overflow-hidden p-3.5">
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">

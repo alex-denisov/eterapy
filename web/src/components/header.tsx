@@ -141,7 +141,7 @@ function MoneyBalanceLink({
   );
 }
 
-function UserMenu({ session, cabinetDoor, slim, className }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string }; slim?: boolean; className?: string }) {
+function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string }; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -158,10 +158,9 @@ function UserMenu({ session, cabinetDoor, slim, className }: { session: NonNulla
   // (CLIENT_NAV / PRACTITIONER_NAV in components/cabinet/cabinet-shell.tsx)
   // one-to-one, including order, labels and icons. Admin/superadmin use a
   // curated subset of the admin shell entry points.
-  // B512 (D1): `slim` — inside the cabinet on desktop the sidebar already
-  // carries the full navigation, so the dropdown collapses to account/logout
-  // only (no third copy of the nav).
-  const menuItems = slim ? [] : role === "PRACTITIONER" ? [
+  // B512 R1-2 (owner 2026-07-15): внутри кабинета дропдаун — это «выпадающее
+  // меню разделов личного кабинета» (slim-вариант без разделов отменён).
+  const menuItems = role === "PRACTITIONER" ? [
     // B466: mirrors the «Practice cockpit» sidebar (PRACTITIONER_TABS) one-to-one.
     { href: appUrl("/practitioner"), label: "Сегодня", icon: Sun },
     { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Users },
@@ -258,19 +257,20 @@ function UserMenu({ session, cabinetDoor, slim, className }: { session: NonNulla
 
   return (
     <div ref={ref} className={cn("relative flex items-center gap-1", className)} onKeyDown={handleKeyDown}>
-      {/* B464 IB0: on the landing a client gets a labeled «Кабинет» DOOR (click →
-          cabinet) plus a chevron that opens the quick-jump dropdown. Elsewhere
+      {/* B464 IB0 / B512 R1-2: on the landing a client gets ONE split pill —
+          the main segment (avatar + «Кабинет») navigates into the cabinet, the
+          attached chevron segment opens the user-menu dropdown. Elsewhere
           (inside the cabinet, or for practitioner/staff) the pill keeps the
           account-menu behaviour and shows the user's name. */}
       {cabinetDoor ? (
-        <>
+        <span className="soft-user-pill soft-user-pill-split" data-testid="header-cabinet-door-pill">
           <Link
             href={cabinetDoor.href}
             prefetch={false}
-            className="soft-user-pill"
+            className="soft-user-pill-main"
             data-testid="header-cabinet-door"
           >
-            <span className="-ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
               {name.charAt(0).toUpperCase()}
             </span>
             <span className="hidden md:block">Кабинет</span>
@@ -280,12 +280,12 @@ function UserMenu({ session, cabinetDoor, slim, className }: { session: NonNulla
             onClick={() => setOpen(!open)}
             aria-expanded={open}
             aria-haspopup="menu"
-            aria-label="Меню кабинета"
-            className="soft-user-icon"
+            aria-label="Меню пользователя"
+            className="soft-user-pill-chevron"
           >
             <ChevronDown className={cn("size-3.5 text-[var(--soft-ink-faint)] transition-transform", open && "rotate-180")} aria-hidden="true" />
           </button>
-        </>
+        </span>
       ) : (
         <button
           ref={triggerRef}
@@ -603,7 +603,6 @@ export function Header() {
               <UserMenu
                 session={session}
                 cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}
-                slim={showCabinetBridge}
                 className={cabinetMobileBellOnly ? "hidden md:flex" : undefined}
               />
               {/* B321: ALL header items at canonical v4.2 user-pill height —

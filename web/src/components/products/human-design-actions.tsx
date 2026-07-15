@@ -112,6 +112,7 @@ export function HumanDesignResultView({
 
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="human-design"
       eyebrow="дизайн человека"
       heading="Ваш дизайн человека"

@@ -119,6 +119,7 @@ export function NatalResultView({
 
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="natal-chart"
       eyebrow="натальная карта"
       heading="Ваша карта неба"

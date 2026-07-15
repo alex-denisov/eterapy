@@ -303,6 +303,7 @@ export function SurnameStoryResultView({ result, recap, onStartNew, creditCost }
   ].filter((row): row is { label: string; value: string } => row !== null);
   return (
     <SymbolicResultScaffold
+      resultId={result.id}
       productKey="surname-story"
       eyebrow="число фамилии · Старший Аркан · родовой сценарий"
       heading="Кармический аудит рода"
