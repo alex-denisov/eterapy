@@ -91,7 +91,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/ops/logs"),     icon: BookOpenText,         label: "Журналы и аудит", section: "ops", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/ops/security"), icon: FileSearch,           label: "Безопасность и инциденты", section: "ops", level: 1, permission: "system.read" },
 
-  { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка", section: "support", level: 0 },
+  { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка", section: "support", level: 0, permission: "support.manage" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -108,6 +108,7 @@ function canonicalAdminPath(pathname: string) {
 
 // X9: section key for the sidebar unread badge, derived from the nav href.
 function navCountKey(href: string): string | null {
+  if (href.endsWith("/admin/support")) return "support";
   if (href.endsWith("/admin/product/quality")) return "quality";
   if (href.endsWith("/admin/product/sessions")) return "bookings";
   return null;

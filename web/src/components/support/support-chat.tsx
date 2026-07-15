@@ -4,10 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, MessageCircle, Plus, Send } from "lucide-react";
 import type { SupportSessionSummary } from "@/lib/support-sessions";
 
-// B333: in-cabinet support chat widget. Polls /api/support/messages every
-// 3 seconds for staff replies that arrive through the Telegram webhook;
-// POSTs user messages to the same endpoint, which forwards to the support
-// TG group.
+// B482: in-cabinet support chat widget. Polls /api/support/messages every
+// 3 seconds for replies written in the superadmin console and POSTs user
+// messages to the first-party support store.
 //
 // B464 round-5 #13 — СЕССИИ: если у клиента ещё не было обращений, чат
 // стартует сессию автоматически первым сообщением. Если сессии были — сначала

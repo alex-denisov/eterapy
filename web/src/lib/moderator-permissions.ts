@@ -17,6 +17,7 @@ export const ALL_PERMISSIONS = [
   "practitioners.payout", "practitioners.verify", "practitioners.manage_reports",
   "practitioners.manage_documents",
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
+  "support.manage",
   "payments.refund", "subscriptions.manage", "notifications.diagnose",
   "practitioner_pro.manage", "content.configure", "seo.manage",
   "analytics.view", "ai.configure", "legal.cross_border.manage", "system.read", "system.operate",
@@ -27,6 +28,7 @@ export type Permission = typeof ALL_PERMISSIONS[number];
 export const V5_REQUIRED_PERMISSIONS: Permission[] = [
   "users.view", "users.create", "users.edit", "users.delete", "users.block",
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
+  "support.manage",
   "analytics.view", "payments.refund", "subscriptions.manage",
   "notifications.diagnose", "practitioners.verify", "practitioners.manage_reports",
   "practitioners.manage_documents", "practitioner_pro.manage",
