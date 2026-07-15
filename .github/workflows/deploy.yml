@@ -521,7 +521,7 @@ jobs:
 
           STATUS_LINE="$(icon "$INSTALL_RESULT") install · $(icon "$TEST_RESULT") test · $(icon "$BUILD_RESULT") build · $(icon "$DEPLOY_RESULT") deploy · $(icon "$VERIFY_RESULT") verify"
 
-          SHORT_SHA="${GH_SHA:0:7}"
+          SHORT_SHA="${GH_SHA:0:8}"
           FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1)
           if [ ${#FIRST_LINE} -gt 200 ]; then
             FIRST_LINE="${FIRST_LINE:0:200}…"

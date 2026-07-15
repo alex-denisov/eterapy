@@ -30,4 +30,11 @@ describe("production runtime", () => {
     expect(workflow).toContain("eterapy-worker PM2");
     expect(workflow).toContain('if [ "$WORKER_STATUS" != "online" ]; then');
   });
+
+  it("shows the complete eight-character operational SHA in deploy notifications", () => {
+    const workflow = source(".github/workflows/deploy.yml");
+
+    expect(workflow).toContain('SHORT_SHA="${GH_SHA:0:8}"');
+    expect(workflow).not.toContain('SHORT_SHA="${GH_SHA:0:7}"');
+  });
 });

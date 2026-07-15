@@ -3,9 +3,8 @@ name: Sync Staging DB from Production
 on:
   workflow_dispatch:
   schedule:
-    # Hourly interim mitigation for the 502 window during the destructive
-    # in-place restore (staging is down for the whole dump->restore). Proper
-    # zero-downtime fix tracked in B513 (restore-into-scratch-DB-then-swap).
+    # B513: hourly A/B refresh. Restore and migrations happen against the
+    # inactive database; staging only switches on a graceful PM2 reload.
     - cron: '0 * * * *'
 
 concurrency:
