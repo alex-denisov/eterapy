@@ -3,6 +3,7 @@ import { usersDb } from "@/lib/users-db";
 import { logAudit } from "@/lib/audit";
 import { log } from "@/lib/logger";
 import { grantWelcomeCredits } from "@/lib/welcome-credits";
+import { confirmReferralOnVerification } from "@/lib/share-referral";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,12 +18,19 @@ export async function POST(req: NextRequest) {
 
     await usersDb.update(user.email, {
       emailVerified: true,
-      verificationToken: null,
-      verificationExpires: null,
     });
 
     void grantWelcomeCredits({ request: req, userId: user.id }).catch((error) => {
       log.warn("welcome_credits.grant_failed", { userId: user.id, errorName: error instanceof Error ? error.name : "unknown" });
+    });
+    // B464: the verified-email referral gate must finish before the request
+    // ends or a serverless/runtime boundary could discard the transaction.
+    await confirmReferralOnVerification({ request: req, userId: user.id });
+    // Clear the token only after the idempotent referral grant finishes. A
+    // transient failure therefore remains retryable until the original expiry.
+    await usersDb.update(user.email, {
+      verificationToken: null,
+      verificationExpires: null,
     });
 
     await logAudit(user.id, "EMAIL_VERIFY", undefined, "Email подтверждён");

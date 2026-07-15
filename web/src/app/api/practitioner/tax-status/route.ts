@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     session.user.id,
     "TAX_STATUS_VERIFIED",
     undefined,
-    `Налоговый статус подтверждён: ${TAX_STATUS_LABELS[status]} · ИНН ${validation.inn} · источник ${identity.source}`,
+    `Налоговый статус подтверждён: ${TAX_STATUS_LABELS[status]} · источник ${identity.source}`,
   );
 
   return NextResponse.json({ ok: true, verifiedAt: verifiedAt.toISOString() });

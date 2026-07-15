@@ -4,6 +4,8 @@ import {
   validateInn,
   TAX_STATUS_LABELS,
 } from "@/lib/practitioner-tax-verification";
+import { lookupTaxIdentity } from "@/lib/practitioner-tax-verification-provider";
+import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
 
 // B466/B483 — «Налоговый статус»: ИНН обязателен, 12 цифр (самозанятый/ИП) /
 // 10 (юр. лицо), только цифры, контрольные суммы ФНС.
@@ -85,6 +87,92 @@ describe("B483 tax-status flow (source contracts)", () => {
   it("uses an explicit provider switch that cannot silently fake ФНС", () => {
     const provider = source("src/lib/practitioner-tax-verification-provider.ts");
     expect(provider).toContain("TAX_VERIFICATION_PROVIDER");
-    expect(provider).toContain("is not implemented yet (B483)");
+    expect(provider).toContain("statusnpd.nalog.ru/api/v1/tracker/taxpayer_status");
+    expect(provider).toContain("FNS EGRUL/EGRIP subscriber access is not configured");
+  });
+});
+
+describe("B483 official FNS NPD provider", () => {
+  const originalProvider = process.env.TAX_VERIFICATION_PROVIDER;
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.TAX_VERIFICATION_PROVIDER = "fns";
+    resetAuthRateLimitForTests();
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    if (originalProvider === undefined) delete process.env.TAX_VERIFICATION_PROVIDER;
+    else process.env.TAX_VERIFICATION_PROVIDER = originalProvider;
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("posts INN and date to the public NPD status endpoint", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: true, message: "registered" }),
+    });
+
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "SELF_EMPLOYED",
+      fallbackDisplayName: "Тестовый практик",
+    })).resolves.toMatchObject({ active: true, source: "fns-npd" });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://statusnpd.nalog.ru/api/v1/tracker/taxpayer_status",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringMatching(/"inn":"500100732259".*"requestDate":"\d{4}-\d{2}-\d{2}"/),
+      }),
+    );
+  });
+
+  it("returns inactive when FNS does not confirm NPD", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: false, message: "not registered" }),
+    });
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "SELF_EMPLOYED",
+      fallbackDisplayName: "Тестовый практик",
+    })).resolves.toMatchObject({ active: false, source: "fns-npd" });
+  });
+
+  it("fails closed for IP and legal entities without registry access", async () => {
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "INDIVIDUAL_ENTREPRENEUR",
+      fallbackDisplayName: "Тестовый практик",
+    })).rejects.toThrow("subscriber access is not configured");
+  });
+
+  it("fails closed when the provider is explicitly disabled", async () => {
+    process.env.TAX_VERIFICATION_PROVIDER = "disabled";
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "SELF_EMPLOYED",
+      fallbackDisplayName: "Тестовый практик",
+    })).rejects.toThrow("INN ownership is verified");
+  });
+
+  it("enforces the official two-request-per-minute source-IP budget", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: true, message: "registered" }),
+    });
+    const query = {
+      inn: "500100732259",
+      status: "SELF_EMPLOYED" as const,
+      fallbackDisplayName: "Тестовый практик",
+    };
+
+    await lookupTaxIdentity(query);
+    await lookupTaxIdentity(query);
+    await expect(lookupTaxIdentity(query)).rejects.toThrow("rate is temporarily exhausted");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

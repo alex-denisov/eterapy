@@ -479,7 +479,7 @@ export function Header() {
       data-testid="public-shell-header"
       data-site-chrome="header"
       className={cn(
-        "sticky top-0 z-50 border-b border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]/90 shadow-[0_8px_38px_rgba(60,30,20,0.08)] backdrop-blur-xl",
+        "sticky top-0 z-50 border-b border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)] shadow-[0_8px_38px_rgba(60,30,20,0.08)]",
         softPublicHeader && "soft-header",
       )}
     >

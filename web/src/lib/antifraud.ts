@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { CLIENT_FINGERPRINT_COOKIE } from "@/lib/guest-fingerprint";
 
 const REFERRAL_DAILY_REWARD_LIMIT = 5;
+export const REFERRAL_MONTHLY_CREDIT_LIMIT = 20;
 const HIGH_RISK_SCORE = 70;
 
 function sha(value: string) {
@@ -84,6 +85,7 @@ export async function assessReferralRisk(input: {
    * «дубликат» — исключаем эту атрибуцию из duplicate-проверки.
    */
   excludeAttributionId?: string | null;
+  proposedReferrerRewardCredits?: number;
 }) {
   const flags = new Set<string>();
   let score = 0;
@@ -95,7 +97,16 @@ export async function assessReferralRisk(input: {
     score += 100;
   }
 
-  const [sameIpDay, sameDeviceDay, rewardsToday, rewardsMonth, duplicateUser] = await Promise.all([
+  // B464: serialize budget checks and grants for one referrer. Without a
+  // transaction-scoped lock, concurrent READ COMMITTED transactions can both
+  // observe room under the 20-credit cap and commit above it.
+  if (input.referrerUserId) {
+    await input.tx.$queryRaw`
+      SELECT pg_advisory_xact_lock(hashtextextended(${input.referrerUserId}, 0))
+    `;
+  }
+
+  const [sameIpDay, sameDeviceDay, rewardsToday, rewardsMonth, duplicateUser, referrerSameDevice, referralUsers] = await Promise.all([
     input.tx.referralAttribution.count({
       where: { ipHash: input.fingerprint.ipHash, createdAt: { gte: sinceDay } },
     }),
@@ -116,7 +127,8 @@ export async function assessReferralRisk(input: {
         })
       : Promise.resolve(0),
     input.referrerUserId
-      ? input.tx.clarityCreditLedgerEntry.count({
+      ? input.tx.clarityCreditLedgerEntry.aggregate({
+          _sum: { amount: true },
           where: {
             userId: input.referrerUserId,
             source: "referral",
@@ -125,7 +137,7 @@ export async function assessReferralRisk(input: {
             status: { in: ["pending", "confirmed"] },
           },
         })
-      : Promise.resolve(0),
+      : Promise.resolve({ _sum: { amount: null } }),
     input.referredUserId
       ? input.tx.referralAttribution.count({
           where: {
@@ -135,6 +147,21 @@ export async function assessReferralRisk(input: {
           },
         })
       : Promise.resolve(0),
+    input.referrerUserId && input.fingerprint.deviceHash
+      ? input.tx.referralAttribution.count({
+          where: {
+            deviceHash: input.fingerprint.deviceHash,
+            referrerUserId: input.referrerUserId,
+            ...(input.excludeAttributionId ? { id: { not: input.excludeAttributionId } } : {}),
+          },
+        })
+      : Promise.resolve(0),
+    input.referrerUserId && input.referredUserId
+      ? input.tx.user.findMany({
+          where: { id: { in: [input.referrerUserId, input.referredUserId] } },
+          select: { id: true, normalizedEmail: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   if (sameIpDay >= 5) {
@@ -149,13 +176,25 @@ export async function assessReferralRisk(input: {
     flags.add("daily_referral_reward_limit");
     score += 80;
   }
-  if (rewardsMonth >= 50) {
+  const monthlyRewardCredits = rewardsMonth._sum.amount ?? 0;
+  if (monthlyRewardCredits + (input.proposedReferrerRewardCredits ?? 0) > REFERRAL_MONTHLY_CREDIT_LIMIT) {
     flags.add("monthly_referral_reward_limit");
     score += 80;
   }
   if (duplicateUser > 0) {
     flags.add("duplicate_referred_user_reward");
     score += 60;
+  }
+  if (referrerSameDevice > 0) {
+    flags.add("referrer_same_device");
+    score += 100;
+  }
+  const normalizedEmails = referralUsers
+    .map((user) => user.normalizedEmail)
+    .filter((email): email is string => Boolean(email));
+  if (normalizedEmails.length === 2 && normalizedEmails[0] === normalizedEmails[1]) {
+    flags.add("referrer_same_normalized_email");
+    score += 100;
   }
 
   return {
@@ -167,6 +206,7 @@ export async function assessReferralRisk(input: {
       score >= HIGH_RISK_SCORE
       || flags.has("self_referral")
       || flags.has("daily_referral_reward_limit")
+      || flags.has("monthly_referral_reward_limit")
       || flags.has("duplicate_referred_user_reward"),
   };
 }

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Путь от вопроса к следующему шагу в ETerapy</title>
+  <desc id="desc">Четыре этапа: вопрос, уточнение, первичный разбор и выбор продолжения</desc>
+  <rect width="1200" height="360" rx="36" fill="#fffaf2"/>
+  <path d="M194 180H1006" stroke="#d7b9a7" stroke-width="4" stroke-linecap="round"/>
+  <g font-family="sans-serif" text-anchor="middle">
+    <g transform="translate(170 180)">
+      <circle r="70" fill="#f4d9c1"/>
+      <text y="-8" font-size="25" font-weight="700" fill="#642e3b">1. Вопрос</text>
+      <text y="24" font-size="17" fill="#6f5c58">своими словами</text>
+    </g>
+    <g transform="translate(455 180)">
+      <circle r="70" fill="#f1e4cf"/>
+      <text y="-8" font-size="25" font-weight="700" fill="#642e3b">2. Уточнение</text>
+      <text y="24" font-size="17" fill="#6f5c58">контекст и цель</text>
+    </g>
+    <g transform="translate(745 180)">
+      <circle r="76" fill="#eadff2"/>
+      <text y="-8" font-size="25" font-weight="700" fill="#642e3b">3. Разбор</text>
+      <text y="24" font-size="17" fill="#6f5c58">развилка и шаг</text>
+    </g>
+    <g transform="translate(1030 180)">
+      <circle r="82" fill="#f4d9c1"/>
+      <text y="-14" font-size="25" font-weight="700" fill="#642e3b">4. Выбор</text>
+      <text y="18" font-size="17" fill="#6f5c58">остановиться, углубить</text>
+      <text y="43" font-size="17" fill="#6f5c58">или выбрать специалиста</text>
+    </g>
+  </g>
+</svg>

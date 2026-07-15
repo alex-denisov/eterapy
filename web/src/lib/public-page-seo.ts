@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { canonicalUrl, publicSeoRoutes, seoOrigins } from "@/lib/seo";
+import { HOME_CONTENT_REVIEWED_AT } from "@/lib/home-authority-content";
 
 export type PublicSeoRoute = typeof publicSeoRoutes[number];
 
@@ -187,6 +188,19 @@ export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
     alternates: {
       canonical: url,
     },
+    authors: route === "/" ? [{ name: "Редакция ETerapy", url: canonicalUrl("/about") }] : undefined,
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+    other: route === "/" ? { "article:modified_time": HOME_CONTENT_REVIEWED_AT } : undefined,
     openGraph: {
       title: seo.title,
       description: seo.description,
@@ -223,8 +237,17 @@ export function jsonLdForPublicPage(route: PublicSeoRoute) {
     },
     publisher: {
       "@type": "Organization",
+      "@id": `${seoOrigins.main}/#organization`,
       name: "ETerapy",
       url: seoOrigins.main,
+      logo: { "@type": "ImageObject", url: canonicalUrl("/icon.svg") },
+      sameAs: ["https://t.me/eterapy_bot"],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        url: canonicalUrl("/help"),
+        availableLanguage: "ru",
+      },
     },
   };
 

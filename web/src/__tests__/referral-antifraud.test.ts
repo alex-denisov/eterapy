@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { Prisma } from "@prisma/client";
+import { assessReferralRisk, REFERRAL_MONTHLY_CREDIT_LIMIT } from "@/lib/antifraud";
 import { REFERRAL_REWARDS } from "@/lib/share-referral";
 
 const root = process.cwd();
@@ -34,6 +36,9 @@ describe("B217 referral and credit anti-fraud", () => {
     expect(antifraud).toContain("many_referrals_same_device_day");
     expect(antifraud).toContain("daily_referral_reward_limit");
     expect(antifraud).toContain("monthly_referral_reward_limit");
+    expect(REFERRAL_MONTHLY_CREDIT_LIMIT).toBe(20);
+    expect(antifraud).toContain("referrer_same_device");
+    expect(antifraud).toContain("referrer_same_normalized_email");
     expect(antifraud).toContain("duplicate_referred_user_reward");
     expect(antifraud).toContain("HIGH_RISK_SCORE");
   });
@@ -66,6 +71,82 @@ describe("B217 referral and credit anti-fraud", () => {
     expect(referral).toContain('type: "clawback"');
     expect(spendRoute).toContain("getSpendableClarityCreditBalance");
     expect(spendRoute).not.toContain("getClarityCreditBalance");
+  });
+
+  it("defers every referral grant until email verification", () => {
+    const referral = source("src/lib/share-referral.ts");
+    const verification = source("src/app/api/auth/verify-email/route.ts");
+
+    expect(referral).toContain('status: "REWARD_PENDING"');
+    expect(referral).toContain("confirmReferralOnVerification");
+    expect(referral).toContain("referredUser?.emailVerified");
+    expect(verification).toContain("confirmReferralOnVerification");
+  });
+
+  it("blocks a grant that would cross the 20-credit monthly cap", async () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      referralAttribution: { count: jest.fn().mockResolvedValue(0) },
+      clarityCreditLedgerEntry: {
+        count: jest.fn().mockResolvedValue(0),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 19 } }),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "referrer", normalizedEmail: "one@example.com" },
+          { id: "referred", normalizedEmail: "two@example.com" },
+        ]),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const risk = await assessReferralRisk({
+      tx,
+      referrerUserId: "referrer",
+      referredUserId: "referred",
+      visitorHash: "visitor",
+      fingerprint: { ipHash: "ip", userAgentHash: "ua", deviceHash: null },
+      proposedReferrerRewardCredits: 2,
+    });
+
+    expect(risk.shouldBlockReward).toBe(true);
+    expect(risk.riskFlags).toContain("monthly_referral_reward_limit");
+  });
+
+  it("blocks a direct same-device and normalized-email referral", async () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      referralAttribution: {
+        count: jest.fn()
+          .mockResolvedValueOnce(0)
+          .mockResolvedValueOnce(0)
+          .mockResolvedValueOnce(0)
+          .mockResolvedValueOnce(1),
+      },
+      clarityCreditLedgerEntry: {
+        count: jest.fn().mockResolvedValue(0),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "referrer", normalizedEmail: "same@example.com" },
+          { id: "referred", normalizedEmail: "same@example.com" },
+        ]),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const risk = await assessReferralRisk({
+      tx,
+      referrerUserId: "referrer",
+      referredUserId: "referred",
+      visitorHash: "visitor",
+      fingerprint: { ipHash: "ip", userAgentHash: "ua", deviceHash: "device" },
+    });
+
+    expect(risk.shouldBlockReward).toBe(true);
+    expect(risk.riskFlags).toEqual(expect.arrayContaining([
+      "referrer_same_device",
+      "referrer_same_normalized_email",
+    ]));
   });
 });
 
