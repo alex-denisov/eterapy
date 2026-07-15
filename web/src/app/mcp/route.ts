@@ -52,6 +52,8 @@ function originAllowed(request: NextRequest) {
     request.nextUrl.origin,
     "https://eterapy.com",
     "https://app.eterapy.com",
+    "https://staging.eterapy.com",
+    "https://staging.app.eterapy.com",
   ]);
   return allowedOrigins.has(origin);
 }
