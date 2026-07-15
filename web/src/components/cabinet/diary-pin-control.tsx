@@ -76,7 +76,15 @@ function PinFields({
   );
 }
 
-export function DiaryPinControl({ autoOpen = false }: { autoOpen?: boolean }) {
+export function DiaryPinControl({
+  autoOpen = false,
+  renderTrigger,
+}: {
+  autoOpen?: boolean;
+  /** B512 R1-6: кастомный триггер (например trust-strip на Главной) вместо
+      дефолтного чипа; получает openModal + текущее состояние PIN. */
+  renderTrigger?: (openModal: () => void, hasPin: boolean) => React.ReactNode;
+}) {
   const [hasPin, setHasPin] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
@@ -180,18 +188,22 @@ export function DiaryPinControl({ autoOpen = false }: { autoOpen?: boolean }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openModal}
-        data-testid="diary-pin-toggle"
-        className={hasPin ? "soft-chip soft-chip-warm" : "soft-chip"}
-      >
-        {hasPin ? (
-          <><Lock className="size-3.5" aria-hidden="true" /> PIN-код включён</>
-        ) : (
-          <><LockOpen className="size-3.5" aria-hidden="true" /> Закрыть PIN-кодом</>
-        )}
-      </button>
+      {renderTrigger ? (
+        renderTrigger(openModal, hasPin)
+      ) : (
+        <button
+          type="button"
+          onClick={openModal}
+          data-testid="diary-pin-toggle"
+          className={hasPin ? "soft-chip soft-chip-warm" : "soft-chip"}
+        >
+          {hasPin ? (
+            <><Lock className="size-3.5" aria-hidden="true" /> PIN-код включён</>
+          ) : (
+            <><LockOpen className="size-3.5" aria-hidden="true" /> Закрыть PIN-кодом</>
+          )}
+        </button>
+      )}
 
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) setOpen(false); }}>
         <DialogContent className="max-w-sm" showCloseButton data-testid="diary-pin-modal">

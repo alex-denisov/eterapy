@@ -1,15 +1,42 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Sparkles, Download } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { ResultExportActions } from "@/components/products/result-export-actions";
 import { reframeToMarkdown } from "@/lib/reframe-format";
-import { loginUrl, appUrl } from "@/lib/subdomain";
+import { loginUrl, appUrl, mainUrl } from "@/lib/subdomain";
 import { getProductLabel } from "@/lib/billing-labels";
 
 export const dynamic = "force-dynamic";
+
+// B512 R1-1 (owner 2026-07-15) — страница результата из ЛК обязана выглядеть
+// ТОЧНО как оригинальная страница услуги (визуал, источник расчёта, структуры
+// расклада). Для всех продуктов с restore-поддержкой редиректим на оригинал;
+// generic-рендер ниже остаётся только для форматов без собственной страницы
+// (например «итог недели»).
+
+// ?reading=<productResult.id> — символические услуги (use-symbolic-service).
+const READING_RESTORE_KEYS = new Set([
+  "tarot",
+  "natal-chart",
+  "numerology",
+  "horary",
+  "tarot-numerology",
+  "family-scenarios",
+  "human-design",
+  "surname-story",
+  "synastry",
+]);
+
+// Продукты со своим restore-параметром.
+const CUSTOM_RESTORE: Record<string, (id: string) => string> = {
+  "deep-report": (id) => `/products/deep-report?resultId=${id}`,
+  reframe: (id) => `/products/reframe?resultId=${id}`,
+  "chat-analysis": (id) => `/products/chat-analysis?analysis=${id}`,
+};
 
 export default async function CabinetResultPage({
   params,
@@ -28,6 +55,17 @@ export default async function CabinetResultPage({
   // soft-deleted. Resist leaking ownership through the error itself.
   if (!result || (!canViewAnyResult && result.userId !== userId) || result.deletedAt) {
     notFound();
+  }
+
+  // Владельца отправляем на оригинальную страницу услуги (полный визуал);
+  // админ-просмотр чужого результата остаётся на generic-рендере ниже —
+  // restore-эндпоинты услуг отдают только собственные разборы пользователя.
+  if (!canViewAnyResult || result.userId === userId) {
+    if (READING_RESTORE_KEYS.has(result.productKey)) {
+      redirect(mainUrl(`/products/${result.productKey}?reading=${result.id}`));
+    }
+    const custom = CUSTOM_RESTORE[result.productKey];
+    if (custom) redirect(mainUrl(custom(result.id)));
   }
 
   const productLabel = getProductLabel(result.productKey) || "Результат разбора";
@@ -89,37 +127,16 @@ export default async function CabinetResultPage({
         )}
       </section>
 
+      {/* B512 R1-1: «Скачать PDF» (через mainUrl — app-поддомен переписал бы
+          /products/print/** в /cabinet/** и давал 404) + «Поделиться»
+          (native share / копирование ссылки). «Скачать текстом» убран. */}
       {isReady && body && (
-        <section className="mt-4 flex flex-wrap gap-3" data-testid="cabinet-result-actions">
-          <Link
-            href={appUrl("/diary")}
-            prefetch={false}
-            className="soft-button soft-button-ghost inline-flex"
-          >
-            <Sparkles className="size-4" aria-hidden="true" />
-            Сохранить в Мою карту
-          </Link>
-          {/* PDF доступен из кабинета для любого готового результата (на самих
-              страницах услуг кнопку «Скачать PDF» убрали — скачивание живёт здесь). */}
-          <a
-            href={`/products/print/${result.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="soft-button soft-button-ghost inline-flex"
-            data-testid="cabinet-result-pdf"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            Скачать PDF
-          </a>
-          <a
-            href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${result.title}\n\n${body}`)}`}
-            download={`${result.title}.txt`}
-            className="soft-button soft-button-ghost inline-flex"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            Скачать текстом
-          </a>
-        </section>
+        <ResultExportActions
+          resultId={result.id}
+          title={result.title}
+          shareUrl={appUrl(`/cabinet/results/${result.id}`)}
+          className="mt-4"
+        />
       )}
     </PageContainer>
   );

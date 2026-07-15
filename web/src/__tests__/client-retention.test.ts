@@ -101,7 +101,9 @@ describe("M11 client retention surfaces", () => {
     expect(helper).toContain("db.productResult.findMany");
     expect(helper).toContain("db.clarityRoute.findMany");
     expect(helper).toContain("isHiddenFromDiary");
-    expect(helper).toContain("savedAt: { not: null }");
+    // B512 R1-7: все READY-разборы автосохраняются в Дневник — ручного
+    // savedAt-фильтра больше нет.
+    expect(helper).not.toContain("savedAt: { not: null }");
   });
 
   it("adds a once-per-day daily card with notification support", () => {

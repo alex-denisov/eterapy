@@ -243,12 +243,13 @@ describe("R7 item 7 — first-steps goal set", () => {
 
 // ── R8 · item 12 — diary lists: principle, filters, compact 4+ещё ──
 describe("R8 item 12 — diary lists", () => {
-  it("journal explains its principle and reveals 4 at a time", () => {
+  it("journal shows the last 7 days as square cards with a detail panel (B512 R1-8)", () => {
     const diary = read("app/cabinet/diary/page.tsx");
-    expect(diary).toContain("Здесь каждый день, когда вы отвечали на вопрос дня");
-    expect(diary).toContain("<RevealList");
+    expect(diary).toContain("JournalCardsStrip");
+    expect(diary).toContain("listJournalEntries(userId, 7)");
     // Entries distinguish the user's own question from the suggested prompt.
-    expect(diary).toContain('entry.own ? "ваш вопрос" : "вопрос дня"');
+    const strip = read("components/cabinet/journal-cards-strip.tsx");
+    expect(strip).toContain('own ? "ваш вопрос" : "вопрос дня"');
   });
 
   it("topic chips are links that filter the list and preserve state", () => {

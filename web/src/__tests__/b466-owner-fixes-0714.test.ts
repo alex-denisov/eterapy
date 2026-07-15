@@ -23,12 +23,12 @@ const taxStatusForm = read("src/app/cabinet/practitioner/finance/tax-status/tax-
 const requisitesEditForm = read("src/app/cabinet/practitioner/finance/requisites/edit/requisites-edit-form.tsx");
 
 describe("B466 owner-fix #1 — сайдбар практика приклеен (хедер/левый край/футер)", () => {
-  it("practitioner aside становится full-bleed колонкой, клиентский card-сайдбар не тронут", () => {
+  it("full-bleed sticky сайдбар — у ОБОИХ кабинетов (B512 R1-4: клиент как практик)", () => {
     expect(shell).toContain("soft-app-sidebar-col hidden shrink-0 md:block");
-    // клиентская ветка сохраняет плавающую карточку
-    expect(shell).toContain('"sticky top-16 hidden shrink-0 self-start md:flex"');
-    // sticky переезжает на внутреннюю карточку у практика
-    expect(shell).toMatch(/soft-app-sidebar-card[^`]*\$\{isPractitionerBar \? " sticky top-16" : ""\}/);
+    // B512 R1-4: клиентская плавающая карточка заменена той же приклеенной
+    // колонкой, что у практика; sticky живёт на внутренней карточке.
+    expect(shell).not.toContain("self-start md:flex");
+    expect(shell).toContain('"soft-app-sidebar-card sticky top-16 flex flex-col overflow-hidden p-3.5"');
   });
 
   it("CSS: практик-layout без центрирования .soft-shell и без вертикальных отступов, колонка растягивается", () => {

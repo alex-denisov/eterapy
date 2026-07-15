@@ -610,6 +610,27 @@ function symbolicSectionHeadings(input: {
   if (input.productKey === "horary") {
     return ["Прямой ответ", "Радикальность и можно ли судить вопрос", "Вы и ваш сигнификатор", "Предмет вопроса и его сигнификатор", "Луна как ход событий", "Главный сходящийся аспект", "Рецепции: желание и способность действовать", "Препятствия и скрытые условия", "Что поддерживает ответ", "Что ему противоречит", "Вероятный срок", "Что может изменить исход"];
   }
+  if (input.productKey === "family-scenarios") {
+    // B512 R1-11 (owner 2026-07-15): «Семейные сценарии» переведены на
+    // сегментную генерацию с полной экспертной структурой (раньше — одиночный
+    // проход по 6 тонким разделам, результат не оправдывал цену услуги).
+    return [
+      "Прямой ответ",
+      "Что вы описали — узор повторов",
+      "Роли и негласные правила рода",
+      "Скрытые лояльности и незакрытые счета",
+      "Треугольники и коалиции в семье",
+      "Где сценарий живёт в вас сейчас",
+      "Что когда-то защищало, а теперь мешает",
+      "Сценарий в деньгах и реализации",
+      "Сценарий в отношениях и родительстве",
+      "Что рискует передаться дальше",
+      "Что можно бережно прервать",
+      "Контрсценарий: как не уйти в противоположность",
+      "Практики прерывания на 14 дней",
+      "Ответ на ваш вопрос",
+    ];
+  }
   if (input.productKey === "tarot-numerology") {
     return ["Прямой ответ", "Пара карт рождения", "Карта рождения", "Карта души", "Связь двух арканов", "Сильное проявление", "Теневая сторона", "Отношения", "Реализация и деньги", "Ответ по вашему вопросу"];
   }
@@ -683,6 +704,8 @@ function symbolicQualityIssue(input: {
     "surname-story": 5_000,
     horary: 5_500,
     "tarot-numerology": 6_000,
+    // B512 R1-11: полная карта рода — существенный объём (была общая планка 500).
+    "family-scenarios": 6_000,
   };
   if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
   if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
@@ -783,6 +806,16 @@ function symbolicQualityIssue(input: {
 
 // B450/B451: бюджет токенов на услугу для запроса в шлюз. Эффективный кап всё равно
 // задаёт task-policy (routing.ts:138), но держим запрос крупным для полного разбора.
+// B512 R1-11: смысловые слои «Семейных сценариев» с обязательными
+// подзаголовками «Как это выглядит / Чего это стоит / Как проверить у себя».
+const FAMILY_LAYER_HEADINGS = [
+  "Роли и негласные правила рода",
+  "Скрытые лояльности и незакрытые счета",
+  "Где сценарий живёт в вас сейчас",
+  "Сценарий в деньгах и реализации",
+  "Сценарий в отношениях и родительстве",
+];
+
 const SYMBOLIC_MAX_TOKENS: Partial<Record<SymbolicProductKey, number>> = {
   tarot: 3200,
   "natal-chart": 7000,
@@ -801,6 +834,9 @@ export async function generateSymbolicProductResult(input: {
   requestId?: string;
   tarotSpread?: TarotSpreadKey;
   tarotTheme?: string;
+  /** B512 R1-11: компактная история тем клиента (его собственные прошлые
+      разборы/вопросы) — добавляется в системный промт как runtime-контекст. */
+  clientContextNote?: string;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const definition = getSymbolicProductDefinition(input.productKey);
   // #12: tarot draws real cards; cards are stored in metadata so the
@@ -915,7 +951,10 @@ export async function generateSymbolicProductResult(input: {
     const horaryNote = horaryWheel && horary ? `\n\n${natalFactsForAI(horaryWheel, normalizeInput(input.userInput))}\n\n${horaryFactsForAI(horary)}` : "";
     const tarotBirthNote = tarotBirthCode ? `\n\n${tarotBirthCodeFactsForAI(tarotBirthCode)}` : "";
 
-    const systemPrompt = baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote + horaryNote + tarotBirthNote;
+    const clientContextNote = input.clientContextNote?.trim()
+      ? `\n\n${input.clientContextNote.trim()}`
+      : "";
+    const systemPrompt = baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote + horaryNote + tarotBirthNote + clientContextNote;
     const userContext = [
       `Услуга: ${definition?.title ?? input.productKey}.`,
       tarotSpread ? `Расклад: ${tarotSpread.label}.` : "",
@@ -972,6 +1011,12 @@ export async function generateSymbolicProductResult(input: {
                 : "",
               input.productKey === "surname-story" && group.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
                 ? "Для КАЖДОГО смыслового слоя дай не менее 700 знаков и обязательно используй подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`. Пиши прямо, через наблюдаемое поведение и его цену; не утешай автоматически."
+                : "",
+              input.productKey === "family-scenarios" && group.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
+                ? "Для КАЖДОГО смыслового слоя дай не менее 700 знаков и обязательно используй подзаголовки `### Как это выглядит`, `### Чего это стоит`, `### Как проверить у себя` — через конкретные наблюдаемые проявления, без общих слов."
+                : "",
+              input.productKey === "family-scenarios" && group.includes("Практики прерывания на 14 дней")
+                ? "В `## Практики прерывания на 14 дней` дай нумерованный markdown-список из 4–6 практик (каждый пункт с новой строки, «1. », пустая строка перед списком); у каждой практики — срок и критерий, по которому видно, что она сработала."
                 : "",
               input.productKey === "surname-story" && surnameComparison && group.some((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
                 ? `Сравни оба рассчитанных варианта: ${surnameStory?.surname} → ${surnameComparison.source}. Назови, что усиливается, что ослабевает, что остаётся с человеком и какова цена перехода. Не обещай причинно изменить доход, характер или судьбу.`
@@ -1033,6 +1078,9 @@ export async function generateSymbolicProductResult(input: {
                   : "",
                 input.productKey === "surname-story" && repairHeadings.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
                   ? "Каждый смысловой слой должен содержать не менее 700 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`."
+                  : "",
+                input.productKey === "family-scenarios" && repairHeadings.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
+                  ? "Каждый смысловой слой карты рода должен содержать не менее 700 знаков и подзаголовки `### Как это выглядит`, `### Чего это стоит`, `### Как проверить у себя`."
                   : "",
                 input.productKey === "natal-chart" && issue.includes("аспект")
                   ? `Обязательно назови и истолкуй минимум две точные рассчитанные пары: ${natalAspectPairs.join("; ")}. Не заменяй их общими словами о гармонии или напряжении.`

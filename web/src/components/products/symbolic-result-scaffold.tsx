@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import { MessageSquareText, Sparkles } from "lucide-react";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { SectionAccordion } from "@/components/products/section-accordion";
+import { ResultExportActions } from "@/components/products/result-export-actions";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { getProductPriceLabel } from "@/lib/product-prices";
 import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sections";
@@ -34,6 +35,8 @@ const DIRECT_ANSWER_TITLES: Record<string, string> = {
   "tarot-numerology": "Ключевой вывод ваших арканов",
   "human-design": "Главный ключ вашего дизайна",
   "surname-story": "Прямой итог родового аудита",
+  // B512 R1-11: расширенная карта рода.
+  "family-scenarios": "Главный вывод карты рода",
 };
 
 export function presentSymbolicSectionTitle(productKey: string, title: string) {
@@ -63,6 +66,7 @@ export function SymbolicResultScaffold({
   creditCost,
   repeat,
   onStartNew,
+  resultId,
 }: {
   productKey: string;
   eyebrow: string;
@@ -75,6 +79,8 @@ export function SymbolicResultScaffold({
   creditCost: number;
   repeat: { ribbon: string; title: string; description: string; ctaLabel: string };
   onStartNew: () => void;
+  /** B512 R1-1: id результата — включает строку «Скачать PDF · Поделиться». */
+  resultId?: string | null;
 }) {
   const [recapOpen, setRecapOpen] = useState(false);
   const normalizedResultText = stripEmbeddedResultDisclaimers(
@@ -156,6 +162,9 @@ export function SymbolicResultScaffold({
           </article>
         )}
       </div>
+
+      {/* B512 R1-1 — Скачать PDF + Поделиться на самой странице результата. */}
+      {resultId && <ResultExportActions resultId={resultId} title={heading} className="mt-5" />}
 
       <ServiceTriage
         eyebrow="что дальше"

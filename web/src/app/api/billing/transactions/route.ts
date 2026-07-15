@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { getClarityCreditBalance } from "@/lib/clarity-credits";
 
 // Z1-Ф2: the client ₽ balance rail is removed. Legacy top-up artifacts (real
 // pre-Z1 `Transaction` rows with `purchaseKind: "balance"` and the money-ledger
@@ -41,8 +42,13 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  // B512 R1-3 — авторитетный баланс СЕРВЕРОМ (полный леджер). Клиентские
+  // чипы/пилюли раньше суммировали последние 50 записей выше — при длинном
+  // леджере сумма расходилась с реальным балансом (6869 vs 6994 у client@test).
+  const clarityCreditBalance = await getClarityCreditBalance(session.user.id);
 
   return NextResponse.json({
+    clarityCreditBalance,
     transactions: transactions.map((t) => ({
       id: t.id,
       amountKopecks: t.amount,

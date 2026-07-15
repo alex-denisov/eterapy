@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Compass, Footprints, Sparkles } from "lucide-react";
 import { daysWord } from "@/lib/streak-display";
+import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 const QUESTION_LIMIT = 600;
+
+// B512 R1-9 (owner 2026-07-15) — динамические подсказки «вопроса дня»: мягкая
+// ротация рефлексивных формулировок (первой идёт персональная подсказка карты
+// дня, если она есть). Клик подставляет ТЕКУЩУЮ подсказку в поле.
+const REFLECTION_HINTS: readonly string[] = [
+  "Что я точно знаю, а что пока только предполагаю?",
+  "Какое чувство сегодня звучит громче всех — и о чём оно?",
+  "Что я откладываю — и каким мог бы быть самый маленький первый шаг?",
+  "Где сегодня я поступаю по-своему, а где — по привычке?",
+  "Какой разговор я прокручиваю в голове — и чего мне в нём не хватает?",
+  "За что я могу поблагодарить себя сегодня?",
+  "Что для меня сейчас важнее всего — и видно ли это по моему дню?",
+];
 
 // B375 (M26): баллы начисляются по вехам серии (3/7/14/30 дней), не за каждый
 // день. API возвращает milestones: number[] — собираем тёплое сообщение.
@@ -68,6 +82,14 @@ export function DailyPracticeActions({
     completed ? "Практика на сегодня завершена." : null,
   );
   const router = useRouter();
+
+  // B512 R1-9 — ротация подсказок; персональная подсказка карты дня первой.
+  // Хук вызывается ДО любых условных return'ов (правила hooks).
+  const hints = useMemo(
+    () => (prompt ? [prompt, ...REFLECTION_HINTS.filter((hint) => hint !== prompt)] : [...REFLECTION_HINTS]),
+    [prompt],
+  );
+  const currentHint = useRotatingPlaceholder(hints, "daily-practice-hints", 6_000);
 
   const isFull = variant === "full";
 
@@ -220,15 +242,15 @@ export function DailyPracticeActions({
         <span>{question.length}/{QUESTION_LIMIT}</span>
       </div>
 
-      {prompt && !question.trim() && (
+      {currentHint && !question.trim() && (
         <button
           type="button"
-          onClick={() => setQuestion(prompt)}
+          onClick={() => setQuestion(currentHint)}
           className="mt-2 inline-flex items-start gap-1.5 text-left text-xs text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline"
           data-testid="practice-suggested-prompt"
         >
           <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          Нужна подсказка? «{prompt}»
+          Нужна подсказка? «{currentHint}»
         </button>
       )}
 
