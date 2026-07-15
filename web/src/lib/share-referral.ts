@@ -253,8 +253,14 @@ export async function markReferralMeaningfulAction(input: {
         visitorHash,
         fingerprint,
         excludeAttributionId: existing?.id ?? null,
+        proposedReferrerRewardCredits: REFERRAL_REWARDS.referrerFirstAnalysis,
+      });
+      const referredUser = await tx.user.findUnique({
+        where: { id: input.userId },
+        select: { emailVerified: true },
       });
       const blockedReason = existing?.blockedReason ?? (risk.shouldBlockReward ? risk.riskFlags.join(",") || "high_risk_referral" : null);
+      const awaitingEmailVerification = !blockedReason && !referredUser?.emailVerified;
 
       const attribution = await tx.referralAttribution.upsert({
         where: {
@@ -272,17 +278,17 @@ export async function markReferralMeaningfulAction(input: {
           userAgentHash: fingerprint.userAgentHash,
           deviceHash: fingerprint.deviceHash,
           source: shareLink.sourceType,
-          status: blockedReason ? "BLOCKED" : "REWARDED",
+          status: blockedReason ? "BLOCKED" : awaitingEmailVerification ? "REWARD_PENDING" : "REWARDED",
           blockedReason,
           riskScore: risk.riskScore,
           riskFlags: risk.riskFlags,
           meaningfulActionAt: now,
-          rewardGrantedAt: blockedReason ? null : now,
-          metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "first_analysis", credits: blockedReason ? 0 : REFERRAL_REWARDS.refereeFirstAnalysis + REFERRAL_REWARDS.referrerFirstAnalysis },
+          rewardGrantedAt: blockedReason || awaitingEmailVerification ? null : now,
+          metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : awaitingEmailVerification ? "awaiting_email_verification" : "first_analysis", credits: blockedReason || awaitingEmailVerification ? 0 : REFERRAL_REWARDS.refereeFirstAnalysis + REFERRAL_REWARDS.referrerFirstAnalysis },
         },
         update: {
           referredUserId: input.userId,
-          status: blockedReason ? "BLOCKED" : "REWARDED",
+          status: blockedReason ? "BLOCKED" : awaitingEmailVerification ? "REWARD_PENDING" : "REWARDED",
           blockedReason,
           riskScore: risk.riskScore,
           riskFlags: risk.riskFlags,
@@ -290,8 +296,8 @@ export async function markReferralMeaningfulAction(input: {
           userAgentHash: fingerprint.userAgentHash,
           deviceHash: fingerprint.deviceHash,
           meaningfulActionAt: now,
-          rewardGrantedAt: blockedReason ? null : now,
-          metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "first_analysis", credits: blockedReason ? 0 : REFERRAL_REWARDS.refereeFirstAnalysis + REFERRAL_REWARDS.referrerFirstAnalysis },
+          rewardGrantedAt: blockedReason || awaitingEmailVerification ? null : now,
+          metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : awaitingEmailVerification ? "awaiting_email_verification" : "first_analysis", credits: blockedReason || awaitingEmailVerification ? 0 : REFERRAL_REWARDS.refereeFirstAnalysis + REFERRAL_REWARDS.referrerFirstAnalysis },
         },
       });
 
@@ -299,6 +305,7 @@ export async function markReferralMeaningfulAction(input: {
         await logBlockedReward(tx, { attributionId: attribution.id, userId: input.userId, referrerUserId: ownerUserId, risk, fingerprint, action: input.action, entityId: input.entityId });
         return attribution;
       }
+      if (awaitingEmailVerification) return attribution;
       await grantFirstAnalysisRewards(tx, {
         attributionId: attribution.id,
         referrerUserId: ownerUserId,
@@ -334,30 +341,110 @@ export async function markReferralMeaningfulAction(input: {
       visitorHash: attribution.visitorHash,
       fingerprint,
       excludeAttributionId: attribution.id,
+      proposedReferrerRewardCredits: REFERRAL_REWARDS.referrerFirstAnalysis,
     });
     const blockedReason = risk.shouldBlockReward ? risk.riskFlags.join(",") || "high_risk_referral" : null;
+    const referredUser = await tx.user.findUnique({
+      where: { id: input.userId },
+      select: { emailVerified: true },
+    });
+    const awaitingEmailVerification = !blockedReason && !referredUser?.emailVerified;
     await tx.referralAttribution.update({
       where: { id: attribution.id },
       data: {
-        status: blockedReason ? "BLOCKED" : "REWARDED",
+        status: blockedReason ? "BLOCKED" : awaitingEmailVerification ? "REWARD_PENDING" : "REWARDED",
         blockedReason,
         riskScore: risk.riskScore,
         riskFlags: risk.riskFlags,
         meaningfulActionAt: now,
-        rewardGrantedAt: blockedReason ? null : now,
-        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "first_analysis", via: "registered_attribution_fallback" },
+        rewardGrantedAt: blockedReason || awaitingEmailVerification ? null : now,
+        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : awaitingEmailVerification ? "awaiting_email_verification" : "first_analysis", via: "registered_attribution_fallback" },
       },
     });
     if (blockedReason) {
       await logBlockedReward(tx, { attributionId: attribution.id, userId: input.userId, referrerUserId: attribution.referrerUserId, risk, fingerprint, action: input.action, entityId: input.entityId });
       return attribution;
     }
+    if (awaitingEmailVerification) return attribution;
     await grantFirstAnalysisRewards(tx, {
       attributionId: attribution.id,
       referrerUserId: attribution.referrerUserId,
       referredUserId: input.userId,
       action: input.action,
       entityId: input.entityId,
+      risk,
+      fingerprint,
+      now,
+    });
+    return attribution;
+  });
+}
+
+export async function confirmReferralOnVerification(input: {
+  request: NextRequest;
+  userId: string;
+}) {
+  const fingerprint = requestFingerprint(input.request);
+  const now = new Date();
+  return db.$transaction(async (tx) => {
+    const attribution = await tx.referralAttribution.findFirst({
+      where: {
+        referredUserId: input.userId,
+        referrerUserId: { not: null },
+        status: "REWARD_PENDING",
+        rewardGrantedAt: null,
+        blockedReason: null,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!attribution?.referrerUserId) return null;
+
+    const risk = await assessReferralRisk({
+      tx,
+      referrerUserId: attribution.referrerUserId,
+      referredUserId: input.userId,
+      visitorHash: attribution.visitorHash,
+      fingerprint,
+      excludeAttributionId: attribution.id,
+      proposedReferrerRewardCredits: REFERRAL_REWARDS.referrerFirstAnalysis,
+    });
+    if (risk.shouldBlockReward) {
+      const blockedReason = risk.riskFlags.join(",") || "high_risk_referral";
+      await tx.referralAttribution.update({
+        where: { id: attribution.id },
+        data: { status: "BLOCKED", blockedReason, riskScore: risk.riskScore, riskFlags: risk.riskFlags },
+      });
+      await logBlockedReward(tx, {
+        attributionId: attribution.id,
+        userId: input.userId,
+        referrerUserId: attribution.referrerUserId,
+        risk,
+        fingerprint,
+        action: "email_verified",
+      });
+      return null;
+    }
+
+    await tx.referralAttribution.update({
+      where: { id: attribution.id },
+      data: {
+        status: "REWARDED",
+        rewardGrantedAt: now,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        metadata: {
+          ...((attribution.metadata as Prisma.JsonObject | null) ?? {}),
+          reward: "first_analysis",
+          grantedAfterEmailVerification: true,
+          credits: REFERRAL_REWARDS.refereeFirstAnalysis + REFERRAL_REWARDS.referrerFirstAnalysis,
+        } as Prisma.InputJsonObject,
+      },
+    });
+    await grantFirstAnalysisRewards(tx, {
+      attributionId: attribution.id,
+      referrerUserId: attribution.referrerUserId,
+      referredUserId: input.userId,
+      action: "email_verified",
       risk,
       fingerprint,
       now,
@@ -466,6 +553,12 @@ export async function markReferralFirstPurchase(input: {
   transactionId: string;
   amountKopecks: number;
 }) {
+  const referredUser = await db.user.findUnique({
+    where: { id: input.userId },
+    select: { emailVerified: true },
+  });
+  if (!referredUser?.emailVerified) return null;
+
   const succeeded = await db.transaction.count({
     where: { userId: input.userId, status: "SUCCEEDED" },
   });
@@ -505,6 +598,7 @@ export async function markReferralFirstPurchase(input: {
       visitorHash: attribution.visitorHash,
       fingerprint,
       excludeAttributionId: attribution.id,
+      proposedReferrerRewardCredits: REFERRAL_REWARDS.referrerFirstPurchase,
     });
     if (risk.shouldBlockReward) {
       await logFraudEvent(tx, {
@@ -546,7 +640,7 @@ export async function markReferralFirstPurchase(input: {
         riskScore: risk.riskScore,
         riskFlags: risk.riskFlags,
         metadata: {
-          ...(attribution.metadata as Prisma.JsonObject | null ?? {}),
+          ...((attribution.metadata as Prisma.JsonObject | null) ?? {}),
           purchaseTransactionId: input.transactionId,
           purchaseRewardedAt: now.toISOString(),
         } as Prisma.InputJsonObject,

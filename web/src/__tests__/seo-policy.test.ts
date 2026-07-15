@@ -19,6 +19,10 @@ describe("v5 SEO routing policy", () => {
     expect(body).toContain("Disallow: /cabinet");
     expect(body).toContain("Disallow: /admin");
     expect(body).toContain("Sitemap: https://eterapy.com/sitemap.xml");
+    expect(body).toContain("User-agent: GPTBot");
+    expect(body).toContain("User-agent: ClaudeBot");
+    expect(body).toContain("User-agent: PerplexityBot");
+    expect(body).toContain("# LLM content map: https://eterapy.com/llms.txt");
   });
 
   it.each(["app.eterapy.com", "admin.eterapy.com"])("blocks all crawlers on %s", async (host) => {
