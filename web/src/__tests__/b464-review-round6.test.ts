@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REFERRAL_REWARDS } from "@/lib/share-referral";
+import { REFERRAL_MONTHLY_CREDIT_LIMIT } from "@/lib/antifraud";
 
 // B464 round-6 — owner PROD re-review 2026-07-04 (6 items). Source assertions
 // per project convention: grep the shipped source for load-bearing fragments.
@@ -89,6 +90,15 @@ describe("R22 item 4 — referral backend", () => {
   it("a duplicate referred user is blocked outright, not just when it exceeds the sum", () => {
     const antifraud = read("lib/antifraud.ts");
     expect(antifraud).toContain('flags.has("duplicate_referred_user_reward")');
+  });
+
+  it("enforces the approved 20-credit cap and direct identity/device gates", () => {
+    const antifraud = read("lib/antifraud.ts");
+    expect(REFERRAL_MONTHLY_CREDIT_LIMIT).toBe(20);
+    expect(antifraud).toContain("proposedReferrerRewardCredits");
+    expect(antifraud).toContain("pg_advisory_xact_lock");
+    expect(antifraud).toContain("referrer_same_device");
+    expect(antifraud).toContain("referrer_same_normalized_email");
   });
 
   it("invite copy states the staged numbers from the contract", () => {

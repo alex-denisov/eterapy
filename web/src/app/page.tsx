@@ -7,6 +7,7 @@ import { LibraryPreviewSection } from "@/components/landing/library-preview";
 import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { HomeAnalytics } from "@/components/landing/home-analytics";
+import { HomeAuthorityArticle } from "@/components/landing/authority-article";
 
 export const metadata = createPublicPageMetadata("/");
 
@@ -31,6 +32,7 @@ export default async function Home() {
       <HowItWorksSection />
       <LibraryPreviewSection />
       <CTASection />
+      <HomeAuthorityArticle />
     </div>
   );
 }
