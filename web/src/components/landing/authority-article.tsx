@@ -24,17 +24,23 @@ export function HomeAuthorityArticle() {
   const [articleJsonLd, faqJsonLd] = homeAuthorityJsonLd();
 
   return (
-    <article className="soft-shell py-16 md:py-24" aria-labelledby="eterapy-guide-title" data-testid="home-authority-article">
+    <article
+      className="soft-shell py-16 md:py-24"
+      aria-labelledby="eterapy-guide-title"
+      data-testid="home-authority-article"
+      itemScope
+      itemType="https://schema.org/Article"
+    >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       <header className="grid gap-8 md:grid-cols-[minmax(0,1.3fr)_minmax(240px,.7fr)] md:items-end">
         <div>
           <p className="soft-eyebrow">коротко и по существу</p>
-          <h2 id="eterapy-guide-title" className="soft-h1 mt-3">
+          <h2 id="eterapy-guide-title" className="soft-h1 mt-3" itemProp="headline">
             Что делает ETerapy и <span className="soft-italic">когда этого достаточно</span>
           </h2>
-          <p className="soft-lede mt-5 max-w-3xl">
+          <p className="soft-lede mt-5 max-w-3xl" itemProp="description">
             ETerapy помогает разобрать жизненный вопрос: уточнить контекст, отделить факты от чувств и предположений,
             увидеть развилку и выбрать безопасный следующий шаг. Это инструмент рефлексии, а не лечение, диагноз или
             замена психолога, врача, юриста либо финансового консультанта.
@@ -48,6 +54,15 @@ export function HomeAuthorityArticle() {
           </p>
         </aside>
       </header>
+
+      <section className="mt-8 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-white/55 p-5" aria-labelledby="home-summary-title">
+        <h3 id="home-summary-title" className="font-semibold text-[var(--soft-bordeaux)]">Короткий ответ</h3>
+        <p className="mt-2 max-w-4xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          ETerapy подходит совершеннолетнему человеку, который уже замечает жизненную проблему, но ещё не сформулировал точный вопрос.
+          Бесплатный первичный разбор помогает назвать факты, чувства, предположения и критерии решения. Если нужны диагностика,
+          профессиональная ответственность или длительная поддержка, следующий шаг — профильный специалист, а не новый цифровой отчёт.
+        </p>
+      </section>
 
       <figure className="mt-10 overflow-hidden rounded-[var(--soft-radius-xl)] bg-[var(--soft-paper-deep)] p-3 md:p-5">
         <Image
@@ -100,6 +115,7 @@ export function HomeAuthorityArticle() {
           <p className="mt-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Если есть риск для жизни или безопасности, звоните 112. Официальное описание работы номера доступно на сайте
             {" "}<a className="underline underline-offset-4" href="https://76.mchs.gov.ru/deyatelnost/poleznaya-informaciya/rekomendacii-naseleniyu/sistema-112" rel="noreferrer">МЧС России</a>.
+            Для обычных вопросов о платформе используйте <Link href="/help" className="underline underline-offset-4">центр помощи ETerapy</Link>.
           </p>
         </div>
       </section>
@@ -148,8 +164,20 @@ export function HomeAuthorityArticle() {
           <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             ВОЗ рассматривает самопомощь как дополнение, а не альтернативу профессиональной помощи. См. актуальный
             {" "}<a className="underline underline-offset-4" href="https://www.who.int/ru/news-room/fact-sheets/detail/self-care-health-interventions" rel="noreferrer">обзор ВОЗ о самопомощи</a>.
+            Границы цифровых и живых форматов ETerapy также закреплены в <Link href="/legal/ethics" className="underline underline-offset-4">этическом кодексе</Link>
+            {" "}и <Link href="/how-it-works" className="underline underline-offset-4">описании процесса</Link>.
           </p>
         </div>
+      </section>
+
+      <section className="mt-14" aria-labelledby="home-conclusion-title">
+        <h3 id="home-conclusion-title" className="soft-h2">Вывод и следующий шаг</h3>
+        <p className="mt-4 max-w-4xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Начните с одного конкретного вопроса и используйте первичный разбор как карту, а не как окончательный ответ.
+          Если после разбора понятен безопасный обратимый шаг, дополнительная покупка не нужна. Если цена ошибки высока,
+          тема касается здоровья, безопасности, права или финансов либо ситуация регулярно повторяется, выберите профильного человека.
+          Платные форматы и их отличия опубликованы в <Link href="/pricing/compare" className="underline underline-offset-4">сравнении тарифов</Link>.
+        </p>
       </section>
 
       <section id="faq" className="mt-16 scroll-mt-24" aria-labelledby="home-faq-title">
@@ -170,10 +198,17 @@ export function HomeAuthorityArticle() {
 
       <footer className="mt-12 flex flex-col gap-5 border-t border-[var(--soft-paper-edge)] pt-8 text-sm text-[var(--soft-ink-soft)] md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <p className="font-semibold text-[var(--soft-ink)]">Материал подготовила редакция ETerapy</p>
+          <address className="not-italic" itemProp="author" itemScope itemType="https://schema.org/Organization">
+            <p className="font-semibold text-[var(--soft-ink)]" itemProp="name">Автор: редакция ETerapy</p>
+            <p className="mt-1 leading-relaxed">
+              Компетенция редакции — продуктовые правила, клиентская безопасность, этические и юридические границы платформы.
+              Это не клинический материал; медицинская рецензия не проводилась.
+            </p>
+          </address>
           <p className="mt-2 leading-relaxed">
             Редакционные правила опираются на продуктовую политику, этический кодекс, безопасность и юридические ограничения платформы.
-            Последняя проверка: <time dateTime={HOME_CONTENT_REVIEWED_AT}>15 июля 2026 года</time>.
+            Опубликовано: <time dateTime="2026-07-15" itemProp="datePublished">15 июля 2026 года</time>.
+            Последняя проверка: <time dateTime={HOME_CONTENT_REVIEWED_AT} itemProp="dateModified">15 июля 2026 года</time>.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Редакционные документы">

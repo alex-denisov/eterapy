@@ -7,6 +7,7 @@ import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
 import { v5Products } from "@/lib/v5-products";
+import { homeAgentMarkdown } from "@/lib/agent-readiness";
 
 const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 const PROTO = "https://";
@@ -169,6 +170,17 @@ export default async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
+
+  const servesPublicHome = !USE_SUBDOMAINS || host === MAIN_DOMAIN || host === `www.${MAIN_DOMAIN}`;
+  if (servesPublicHome && pathname === "/" && request.headers.get("accept")?.includes("text/markdown")) {
+    return withRequestContext(new NextResponse(homeAgentMarkdown(), {
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=3600, s-maxage=86400",
+        Vary: "Accept",
+      },
+    }), context);
+  }
 
   // B441 (M28): «perspectives» услуга переименована в «reframe» (Переосмысление).
   // Постоянный (308) редирект со старого слага — фиксируется ДО проверки

@@ -8,6 +8,7 @@ import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { HomeAnalytics } from "@/components/landing/home-analytics";
 import { HomeAuthorityArticle } from "@/components/landing/authority-article";
+import { WebMcpRegistration } from "@/components/landing/webmcp-registration";
 
 export const metadata = createPublicPageMetadata("/");
 
@@ -27,12 +28,13 @@ export default async function Home() {
     <div className="soft-clarity-page" data-ui-version="design-v4-2-soft-clarity">
       <PublicJsonLd route="/" />
       <HomeAnalytics />
+      <WebMcpRegistration />
       <HeroSection />
+      <HomeAuthorityArticle />
       <ScenariosSection />
       <HowItWorksSection />
       <LibraryPreviewSection />
       <CTASection />
-      <HomeAuthorityArticle />
     </div>
   );
 }
