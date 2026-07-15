@@ -49,10 +49,9 @@ export function GET(request: Request) {
   }
 
   return textResponse([
-    "Content-Signal: ai-train=no, search=yes, ai-input=no",
-    "",
     ...AI_CRAWLERS.flatMap(crawlerRules),
     "User-agent: *",
+    "Content-Signal: ai-train=no, search=yes, ai-input=no",
     "Allow: /",
     ...PRIVATE_PATHS.flatMap((path) => [`Disallow: ${path}`, `Disallow: ${path}/`]),
     "",
