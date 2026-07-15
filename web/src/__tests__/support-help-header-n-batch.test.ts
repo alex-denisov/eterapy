@@ -21,10 +21,11 @@ describe("N1 — cabinet support page fixes", () => {
 
   // B464 round-6 #2: the bare «Прямой адрес» mailto line was removed from the
   // cabinet page — the support email now lives ONLY in the staged escalation
-  // card (support-help-center), reached after a category is picked.
+  // card (support-help-center), reached after a category is picked. B482
+  // replaces the former admin help-centre view with the operator console.
   it("uses support@eterapy.com in the escalation card, not a bare page line (N1e)", () => {
     expect(source("src/components/support/support-help-center.tsx")).toContain("mailto:support@eterapy.com");
-    expect(source("src/app/admin/support/page.tsx")).toContain("SupportHelpCenter");
+    expect(source("src/app/admin/support/page.tsx")).toContain("SupportConsole");
     expect(source("src/app/cabinet/support/page.tsx")).not.toContain("hello@eterapy.com");
   });
 });
