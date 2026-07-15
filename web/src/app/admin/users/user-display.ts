@@ -244,6 +244,12 @@ export const PERMISSION_GROUPS: Array<{ group: string; items: Array<{ key: strin
     ],
   },
   {
+    group: "Поддержка",
+    items: [
+      { key: "support.manage", label: "Консоль клиентских обращений" },
+    ],
+  },
+  {
     group: "Система",
     items: [
       { key: "analytics.view", label: "Аналитика" },

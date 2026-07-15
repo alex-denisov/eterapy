@@ -31,10 +31,11 @@ describe("practitioner apply rate-limit", () => {
 });
 
 describe("B341 anonymous-route audit invariants", () => {
-  it("the telegram support webhook verifies a secret token", () => {
+  it("the retired Telegram support webhook does not consume inbound data", () => {
     const wh = source("src/app/api/telegram/support-webhook/route.ts");
-    expect(wh).toContain("x-telegram-bot-api-secret-token");
-    expect(wh).toMatch(/provided !== secret/);
+    expect(wh).toContain("supportRepliesDisabled: true");
+    expect(wh).not.toContain("req.json");
+    expect(wh).not.toContain("db.");
   });
 
   it("email verification is gated by a token", () => {

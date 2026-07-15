@@ -3,30 +3,21 @@ import path from "node:path";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-describe("N1d — support chat bidirectional + multichat", () => {
-  it("telegram lib creates per-conversation forum topics and supports thread sends", () => {
+describe("B482 — retired Telegram bidirectional support", () => {
+  it("has no per-client Telegram topics or reply routing", () => {
     const lib = source("src/lib/telegram.ts");
-    expect(lib).toContain("export async function createSupportForumTopic");
-    expect(lib).toContain("createForumTopic");
-    expect(lib).toContain("messageThreadId");
-    expect(lib).toContain("message_thread_id");
+    const outbound = source("src/app/api/support/messages/route.ts");
+    const inbound = source("src/app/api/telegram/support-webhook/route.ts");
+    expect(lib).not.toContain("createForumTopic");
+    expect(outbound).not.toContain("messageThreadId");
+    expect(inbound).not.toContain("telegramThreadId");
+    expect(inbound).not.toContain("conversation:");
   });
 
-  it("the webhook routes staff replies by forum topic AND reply-to, human-only", () => {
-    const route = source("src/app/api/telegram/support-webhook/route.ts");
-    // topic routing
-    expect(route).toContain("telegramThreadId: msg.message_thread_id");
-    // reply-to fallback kept
-    expect(route).toContain("conversation:\\s*");
-    // ignore the bot's own forwarded messages / other bots
-    expect(route).toContain("is_bot");
-    expect(route).toContain('isOwnForward');
-    expect(route).toContain('role: "STAFF"');
-  });
-
-  it("the Cloudflare worker relays the support webhook (bypasses the edge timeout)", () => {
+  it("keeps the old relay path harmless while infrastructure is cleaned up", () => {
     const worker = source("../deploy/telegram-proxy-worker.js");
+    const inbound = source("src/app/api/telegram/support-webhook/route.ts");
     expect(worker).toContain('path.startsWith("/support-webhook")');
-    expect(worker).toContain("/api/telegram");
+    expect(inbound).toContain("supportRepliesDisabled: true");
   });
 });

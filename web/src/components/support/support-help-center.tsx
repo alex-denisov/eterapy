@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, FileText, Mail, MessageCircle, Search, Send } from "lucide-react";
+import { ChevronDown, FileText, Mail, MessageCircle, Search } from "lucide-react";
 import {
   searchFaq,
   categoryAllowsChat,
@@ -58,7 +58,7 @@ function FaqAccordion({ items, testId }: { items: FaqLike[]; testId: string }) {
   );
 }
 
-export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSupportUrl: string; showChat: boolean }) {
+export function SupportHelpCenter({ showChat }: { showChat: boolean }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(THEME_PAGE);
@@ -216,22 +216,6 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
               <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Заполнить форму</span>
               <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>категория + описание, ответ в чате</span>
             </button>
-
-            {/* Round-6 #2: Telegram — полноценная карточка с теми же условиями,
-                что и чат (только срочные/финансовые темы), и стоит ВЫШЕ него. */}
-            {allowsChat && (
-              <a
-                href={telegramSupportUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-left transition-colors hover:border-[var(--soft-bordeaux)]/40"
-                data-testid="support-telegram"
-              >
-                <Send className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Открыть в Telegram</span>
-                <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>тот же чат поддержки — в мессенджере</span>
-              </a>
-            )}
 
             {allowsChat && (
               <button

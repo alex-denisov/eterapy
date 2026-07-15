@@ -32,25 +32,20 @@ describe("R20 item 1 — settings is a hub of icon rows", () => {
   });
 });
 
-// ── #2 · support: no bare mailto line + Telegram is a card above the chat ─────
-describe("R21 item 2 — support Telegram card and no «Прямой адрес» line", () => {
+// ── #2 · support: first-party escalation channels only (B482 supersedes R21) ─
+describe("R21 item 2 + B482 — no bare address or client-facing Telegram support", () => {
   it("drops the bare mailto line from the page", () => {
     const page = read("app/cabinet/support/page.tsx");
     expect(page).not.toContain("Прямой адрес");
   });
 
-  it("renders «Открыть в Telegram» as an escalation card above «Написать в чат», gated like chat", () => {
+  it("keeps the in-cabinet chat and removes Telegram as a client support channel", () => {
     const center = read("components/support/support-help-center.tsx");
-    const tg = center.indexOf('data-testid="support-telegram"');
     const chat = center.indexOf('data-testid="support-open-chat"');
-    expect(tg).toBeGreaterThan(-1);
     expect(chat).toBeGreaterThan(-1);
-    // Telegram card sits ABOVE the chat card.
-    expect(tg).toBeLessThan(chat);
-    // Both are inside the allowsChat gate.
+    expect(center).not.toContain('data-testid="support-telegram"');
+    expect(center).not.toContain("Открыть в Telegram");
     expect(center).toContain("{allowsChat && (");
-    // The old ghost «Открыть в Telegram» link inside the chat block is gone.
-    expect(center).not.toContain("soft-button soft-button-ghost mt-3");
   });
 });
 

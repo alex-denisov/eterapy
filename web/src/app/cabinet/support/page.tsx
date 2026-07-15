@@ -11,15 +11,9 @@ export const metadata: Metadata = {
   robots: noIndexRobots,
 };
 
-// B333: deep-link the actual support bot with the user id as a /start payload.
-const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "eterapy_bot";
-
 export default async function CabinetSupportPage() {
   const session = await auth();
   const userId = session?.user?.id ?? null;
-  const telegramSupportUrl = userId
-    ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support_${userId}`
-    : `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support`;
 
   return (
     <main className="soft-clarity-page" data-testid="cabinet-support-page">
@@ -27,7 +21,7 @@ export default async function CabinetSupportPage() {
         {/* B464 IB6 + round-4 #18: the search card IS the hero («Центр
             поддержки») — search gate → theme suggestions → escalation gated by
             problem type (live chat only for the six sensitive topics). */}
-        <SupportHelpCenter telegramSupportUrl={telegramSupportUrl} showChat={!!userId} />
+        <SupportHelpCenter showChat={!!userId} />
 
         <div className="soft-card mt-8 p-6" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
           <p className="soft-eyebrow">если сейчас тяжело</p>

@@ -50,6 +50,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false });
     }
 
+    // B482: ignore the former support group before the idempotency claim can
+    // persist its raw Telegram payload. Support replies now require an
+    // authenticated SUPERADMIN session in the first-party console.
+    const supportGroupChatId =
+      process.env.TELEGRAM_SUPPORT_CHAT_ID ?? process.env.SUPPORT_TELEGRAM_CHAT_ID ?? null;
+    if (supportGroupChatId && String(update.message?.chat.id ?? "") === supportGroupChatId) {
+      return NextResponse.json({ ok: true, supportGroupIgnored: true });
+    }
+
     const eventId = update.update_id !== undefined
       ? String(update.update_id)
       : `message:${update.message?.chat.id ?? "unknown"}:${update.message?.date ?? "unknown"}:${update.message?.text ?? ""}`;
@@ -76,59 +85,6 @@ export async function POST(req: NextRequest) {
     const text = msg.text.trim();
 
     log.info("telegram-webhook-message", { command: text.split(" ")[0] });
-
-    // B333: staff reply routing. When a message arrives in the
-    // configured support group, see if it is a Telegram-reply to one of
-    // our forwarded user messages — we tagged those with a
-    // "conversation: <id>" line. Extract that and persist the staff
-    // text as a SupportMessage so the polling chat widget surfaces it.
-    const supportGroupChatId =
-      process.env.TELEGRAM_SUPPORT_CHAT_ID ?? process.env.SUPPORT_TELEGRAM_CHAT_ID ?? null;
-    if (supportGroupChatId && chatId === supportGroupChatId && msg.reply_to_message?.text) {
-      const conversationIdMatch = msg.reply_to_message.text.match(/conversation:\s*([A-Za-z0-9_-]+)/);
-      const conversationId = conversationIdMatch?.[1];
-      if (conversationId) {
-        const conversation = await db.supportConversation.findUnique({ where: { id: conversationId } });
-        // Round-5 #13: ответ поддержки доходит и в сессию, закрытую 30-минутным
-        // таймаутом — статус здесь не фильтруем (id из маркера точен).
-        if (conversation) {
-          // Dedupe — Telegram retries can re-deliver the same update.
-          const existing = msg.message_id !== undefined
-            ? await db.supportMessage.findFirst({
-                where: { conversationId, telegramMessageId: msg.message_id },
-                select: { id: true },
-              })
-            : null;
-          if (!existing) {
-            await db.supportMessage.create({
-              data: {
-                conversationId,
-                role: "STAFF",
-                content: text,
-                telegramMessageId: msg.message_id ?? null,
-              },
-            });
-            await db.supportConversation.update({
-              where: { id: conversationId },
-              data: {
-                telegramChatId: chatId,
-                telegramThreadId: msg.message_thread_id ?? null,
-              },
-            });
-          }
-          await completeWebhookEvent(claim.event.id, { result: "support-reply" });
-          return NextResponse.json({ ok: true });
-        }
-      }
-    }
-
-    // B7: the notification bot must stay silent in the support group — running
-    // /start/command logic there spammed staff with linking replies. The
-    // dedicated support bot (/api/telegram/support-webhook) now owns the group.
-    if (supportGroupChatId && chatId === supportGroupChatId) {
-      await completeWebhookEvent(claim.event.id, { result: "support-group-ignored" });
-      return NextResponse.json({ ok: true });
-    }
 
     if (text.startsWith("/start")) {
       const token = text.split(" ")[1]?.trim();
