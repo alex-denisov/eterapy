@@ -27,6 +27,18 @@ export function GET() {
           responses: { "200": { description: "MCP JSON-RPC response" } },
         },
       },
+      "/agent/auth": {
+        get: {
+          operationId: "getAnonymousAgentAccessProfile",
+          summary: "Describe anonymous read-only agent access",
+          responses: { "200": { description: "No-token anonymous access profile" } },
+        },
+        post: {
+          operationId: "provisionAnonymousAgentAccessProfile",
+          summary: "Provision a stateless anonymous read-only access profile",
+          responses: { "200": { description: "No account, token or server-side state is created" } },
+        },
+      },
     },
   }, {
     headers: {

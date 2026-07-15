@@ -9,6 +9,7 @@ import { GET as skillsIndex } from "@/app/.well-known/agent-skills/index.json/ro
 import { GET as skillArtifact } from "@/app/.well-known/agent-skills/understand-eterapy/SKILL.md/route";
 import { GET as apiCatalog } from "@/app/.well-known/api-catalog/route";
 import { GET as authMd } from "@/app/auth.md/route";
+import { GET as agentAuth } from "@/app/agent/auth/route";
 import { createHash } from "node:crypto";
 
 const root = process.cwd();
@@ -94,6 +95,7 @@ describe("B469 AI search readiness", () => {
     const catalogResponse = apiCatalog();
     const catalog = await catalogResponse.json();
     const auth = await authMd().text();
+    const profile = await agentAuth().json();
     const nextConfig = source("next.config.ts");
     const webMcp = source("src/components/landing/webmcp-registration.tsx");
 
@@ -105,7 +107,18 @@ describe("B469 AI search readiness", () => {
       status: expect.any(Array),
     }));
     expect(auth).toContain("# ETerapy auth.md");
-    expect(auth).toContain("No agent registration or credential provisioning endpoint is offered");
+    expect(auth).toContain('"register_uri": "https://eterapy.com/agent/auth"');
+    expect(auth).toContain('"identity_types_supported": ["anonymous"]');
+    expect(profile).toEqual(expect.objectContaining({
+      identity_type: "anonymous",
+      credential_type: "none",
+      token_issued: false,
+      account_created: false,
+      state_stored: false,
+    }));
+    expect(source("src/app/robots.txt/route.ts")).toContain(
+      '"User-agent: *",\n    "Content-Signal: ai-train=no, search=yes, ai-input=no",',
+    );
     expect(nextConfig).toContain('rel="api-catalog"');
     expect(source("src/app/mcp/route.ts")).toContain('"https://staging.eterapy.com"');
     expect(webMcp).toContain("navigator.modelContext.registerTool");
