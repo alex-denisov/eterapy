@@ -336,11 +336,8 @@ jobs:
                 /var/log/letsencrypt/letsencrypt.log; do
                 [ -e "$file" ] && sudo setfacl -m u:admin:r "$file" || true
               done
-              echo "install staging DB sync cron"
-              SYNC_CRON='*/15 * * * * flock -n /tmp/eterapy-staging-db-sync.lock bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh --migrate --restart >> /home/admin/eterapy-staging/deploy/sync-staging-db.log 2>&1'
-              (crontab -l 2>/dev/null | grep -v 'sync-staging-db-from-prod.sh --migrate --restart' || true; printf '%s\n' "$SYNC_CRON") | crontab -
-              echo "sync staging DB from production"
-              bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh
+              echo "remove retired VPS DB-sync cron (GitHub Actions owns the hourly schedule)"
+              (crontab -l 2>/dev/null | grep -v 'sync-staging-db-from-prod.sh --migrate --restart' || true) | crontab -
               echo "npm ci --omit=dev"
               cd "$REPO_DIR"
               npm ci --omit=dev --prefer-offline --no-audit --no-fund
@@ -454,7 +451,7 @@ jobs:
 
           STATUS_LINE="$(icon "$INSTALL_RESULT") install · $(icon "$TEST_RESULT") test · $(icon "$BUILD_RESULT") build · $(icon "$DEPLOY_RESULT") deploy · $(icon "$VERIFY_RESULT") verify"
 
-          SHORT_SHA="${GH_SHA:0:7}"
+          SHORT_SHA="${GH_SHA:0:8}"
           FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1)
           if [ ${#FIRST_LINE} -gt 200 ]; then
             FIRST_LINE="${FIRST_LINE:0:200}…"

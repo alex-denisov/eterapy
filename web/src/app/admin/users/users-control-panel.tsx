@@ -922,16 +922,17 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                       <Pencil className="size-3.5" aria-hidden="true" />
                     </button>
                     {permissions.canImpersonate && row.role !== "SUPERADMIN" ? (
-                      <a
-                        className="soft-admin-icon-button"
-                        href={`/api/admin/impersonate?userId=${row.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Войти как пользователь"
-                        aria-label={`Войти как ${row.name || row.email}`}
-                      >
+                      <form action="/api/admin/impersonate" method="post" target="_blank">
+                        <input type="hidden" name="userId" value={row.id} />
+                        <button
+                          type="submit"
+                          className="soft-admin-icon-button"
+                          title="Войти как пользователь"
+                          aria-label={`Войти как ${row.name || row.email}`}
+                        >
                         <LogIn className="size-3.5" aria-hidden="true" />
-                      </a>
+                        </button>
+                      </form>
                     ) : null}
                   </div>
                 </td>

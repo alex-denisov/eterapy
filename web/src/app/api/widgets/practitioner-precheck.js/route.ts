@@ -8,15 +8,6 @@ function jsString(value: string) {
   return JSON.stringify(value);
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/`/g, "&#96;")
-    .replace(/\$/g, "&#36;");
-}
-
 function script(payload: {
   name: string;
   title: string;
@@ -27,14 +18,23 @@ function script(payload: {
   const current = document.currentScript;
   const root = document.createElement("div");
   root.setAttribute("data-eterapy-practitioner-widget", "true");
-  root.innerHTML = \`
-    <a href=${jsString(payload.href)} target="_blank" rel="noopener noreferrer" style="display:block;max-width:360px;text-decoration:none;border:1px solid #eadfd7;border-radius:18px;background:#fff8f1;color:#3e2b2e;padding:18px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 16px 42px rgba(62,43,46,.12)">
-      <span style="display:block;text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:#9f6b5f">ETerapy · предразбор</span>
-      <strong style="display:block;margin-top:8px;font-size:19px;line-height:1.2;color:#6d2832">${escapeHtml(payload.name)}</strong>
-      <span style="display:block;margin-top:4px;font-size:13px;line-height:1.5;color:#776766">${escapeHtml(payload.title)}</span>
-      <span style="display:block;margin-top:12px;font-size:13px;color:#776766">${payload.priceLabel}</span>
-      <span style="display:inline-flex;margin-top:14px;border-radius:999px;background:#8f4f3f;color:#fff;padding:9px 13px;font-size:13px;font-weight:700">Начать предразбор</span>
-    </a>\`;
+  const link = document.createElement("a");
+  link.href = ${jsString(payload.href)};
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.style.cssText = "display:block;max-width:360px;text-decoration:none;border:1px solid #eadfd7;border-radius:18px;background:#fff8f1;color:#3e2b2e;padding:18px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 16px 42px rgba(62,43,46,.12)";
+  const appendText = (tag, text, style) => {
+    const element = document.createElement(tag);
+    element.textContent = text;
+    element.style.cssText = style;
+    link.appendChild(element);
+  };
+  appendText("span", "ETerapy · предразбор", "display:block;text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:#9f6b5f");
+  appendText("strong", ${jsString(payload.name)}, "display:block;margin-top:8px;font-size:19px;line-height:1.2;color:#6d2832");
+  appendText("span", ${jsString(payload.title)}, "display:block;margin-top:4px;font-size:13px;line-height:1.5;color:#776766");
+  appendText("span", ${jsString(payload.priceLabel)}, "display:block;margin-top:12px;font-size:13px;color:#776766");
+  appendText("span", "Начать предразбор", "display:inline-flex;margin-top:14px;border-radius:999px;background:#8f4f3f;color:#fff;padding:9px 13px;font-size:13px;font-weight:700");
+  root.appendChild(link);
   if (current && current.parentNode) current.parentNode.insertBefore(root, current);
   window.dispatchEvent(new CustomEvent("eterapy:analytics", { detail: { event: "practitioner_widget_rendered", surface: "embedded_widget" }}));
 })();`;

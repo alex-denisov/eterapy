@@ -22,6 +22,8 @@ const useCases = [
 
 export function HomeAuthorityArticle() {
   const [articleJsonLd, faqJsonLd] = homeAuthorityJsonLd();
+  const safeArticleJsonLd = JSON.stringify(articleJsonLd).replace(/</g, "\\u003c");
+  const safeFaqJsonLd = JSON.stringify(faqJsonLd).replace(/</g, "\\u003c");
 
   return (
     <article
@@ -31,8 +33,8 @@ export function HomeAuthorityArticle() {
       itemScope
       itemType="https://schema.org/Article"
     >
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeArticleJsonLd }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeFaqJsonLd }} />
 
       <header className="grid gap-8 md:grid-cols-[minmax(0,1.3fr)_minmax(240px,.7fr)] md:items-end">
         <div>

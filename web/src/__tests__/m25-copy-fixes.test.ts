@@ -31,9 +31,11 @@ describe("M25 copy fixes", () => {
     // The impersonate route is a GET with side effects (audit + cookie). Using
     // next/link <Link> prefetches it on hover, logging phantom IMPERSONATE events.
     const modal = source("src/app/admin/users/user-edit-modal.tsx");
-    // every reference to the impersonate route must be on a bare <a>, not <Link>
+    // The state-changing impersonation action must never be reachable through a
+    // prefetching Link or GET anchor. A same-origin POST form runs only on click.
     expect(modal).not.toMatch(/<Link[^>]*\/api\/admin\/impersonate/);
-    expect(modal).toMatch(/<a[^>]*\/api\/admin\/impersonate/);
+    expect(modal).not.toMatch(/<a[^>]*\/api\/admin\/impersonate/);
+    expect(modal).toContain('<form action="/api/admin/impersonate" method="post"');
   });
 
   it("B344: practitioner invite drops English/technical jargon", () => {

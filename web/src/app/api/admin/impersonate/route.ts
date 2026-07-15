@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/impersonate?userId=xxx
+ * POST /api/admin/impersonate (form field: userId)
  *
  * Войти в кабинет как другой пользователь (ADMIN / SUPERADMIN). Сессия
  * администратора НЕ затрагивается — кабинет открывается в новой вкладке через
@@ -17,7 +17,7 @@ import { logAudit } from "@/lib/audit";
 import { appUrl } from "@/lib/subdomain";
 import { encodeImpersonationToken, setImpersonationCookie } from "@/lib/impersonation";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await auth();
   const impersonatorId = session?.user?.id;
   if (!impersonatorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,8 +25,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Только администратор и выше" }, { status: 403 });
   }
 
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const origin = req.headers.get("origin");
+  if (!origin || origin !== req.nextUrl.origin) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  }
+
+  const formData = await req.formData().catch(() => null);
+  const userId = formData?.get("userId");
+  if (typeof userId !== "string") return NextResponse.json({ error: "userId required" }, { status: 400 });
 
   const target = await db.user.findUnique({
     where: { id: userId },

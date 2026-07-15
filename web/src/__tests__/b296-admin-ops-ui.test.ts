@@ -16,7 +16,8 @@ describe("B296 admin operations UI", () => {
     expect(panel).toContain("CompactTableShell");
     // U1/U2: role management + impersonation moved into the edit modal.
     expect(modal).toContain("permissions.canManageRoles");
-    expect(modal).toContain("/api/admin/impersonate?userId=");
+    expect(modal).toContain('action="/api/admin/impersonate"');
+    expect(modal).toContain('method="post"');
     expect(shell).toContain('label: "Пользователи и сегменты"');
     expect(shell).not.toContain('label: "Клиенты"');
   });
