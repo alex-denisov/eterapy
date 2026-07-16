@@ -14,29 +14,9 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("targets the Next listener origin behind PM2/nginx (INC-066: origin mismatch with initUrl turns the rewrite into an external proxy hop)", () => {
-    // Next считает rewrite внутренним только при origin === initUrl origin =
-    // http://<bind-hostname>:<PORT> (resolve-routes.js). На VPS PM2 задаёт
-    // HOSTNAME=127.0.0.1 и PORT — цель обязана строиться из тех же env.
-    const prevHost = process.env.HOSTNAME;
-    const prevPort = process.env.PORT;
-    process.env.HOSTNAME = "127.0.0.1";
-    process.env.PORT = "3100";
-    try {
-      const staged = internalRewriteUrl(
-        request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
-        "/cabinet",
-      );
-      expect(staged.toString()).toBe("http://127.0.0.1:3100/cabinet");
-    } finally {
-      if (prevHost === undefined) delete process.env.HOSTNAME;
-      else process.env.HOSTNAME = prevHost;
-      if (prevPort === undefined) delete process.env.PORT;
-      else process.env.PORT = prevPort;
-    }
-
-    // Локальный dev (env листенера не заданы): nextUrl уже совпадает с
-    // initUrl — чистый same-origin clone.
+  it("builds a same-origin carrier URL; the internal/external decision lives in the relative x-middleware-rewrite header (INC-066)", () => {
+    // Фактическая цель rewrite — ОТНОСИТЕЛЬНЫЙ x-middleware-rewrite (см.
+    // rewriteWithContext); URL здесь лишь носитель pathname/search.
     const local = internalRewriteUrl(
       request("http://localhost:3000/", { host: "localhost:3000" }),
       "/cabinet",
