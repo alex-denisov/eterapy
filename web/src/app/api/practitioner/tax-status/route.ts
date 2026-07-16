@@ -17,6 +17,7 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import {
   TAX_STATUS_LABELS,
+  namesLikelyMatch,
   validateInn,
   type TaxStatusKey,
 } from "@/lib/practitioner-tax-verification";
@@ -82,6 +83,21 @@ export async function POST(req: NextRequest) {
   }
 
   // step === "confirm" — сохраняем ТОЛЬКО после явного подтверждения.
+  //
+  // B483 security-гейт: авто-VERIFIED допустим только когда личность привязана
+  // к официальному реестру (identitySource="registry") и ФИО из реестра
+  // согласуется с именем профиля. NPD-проверка (самозанятый) подтверждает лишь
+  // активность ИНН → статус активен, но заявка уходит на ручную модерацию,
+  // чтобы чужой действующий ИНН нельзя было присвоить.
+  const registryBound = identity.identitySource === "registry";
+  const nameMatches = registryBound && (
+    // Для юрлица без данных руководителя достаточно активной записи реестра —
+    // наименование ООО не обязано совпадать с именем практика.
+    (status === "LEGAL_ENTITY" && !identity.registryPersonName)
+    || namesLikelyMatch(practitioner.user.name, identity.registryPersonName)
+  );
+  const autoVerified = registryBound && nameMatches;
+
   const verifiedAt = new Date();
   await db.$transaction(async (tx) => {
     await tx.practitioner.update({
@@ -89,8 +105,8 @@ export async function POST(req: NextRequest) {
       data: {
         taxStatus: status,
         inn: validation.inn,
-        taxReviewStatus: "VERIFIED",
-        taxStatusVerifiedAt: verifiedAt,
+        taxReviewStatus: autoVerified ? "VERIFIED" : "PENDING",
+        taxStatusVerifiedAt: autoVerified ? verifiedAt : null,
         taxStatusRejectedReason: null,
       },
     });
@@ -106,10 +122,21 @@ export async function POST(req: NextRequest) {
 
   await logAudit(
     session.user.id,
-    "TAX_STATUS_VERIFIED",
+    autoVerified ? "TAX_STATUS_VERIFIED" : "TAX_STATUS_PENDING_REVIEW",
     undefined,
-    `Налоговый статус подтверждён: ${TAX_STATUS_LABELS[status]} · источник ${identity.source}`,
+    `Налоговый статус ${TAX_STATUS_LABELS[status]} · источник ${identity.source} · `
+      + (autoVerified ? "авто-подтверждён (реестр)" : "статус активен, личность на ручной проверке"),
   );
+
+  if (!autoVerified) {
+    return NextResponse.json(
+      {
+        error: "Статус по ИНН активен, но авто-привязка личности недоступна — "
+          + "заявка передана модератору. Обычно проверка занимает до 1 рабочего дня.",
+      },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({ ok: true, verifiedAt: verifiedAt.toISOString() });
 }

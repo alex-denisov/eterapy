@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
@@ -14,6 +15,10 @@ import { readClientFingerprint } from "@/lib/guest-fingerprint";
 import db from "@/lib/db";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { recordRegistrationConsent } from "@/lib/legal/consent";
+import {
+  scoreRegistration,
+  REGISTRATION_REVIEW_THRESHOLD,
+} from "@/lib/registration-antifraud";
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,7 +59,56 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email уже зарегистрирован", code: "DUPLICATE_EMAIL" }, { status: 409 });
     }
 
+    // INC-064: registration antifraud scoring. Compute BEFORE creating the user
+    // so obvious automated abuse (random mixed-case name + Gmail dot-abuse /
+    // disposable / alias twin) is blocked, and every sign-up carries a score.
+    const normalizedEmail = normalizeEmailForFraud(email);
+    const aliasTwin = normalizedEmail.endsWith("@gmail.com")
+      ? await db.user.findFirst({
+        where: { normalizedEmail, deletedAt: null },
+        select: { id: true },
+      }).catch(() => null)
+      : null;
+    const risk = scoreRegistration({ name, email, aliasDuplicate: Boolean(aliasTwin) });
+    const fp = requestFingerprint(req);
+
+    if (risk.block) {
+      await logFraudEvent(db, {
+        subjectType: "registration",
+        actorUserId: null,
+        riskScore: risk.score,
+        riskFlags: risk.flags,
+        action: "register_blocked_antifraud",
+        status: "blocked",
+        ipHash: fp.ipHash,
+        userAgentHash: fp.userAgentHash,
+        deviceHash: fp.deviceHash,
+        metadata: { emailNormalized: normalizedEmail, signals: risk.signals } as unknown as Prisma.InputJsonObject,
+      }).catch((fraudErr) => log.error("register.block_log_failed", { err: fraudErr }));
+      // Neutral message — do not reveal the antifraud rule to the caller.
+      return NextResponse.json(
+        { error: "Не удалось создать аккаунт. Проверьте имя и email или напишите в поддержку.", code: "REGISTRATION_REJECTED" },
+        { status: 422 },
+      );
+    }
+
     const user = await usersDb.create({ email, name, password });
+
+    // INC-064: record the antifraud score for every sign-up so the admin sees a
+    // scored history even when the account is allowed through.
+    await logFraudEvent(db, {
+      subjectType: "user",
+      subjectId: user.id,
+      actorUserId: user.id,
+      riskScore: risk.score,
+      riskFlags: risk.flags.length > 0 ? risk.flags : ["clean"],
+      action: "register_risk_scored",
+      status: risk.score >= REGISTRATION_REVIEW_THRESHOLD ? "review" : "logged",
+      ipHash: fp.ipHash,
+      userAgentHash: fp.userAgentHash,
+      deviceHash: fp.deviceHash,
+      metadata: { emailNormalized: normalizedEmail, signals: risk.signals } as unknown as Prisma.InputJsonObject,
+    }).catch((fraudErr) => log.error("register.risk_score_log_failed", { err: fraudErr }));
 
     // B427 (M28): log the two registration consents (contract + ПДн) with the
     // accepted document versions, IP and user-agent. Best-effort — the UI already
@@ -69,35 +123,6 @@ export async function POST(req: NextRequest) {
       log.error("register.consent_log_failed", { err: consentErr });
     }
 
-    // B372 (M26): gmail-дубль через точки/+suffix — risk-флаг в антифрод-журнал
-    // (регистрацию не блокируем: алиасы легальны, но велосити по ним — сигнал).
-    try {
-      const normalized = normalizeEmailForFraud(email);
-      const aliasTwin = normalized.endsWith("@gmail.com")
-        ? await db.user.findFirst({
-          where: { normalizedEmail: normalized, id: { not: user.id } },
-          select: { id: true, email: true },
-        })
-        : null;
-      if (aliasTwin) {
-        const fp = requestFingerprint(req);
-        await logFraudEvent(db, {
-          subjectType: "user",
-          subjectId: user.id,
-          actorUserId: user.id,
-          riskScore: 45,
-          riskFlags: ["gmail_alias_duplicate"],
-          action: "register_gmail_alias_duplicate",
-          status: "review",
-          ipHash: fp.ipHash,
-          userAgentHash: fp.userAgentHash,
-          deviceHash: fp.deviceHash,
-          metadata: { normalizedEmail: normalized, matchedUserId: aliasTwin.id },
-        });
-      }
-    } catch (fraudErr) {
-      log.error("register.gmail_alias_check_failed", { err: fraudErr });
-    }
     await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
       log.error("register.referral_attach_failed", { err: referralErr });
     });

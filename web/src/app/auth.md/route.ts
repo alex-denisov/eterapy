@@ -8,17 +8,28 @@ Public agents may read ETerapy's published descriptions, policies, prices and sa
 
 ## Registration and provisioning
 
-Anonymous agents provision their public read-only access profile at https://eterapy.com/agent/auth. This endpoint creates no account, stores no state and issues no credential. ETerapy does not issue OAuth tokens, API keys or delegated access for personal accounts through this surface.
+Two access modes exist, both limited to public information:
+
+1. **Anonymous** — call https://eterapy.com/agent/auth. No account, no state, no credential; baseline rate limits apply.
+2. **Registered OAuth client** — register via RFC 7591 dynamic client registration at https://eterapy.com/agent/oauth/register, then obtain a one-hour access token with the OAuth 2.0 \`client_credentials\` grant at https://eterapy.com/agent/oauth/token (scope \`public:read\`). A valid Bearer token raises your rate limit on the public MCP endpoint. Discovery: /.well-known/oauth-authorization-server and /.well-known/oauth-protected-resource.
+
+Neither mode creates a personal account or grants access to user data. ETerapy does not issue delegated access to personal accounts through this surface; user authentication is a separate session-based system.
 
 \`\`\`json
 {
   "agent_auth": {
-    "skill": "anonymous-public-read",
-    "register_uri": "https://eterapy.com/agent/auth",
-    "identity_types_supported": ["anonymous"],
+    "skill": "public-read-client-credentials",
+    "register_uri": "https://eterapy.com/agent/oauth/register",
+    "identity_types_supported": ["anonymous", "oauth_client"],
     "anonymous": {
       "credential_types_supported": ["none"],
       "claim_uri": "https://eterapy.com/agent/auth"
+    },
+    "oauth_client": {
+      "credential_types_supported": ["client_secret"],
+      "grant_types_supported": ["client_credentials"],
+      "token_uri": "https://eterapy.com/agent/oauth/token",
+      "scopes_supported": ["public:read"]
     }
   }
 }
@@ -26,10 +37,9 @@ Anonymous agents provision their public read-only access profile at https://eter
 
 ## Supported method
 
-- Anonymous access to public information only.
-- Supported identity type: \`anonymous\`.
-- Supported credential type: \`none\`; no credential is sent or stored.
-- Supported scope: \`public:read\`.
+- Read-only access to public information (\`public:read\`) — anonymous or via \`client_credentials\` Bearer token.
+- Access tokens are ES256 JWTs, valid for 1 hour; there is no revocation endpoint — tokens simply expire.
+- Registration is stateless: keep your \`client_secret\`; lost credentials are replaced by registering again.
 - Account, dialogue, payment and practitioner data are outside this agent surface.
 
 For product support, use https://eterapy.com/help or support@eterapy.com.

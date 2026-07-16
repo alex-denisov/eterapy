@@ -42,6 +42,10 @@ export function HomeAuthorityArticle() {
           <h2 id="eterapy-guide-title" className="soft-h1 mt-3" itemProp="headline">
             Что делает ETerapy и <span className="soft-italic">когда этого достаточно</span>
           </h2>
+          <p className="mt-3 text-sm text-[var(--soft-ink-faint)]">
+            Автор: редакция ETerapy · Опубликовано <time dateTime="2026-07-15">15 июля 2026</time> ·
+            Обновлено <time dateTime={HOME_CONTENT_REVIEWED_AT}>16 июля 2026</time>
+          </p>
           <p className="soft-lede mt-5 max-w-3xl" itemProp="description">
             ETerapy помогает разобрать жизненный вопрос: уточнить контекст, отделить факты от чувств и предположений,
             увидеть развилку и выбрать безопасный следующий шаг. Это инструмент рефлексии, а не лечение, диагноз или
@@ -58,12 +62,18 @@ export function HomeAuthorityArticle() {
       </header>
 
       <section className="mt-8 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-white/55 p-5" aria-labelledby="home-summary-title">
-        <h3 id="home-summary-title" className="font-semibold text-[var(--soft-bordeaux)]">Короткий ответ</h3>
+        <h3 id="home-summary-title" className="font-semibold text-[var(--soft-bordeaux)]">Коротко (TL;DR)</h3>
         <p className="mt-2 max-w-4xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           ETerapy подходит совершеннолетнему человеку, который уже замечает жизненную проблему, но ещё не сформулировал точный вопрос.
           Бесплатный первичный разбор помогает назвать факты, чувства, предположения и критерии решения. Если нужны диагностика,
           профессиональная ответственность или длительная поддержка, следующий шаг — профильный специалист, а не новый цифровой отчёт.
         </p>
+        <ul className="mt-3 max-w-4xl list-disc space-y-1 pl-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          <li>Первичный разбор бесплатный и не обязывает покупать продолжение.</li>
+          <li>Углубление — отдельный формат: отчёт, разбор переписки, совместный сценарий или встреча со специалистом.</li>
+          <li>ETerapy не ставит диагнозы и не заменяет врача, психолога, юриста или финансового консультанта.</li>
+          <li>При риске для жизни или безопасности — сразу 112, а не цифровой сервис.</li>
+        </ul>
       </section>
 
       <figure className="mt-10 overflow-hidden rounded-[var(--soft-radius-xl)] bg-[var(--soft-paper-deep)] p-3 md:p-5">
@@ -147,6 +157,36 @@ export function HomeAuthorityArticle() {
         </div>
       </section>
 
+      <section className="mt-14 grid gap-8 md:grid-cols-2" aria-labelledby="platform-data-title">
+        <div>
+          <h3 id="platform-data-title" className="soft-h2">Что показывают данные платформы</h3>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Несколько проверяемых фактов о том, как устроен продукт — их можно сверить прямо в интерфейсе:
+          </p>
+          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            <li>В <Link href="/library" className="underline underline-offset-4">открытой библиотеке тем</Link> — больше 120 карточек с типовыми жизненными вопросами и подходами к ним.</li>
+            <li>Первичный разбор всегда бесплатный; платные форматы перечислены в <Link href="/products" className="underline underline-offset-4">каталоге продуктов</Link> с ценой до начала.</li>
+            <li>Оплата сессии со специалистом резервируется и удерживается только после проведённой встречи — при отмене специалистом деньги возвращаются полностью.</li>
+            <li>Каждый <Link href="/practitioners" className="underline underline-offset-4">специалист каталога</Link> проходит проверку профиля, а надёжность (доля проведённых сессий) влияет на позицию в выдаче.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 className="soft-h2">Разбор обобщённого случая</h3>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Обобщённый пример, составленный редакцией из типовых сценариев (не история конкретного человека):
+            пользователь приходит с формулировкой «всё надоело на работе». Диалог ясности за несколько уточнений
+            выделяет факты (задачи стали однообразными, разговора с руководителем не было девять месяцев),
+            чувства (усталость, обида) и предположения («меня не ценят»).
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Итог первичного разбора — вопрос переформулирован в развилку «обсудить изменения в текущей роли или
+            начать искать новую», с критериями выбора и одним обратимым шагом: подготовить разговор с руководителем.
+            Дальше человек сам решает, достаточно ли этого, нужен ли письменный отчёт или
+            {" "}<Link href="/practitioners" className="underline underline-offset-4">живой специалист</Link>.
+          </p>
+        </div>
+      </section>
+
       <section className="mt-14 grid gap-8 md:grid-cols-2" aria-labelledby="decision-title">
         <div>
           <h3 id="decision-title" className="soft-h2">Как выбрать следующий формат</h3>
@@ -165,7 +205,10 @@ export function HomeAuthorityArticle() {
           </p>
           <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             ВОЗ рассматривает самопомощь как дополнение, а не альтернативу профессиональной помощи. См. актуальный
-            {" "}<a className="underline underline-offset-4" href="https://www.who.int/ru/news-room/fact-sheets/detail/self-care-health-interventions" rel="noreferrer">обзор ВОЗ о самопомощи</a>.
+            {" "}<a className="underline underline-offset-4" href="https://www.who.int/ru/news-room/fact-sheets/detail/self-care-health-interventions" rel="noreferrer">обзор ВОЗ о самопомощи</a>
+            {" "}и <a className="underline underline-offset-4" href="https://www.who.int/ru/news-room/fact-sheets/detail/mental-health-strengthening-our-response" rel="noreferrer">материал ВОЗ о психическом здоровье</a>.
+            Бесплатная психологическая помощь детям и родителям в РФ доступна по номеру 8-800-2000-122 — официальный сайт
+            {" "}<a className="underline underline-offset-4" href="https://telefon-doveria.ru/" rel="noreferrer">детского телефона доверия</a>.
             Границы цифровых и живых форматов ETerapy также закреплены в <Link href="/legal/ethics" className="underline underline-offset-4">этическом кодексе</Link>
             {" "}и <Link href="/how-it-works" className="underline underline-offset-4">описании процесса</Link>.
           </p>
@@ -178,8 +221,13 @@ export function HomeAuthorityArticle() {
           Начните с одного конкретного вопроса и используйте первичный разбор как карту, а не как окончательный ответ.
           Если после разбора понятен безопасный обратимый шаг, дополнительная покупка не нужна. Если цена ошибки высока,
           тема касается здоровья, безопасности, права или финансов либо ситуация регулярно повторяется, выберите профильного человека.
-          Платные форматы и их отличия опубликованы в <Link href="/pricing/compare" className="underline underline-offset-4">сравнении тарифов</Link>.
         </p>
+        <ol className="mt-4 max-w-4xl list-decimal space-y-2 pl-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          <li>Сформулируйте один вопрос своими словами — точность придёт в диалоге, а не до него.</li>
+          <li>Пройдите бесплатный первичный разбор и проверьте, появился ли у вас безопасный обратимый шаг.</li>
+          <li>Если нужна глубина — сравните форматы в <Link href="/pricing/compare" className="underline underline-offset-4">сравнении тарифов</Link>
+            {" "}или выберите <Link href="/practitioners" className="underline underline-offset-4">специалиста по направлению</Link>.</li>
+        </ol>
       </section>
 
       <section id="faq" className="mt-16 scroll-mt-24" aria-labelledby="home-faq-title">

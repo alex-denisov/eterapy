@@ -40,7 +40,10 @@ export type NotifEvent =
   | "PRACTITIONER_MESSAGE"
   | "BOOKING_PROPOSED"
   | "BOOKING_CHANGE_REQUESTED"
-  | "BOOKING_CHANGE_RESOLVED";
+  | "BOOKING_CHANGE_RESOLVED"
+  // B484 practitioner reliability policy
+  | "GOODWILL_CREDITS"
+  | "RELIABILITY_WARNING";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "retention" | "system";
@@ -129,6 +132,21 @@ export const ALL_EVENTS: Array<{
     label: "Решение по переносу/отмене",
     description: "Когда запрос переноса или отмены согласован либо отклонён",
     roles: ["CLIENT", "PRACTITIONER"],
+  },
+  // B484: компенсация клиенту и предупреждение практика по метрике надёжности.
+  {
+    event: "GOODWILL_CREDITS",
+    category: "booking",
+    label: "Компенсация баллами",
+    description: "Когда платформа начислила баллы за отменённую или несостоявшуюся сессию",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "RELIABILITY_WARNING",
+    category: "booking",
+    label: "Предупреждение о надёжности",
+    description: "Когда поздние отмены или неявки временно снижают позицию в каталоге",
+    roles: ["PRACTITIONER"],
   },
   // B478: одностороннее сообщение/материал от специалиста.
   {

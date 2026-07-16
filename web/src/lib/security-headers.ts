@@ -13,10 +13,17 @@ const SCRIPT_HOSTS = [
   "https://oauth.telegram.org",
 ];
 
-function csp(options: { production: boolean; reportOnly?: boolean }) {
+export function cspValue(options: { production: boolean; reportOnly?: boolean; nonce?: string }) {
+  // B523: с nonce (аутентифицированные /cabinet и /admin — всегда динамический
+  // рендер) script-src живёт БЕЗ 'unsafe-inline'; Next подхватывает nonce из
+  // request-заголовка Content-Security-Policy и проставляет его своим
+  // inline-скриптам. Статические страницы (маркетинговый лендинг, 340+ prerender-
+  // страниц) не могут получить per-request nonce → там остаётся 'unsafe-inline'
+  // + строгая report-only телеметрия.
   const scriptSources = [
     "'self'",
-    ...(!options.reportOnly ? ["'unsafe-inline'"] : []),
+    ...(options.nonce ? [`'nonce-${options.nonce}'`] : []),
+    ...(!options.reportOnly && !options.nonce ? ["'unsafe-inline'"] : []),
     ...(!options.production && !options.reportOnly ? ["'unsafe-eval'"] : []),
     ...SCRIPT_HOSTS,
   ];
@@ -29,23 +36,23 @@ function csp(options: { production: boolean; reportOnly?: boolean }) {
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
     `script-src ${scriptSources.join(" ")}`,
+    // Inline-обработчики (onclick=…) не используются React-кодом — режем их
+    // как XSS-вектор в nonce-политике и собираем телеметрию в report-only.
+    ...(options.nonce || options.reportOnly ? ["script-src-attr 'none'"] : []),
     "connect-src 'self' https: wss: ws:",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
     "frame-src https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org",
     "form-action 'self' https://yoomoney.ru https://*.yookassa.ru",
-    ...(options.reportOnly ? ["report-uri /api/csp-report"] : []),
+    ...(options.reportOnly || options.nonce ? ["report-uri /api/csp-report"] : []),
   ];
   return directives.join("; ");
 }
 
-export function securityHeaders(options: { production?: boolean } = {}): SecurityHeader[] {
-  const production = options.production ?? process.env.NODE_ENV === "production";
+/** Все hardening-заголовки, КРОМЕ CSP. Ставятся глобально в next.config на
+ *  каждый путь (включая api/_next/static — HSTS/анти-clickjacking везде). */
+export function baseSecurityHeaders(): SecurityHeader[] {
   return [
-    { key: "Content-Security-Policy", value: csp({ production }) },
-    ...(production
-      ? [{ key: "Content-Security-Policy-Report-Only", value: csp({ production, reportOnly: true }) }]
-      : []),
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-DNS-Prefetch-Control", value: "on" },
@@ -57,4 +64,21 @@ export function securityHeaders(options: { production?: boolean } = {}): Securit
       value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(self)",
     },
   ];
+}
+
+/** Только CSP-заголовки. Для документов их выставляет proxy (там есть host/path
+ *  контекст и per-request nonce); без nonce добавляется строгий report-only. */
+export function cspHeaders(options: { production?: boolean; nonce?: string } = {}): SecurityHeader[] {
+  const production = options.production ?? process.env.NODE_ENV === "production";
+  return [
+    { key: "Content-Security-Policy", value: cspValue({ production, nonce: options.nonce }) },
+    ...(production && !options.nonce
+      ? [{ key: "Content-Security-Policy-Report-Only", value: cspValue({ production, reportOnly: true }) }]
+      : []),
+  ];
+}
+
+/** Полный набор (base + CSP). Сохранён для обратной совместимости/тестов. */
+export function securityHeaders(options: { production?: boolean; nonce?: string } = {}): SecurityHeader[] {
+  return [...cspHeaders(options), ...baseSecurityHeaders()];
 }
