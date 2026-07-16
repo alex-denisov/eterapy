@@ -14,14 +14,14 @@ module.exports = {
     {
       name: "eterapy",
       script: "npm",
-      args: "start -- --port 3000 --hostname 127.0.0.1",
+      args: "start -- --port 3000 --hostname localhost",
       cwd: "/home/admin/eterapy/web",
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
-        HOSTNAME: "127.0.0.1",
+        HOSTNAME: "localhost",
       },
       max_memory_restart: "1G",
       error_file: "/home/admin/.pm2/logs/eterapy-error.log",
