@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "jsx-a11y", "nextjs", "jest"],
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "ignorePatterns": [
+    ".next/**",
+    "coverage/**",
+    "node_modules/**",
+    "public/**",
+    "next-env.d.ts"
+  ],
+  "options": {
+    "maxWarnings": 0
+  },
+  "rules": {
+    "no-debugger": "error",
+    "no-dupe-keys": "error",
+    "no-unreachable": "error",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "react/jsx-key": "error",
+    "react/rules-of-hooks": "error",
+    "react/no-direct-mutation-state": "error",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "nextjs/no-async-client-component": "error",
+    "nextjs/no-head-element": "error",
+    "jest/no-focused-tests": "error"
+  }
+}

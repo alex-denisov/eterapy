@@ -9,6 +9,7 @@ describe("Staging database sync guardrails", () => {
     const script = source("deploy/sync-staging-db-from-prod.sh");
     const workflow = source(".github/workflows/sync-staging-db.yml");
     const deployStaging = source(".github/workflows/deploy-staging.yml");
+    const ecosystem = source("deploy/ecosystem.staging.config.js");
 
     expect(script).toContain("pg_dump --format=custom");
     expect(script).toContain("pg_restore --exit-on-error --no-owner --no-acl");
@@ -17,8 +18,12 @@ describe("Staging database sync guardrails", () => {
     expect(script).toContain("TARGET_DB_NAME=\"${STAGING_DB_BASE}_next\"");
     expect(script).toContain("write_database_url_atomically");
     expect(script).toContain("reload_staging_with_env_file");
-    expect(script).toContain("pm2 reload \"$STAGING_ECOSYSTEM\" --update-env");
-    expect(script).toContain(". ./.env.local");
+    expect(script).toContain("pm2 startOrReload \"$STAGING_ECOSYSTEM\" --update-env");
+    expect(script).toContain("verify_pm2_database_target");
+    expect(script).toContain('verify_pm2_database_target "$TARGET_DB_NAME"');
+    expect(ecosystem).toContain('parseEnv(readFileSync("/home/admin/eterapy-staging/web/.env.local"');
+    expect(ecosystem).toContain("instances: 2");
+    expect(ecosystem).toContain('exec_mode: "cluster"');
     expect(script).toContain('SYNC_LOCK_FILE="${SYNC_LOCK_FILE:-/tmp/eterapy-staging-db-sync.lock}"');
     expect(script).toContain("flock -n 9");
     expect(script).toContain('SYNC_FAILPOINT="${SYNC_FAILPOINT:-}"');

@@ -100,9 +100,9 @@ describe("R9-5 desktop finance — Отчёты со скачиванием XLSX
 
   it("export endpoint is practitioner-gated and produces xlsx + csv", () => {
     const src = route();
-    expect(src).toContain('import * as XLSX from "xlsx"');
+    expect(src).toContain('import { createXlsxExport } from "@/lib/xlsx-export"');
     expect(src).toContain('role !== "PRACTITIONER"');
-    expect(src).toContain('bookType: "xlsx"');
+    expect(src).toContain("await createXlsxExport");
     expect(src).toContain("text/csv");
     expect(src).toContain('status: "COMPLETED"');
     expect(src).toContain("\\d{4}-\\d{2}"); // фильтр ?period=YYYY-MM по MSK-месяцу
