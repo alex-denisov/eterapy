@@ -24,6 +24,8 @@ describe("Staging database sync guardrails", () => {
     expect(ecosystem).toContain('parseEnv(readFileSync("/home/admin/eterapy-staging/web/.env.local"');
     expect(ecosystem).toContain("instances: 2");
     expect(ecosystem).toContain('exec_mode: "cluster"');
+    expect(ecosystem).toContain('script: "/home/admin/eterapy-staging/node_modules/next/dist/bin/next"');
+    expect(ecosystem).toContain('args: ["start", "--port", "3100", "--hostname", "127.0.0.1"]');
     expect(script).toContain('SYNC_LOCK_FILE="${SYNC_LOCK_FILE:-/tmp/eterapy-staging-db-sync.lock}"');
     expect(script).toContain("flock -n 9");
     expect(script).toContain('SYNC_FAILPOINT="${SYNC_FAILPOINT:-}"');
