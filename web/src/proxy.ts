@@ -105,25 +105,29 @@ export function internalRewriteUrl(request: NextRequest, pathname: string): URL 
   // каждый app-host rewrite уходил внешним прокси-хопом: Next заново
   // запрашивал сам себя, proxy выполнялся второй раз уже без app-хоста,
   // B477-защита срезала nonce-маркер, и наружу уходила статическая CSP +
-  // report-only (прод-симптом INC-066). Относительную цель тоже нельзя:
-  // adapter.js Next'а ре-абсолютизирует её обратно в localhost-origin. И на
-  // env HOSTNAME опираться нельзя — в middleware-рантайме он 'localhost'
-  // (проверено на staging), а не значение --hostname.
-  // Поэтому: наличие x-forwarded-proto означает «мы за nginx», где листенер
-  // у нас всегда 127.0.0.1 (--hostname в ecosystem-конфигах;
-  // переопределяемо через ETERAPY_INTERNAL_REWRITE_HOST); протокол — из
-  // x-forwarded-proto, порт — из nextUrl (он совпадает с портом листенера).
-  // Без прокси-заголовка (локальный `next dev`, jest) nextUrl уже совпадает
-  // с initUrl — чистый clone.
+  // report-only (прод-симптом INC-066). Наблюдённые на staging факты:
+  // (а) nextUrl за nginx материализуется как http(s)://localhost:<port>, и его
+  //     протокол уже зеркалит XFP-логику initUrl (https при X-Forwarded-Proto,
+  //     http без него);
+  // (б) initUrl отличается от nextUrl ТОЛЬКО hostname'ом: --hostname у нас
+  //     127.0.0.1, а nextUrl пишет localhost;
+  // (в) сам заголовок x-forwarded-proto до middleware НЕ доходит (Next его
+  //     срезает), env HOSTNAME в middleware-рантайме = 'localhost', а
+  //     относительную цель adapter.js ре-абсолютизирует — поэтому все обходные
+  //     пути через заголовки/env/relative не работают.
+  // Признак «за прокси»: loopback-nextUrl при публичном Host-заголовке. Тогда
+  // достаточно подменить hostname на адрес листенера (127.0.0.1;
+  // переопределяемо через ETERAPY_INTERNAL_REWRITE_HOST). Локальный dev/jest
+  // (Host тоже loopback либо nextUrl не loopback) — чистый clone.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "";
-  const listenerHost =
-    process.env.ETERAPY_INTERNAL_REWRITE_HOST || (forwardedProto ? "127.0.0.1" : "");
-  if (listenerHost) {
-    url.protocol = forwardedProto.includes("https") ? "https:" : "http:";
-    url.hostname = listenerHost;
+  const hostHeader = request.headers.get("host") ?? "";
+  const isLoopbackUrl = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  const isLoopbackHost =
+    hostHeader === "" || hostHeader.startsWith("localhost") || hostHeader.startsWith("127.");
+  if (isLoopbackUrl && !isLoopbackHost) {
+    url.hostname = process.env.ETERAPY_INTERNAL_REWRITE_HOST || "127.0.0.1";
   }
   return url;
 }

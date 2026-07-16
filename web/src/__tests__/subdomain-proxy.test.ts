@@ -14,15 +14,13 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("targets the router's initUrl origin behind nginx: proto from x-forwarded-proto, host = listener 127.0.0.1 (INC-066)", () => {
-    // initUrl = `${xfProto.includes('https')?'https':'http'}://${opts.hostname}:${opts.port}`
-    // (resolve-routes.js), а --hostname у нас 127.0.0.1. Несовпадение по ЛЮБОЙ
-    // части = внешний прокси-хоп, второй проход proxy срезает nonce-CSP.
+  it("swaps the loopback nextUrl hostname to the 127.0.0.1 listener behind the proxy (INC-066)", () => {
+    // initUrl роутера = `${proto}://127.0.0.1:<port>` (--hostname), а nextUrl
+    // материализуется как localhost с тем же протоколом. Несовпадение по
+    // ЛЮБОЙ части origin = внешний прокси-хоп, второй проход proxy срезает
+    // nonce-CSP. Признак «за прокси» — публичный Host при loopback-nextUrl.
     const staged = internalRewriteUrl(
-      request("https://localhost:3100/", {
-        host: "staging.app.eterapy.com",
-        "x-forwarded-proto": "https",
-      }),
+      request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
       "/cabinet",
     );
     expect(staged.toString()).toBe("https://127.0.0.1:3100/cabinet");
@@ -31,10 +29,7 @@ describe("subdomain proxy rewrites", () => {
     process.env.ETERAPY_INTERNAL_REWRITE_HOST = "10.0.0.5";
     try {
       const overridden = internalRewriteUrl(
-        request("https://localhost:3100/", {
-          host: "staging.app.eterapy.com",
-          "x-forwarded-proto": "https",
-        }),
+        request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
         "/cabinet",
       );
       expect(overridden.toString()).toBe("https://10.0.0.5:3100/cabinet");
