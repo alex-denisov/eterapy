@@ -70,7 +70,8 @@ function sanitizeValue(value: unknown): unknown {
 }
 
 function stripAnsi(value: string) {
-  return value.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
+  const ansiEscapePattern = new RegExp(String.raw`\u001B\[[0-?]*[ -/]*[@-~]`, "g");
+  return value.replace(ansiEscapePattern, "");
 }
 
 function clampLimit(value: number | undefined) {

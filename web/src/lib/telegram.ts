@@ -14,7 +14,7 @@
  * `https://api.telegram.org/bot<TOKEN>`.
  */
 
-import { log, serializeError } from "./logger";
+import { log } from "./logger";
 import { telegramBotUsername } from "@/lib/env";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
