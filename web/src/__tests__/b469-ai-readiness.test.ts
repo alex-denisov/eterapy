@@ -109,10 +109,12 @@ describe("B469 AI search readiness", () => {
       status: expect.any(Array),
     }));
     expect(auth).toContain("# ETerapy auth.md");
-    // B469: auth.md теперь описывает два режима — anonymous + oauth_client.
+    // B469: identity_types_supported uses only the spec-recognized "anonymous"
+    // value; OAuth client_credentials is advertised as an extension block.
     expect(auth).toContain('"register_uri": "https://eterapy.com/agent/oauth/register"');
-    expect(auth).toContain('"identity_types_supported": ["anonymous", "oauth_client"]');
+    expect(auth).toContain('"identity_types_supported": ["anonymous"]');
     expect(auth).toContain('"claim_uri": "https://eterapy.com/agent/auth"');
+    expect(auth).toContain('"oauth_client"');
     expect(profile).toEqual(expect.objectContaining({
       identity_type: "anonymous",
       credential_type: "none",

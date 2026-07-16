@@ -187,6 +187,52 @@ export function HomeAuthorityArticle() {
         </div>
       </section>
 
+      <section className="mt-14" aria-labelledby="compare-formats-title">
+        <h3 id="compare-formats-title" className="soft-h2">Цифровой разбор или живой специалист: сравнение</h3>
+        <p className="mt-3 max-w-4xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Оба формата дополняют друг друга. Таблица помогает выбрать точку входа под конкретную задачу.
+        </p>
+        <div className="mt-6 overflow-x-auto rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)]">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <caption className="sr-only">Сравнение цифрового первичного разбора и живой сессии со специалистом</caption>
+            <thead>
+              <tr className="text-[var(--soft-bordeaux)]">
+                <th className="p-4 font-semibold">Критерий</th>
+                <th className="p-4 font-semibold">Цифровой первичный разбор</th>
+                <th className="p-4 font-semibold">Живой специалист</th>
+              </tr>
+            </thead>
+            <tbody className="text-[var(--soft-ink-soft)]">
+              <tr className="border-t border-[var(--soft-paper-edge)] align-top">
+                <td className="p-4 font-medium text-[var(--soft-ink)]">Когда подходит</td>
+                <td className="p-4">Нужно сформулировать вопрос и увидеть варианты</td>
+                <td className="p-4">Нужны диагностика, длительная работа, ответственность специалиста</td>
+              </tr>
+              <tr className="border-t border-[var(--soft-paper-edge)] align-top">
+                <td className="p-4 font-medium text-[var(--soft-ink)]">Стоимость</td>
+                <td className="p-4">Первичный разбор бесплатный; углубления — баллами (пакеты 790 / 1390 / 2990 ₽)</td>
+                <td className="p-4">Цену задаёт специалист, видна до записи</td>
+              </tr>
+              <tr className="border-t border-[var(--soft-paper-edge)] align-top">
+                <td className="p-4 font-medium text-[var(--soft-ink)]">Доступность</td>
+                <td className="p-4">Сразу, без регистрации и записи</td>
+                <td className="p-4">По записи в свободный слот специалиста</td>
+              </tr>
+              <tr className="border-t border-[var(--soft-paper-edge)] align-top">
+                <td className="p-4 font-medium text-[var(--soft-ink)]">Ограничения</td>
+                <td className="p-4">Не ставит диагноз, не видит невербальные сигналы</td>
+                <td className="p-4">Требует времени, доверия и отдельной оплаты</td>
+              </tr>
+              <tr className="border-t border-[var(--soft-paper-edge)] align-top">
+                <td className="p-4 font-medium text-[var(--soft-ink)]">Не подходит для</td>
+                <td className="p-4">Кризиса, угрозы жизни, медицинских и юридических решений</td>
+                <td className="p-4">Мгновенного ответа среди ночи — тогда звоните 112</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="mt-14 grid gap-8 md:grid-cols-2" aria-labelledby="decision-title">
         <div>
           <h3 id="decision-title" className="soft-h2">Как выбрать следующий формат</h3>
