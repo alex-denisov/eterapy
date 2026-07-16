@@ -54,9 +54,13 @@ export async function POST(req: NextRequest) {
     return oauthError("invalid_scope", `Only "${AGENT_OAUTH_SCOPE}" is available`, 400);
   }
 
+  // Prefer HTTP Basic (client_secret_basic) only when it actually carries an
+  // agent client id — otherwise an upstream Basic-Auth proxy (e.g. staging)
+  // would mask the form-body client_secret_post credentials.
   const basic = parseBasicAuth(req.headers.get("authorization"));
-  const clientId = basic?.clientId ?? (typeof form?.get("client_id") === "string" ? String(form.get("client_id")) : "");
-  const clientSecret = basic?.clientSecret ?? (typeof form?.get("client_secret") === "string" ? String(form.get("client_secret")) : "");
+  const basicIsAgent = basic?.clientId?.startsWith("agent-") ?? false;
+  const clientId = (basicIsAgent ? basic?.clientId : undefined) ?? (typeof form?.get("client_id") === "string" ? String(form.get("client_id")) : "");
+  const clientSecret = (basicIsAgent ? basic?.clientSecret : undefined) ?? (typeof form?.get("client_secret") === "string" ? String(form.get("client_secret")) : "");
   if (!clientId || !clientSecret || !validateAgentClient(clientId, clientSecret)) {
     return oauthError("invalid_client", "Unknown client or bad credentials", 401);
   }

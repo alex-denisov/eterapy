@@ -132,6 +132,9 @@ describe("B469 agent OAuth — surface wiring (source contracts)", () => {
     expect(route).toContain("unsupported_grant_type");
     expect(route).toContain('"Cache-Control": "no-store"');
     expect(route).toContain("validateAgentClient");
+    // Basic auth only counts when it carries an agent client id — otherwise an
+    // upstream Basic-Auth proxy would mask form-body credentials.
+    expect(route).toContain('basic?.clientId?.startsWith("agent-")');
   });
 
   it("MCP accepts a valid Bearer token for a higher rate limit", () => {
