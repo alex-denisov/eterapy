@@ -8,20 +8,23 @@ import { internalRewriteUrl, shouldRedirectAppPublicPathToMain } from "@/proxy";
 import { v5Products } from "@/lib/v5-products";
 
 function request(url: string): NextRequest {
-  return { url } as NextRequest;
+  const nextUrl = new URL(url) as URL & { clone(): URL };
+  nextUrl.clone = () => new URL(url);
+  return { url, nextUrl } as unknown as NextRequest;
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("forces local HTTPS rewrite targets back to HTTP for the PM2 listener", () => {
-    const url = internalRewriteUrl(request("https://localhost:3000/"), "/cabinet");
+  it("keeps rewrite targets same-origin with the request (INC-066: origin mismatch turns the rewrite into an external proxy hop)", () => {
+    // Даже localhost-origin должен сохраняться как есть: same-origin rewrite
+    // рендерится внутри процесса, менять протокол нельзя.
+    const local = internalRewriteUrl(request("https://localhost:3000/"), "/cabinet");
+    expect(local.toString()).toBe("https://localhost:3000/cabinet");
 
-    expect(url.toString()).toBe("http://localhost:3000/cabinet");
-  });
-
-  it("keeps real domain rewrite targets on their original protocol", () => {
-    const url = internalRewriteUrl(request("https://app.eterapy.com/"), "/cabinet");
-
-    expect(url.toString()).toBe("https://app.eterapy.com/cabinet");
+    const app = internalRewriteUrl(request("https://app.eterapy.com/diary?tab=1"), "/cabinet/diary");
+    expect(app.origin).toBe("https://app.eterapy.com");
+    expect(app.pathname).toBe("/cabinet/diary");
+    // search сбрасывается — вызывающая сторона переносит его явно
+    expect(app.search).toBe("");
   });
 
   it("keeps public product and funnel routes canonical on the main domain", () => {

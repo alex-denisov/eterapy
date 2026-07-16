@@ -91,14 +91,18 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
-  const url = new URL(pathname, request.url);
-  // Behind nginx, Next can materialize request.url as https://localhost:3000
-  // from X-Forwarded-Proto. Rewriting that absolute URL makes Next proxy TLS to
-  // the local HTTP listener and returns 500/EPROTO. Keep internal rewrites local
-  // but force the backend protocol to HTTP.
-  if ((url.hostname === "localhost" || url.hostname === "127.0.0.1") && url.protocol === "https:") {
-    url.protocol = "http:";
-  }
+  // INC-066: rewrite-URL обязан оставаться same-origin с request.nextUrl. Любое
+  // расхождение origin (даже только протокол, как прежний http://localhost:3000
+  // хак против EPROTO) превращает rewrite во ВНЕШНИЙ прокси-хоп: Next делает
+  // новый запрос сам к себе, proxy выполняется второй раз уже с host=localhost,
+  // B477-защита срезает форвардированный nonce-маркер, и наружу уходит
+  // статическая CSP + report-only вместо nonce-политики (прод-симптом INC-066;
+  // наружу утекал и внутренний заголовок x-middleware-rewrite). Same-origin
+  // rewrite рендерится внутри процесса — без сети и TLS, так что старый
+  // EPROTO-сценарий тоже невозможен.
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
   return url;
 }
 
