@@ -12,7 +12,10 @@ describe("security headers", () => {
   });
 
   it("keeps CSP compatible with payment, auth, media, and websocket flows", () => {
-    const csp = securityHeaders().find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+    const headers = securityHeaders({ production: true });
+    const csp = headers.find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+    const reportOnly = headers.find((header) => header.key === "Content-Security-Policy-Report-Only")?.value ?? "";
+    const reportOnlyScript = reportOnly.match(/script-src [^;]+/)?.[0] ?? "";
 
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
@@ -21,5 +24,20 @@ describe("security headers", () => {
     expect(csp).toContain("https://id.vk.com");
     expect(csp).toContain("connect-src 'self' https: wss: ws:");
     expect(csp).toContain("worker-src 'self' blob:");
+    expect(csp).toContain("'unsafe-inline'");
+    expect(csp).not.toContain("'unsafe-eval'");
+    expect(reportOnly).toContain("report-uri /api/csp-report");
+    expect(reportOnlyScript).not.toContain("'unsafe-inline'");
+    expect(reportOnlyScript).not.toContain("'unsafe-eval'");
+  });
+
+  it("keeps eval available only for local development tooling", () => {
+    const csp = securityHeaders({ production: false })
+      .find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+
+    expect(csp).toContain("'unsafe-eval'");
+    expect(securityHeaders({ production: false })).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "Content-Security-Policy-Report-Only" })]),
+    );
   });
 });
