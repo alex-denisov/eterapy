@@ -107,7 +107,12 @@ describe("B469 agent OAuth — stateless clients and tokens", () => {
     expect(metadata.grant_types_supported).toEqual(["client_credentials"]);
     expect(metadata.scopes_supported).toEqual(["public:read"]);
     expect(metadata.agent_auth.register_uri).toBe("https://eterapy.com/agent/oauth/register");
-    expect(metadata.agent_auth.identity_types_supported).toContain("oauth_client");
+    // Only spec-recognized identity types (scanner rejects unknown values).
+    expect(metadata.agent_auth.identity_types_supported).toEqual(["anonymous"]);
+    expect(metadata.agent_auth.claim_uri).toBe("https://eterapy.com/agent/auth");
+    expect(metadata.agent_auth.anonymous.credential_types_supported).toEqual(["none"]);
+    // OAuth client_credentials advertised under an extension key.
+    expect(metadata.agent_auth.oauth_client.token_uri).toBe("https://eterapy.com/agent/oauth/token");
   });
 
   it("RFC 9728 protected-resource metadata points at the MCP resource", async () => {
