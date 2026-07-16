@@ -91,30 +91,30 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
-  // INC-066: rewrite-URL обязан быть same-origin с тем origin, который Next
-  // выводит из ВХОДЯЩЕГО запроса (Host-заголовок + x-forwarded-proto). Любое
-  // расхождение превращает rewrite во ВНЕШНИЙ прокси-хоп: Next делает новый
-  // запрос сам к себе, proxy выполняется второй раз уже с host=localhost,
-  // B477-защита срезает форвардированный nonce-маркер, и наружу уходит
-  // статическая CSP + report-only вместо nonce-политики (прод-симптом INC-066;
-  // наружу утекал и внутренний x-middleware-rewrite). Нюанс инфраструктуры: за
-  // nginx `request.nextUrl`/`request.url` материализуются как
-  // http(s)://localhost:<port>, поэтому ни clone(nextUrl), ни прежний
-  // http://localhost-хак same-origin не дают (https://localhost при этом ещё и
-  // EPROTO'ит TLS-fetch в plaintext-листенер). Восстанавливаем публичный
-  // origin из заголовков запроса — тогда rewrite рендерится внутри процесса.
+  // INC-066: rewrite остаётся ВНУТРЕННИМ (один проход, без сетевого хопа)
+  // только когда origin цели === origin initUrl, который Next строит в
+  // resolve-routes.ts НЕ из Host-заголовка, а из адреса ЛИСТЕНЕРА:
+  // `http://${formatHostname(opts.hostname||'localhost')}:${opts.port}` (см.
+  // next/dist/server/lib/router-utils/resolve-routes.js + relativize-url.js:
+  // `relative.origin === baseURL.origin`). На VPS PM2 задаёт
+  // HOSTNAME=127.0.0.1/PORT, поэтому прежний http://localhost:<port>-хак НЕ
+  // совпадал по hostname, а clone(nextUrl) и публичный Host-origin — по
+  // протоколу/хосту. Любое несовпадение = внешний прокси-хоп: Next делает
+  // новый запрос сам к себе, proxy выполняется второй раз (host уже не
+  // app-домен), B477-защита срезает nonce-маркер и наружу уходит статическая
+  // CSP + report-only (прод-симптом INC-066; https://localhost вдобавок
+  // EPROTO'ил TLS-fetch в plaintext-листенер, а публичный origin — луп 308).
+  // Строим цель из ТЕХ ЖЕ env, из которых Next строит initUrl; без них
+  // (локальный `next dev`) nextUrl уже совпадает с initUrl — чистый clone.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
-  const hostHeader = request.headers.get("host");
-  if (hostHeader) {
-    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-    const proto = forwardedProto || url.protocol.replace(":", "");
-    url.protocol = `${proto}:`;
-    url.host = hostHeader;
-    // URL.host без порта в присваиваемом значении сохраняет старый порт —
-    // зачищаем явно, иначе получится staging.app.eterapy.com:3100.
-    if (!hostHeader.includes(":")) url.port = "";
+  const listenerHost = process.env.HOSTNAME;
+  const listenerPort = process.env.PORT;
+  if (listenerHost && listenerPort) {
+    url.protocol = "http:";
+    url.hostname = listenerHost;
+    url.port = listenerPort;
   }
   return url;
 }
