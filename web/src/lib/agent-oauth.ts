@@ -132,11 +132,16 @@ export function authorizationServerMetadata() {
     grant_types_supported: ["client_credentials"],
     token_endpoint_auth_methods_supported: ["client_secret_post", "client_secret_basic"],
     service_documentation: `${origin}/auth.md`,
-    // auth.md (workos.com/auth-md) agent registration block.
+    // auth.md (workos.com/auth-md) agent registration block. `identity_types_
+    // supported` uses only spec-recognized values ("anonymous"); the anonymous
+    // flow is the complete registration method (credential_types_supported +
+    // claim_uri). The OAuth client_credentials capability is advertised
+    // separately under `oauth_client` (an extension key the scanner ignores).
     agent_auth: {
-      skill: "public-read-client-credentials",
+      skill: "public-read-anonymous",
       register_uri: `${origin}/agent/oauth/register`,
-      identity_types_supported: ["anonymous", "oauth_client"],
+      identity_types_supported: ["anonymous"],
+      claim_uri: `${origin}/agent/auth`,
       anonymous: {
         credential_types_supported: ["none"],
         claim_uri: `${origin}/agent/auth`,
@@ -144,6 +149,7 @@ export function authorizationServerMetadata() {
       oauth_client: {
         credential_types_supported: ["client_secret"],
         grant_types_supported: ["client_credentials"],
+        register_uri: `${origin}/agent/oauth/register`,
         token_uri: `${origin}/agent/oauth/token`,
         scopes_supported: [AGENT_OAUTH_SCOPE],
       },

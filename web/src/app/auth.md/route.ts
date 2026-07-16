@@ -18,9 +18,10 @@ Neither mode creates a personal account or grants access to user data. ETerapy d
 \`\`\`json
 {
   "agent_auth": {
-    "skill": "public-read-client-credentials",
+    "skill": "public-read-anonymous",
     "register_uri": "https://eterapy.com/agent/oauth/register",
-    "identity_types_supported": ["anonymous", "oauth_client"],
+    "identity_types_supported": ["anonymous"],
+    "claim_uri": "https://eterapy.com/agent/auth",
     "anonymous": {
       "credential_types_supported": ["none"],
       "claim_uri": "https://eterapy.com/agent/auth"
@@ -28,6 +29,7 @@ Neither mode creates a personal account or grants access to user data. ETerapy d
     "oauth_client": {
       "credential_types_supported": ["client_secret"],
       "grant_types_supported": ["client_credentials"],
+      "register_uri": "https://eterapy.com/agent/oauth/register",
       "token_uri": "https://eterapy.com/agent/oauth/token",
       "scopes_supported": ["public:read"]
     }
