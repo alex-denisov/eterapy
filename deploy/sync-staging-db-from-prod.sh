@@ -255,12 +255,41 @@ wait_for_staging_health() {
 reload_staging_with_env_file() {
   (
     cd "$STAGING_WEB_DIR"
-    set -a
-    # shellcheck disable=SC1091
-    . ./.env.local
-    set +a
-    pm2 reload "$STAGING_ECOSYSTEM" --update-env
+    # The descriptor parses .env.local and explicitly supplies it to PM2. This
+    # avoids inherited process variables taking precedence over the A/B target.
+    pm2 startOrReload "$STAGING_ECOSYSTEM" --update-env
   )
+}
+
+verify_pm2_database_target() {
+  local -r expected_database="$1"
+  EXPECTED_DATABASE="$expected_database" pm2 jlist | EXPECTED_DATABASE="$expected_database" node -e '
+    let body = "";
+    process.stdin.on("data", (chunk) => { body += chunk; });
+    process.stdin.on("end", () => {
+      const expected = process.env.EXPECTED_DATABASE;
+      const selected = JSON.parse(body).filter(({ name }) =>
+        name === "eterapy-staging" || name === "eterapy-staging-worker"
+      );
+      const web = selected.filter(({ name }) => name === "eterapy-staging");
+      const worker = selected.filter(({ name }) => name === "eterapy-staging-worker");
+      const invalid = selected.filter((process) => {
+        try {
+          const database = decodeURIComponent(new URL(process.pm2_env?.DATABASE_URL ?? "").pathname.slice(1));
+          return process.pm2_env?.status !== "online" || database !== expected;
+        } catch {
+          return true;
+        }
+      });
+
+      if (web.length !== 2 || worker.length !== 1 || invalid.length > 0) {
+        process.stderr.write(
+          `PM2 target verification failed: expected two web processes and one worker on ${expected}\n`,
+        );
+        process.exit(1);
+      }
+    });
+  '
 }
 
 log "Dumping production DB '$PROD_DB_NAME' to a temporary custom-format dump"
@@ -310,10 +339,19 @@ if [[ "$RESTART" == "true" ]]; then
     exit 1
   fi
 
+  if ! verify_pm2_database_target "$TARGET_DB_NAME"; then
+    log "PM2 retained the wrong database target; restoring '$STAGING_DB_NAME'"
+    cp -p -- "$ENV_BACKUP" "$STAGING_WEB_DIR/.env.local"
+    reload_staging_with_env_file || true
+    verify_pm2_database_target "$STAGING_DB_NAME" || true
+    exit 1
+  fi
+
   if ! wait_for_staging_health; then
     log "Health verification failed; rolling back to '$STAGING_DB_NAME'"
     cp -p -- "$ENV_BACKUP" "$STAGING_WEB_DIR/.env.local"
     reload_staging_with_env_file || true
+    verify_pm2_database_target "$STAGING_DB_NAME" || true
     wait_for_staging_health || log "WARNING: staging health did not recover after rollback"
     exit 1
   fi
