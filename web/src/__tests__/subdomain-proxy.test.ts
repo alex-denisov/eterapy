@@ -7,20 +7,37 @@ jest.mock("@/lib/session-from-cookie", () => ({
 import { internalRewriteUrl, shouldRedirectAppPublicPathToMain } from "@/proxy";
 import { v5Products } from "@/lib/v5-products";
 
-function request(url: string): NextRequest {
+function request(url: string, headers: Record<string, string> = {}): NextRequest {
   const nextUrl = new URL(url) as URL & { clone(): URL };
   nextUrl.clone = () => new URL(url);
-  return { url, nextUrl } as unknown as NextRequest;
+  return { url, nextUrl, headers: new Headers(headers) } as unknown as NextRequest;
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("keeps rewrite targets same-origin with the request (INC-066: origin mismatch turns the rewrite into an external proxy hop)", () => {
-    // Даже localhost-origin должен сохраняться как есть: same-origin rewrite
-    // рендерится внутри процесса, менять протокол нельзя.
-    const local = internalRewriteUrl(request("https://localhost:3000/"), "/cabinet");
-    expect(local.toString()).toBe("https://localhost:3000/cabinet");
+  it("rebuilds the request's PUBLIC origin behind nginx (INC-066: localhost origin turns the rewrite into an external proxy hop)", () => {
+    // За nginx nextUrl материализуется как localhost:<port>; rewrite обязан
+    // получить origin из Host + x-forwarded-proto, иначе Next проксирует
+    // запрос сам в себя (и https://localhost вдобавок EPROTO'ит).
+    const staged = internalRewriteUrl(
+      request("https://localhost:3100/", {
+        host: "staging.app.eterapy.com",
+        "x-forwarded-proto": "https",
+      }),
+      "/cabinet",
+    );
+    expect(staged.toString()).toBe("https://staging.app.eterapy.com/cabinet");
 
-    const app = internalRewriteUrl(request("https://app.eterapy.com/diary?tab=1"), "/cabinet/diary");
+    // Локальный dev без прокси: host совпадает, протокол не трогаем.
+    const local = internalRewriteUrl(
+      request("http://localhost:3000/", { host: "localhost:3000" }),
+      "/cabinet",
+    );
+    expect(local.toString()).toBe("http://localhost:3000/cabinet");
+
+    const app = internalRewriteUrl(
+      request("https://app.eterapy.com/diary?tab=1", { host: "app.eterapy.com" }),
+      "/cabinet/diary",
+    );
     expect(app.origin).toBe("https://app.eterapy.com");
     expect(app.pathname).toBe("/cabinet/diary");
     // search сбрасывается — вызывающая сторона переносит его явно

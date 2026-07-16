@@ -91,18 +91,31 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
-  // INC-066: rewrite-URL обязан оставаться same-origin с request.nextUrl. Любое
-  // расхождение origin (даже только протокол, как прежний http://localhost:3000
-  // хак против EPROTO) превращает rewrite во ВНЕШНИЙ прокси-хоп: Next делает
-  // новый запрос сам к себе, proxy выполняется второй раз уже с host=localhost,
+  // INC-066: rewrite-URL обязан быть same-origin с тем origin, который Next
+  // выводит из ВХОДЯЩЕГО запроса (Host-заголовок + x-forwarded-proto). Любое
+  // расхождение превращает rewrite во ВНЕШНИЙ прокси-хоп: Next делает новый
+  // запрос сам к себе, proxy выполняется второй раз уже с host=localhost,
   // B477-защита срезает форвардированный nonce-маркер, и наружу уходит
   // статическая CSP + report-only вместо nonce-политики (прод-симптом INC-066;
-  // наружу утекал и внутренний заголовок x-middleware-rewrite). Same-origin
-  // rewrite рендерится внутри процесса — без сети и TLS, так что старый
-  // EPROTO-сценарий тоже невозможен.
+  // наружу утекал и внутренний x-middleware-rewrite). Нюанс инфраструктуры: за
+  // nginx `request.nextUrl`/`request.url` материализуются как
+  // http(s)://localhost:<port>, поэтому ни clone(nextUrl), ни прежний
+  // http://localhost-хак same-origin не дают (https://localhost при этом ещё и
+  // EPROTO'ит TLS-fetch в plaintext-листенер). Восстанавливаем публичный
+  // origin из заголовков запроса — тогда rewrite рендерится внутри процесса.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
+  const hostHeader = request.headers.get("host");
+  if (hostHeader) {
+    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const proto = forwardedProto || url.protocol.replace(":", "");
+    url.protocol = `${proto}:`;
+    url.host = hostHeader;
+    // URL.host без порта в присваиваемом значении сохраняет старый порт —
+    // зачищаем явно, иначе получится staging.app.eterapy.com:3100.
+    if (!hostHeader.includes(":")) url.port = "";
+  }
   return url;
 }
 
