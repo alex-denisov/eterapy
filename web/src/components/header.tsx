@@ -506,7 +506,7 @@ export function Header() {
               href={mainUrl("/")}
               prefetch={false}
               data-soft-nav="link"
-              className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-[var(--soft-ink-faint)] transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-[var(--soft-ink-soft)] transition-colors hover:text-foreground"
             >
               <ArrowLeft className="size-3.5" aria-hidden="true" />
               На сайт
@@ -519,10 +519,10 @@ export function Header() {
                 data-soft-nav="link"
                 className={cn("rounded-full px-3 py-2 text-sm transition-colors",
                   i === 0
-                    ? "inline-flex items-center gap-1 text-[var(--soft-ink-faint)] hover:text-foreground"
+                    ? "inline-flex items-center gap-1 text-[var(--soft-ink-soft)] hover:text-foreground"
                     : item.label === "Услуги"
                       ? "font-medium text-[#6E5BA6] hover:bg-white/5"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                      : "text-[var(--soft-ink-soft)] hover:bg-white/5 hover:text-foreground",
                 )}>
                 {i === 0 && <ArrowLeft className="size-3.5" aria-hidden="true" />}
                 {item.label}
@@ -539,7 +539,7 @@ export function Header() {
                   data-soft-nav="link"
                   data-active={active ? "true" : undefined}
                   className={cn("rounded-full px-3 py-2 text-sm transition-colors",
-                    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    active ? "bg-primary/10 text-primary" : "text-[var(--soft-ink-soft)] hover:bg-white/5 hover:text-foreground"
                   )}>
                   {item.label}
                 </Link>
@@ -715,7 +715,7 @@ export function Header() {
                     aria-expanded={mobileOpen}
                     aria-label="Ещё"
                     onClick={() => setMobileOpen((v) => !v)}
-                    className={cn(base, mobileOpen ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]")}
+                    className={cn(base, mobileOpen ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-soft)]")}
                   >
                     <Icon className="size-5" aria-hidden="true" />
                     {item.label}
@@ -728,7 +728,7 @@ export function Header() {
                   href={item.href}
                   prefetch={false}
                   onClick={() => setMobileOpen(false)}
-                  className={cn(base, tabActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]")}
+                  className={cn(base, tabActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-soft)]")}
                 >
                   <Icon className="size-5" aria-hidden="true" />
                   {item.label}
