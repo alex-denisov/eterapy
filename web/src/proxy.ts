@@ -106,19 +106,24 @@ export function internalRewriteUrl(request: NextRequest, pathname: string): URL 
   // запрашивал сам себя, proxy выполнялся второй раз уже без app-хоста,
   // B477-защита срезала nonce-маркер, и наружу уходила статическая CSP +
   // report-only (прод-симптом INC-066). Относительную цель тоже нельзя:
-  // adapter.js Next'а ре-абсолютизирует её обратно в localhost-origin.
-  // Строим цель из ТЕХ ЖЕ входов, что initUrl; без env листенера (локальный
-  // `next dev`, jest) nextUrl уже совпадает с initUrl — чистый clone.
+  // adapter.js Next'а ре-абсолютизирует её обратно в localhost-origin. И на
+  // env HOSTNAME опираться нельзя — в middleware-рантайме он 'localhost'
+  // (проверено на staging), а не значение --hostname.
+  // Поэтому: наличие x-forwarded-proto означает «мы за nginx», где листенер
+  // у нас всегда 127.0.0.1 (--hostname в ecosystem-конфигах;
+  // переопределяемо через ETERAPY_INTERNAL_REWRITE_HOST); протокол — из
+  // x-forwarded-proto, порт — из nextUrl (он совпадает с портом листенера).
+  // Без прокси-заголовка (локальный `next dev`, jest) nextUrl уже совпадает
+  // с initUrl — чистый clone.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
-  const listenerHost = process.env.HOSTNAME;
-  const listenerPort = process.env.PORT;
-  if (listenerHost && listenerPort) {
-    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "";
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "";
+  const listenerHost =
+    process.env.ETERAPY_INTERNAL_REWRITE_HOST || (forwardedProto ? "127.0.0.1" : "");
+  if (listenerHost) {
     url.protocol = forwardedProto.includes("https") ? "https:" : "http:";
     url.hostname = listenerHost;
-    url.port = listenerPort;
   }
   return url;
 }
