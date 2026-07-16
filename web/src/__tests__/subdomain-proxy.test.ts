@@ -14,30 +14,18 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("swaps the loopback nextUrl hostname to the 127.0.0.1 listener behind the proxy (INC-066)", () => {
-    // initUrl роутера = `${proto}://127.0.0.1:<port>` (--hostname), а nextUrl
-    // материализуется как localhost с тем же протоколом. Несовпадение по
-    // ЛЮБОЙ части origin = внешний прокси-хоп, второй проход proxy срезает
-    // nonce-CSP. Признак «за прокси» — публичный Host при loopback-nextUrl.
+  it("keeps the rewrite target a same-origin clone of nextUrl (INC-066: adapter normalizes loopbacks, initUrl must match via --hostname localhost)", () => {
+    // Контракт: adapter Next'а нормализует loopback-цели в 'localhost', а
+    // initUrl роутера строится из флага запуска — поэтому листенеры ОБЯЗАНЫ
+    // стартовать с `--hostname localhost` (ecosystem-конфиги), и цель rewrite
+    // остаётся чистым same-origin clone.
     const staged = internalRewriteUrl(
       request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
       "/cabinet",
     );
-    expect(staged.toString()).toBe("https://127.0.0.1:3100/cabinet");
+    expect(staged.toString()).toBe("https://localhost:3100/cabinet");
 
-    // env-переопределение хоста листенера
-    process.env.ETERAPY_INTERNAL_REWRITE_HOST = "10.0.0.5";
-    try {
-      const overridden = internalRewriteUrl(
-        request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
-        "/cabinet",
-      );
-      expect(overridden.toString()).toBe("https://10.0.0.5:3100/cabinet");
-    } finally {
-      delete process.env.ETERAPY_INTERNAL_REWRITE_HOST;
-    }
-
-    // Локальный dev/jest (нет x-forwarded-proto): чистый same-origin clone.
+    // Локальный dev/jest: тоже чистый clone.
     const local = internalRewriteUrl(
       request("http://localhost:3000/", { host: "localhost:3000" }),
       "/cabinet",

@@ -105,30 +105,23 @@ export function internalRewriteUrl(request: NextRequest, pathname: string): URL 
   // каждый app-host rewrite уходил внешним прокси-хопом: Next заново
   // запрашивал сам себя, proxy выполнялся второй раз уже без app-хоста,
   // B477-защита срезала nonce-маркер, и наружу уходила статическая CSP +
-  // report-only (прод-симптом INC-066). Наблюдённые на staging факты:
-  // (а) nextUrl за nginx материализуется как http(s)://localhost:<port>, и его
-  //     протокол уже зеркалит XFP-логику initUrl (https при X-Forwarded-Proto,
-  //     http без него);
-  // (б) initUrl отличается от nextUrl ТОЛЬКО hostname'ом: --hostname у нас
-  //     127.0.0.1, а nextUrl пишет localhost;
-  // (в) сам заголовок x-forwarded-proto до middleware НЕ доходит (Next его
-  //     срезает), env HOSTNAME в middleware-рантайме = 'localhost', а
-  //     относительную цель adapter.js ре-абсолютизирует — поэтому все обходные
-  //     пути через заголовки/env/relative не работают.
-  // Признак «за прокси»: loopback-nextUrl при публичном Host-заголовке. Тогда
-  // достаточно подменить hostname на адрес листенера (127.0.0.1;
-  // переопределяемо через ETERAPY_INTERNAL_REWRITE_HOST). Локальный dev/jest
-  // (Host тоже loopback либо nextUrl не loopback) — чистый clone.
+  // report-only (прод-симптом INC-066).
+  // Почему именно clone и НИЧЕГО больше (выяснено итерациями на staging):
+  // (а) adapter.js Next'а (вбандлен в middleware) прогоняет цель через
+  //     NextURL({headers}), который НОРМАЛИЗУЕТ любой loopback-hostname в
+  //     'localhost' и ре-абсолютизирует относительные цели — значит из
+  //     middleware физически нельзя выпустить ни 127.0.0.1, ни relative;
+  // (б) x-forwarded-proto до middleware не доходит, а env HOSTNAME в
+  //     middleware-рантайме = 'localhost' независимо от --hostname;
+  // (в) протокол nextUrl уже зеркалит протокол initUrl (https при XFP).
+  // Отсюда единственная согласуемая пара: adapter-нормализованный
+  // https://localhost:<port> ⇔ initUrl с ЗАПУСКОМ `--hostname localhost`
+  // (ecosystem-конфиги; бинд остаётся loopback 127.0.0.1 — проверено на VPS,
+  // /etc/hosts маппит localhost только на 127.0.0.1). Запуск с
+  // `--hostname 127.0.0.1` ломает контракт НАВСЕГДА — не возвращать.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
-  const hostHeader = request.headers.get("host") ?? "";
-  const isLoopbackUrl = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  const isLoopbackHost =
-    hostHeader === "" || hostHeader.startsWith("localhost") || hostHeader.startsWith("127.");
-  if (isLoopbackUrl && !isLoopbackHost) {
-    url.hostname = process.env.ETERAPY_INTERNAL_REWRITE_HOST || "127.0.0.1";
-  }
   return url;
 }
 
