@@ -86,6 +86,9 @@ const SUBJECTS: Record<NotifEvent, string> = {
   BOOKING_CHANGE_REQUESTED: "Запрос переноса или отмены сессии — ETerapy",
   BOOKING_CHANGE_RESOLVED:  "Решение по переносу/отмене — ETerapy",
   PRACTITIONER_MESSAGE:     "Сообщение от вашего специалиста — ETerapy",
+  // B484 practitioner reliability policy
+  GOODWILL_CREDITS:         "Компенсация баллами — ETerapy",
+  RELIABILITY_WARNING:      "Предупреждение о надёжности — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -303,6 +306,10 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">${data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано")}</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Сессия ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` → ${data.proposed}` : ""}.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Открыть записи")}`;
     case "PRACTITIONER_MESSAGE":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Сообщение от вашего специалиста</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.practitionerName ?? "Специалист"} отправил вам материал к сессии.${data.preview ? ` «${data.preview}»` : ""}</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/messages"}`, "Прочитать")}`;
+    case "GOODWILL_CREDITS":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Компенсация баллами</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Мы начислили вам +${data.amount ?? ""} балл(ов). ${data.reason ?? ""}</p>${btn(`${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+    case "RELIABILITY_WARNING":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Предупреждение о надёжности</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">За последние 30 дней: поздних отмен — ${data.lateCancels ?? "0"}, подтверждённых неявок — ${data.noShows ?? "0"}. Профиль временно показывается ниже в каталоге; повторные случаи ведут к ручному ревью доступа.</p>${btn(`${BASE_URL}/cabinet/practitioner/calendar`, "Открыть календарь")}`;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;
   }

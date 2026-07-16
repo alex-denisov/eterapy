@@ -29,6 +29,7 @@ import { logAudit } from "./audit";
 import { notify } from "./notifications";
 import { PAYOUT_STATUS_HELD, PAYOUT_STATUS_FAILED } from "./session-complete";
 import { refundSessionForBooking, settleSessionAfterDisputeWindow } from "./session-payment";
+import { handleConfirmedNoShow } from "./practitioner-reliability";
 import { log } from "./logger";
 
 export type PayoutDecision = "release" | "withhold";
@@ -67,6 +68,7 @@ export async function resolveComplaint(
     select: {
       id: true,
       status: true,
+      reason: true,
       bookingId: true,
       booking: { select: { id: true, clientId: true, priceRub: true } },
     },
@@ -152,6 +154,21 @@ export async function resolveComplaint(
     complaint.id,
     `status=${input.status} payout=${result.payoutAction}`,
   );
+
+  // B484: подтверждённая неявка практика (первый переход в RESOLVED) →
+  // обязательная компенсация клиенту + метрика надёжности. Идемпотентно
+  // внутри (sourceEventId = no-show:{complaintId}), best-effort.
+  if (
+    input.status === "RESOLVED" &&
+    complaint.status !== "RESOLVED" &&
+    complaint.reason === "PRACTITIONER_NO_SHOW"
+  ) {
+    await handleConfirmedNoShow({
+      complaintId: complaint.id,
+      bookingId: complaint.booking.id,
+      clientId: complaint.booking.clientId,
+    });
+  }
 
   if (result.payoutAction === "withheld") {
     // Z1a: возврат на карту через YooKassa (после коммита транзакции).

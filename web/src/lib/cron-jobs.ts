@@ -6,6 +6,7 @@ import type { JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
 import { runPayoutRun } from "@/lib/payout-runs";
 import { syncPractitionerCommissions } from "@/lib/practitioner-commission";
+import { recheckVerifiedTaxStatuses } from "@/lib/practitioner-tax-recheck";
 import {
   runCreditsExpiringJob,
   runMomentOfNeedJob,
@@ -277,11 +278,19 @@ export async function runBookingRemindersJob(job: Job): Promise<JobResult> {
 export async function runPractitionerCommissionSyncJob(job: Job): Promise<JobResult> {
   const now = jobNow(job);
   const result = await syncPractitionerCommissions(db, now);
+  // B483: плановая перепроверка налогового статуса едет в том же
+  // practitioner-maintenance проходе (батч мал, провайдер rate-guarded).
+  const taxRecheck = await recheckVerifiedTaxStatuses(now).catch((err) => {
+    log.warn("cron-tax-recheck-failed", { jobId: job.id, err });
+    return null;
+  });
+  const taxRecheckJson = taxRecheck ? { ...taxRecheck } : null;
   log.info("cron-practitioner-commission-sync-complete", {
     jobId: job.id,
     synced: result.synced,
+    taxRecheck: taxRecheckJson,
   });
-  return { ok: true, synced: result.synced };
+  return { ok: true, synced: result.synced, taxRecheck: taxRecheckJson };
 }
 
 export async function runPayoutRunJob(job: Job): Promise<JobResult> {

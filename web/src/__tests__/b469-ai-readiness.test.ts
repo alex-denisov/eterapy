@@ -49,7 +49,7 @@ describe("B469 AI search readiness", () => {
     expect(article).toEqual(expect.objectContaining({
       "@type": "Article",
       author: expect.objectContaining({ name: "ETerapy" }),
-      dateModified: "2026-07-15",
+      dateModified: "2026-07-16",
     }));
     expect(faq).toEqual(expect.objectContaining({
       "@type": "FAQPage",
@@ -63,8 +63,10 @@ describe("B469 AI search readiness", () => {
     expect(component).toContain("редакция ETerapy");
     expect(page).toContain("<HomeAuthorityArticle />");
     expect(page.indexOf("<HomeAuthorityArticle />")).toBeLessThan(page.indexOf("<ScenariosSection />"));
-    expect(component).toContain("Короткий ответ");
+    expect(component).toContain("Коротко (TL;DR)");
     expect(component).toContain("Вывод и следующий шаг");
+    expect(component).toContain("Что показывают данные платформы");
+    expect(component).toContain("Разбор обобщённого случая");
     expect(component).toContain("Автор: редакция ETerapy");
   });
 
@@ -107,8 +109,10 @@ describe("B469 AI search readiness", () => {
       status: expect.any(Array),
     }));
     expect(auth).toContain("# ETerapy auth.md");
-    expect(auth).toContain('"register_uri": "https://eterapy.com/agent/auth"');
-    expect(auth).toContain('"identity_types_supported": ["anonymous"]');
+    // B469: auth.md теперь описывает два режима — anonymous + oauth_client.
+    expect(auth).toContain('"register_uri": "https://eterapy.com/agent/oauth/register"');
+    expect(auth).toContain('"identity_types_supported": ["anonymous", "oauth_client"]');
+    expect(auth).toContain('"claim_uri": "https://eterapy.com/agent/auth"');
     expect(profile).toEqual(expect.objectContaining({
       identity_type: "anonymous",
       credential_type: "none",

@@ -8,6 +8,22 @@ import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
 import { v5Products } from "@/lib/v5-products";
 import { homeAgentMarkdown } from "@/lib/agent-readiness";
+import { cspHeaders, cspValue } from "@/lib/security-headers";
+
+// B523: заголовок-маркер per-request nonce для applyDocumentCsp.
+const NONCE_REQUEST_HEADER = "x-eterapy-csp-nonce";
+
+// B523: включает nonce-CSP для аутентифицированного рендера. Next читает nonce
+// из request-заголовка Content-Security-Policy и проставляет его своим
+// inline-скриптам; наш маркер повторяет тот же nonce для ответной политики.
+function enableNonce(requestHeaders: Headers): void {
+  const nonce = Buffer.from(globalThis.crypto.randomUUID()).toString("base64");
+  requestHeaders.set(
+    "content-security-policy",
+    cspValue({ production: process.env.NODE_ENV === "production", nonce }),
+  );
+  requestHeaders.set(NONCE_REQUEST_HEADER, nonce);
+}
 
 const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 const PROTO = "https://";
@@ -53,14 +69,25 @@ function redirectAbs(domain: string, pathname: string, context: { requestId: str
   return withRequestContext(NextResponse.redirect(`${PROTO}${domain}${pathname}`), context);
 }
 
+// B523: CSP документа. Аутентифицированные поверхности (в requestHeaders уже
+// проставлен nonce) получают nonce-политику БЕЗ 'unsafe-inline'; публичные
+// (prerender) — статическую политику + строгий report-only для телеметрии.
+function applyDocumentCsp<T extends NextResponse>(response: T, requestHeaders: Headers): T {
+  const nonce = requestHeaders.get(NONCE_REQUEST_HEADER) ?? undefined;
+  for (const header of cspHeaders(nonce ? { nonce } : {})) {
+    response.headers.set(header.key, header.value);
+  }
+  return response;
+}
+
 function nextWithContext(requestHeaders: Headers, context: { requestId: string; correlationId: string }) {
   applyRequestContextHeaders(requestHeaders, context);
-  return withRequestContext(NextResponse.next({ request: { headers: requestHeaders } }), context);
+  return applyDocumentCsp(withRequestContext(NextResponse.next({ request: { headers: requestHeaders } }), context), requestHeaders);
 }
 
 function rewriteWithContext(url: URL, requestHeaders: Headers, context: { requestId: string; correlationId: string }) {
   applyRequestContextHeaders(requestHeaders, context);
-  return withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context);
+  return applyDocumentCsp(withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context), requestHeaders);
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
@@ -168,6 +195,12 @@ function isAdminResultInspectionPath(pathname: string): boolean {
 export default async function proxy(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const requestHeaders = new Headers(request.headers);
+  // B477/B523: never trust a client-supplied CSP nonce. requestHeaders is built
+  // from the incoming request, so strip any inbound nonce/CSP marker — only
+  // enableNonce() (server-generated) may set them. Otherwise a caller could
+  // pin a known nonce and weaken their document CSP.
+  requestHeaders.delete(NONCE_REQUEST_HEADER);
+  requestHeaders.delete("content-security-policy");
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
 
@@ -249,6 +282,10 @@ export default async function proxy(request: NextRequest) {
     if ((pathname === "/login" || pathname === "/register") && role) {
       return applyRobotsPolicy(redirect(homePathForRole(role), request, context), host, pathname);
     }
+    // B523: nonce-CSP для аутентифицированного дерева (локальный no-subdomain).
+    if (pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) {
+      enableNonce(requestHeaders);
+    }
     return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
@@ -256,6 +293,16 @@ export default async function proxy(request: NextRequest) {
   const onMain = host === MAIN_DOMAIN || host === `www.${MAIN_DOMAIN}`;
   const onApp = host === APP_DOMAIN;
   const onAdmin = host === ADMIN_DOMAIN;
+
+  // B523: app/admin поддомены рендерят /cabinet и /admin дерево — nonce-CSP без
+  // 'unsafe-inline'. Публичные страницы услуг на app-поддомене редиректятся на
+  // main (там остаётся статическая политика), /help — статический паспорт.
+  const rendersAuthenticatedTree =
+    (onApp && !shouldRedirectAppPublicPathToMain(pathname) && pathname !== "/help" && !pathname.startsWith("/help/")) ||
+    (onAdmin && pathname.startsWith("/admin"));
+  if (rendersAuthenticatedTree) {
+    enableNonce(requestHeaders);
+  }
 
   // Unknown host → serve as main
   if (!onMain && !onApp && !onAdmin) {

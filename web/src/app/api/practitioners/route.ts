@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { Specialty, PractitionerStatus } from "@prisma/client";
+import { getDeprioritizedPractitionerIds, partitionByReliability } from "@/lib/practitioner-reliability";
 import { log } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
@@ -37,9 +38,14 @@ export async function GET(req: NextRequest) {
         : { reviewCount: "desc" },
     });
 
+    // B484: временная деприоритизация ненадёжных практиков в выдаче.
+    const deprioritized = await getDeprioritizedPractitionerIds(practitioners.map((p) => p.id))
+      .catch(() => new Set<string>());
+    const ordered = partitionByReliability(practitioners, deprioritized);
+
     // Фильтр онлайн — пока всегда false (нет реального онлайн-статуса)
     // В будущем — Redis presence
-    const result = practitioners.map((p) => ({
+    const result = ordered.map((p) => ({
       id: p.id,
       userId: p.userId,
       name: p.user.name,

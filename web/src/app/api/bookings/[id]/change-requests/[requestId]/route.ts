@@ -14,12 +14,13 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { notify } from "@/lib/notifications";
 import { log } from "@/lib/logger";
-import { penaltyKopecks, resolverFor } from "@/lib/booking-change-rules";
+import { isLateChange, penaltyKopecks, resolverFor } from "@/lib/booking-change-rules";
 import {
   cancelSessionHold,
-  chargeCancellationPenalty,
   refundSessionForBooking,
 } from "@/lib/session-payment";
+import { settleLateCancelPenalty } from "@/lib/booking-penalty";
+import { handlePractitionerCancellation } from "@/lib/practitioner-reliability";
 import { promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
 
 const FMT_DAY = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
@@ -87,6 +88,8 @@ export async function PATCH(
 
   if (approved && request.type === "CANCEL") {
     const penalized = request.penaltyApplies && !waivePenalty;
+    // B484: снимок «позднести» на момент отмены — slotId дальше отвязывается.
+    const lateCancel = booking.slot ? isLateChange(new Date(booking.slot.startAt)) : false;
     await db.$transaction(async (tx) => {
       await tx.bookingChangeRequest.update({
         where: { id: request.id },
@@ -99,6 +102,7 @@ export async function PATCH(
           cancelledBy: request.initiatedBy,
           cancelledAt: new Date(),
           cancelReason: request.reason,
+          lateCancel,
           slotId: null,
         },
       });
@@ -110,9 +114,10 @@ export async function PATCH(
       await promoteWaitlistForReleasedSlot({ slotId: booking.slotId, actorUserId: session.user.id })
         .catch((e: unknown) => log.error("change-request.waitlist_promotion_failed", { bookingId: booking.id, err: e }));
     }
-    // Деньги: штраф (частичный capture) или полное освобождение/возврат.
+    // Деньги: штраф (частичный capture, B481 — доля практика по комиссионной
+    // матрице + расходная транзакция клиенту) или полное освобождение/возврат.
     if (penalized) {
-      await chargeCancellationPenalty(booking.id, penaltyKopecks(booking.priceRub))
+      await settleLateCancelPenalty(booking.id, penaltyKopecks(booking.priceRub))
         .catch((e: unknown) => log.error("change-request.penalty_failed", { bookingId: booking.id, err: e }));
     } else {
       const hold = await cancelSessionHold(booking.id)
@@ -121,6 +126,17 @@ export async function PATCH(
         await refundSessionForBooking(booking.id, booking.priceRub * 100)
           .catch((e: unknown) => log.error("change-request.refund_failed", { bookingId: booking.id, err: e }));
       }
+    }
+    // B484: отмена по инициативе практика → метрика надёжности + гудвилл.
+    if (request.initiatedBy === "PRACTITIONER") {
+      await handlePractitionerCancellation({
+        bookingId: booking.id,
+        practitionerId: booking.practitioner.id,
+        practitionerUserId: booking.practitioner.userId,
+        practitionerName: booking.practitioner.user.name,
+        clientId: booking.clientId,
+        lateCancel,
+      });
     }
   } else if (approved && request.type === "RESCHEDULE" && request.proposedStartAt) {
     const durationMin = request.proposedDurationMin ?? 50;

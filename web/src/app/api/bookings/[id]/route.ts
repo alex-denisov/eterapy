@@ -13,6 +13,8 @@ import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { cancelSessionHold, refundSessionForBooking } from "@/lib/session-payment";
 import { log } from "@/lib/logger";
 import { promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
+import { isLateChange } from "@/lib/booking-change-rules";
+import { handlePractitionerCancellation } from "@/lib/practitioner-reliability";
 
 function fmtSlot(slot: { startAt: Date; endAt: Date } | null) {
   if (!slot) return "время уточняется";
@@ -95,14 +97,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   } else if (status === "CANCELLED") {
     // B481/B484: фиксируем, КТО отменил (для правил штрафов и метрики
-    // надёжности практика) + причину.
+    // надёжности практика) + причину + снимок «позднести» (<24ч).
+    const cancelledByRole = isClient ? "CLIENT" : userRole === "PRACTITIONER" ? "PRACTITIONER" : "ADMIN";
+    const lateCancel = booking.slot ? isLateChange(new Date(booking.slot.startAt)) : false;
     await db.booking.update({
       where: { id },
       data: {
         status,
-        cancelledBy: isClient ? "CLIENT" : userRole === "PRACTITIONER" ? "PRACTITIONER" : "ADMIN",
+        cancelledBy: cancelledByRole,
         cancelledAt: new Date(),
         cancelReason: typeof reason === "string" ? reason.trim().slice(0, 500) || null : null,
+        lateCancel,
       },
     });
     // B484: деньги клиента освобождаются ВСЕГДА (отмена практиком/админом —
@@ -112,6 +117,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (hold?.status === "already_captured") {
       await refundSessionForBooking(id, booking.priceRub * 100)
         .catch((e: unknown) => log.error("booking.cancel_refund_failed", { bookingId: id, err: e }));
+    }
+    // B484: отмена практиком → гудвилл-баллы клиенту при поздней отмене,
+    // проверка порогов надёжности (внутри — best-effort, ошибок не бросает).
+    if (cancelledByRole === "PRACTITIONER") {
+      await handlePractitionerCancellation({
+        bookingId: id,
+        practitionerId: booking.practitionerId,
+        practitionerUserId: booking.practitioner.userId,
+        practitionerName: booking.practitioner.user.name,
+        clientId: booking.clientId,
+        lateCancel,
+      });
     }
   } else {
     await db.booking.update({ where: { id }, data: { status } });

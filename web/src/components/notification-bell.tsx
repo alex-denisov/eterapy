@@ -68,6 +68,9 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   BOOKING_PROPOSED: Calendar,
   BOOKING_CHANGE_REQUESTED: Calendar,
   BOOKING_CHANGE_RESOLVED: Calendar,
+  // B484: компенсация баллами и предупреждение о надёжности.
+  GOODWILL_CREDITS: Wallet,
+  RELIABILITY_WARNING: Info,
 };
 
 // B331: short relative time per v4.2 ("12 мин" / "2 ч" / "сегодня" /
@@ -220,9 +223,18 @@ export function NotificationBell({ variant = "header", settingsHref }: Notificat
       void load();
     }, 0);
     const t = setInterval(load, POLL_MS);
+    // INC-065: setInterval is throttled/paused in backgrounded tabs, so the
+    // bell looked stale on return. Re-sync on focus and when the tab becomes
+    // visible again.
+    const onFocus = () => { void load(); };
+    const onVisible = () => { if (document.visibilityState === "visible") void load(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearTimeout(initial);
       clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
 

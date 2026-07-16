@@ -163,6 +163,16 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "PRACTITIONER_MESSAGE":
       // B478: односторонний материал от специалиста (клиент читает в «Ещё → Сообщения»).
       return { title: "Сообщение от специалиста", body: `${data.practitionerName}${data.preview ? ` — ${data.preview}` : ""}`, href: data.href ?? "/cabinet/messages" };
+    case "GOODWILL_CREDITS":
+      // B484: компенсационные баллы клиенту за счёт платформы.
+      return { title: "Компенсация баллами", body: `+${data.amount} балл(ов). ${data.reason ?? ""}`.trim(), href: "/cabinet/wallet" };
+    case "RELIABILITY_WARNING":
+      // B484: предупреждение практику о временной деприоритизации.
+      return {
+        title: "Предупреждение о надёжности",
+        body: `За 30 дней: поздних отмен — ${data.lateCancels}, подтверждённых неявок — ${data.noShows}. Профиль временно показывается ниже в каталоге.`,
+        href: "/cabinet/practitioner/calendar",
+      };
     case "BOOKING_REMINDER":
       return { title: "Напоминание о сессии", body: `Через ${data.in}`, href: data.bookingId ? `/session/${data.bookingId}` : "/cabinet/bookings" };
     case "SESSION_STARTED":
@@ -249,6 +259,10 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `${data.approved === "1" ? "✅" : "🚫"} ${data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано")}\nСессия ${data.date} в ${data.time}${data.proposed ? ` → ${data.proposed}` : ""}.\n<a href="${baseUrl}${data.href ?? "/cabinet/bookings"}">Открыть записи →</a>`;
     case "PRACTITIONER_MESSAGE":
       return `💬 Сообщение от специалиста\n${data.practitionerName}${data.preview ? `: ${data.preview}` : ""}\n<a href="${baseUrl}${data.href ?? "/cabinet/messages"}">Прочитать →</a>`;
+    case "GOODWILL_CREDITS":
+      return `🎁 Компенсация баллами\n+${data.amount} балл(ов). ${data.reason ?? ""}\n<a href="${baseUrl}/cabinet/wallet">Открыть кошелёк →</a>`;
+    case "RELIABILITY_WARNING":
+      return `⚠️ Предупреждение о надёжности\nЗа 30 дней: поздних отмен — ${data.lateCancels}, подтверждённых неявок — ${data.noShows}. Профиль временно показывается ниже в каталоге.\n<a href="${baseUrl}/cabinet/practitioner/calendar">Открыть календарь →</a>`;
     case "REVIEW_REQUESTED":
       return `⭐ Оставьте отзыв\nКак прошла сессия с ${data.practitionerName}?\n<a href="${data.reviewUrl}">Написать отзыв →</a>`;
     case "NEW_REVIEW":

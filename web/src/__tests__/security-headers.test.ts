@@ -31,6 +31,43 @@ describe("security headers", () => {
     expect(reportOnlyScript).not.toContain("'unsafe-eval'");
   });
 
+  it("B523: nonce-политика убирает unsafe-inline и режет inline-атрибуты", () => {
+    const headers = securityHeaders({ production: true, nonce: "test-nonce" });
+    const csp = headers.find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+    const script = csp.match(/script-src [^;]+/)?.[0] ?? "";
+
+    expect(script).toContain("'nonce-test-nonce'");
+    expect(script).not.toContain("'unsafe-inline'");
+    expect(script).not.toContain("'unsafe-eval'");
+    expect(csp).toContain("script-src-attr 'none'");
+    // Нарушения nonce-политики остаются видимыми в телеметрии.
+    expect(csp).toContain("report-uri /api/csp-report");
+    // Отдельный report-only заголовок при nonce не выпускается.
+    expect(headers.find((header) => header.key === "Content-Security-Policy-Report-Only")).toBeUndefined();
+  });
+
+  it("B523: proxy выдаёт nonce-CSP для аутентифицированного дерева, config — base", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("node:fs") as typeof import("node:fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("node:path") as typeof import("node:path");
+    const proxy = fs.readFileSync(path.join(process.cwd(), "src/proxy.ts"), "utf8");
+    expect(proxy).toContain("function enableNonce");
+    expect(proxy).toContain("function applyDocumentCsp");
+    expect(proxy).toContain("rendersAuthenticatedTree");
+    // CSP выставляется на каждом рендер-ответе (next/rewrite).
+    expect(proxy).toContain("applyDocumentCsp(withRequestContext(NextResponse.next");
+    expect(proxy).toContain("applyDocumentCsp(withRequestContext(NextResponse.rewrite");
+    // B477: proxy must strip client-supplied nonce/CSP request headers so a
+    // caller cannot pin a known nonce and weaken their document CSP.
+    expect(proxy).toContain('requestHeaders.delete(NONCE_REQUEST_HEADER)');
+    expect(proxy).toContain('requestHeaders.delete("content-security-policy")');
+    const config = fs.readFileSync(path.join(process.cwd(), "next.config.ts"), "utf8");
+    // Глобально — только base-заголовки; CSP документа даёт proxy.
+    expect(config).toContain("baseSecurityHeaders()");
+    expect(config).not.toContain("securityHeaders()");
+  });
+
   it("keeps eval available only for local development tooling", () => {
     const csp = securityHeaders({ production: false })
       .find((header) => header.key === "Content-Security-Policy")?.value ?? "";
