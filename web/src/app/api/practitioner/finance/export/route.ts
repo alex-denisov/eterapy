@@ -1,6 +1,6 @@
-import * as XLSX from "xlsx";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { createXlsxExport } from "@/lib/xlsx-export";
 
 // B466 R9-5 — «Финансы → Отчёты» скачивание XLSX / CSV по периоду (owner ROUND 4 #3а).
 // Реальная выгрузка завершённых сессий практика за MSK-месяц (?period=YYYY-MM) или
@@ -89,11 +89,12 @@ export async function GET(request: Request) {
     });
   }
 
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Дата: "—", Клиент: "нет данных за период" }]);
-  XLSX.utils.book_append_sheet(workbook, sheet, "Отчёт");
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
-  return new Response(new Uint8Array(buffer), {
+  const buffer = await createXlsxExport([{
+    name: "Отчёт",
+    rows,
+    emptyRow: { Дата: "—", Клиент: "нет данных за период" },
+  }]);
+  return new Response(buffer, {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "content-disposition": `attachment; filename="${filenameBase}.xlsx"`,

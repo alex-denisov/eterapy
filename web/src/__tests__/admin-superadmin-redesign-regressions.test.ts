@@ -188,8 +188,8 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(route).toContain("agentExportRows");
     expect(route).toContain("Оказанные услуги");
     expect(route).toContain('scope === "agent-reports"');
-    expect(route).toContain("XLSX.utils.json_to_sheet(agentExportRows)");
-    expect(route).not.toContain('XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sessionRows), "Оказанные услуги")');
+    expect(route).toContain('{ name: "Электронный отчет", rows: agentExportRows }');
+    expect(route).not.toContain('{ name: "Оказанные услуги", rows: sessionRows }');
   });
 
   it("updates practitioner rights labels for the redesigned practitioner operations", () => {
