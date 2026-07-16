@@ -5,7 +5,7 @@ import {
   validateInn,
   TAX_STATUS_LABELS,
 } from "@/lib/practitioner-tax-verification";
-import { lookupTaxIdentity, parseDadataParty } from "@/lib/practitioner-tax-verification-provider";
+import { lookupTaxIdentity, parseOfdataParty } from "@/lib/practitioner-tax-verification-provider";
 import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
 
 // B466/B483 — «Налоговый статус»: ИНН обязателен, 12 цифр (самозанятый/ИП) /
@@ -93,9 +93,9 @@ describe("B483 tax-status flow (source contracts)", () => {
     const provider = source("src/lib/practitioner-tax-verification-provider.ts");
     expect(provider).toContain("TAX_VERIFICATION_PROVIDER");
     expect(provider).toContain("statusnpd.nalog.ru/api/v1/tracker/taxpayer_status");
-    // ИП/юрлицо: официальный ЕГРЮЛ/ЕГРИП-коннектор (DaData) fail-closed без ключа.
-    expect(provider).toContain("EGRUL/EGRIP lookup requires DADATA_API_KEY");
-    expect(provider).toContain("suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party");
+    // ИП/юрлицо: официальный ЕГРЮЛ/ЕГРИП-коннектор (Офдата) fail-closed без ключа.
+    expect(provider).toContain("EGRUL/EGRIP lookup requires OFDATA_API_KEY");
+    expect(provider).toContain("https://api.ofdata.ru/v2");
   });
 });
 
@@ -150,12 +150,12 @@ describe("B483 official FNS NPD provider", () => {
   });
 
   it("fails closed for IP and legal entities without registry access", async () => {
-    delete process.env.DADATA_API_KEY;
+    delete process.env.OFDATA_API_KEY;
     await expect(lookupTaxIdentity({
       inn: "500100732259",
       status: "INDIVIDUAL_ENTREPRENEUR",
       fallbackDisplayName: "Тестовый практик",
-    })).rejects.toThrow("requires DADATA_API_KEY");
+    })).rejects.toThrow("requires OFDATA_API_KEY");
   });
 
   it("fails closed when the provider is explicitly disabled", async () => {
@@ -197,14 +197,14 @@ describe("B483 official FNS NPD provider", () => {
   });
 });
 
-describe("B483 EGRUL/EGRIP (DaData) provider", () => {
+describe("B483 EGRUL/EGRIP (Ofdata) provider", () => {
   const originalProvider = process.env.TAX_VERIFICATION_PROVIDER;
-  const originalKey = process.env.DADATA_API_KEY;
+  const originalKey = process.env.OFDATA_API_KEY;
   const originalFetch = global.fetch;
 
   beforeEach(() => {
     process.env.TAX_VERIFICATION_PROVIDER = "fns";
-    process.env.DADATA_API_KEY = "test-key";
+    process.env.OFDATA_API_KEY = "test-key";
     resetAuthRateLimitForTests();
     global.fetch = jest.fn();
   });
@@ -212,8 +212,8 @@ describe("B483 EGRUL/EGRIP (DaData) provider", () => {
   afterEach(() => {
     if (originalProvider === undefined) delete process.env.TAX_VERIFICATION_PROVIDER;
     else process.env.TAX_VERIFICATION_PROVIDER = originalProvider;
-    if (originalKey === undefined) delete process.env.DADATA_API_KEY;
-    else process.env.DADATA_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.OFDATA_API_KEY;
+    else process.env.OFDATA_API_KEY = originalKey;
     global.fetch = originalFetch;
     jest.restoreAllMocks();
   });
@@ -222,15 +222,8 @@ describe("B483 EGRUL/EGRIP (DaData) provider", () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        suggestions: [{
-          value: "ИП Иванов Иван Иванович",
-          data: {
-            type: "INDIVIDUAL",
-            state: { status: "ACTIVE" },
-            name: { full_with_opf: "ИП Иванов Иван Иванович", full: "Иванов Иван Иванович" },
-            fio: { surname: "Иванов", name: "Иван", patronymic: "Иванович" },
-          },
-        }],
+        data: { ФИО: "Иванов Иван Иванович", Статус: { Код: "001", Наим: "Действует" }, ОГРНИП: "123" },
+        meta: { status: "ok" },
       }),
     });
     await expect(lookupTaxIdentity({
@@ -239,37 +232,49 @@ describe("B483 EGRUL/EGRIP (DaData) provider", () => {
       fallbackDisplayName: "Кто-то Другой",
     })).resolves.toMatchObject({
       active: true,
-      source: "egrul-dadata",
+      source: "egrul-ofdata",
       identitySource: "registry",
       registryPersonName: "Иванов Иван Иванович",
     });
+    // Verify it hit the entrepreneur endpoint with key+inn.
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain("/entrepreneur?key=test-key&inn=500100732259");
   });
 
-  it("treats an unknown INN or liquidated record as inactive", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ suggestions: [] }) });
+  it("parses an active company (LE) with its name and no person match", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: { НаимСокр: "ПАО СБЕРБАНК", Статус: { Наим: "Действует" } },
+        meta: { status: "ok" },
+      }),
+    });
     await expect(lookupTaxIdentity({
       inn: "7707083893",
       status: "LEGAL_ENTITY",
       fallbackDisplayName: "ООО Тест",
-    })).resolves.toMatchObject({ active: false, identitySource: "registry" });
-
-    expect(parseDadataParty({
-      suggestions: [{ data: { type: "LEGAL", state: { status: "LIQUIDATED" }, name: { short_with_opf: "ООО Ромашка" } } }],
-    })).toMatchObject({ active: false, displayName: "ООО Ромашка" });
+    })).resolves.toMatchObject({
+      active: true,
+      source: "egrul-ofdata",
+      displayName: "ПАО СБЕРБАНК",
+      registryPersonName: null,
+    });
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain("/company?key=");
   });
 
-  it("rejects a type mismatch (LE INN submitted as ИП)", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        suggestions: [{ data: { type: "LEGAL", state: { status: "ACTIVE" }, name: { short_with_opf: "ООО Ромашка" } } }],
-      }),
-    });
+  it("treats an unknown INN or liquidated record as inactive", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: {}, meta: { message: "Не найдено" } }) });
     await expect(lookupTaxIdentity({
-      inn: "500100732259",
-      status: "INDIVIDUAL_ENTREPRENEUR",
-      fallbackDisplayName: "Тест",
-    })).resolves.toMatchObject({ active: false });
+      inn: "0000000000",
+      status: "LEGAL_ENTITY",
+      fallbackDisplayName: "ООО Тест",
+    })).resolves.toMatchObject({ active: false, identitySource: "registry" });
+
+    expect(parseOfdataParty(
+      { data: { НаимСокр: "ООО Ромашка", Статус: { Наим: "Ликвидировано" } } },
+      "LEGAL",
+    )).toMatchObject({ active: false, displayName: "ООО Ромашка" });
+    // Empty registry data → null (not found).
+    expect(parseOfdataParty({ data: {} }, "INDIVIDUAL")).toBeNull();
   });
 });
 

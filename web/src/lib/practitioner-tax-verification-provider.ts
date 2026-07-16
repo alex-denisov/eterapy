@@ -4,10 +4,11 @@
 //   • самозанятый (НПД) — официальный ФНС «проверка статуса налогоплательщика
 //     НПД» (statusnpd.nalog.ru): подтверждает ТОЛЬКО активность ИНН, ФИО не
 //     возвращает → личность остаётся непривязанной (identitySource="profile").
-//   • ИП / юр. лицо — ЕГРЮЛ/ЕГРИП через официальный коммерческий API DaData
-//     (`findById/party`, env DADATA_API_KEY): возвращает наименование/ФИО и
-//     статус действующего → личность привязывается по данным реестра
-//     (identitySource="registry").
+//   • ИП / юр. лицо — ЕГРЮЛ/ЕГРИП через API Офдата (ofdata.ru, env
+//     OFDATA_API_KEY): `/v2/entrepreneur` (ИП → ФИО) и `/v2/company`
+//     (юрлицо → наименование); статус «Действует» → личность привязывается по
+//     данным реестра (identitySource="registry"). Позже, при появлении юрлица,
+//     ИНН можно проверять напрямую через сервис ФНС (см. отдельный тикет).
 //
 // Выбор провайдера — env TAX_VERIFICATION_PROVIDER ("disabled" | "stub" |
 // "fns"). Любой non-test runtime по умолчанию disabled; стаб разрешён по
@@ -26,7 +27,7 @@ export interface TaxIdentityQuery {
 }
 
 const FNS_NPD_STATUS_URL = "https://statusnpd.nalog.ru/api/v1/tracker/taxpayer_status";
-const DADATA_FIND_PARTY_URL = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party";
+const OFDATA_BASE_URL = "https://api.ofdata.ru/v2";
 
 function requestDate(date = new Date()) {
   return date.toISOString().slice(0, 10);
@@ -39,56 +40,50 @@ function isNpdResponse(value: unknown): value is { status: boolean; message?: st
     && (candidate.message === undefined || typeof candidate.message === "string");
 }
 
-interface DadataParty {
+interface OfdataParty {
   displayName: string;
   personName: string | null;
   active: boolean;
   type: "LEGAL" | "INDIVIDUAL";
 }
 
-/** Строгая валидация ответа DaData findById/party (первый suggestion). */
-export function parseDadataParty(payload: unknown): DadataParty | null {
+/** Извлекает строку статуса из `data.Статус` (объект `{Наим}` или строка). */
+function ofdataStatusText(status: unknown): string {
+  if (typeof status === "string") return status;
+  if (status && typeof status === "object") {
+    const naim = (status as Record<string, unknown>).Наим;
+    if (typeof naim === "string") return naim;
+  }
+  return "";
+}
+
+/** «Действует» / «Действующее» → активно (не ликвидировано/прекращено). */
+function ofdataActive(status: unknown): boolean {
+  return /действ/i.test(ofdataStatusText(status));
+}
+
+/**
+ * Строгая валидация ответа Офдата `/v2/company` или `/v2/entrepreneur`.
+ * `data` пуст/без имени (не найдено) → null.
+ */
+export function parseOfdataParty(payload: unknown, type: "LEGAL" | "INDIVIDUAL"): OfdataParty | null {
   if (!payload || typeof payload !== "object") return null;
-  const suggestions = (payload as Record<string, unknown>).suggestions;
-  if (!Array.isArray(suggestions) || suggestions.length === 0) return null;
-  const first = suggestions[0] as Record<string, unknown>;
-  const data = first?.data as Record<string, unknown> | undefined;
+  const data = (payload as Record<string, unknown>).data as Record<string, unknown> | undefined;
   if (!data || typeof data !== "object") return null;
 
-  const type = data.type === "LEGAL" || data.type === "INDIVIDUAL" ? data.type : null;
-  if (!type) return null;
+  if (type === "INDIVIDUAL") {
+    const fio = typeof data.ФИО === "string" && data.ФИО.trim() ? data.ФИО.trim() : null;
+    if (!fio) return null;
+    return { displayName: fio, personName: fio, active: ofdataActive(data.Статус), type };
+  }
 
-  const state = data.state as Record<string, unknown> | undefined;
-  const active = state?.status === "ACTIVE";
-
-  const name = data.name as Record<string, unknown> | undefined;
   const displayName =
-    (typeof name?.short_with_opf === "string" && name.short_with_opf) ||
-    (typeof name?.full_with_opf === "string" && name.full_with_opf) ||
-    (typeof name?.full === "string" && name.full) ||
+    (typeof data.НаимСокр === "string" && data.НаимСокр.trim()) ||
+    (typeof data.НаимПолн === "string" && data.НаимПолн.trim()) ||
     null;
   if (!displayName) return null;
-
-  // ФИО физлица: у ИП — data.fio, у юрлица — руководитель data.management.name.
-  let personName: string | null = null;
-  const fio = data.fio as Record<string, unknown> | undefined;
-  if (fio && typeof fio === "object") {
-    const parts = [fio.surname, fio.name, fio.patronymic]
-      .filter((part): part is string => typeof part === "string" && part.length > 0);
-    if (parts.length >= 2) personName = parts.join(" ");
-  }
-  if (!personName) {
-    const management = data.management as Record<string, unknown> | undefined;
-    if (typeof management?.name === "string" && management.name.length > 0) {
-      personName = management.name;
-    }
-  }
-  if (!personName && type === "INDIVIDUAL") {
-    // У ИП name.full = «Иванов Иван Иванович» без ОПФ.
-    personName = typeof name?.full === "string" ? name.full : null;
-  }
-
-  return { displayName, personName, active, type };
+  // Юрлицо: имя = наименование организации, ФИО практика не сверяется.
+  return { displayName, personName: null, active: ofdataActive(data.Статус), type };
 }
 
 async function stubLookup(query: TaxIdentityQuery): Promise<TaxIdentityLookup> {
@@ -131,48 +126,46 @@ async function fnsNpdLookup(query: TaxIdentityQuery): Promise<TaxIdentityLookup>
   };
 }
 
-async function dadataEgrulLookup(query: TaxIdentityQuery): Promise<TaxIdentityLookup> {
-  const apiKey = process.env.DADATA_API_KEY;
+async function ofdataEgrulLookup(query: TaxIdentityQuery): Promise<TaxIdentityLookup> {
+  const apiKey = process.env.OFDATA_API_KEY;
   if (!apiKey) {
-    throw new Error("EGRUL/EGRIP lookup requires DADATA_API_KEY (B483)");
+    throw new Error("EGRUL/EGRIP lookup requires OFDATA_API_KEY (B483)");
   }
 
-  const rateLimit = checkAuthRateLimit("tax-verification:dadata:global", 10, 60_000);
+  const rateLimit = checkAuthRateLimit("tax-verification:ofdata:global", 10, 60_000);
   if (!rateLimit.allowed) throw new Error("EGRUL/EGRIP request rate is temporarily exhausted");
 
-  const response = await fetch(DADATA_FIND_PARTY_URL, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      authorization: `Token ${apiKey}`,
-    },
-    body: JSON.stringify({ query: query.inn, count: 1, branch_type: "MAIN" }),
+  const expectedType = query.status === "LEGAL_ENTITY" ? "LEGAL" : "INDIVIDUAL";
+  const endpoint = expectedType === "LEGAL" ? "company" : "entrepreneur";
+  const url = `${OFDATA_BASE_URL}/${endpoint}?key=${encodeURIComponent(apiKey)}&inn=${encodeURIComponent(query.inn)}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { accept: "application/json" },
     cache: "no-store",
     signal: AbortSignal.timeout(15_000),
   });
-  if (!response.ok) throw new Error(`DaData party request failed (${response.status})`);
+  if (!response.ok) throw new Error(`Ofdata request failed (${response.status})`);
 
   const payload: unknown = await response.json();
-  const party = parseDadataParty(payload);
+  const party = parseOfdataParty(payload, expectedType);
   if (!party) {
-    // Пустой ответ = ИНН не найден в ЕГРЮЛ/ЕГРИП → статус не подтверждается.
+    // Пустой data = ИНН не найден в ЕГРЮЛ/ЕГРИП → статус не подтверждается.
     return {
       displayName: query.fallbackDisplayName,
       status: query.status,
       active: false,
-      source: "egrul-dadata",
+      source: "egrul-ofdata",
       identitySource: "registry",
       registryPersonName: null,
     };
   }
 
-  const expectedType = query.status === "LEGAL_ENTITY" ? "LEGAL" : "INDIVIDUAL";
   return {
     displayName: party.displayName,
     status: query.status,
-    active: party.active && party.type === expectedType,
-    source: "egrul-dadata",
+    active: party.active,
+    source: "egrul-ofdata",
     identitySource: "registry",
     registryPersonName: party.personName,
   };
@@ -180,7 +173,7 @@ async function dadataEgrulLookup(query: TaxIdentityQuery): Promise<TaxIdentityLo
 
 async function fnsLookup(query: TaxIdentityQuery): Promise<TaxIdentityLookup> {
   if (query.status === "SELF_EMPLOYED") return fnsNpdLookup(query);
-  return dadataEgrulLookup(query);
+  return ofdataEgrulLookup(query);
 }
 
 export async function lookupTaxIdentity(query: TaxIdentityQuery): Promise<TaxIdentityLookup> {
