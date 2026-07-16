@@ -89,11 +89,9 @@ describe("INC-066 — nonce CSP on the app-host rewrite path", () => {
     const override = response.headers.get("x-middleware-override-headers") ?? "";
     expect(override).toContain("x-eterapy-csp-nonce");
     expect(response.headers.get("x-middleware-request-x-eterapy-csp-nonce")).toBeTruthy();
-    // Root cause INC-066: цель rewrite обязана быть ОТНОСИТЕЛЬНОЙ — только так
-    // роутер Next гарантированно обрабатывает её внутри процесса на любой
-    // топологии листенера (initUrl различается между next start и standalone);
-    // абсолютная цель с чужим origin = внешний прокси-хоп, второй проход proxy
-    // срезает nonce.
-    expect(response.headers.get("x-middleware-rewrite")).toBe("/cabinet");
+    // Root cause INC-066: без env листенера цель = same-origin clone; на
+    // VPS (HOSTNAME/PORT заданы) цель собирается под initUrl роутера — см.
+    // subdomain-proxy.test.ts.
+    expect(response.headers.get("x-middleware-rewrite")).toBe("https://app.eterapy.com/cabinet");
   });
 });

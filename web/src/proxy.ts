@@ -87,30 +87,39 @@ function nextWithContext(requestHeaders: Headers, context: { requestId: string; 
 
 function rewriteWithContext(url: URL, requestHeaders: Headers, context: { requestId: string; correlationId: string }) {
   applyRequestContextHeaders(requestHeaders, context);
-  const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-  // INC-066: rewrite обязан обрабатываться ВНУТРИ процесса (один проход
-  // middleware). Роутер Next (resolve-routes.js → getRelativeURL) считает
-  // rewrite внутренним, только если origin цели совпадает с initUrl, а initUrl
-  // строится из адреса ЛИСТЕНЕРА и различается по окружениям (next start без
-  // -H → http://localhost:<port>; standalone на VPS → http://127.0.0.1:<port>;
-  // Host-заголовок не участвует). Абсолютная цель с «не тем» origin делает
-  // rewrite внешним прокси-хопом: Next заново запрашивает сам себя, proxy
-  // выполняется второй раз уже без app-хоста, B477-защита срезает nonce-маркер
-  // и наружу уходит статическая CSP + report-only (прод-симптом INC-066).
-  // Относительная цель (pathname+search) по контракту getRelativeURL внутренняя
-  // ВСЕГДА, на любой топологии листенера.
-  response.headers.set("x-middleware-rewrite", `${url.pathname}${url.search}`);
-  return applyDocumentCsp(withRequestContext(response, context), requestHeaders);
+  return applyDocumentCsp(withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context), requestHeaders);
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
-  // INC-066: сам объект URL нужен NextResponse.rewrite только как носитель
-  // pathname/search — фактическую цель rewriteWithContext переписывает на
-  // ОТНОСИТЕЛЬНУЮ (см. комментарий там), поэтому origin здесь не играет роли
-  // и достаточно same-origin clone текущего запроса.
+  // INC-066: rewrite обрабатывается ВНУТРИ процесса (один проход middleware)
+  // только когда origin цели побайтово равен initUrl, который роутер Next
+  // строит в resolve-routes.js как
+  //   `${req.socket.encrypted || x-forwarded-proto.includes('https') ? 'https' : 'http'}` +
+  //   `://${formatHostname(opts.hostname || 'localhost')}:${opts.port}`,
+  // т.е. ПРОТОКОЛ из x-forwarded-proto, а хост/порт — из флагов запуска
+  // листенера (у нас `next start --hostname 127.0.0.1 --port 3000/3100`;
+  // ecosystem-конфиги зеркалят их в env HOSTNAME/PORT). Host-заголовок в
+  // сравнении НЕ участвует, а request.nextUrl материализуется как
+  // https://localhost:<port> — поэтому ни clone(nextUrl), ни прежний
+  // http://localhost-хак, ни публичный Host-origin никогда не совпадали, и
+  // каждый app-host rewrite уходил внешним прокси-хопом: Next заново
+  // запрашивал сам себя, proxy выполнялся второй раз уже без app-хоста,
+  // B477-защита срезала nonce-маркер, и наружу уходила статическая CSP +
+  // report-only (прод-симптом INC-066). Относительную цель тоже нельзя:
+  // adapter.js Next'а ре-абсолютизирует её обратно в localhost-origin.
+  // Строим цель из ТЕХ ЖЕ входов, что initUrl; без env листенера (локальный
+  // `next dev`, jest) nextUrl уже совпадает с initUrl — чистый clone.
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
+  const listenerHost = process.env.HOSTNAME;
+  const listenerPort = process.env.PORT;
+  if (listenerHost && listenerPort) {
+    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "";
+    url.protocol = forwardedProto.includes("https") ? "https:" : "http:";
+    url.hostname = listenerHost;
+    url.port = listenerPort;
+  }
   return url;
 }
 
