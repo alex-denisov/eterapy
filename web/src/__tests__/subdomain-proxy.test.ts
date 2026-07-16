@@ -14,38 +14,35 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("targets the router's initUrl origin: proto from x-forwarded-proto, host/port from the listener env (INC-066)", () => {
+  it("targets the router's initUrl origin behind nginx: proto from x-forwarded-proto, host = listener 127.0.0.1 (INC-066)", () => {
     // initUrl = `${xfProto.includes('https')?'https':'http'}://${opts.hostname}:${opts.port}`
-    // (resolve-routes.js). Несовпадение по ЛЮБОЙ части = внешний прокси-хоп,
-    // второй проход proxy срезает nonce-CSP.
-    const prevHost = process.env.HOSTNAME;
-    const prevPort = process.env.PORT;
-    process.env.HOSTNAME = "127.0.0.1";
-    process.env.PORT = "3100";
+    // (resolve-routes.js), а --hostname у нас 127.0.0.1. Несовпадение по ЛЮБОЙ
+    // части = внешний прокси-хоп, второй проход proxy срезает nonce-CSP.
+    const staged = internalRewriteUrl(
+      request("https://localhost:3100/", {
+        host: "staging.app.eterapy.com",
+        "x-forwarded-proto": "https",
+      }),
+      "/cabinet",
+    );
+    expect(staged.toString()).toBe("https://127.0.0.1:3100/cabinet");
+
+    // env-переопределение хоста листенера
+    process.env.ETERAPY_INTERNAL_REWRITE_HOST = "10.0.0.5";
     try {
-      const staged = internalRewriteUrl(
+      const overridden = internalRewriteUrl(
         request("https://localhost:3100/", {
           host: "staging.app.eterapy.com",
           "x-forwarded-proto": "https",
         }),
         "/cabinet",
       );
-      expect(staged.toString()).toBe("https://127.0.0.1:3100/cabinet");
-
-      // Без x-forwarded-proto (нешифрованный прямой доступ) — http.
-      const plain = internalRewriteUrl(
-        request("http://localhost:3100/", { host: "localhost:3100" }),
-        "/cabinet",
-      );
-      expect(plain.toString()).toBe("http://127.0.0.1:3100/cabinet");
+      expect(overridden.toString()).toBe("https://10.0.0.5:3100/cabinet");
     } finally {
-      if (prevHost === undefined) delete process.env.HOSTNAME;
-      else process.env.HOSTNAME = prevHost;
-      if (prevPort === undefined) delete process.env.PORT;
-      else process.env.PORT = prevPort;
+      delete process.env.ETERAPY_INTERNAL_REWRITE_HOST;
     }
 
-    // Локальный dev/jest (env листенера не заданы): чистый same-origin clone.
+    // Локальный dev/jest (нет x-forwarded-proto): чистый same-origin clone.
     const local = internalRewriteUrl(
       request("http://localhost:3000/", { host: "localhost:3000" }),
       "/cabinet",
