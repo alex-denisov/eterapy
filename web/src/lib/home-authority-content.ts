@@ -1,7 +1,7 @@
 import { canonicalUrl, seoOrigins } from "@/lib/seo";
 
 export const HOME_CONTENT_PUBLISHED_AT = "2026-07-15";
-export const HOME_CONTENT_REVIEWED_AT = "2026-07-15";
+export const HOME_CONTENT_REVIEWED_AT = "2026-07-16";
 
 export const HOME_FAQS = [
   {
@@ -35,6 +35,14 @@ export const HOME_FAQS = [
   {
     question: "Что происходит с вопросом и результатом?",
     answer: "Гостевой вопрос используется для текущего диалога. После регистрации результаты можно сохранить в личном кабинете, скрыть или удалить. Подробные правила описаны в политике конфиденциальности.",
+  },
+  {
+    question: "Сколько стоят платные форматы?",
+    answer: "Цифровые углубления оплачиваются баллами ясности: пакеты стоят 790, 1390 и 2990 рублей. Стоимость сессии со специалистом задаёт сам специалист и она видна до записи. Все цены показываются до подтверждения покупки.",
+  },
+  {
+    question: "Что будет, если сессию отменят?",
+    answer: "Если сессию отменяет специалист — деньги возвращаются полностью, а при поздней отмене платформа дополнительно начисляет компенсационные баллы. Пользователь может бесплатно отменить сессию не позднее чем за 24 часа до начала; при более поздней отмене удерживается до 50% стоимости, и специалист может простить удержание.",
   },
 ] as const;
 
@@ -72,6 +80,8 @@ export function homeAuthorityJsonLd() {
       ],
       citation: [
         "https://www.who.int/ru/news-room/fact-sheets/detail/self-care-health-interventions",
+        "https://www.who.int/ru/news-room/fact-sheets/detail/mental-health-strengthening-our-response",
+        "https://telefon-doveria.ru/",
         "https://76.mchs.gov.ru/deyatelnost/poleznaya-informaciya/rekomendacii-naseleniyu/sistema-112",
       ],
     },

@@ -26,7 +26,9 @@ describe("B346 — practitioner surfaces are purely DB-backed", () => {
     expect(page).not.toContain("FALLBACK_PRACTITIONERS");
     expect(page).not.toContain("taya-berg");
     expect(page).not.toContain("sofia-mirnaya");
-    expect(page).toContain("return mapped;");
+    // B484 re-orders the DB-backed list (reliability deprioritization) but adds
+    // no hardcoded personas — the source rows still come only from `mapped`.
+    expect(page).toContain("partitionByReliability(mapped, deprioritized)");
   });
 
   it("landing teaser hides itself instead of showing fictional specialists", () => {

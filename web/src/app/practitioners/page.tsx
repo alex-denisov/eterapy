@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
+import { getDeprioritizedPractitionerIds, partitionByReliability } from "@/lib/practitioner-reliability";
 import { PractitionersGrid } from "./practitioners-grid";
 
 async function getPractitioners() {
@@ -41,7 +42,10 @@ async function getPractitioners() {
 
   // B346/Интерфейс 8-9: the catalog is purely DB-backed — no hardcoded demo
   // personas. Every card therefore links to a real, working practitioner page.
-  return mapped;
+  // B484: практики, превысившие пороги поздних отмен/неявок за 30 дней,
+  // временно опускаются в конец выдачи (санкция «приоритет каталога»).
+  const deprioritized = await getDeprioritizedPractitionerIds(mapped.map((p) => p.id)).catch(() => new Set<string>());
+  return partitionByReliability(mapped, deprioritized);
 }
 
 export const metadata = createPublicPageMetadata("/practitioners");

@@ -12,6 +12,7 @@ import { effectiveCategories, categoryLabel } from "@/lib/practitioner-taxonomy"
 import { offeredFormatOptions } from "@/lib/session-formats";
 import { practitionerHelpChips } from "@/lib/practitioner-chips";
 import { assertPractitionerBookingAllowed } from "@/lib/practitioner-compliance";
+import { getReliabilitySnapshot, reliabilityBadge } from "@/lib/practitioner-reliability";
 import { SlotPicker } from "./slot-picker";
 import { PractitionerBackLink } from "./back-link";
 import { PractitionerReviews } from "./practitioner-reviews";
@@ -90,6 +91,9 @@ export default async function PractitionerPage({
   if (!p) notFound();
 
   const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
+  // B484: «пряник» политики надёжности — бейдж «Проводит N% сессий».
+  const reliability = await getReliabilitySnapshot(p.id).catch(() => null);
+  const reliabilityBadgeInfo = reliability ? reliabilityBadge(reliability) : null;
   const firstRate = p.priceRates[0];
   const initial = p.user.name.charAt(0).toUpperCase();
   // Derive gradient from name length for variety
@@ -193,6 +197,11 @@ export default async function PractitionerPage({
                     ? <span className="soft-badge">Проверен ETerapy</span>
                     : <span className="soft-badge" style={{ background: "var(--soft-apricot)", color: "var(--soft-bordeaux)" }} title="Профиль ещё не прошёл проверку ETerapy">Не верифицирован</span>}
                   {p.founding && <span className="soft-badge soft-badge-lilac">Основатель</span>}
+                  {reliabilityBadgeInfo && (
+                    <span className="soft-badge" title="Доля подтверждённых сессий, доведённых до конца">
+                      {reliabilityBadgeInfo.label}
+                    </span>
+                  )}
                   {p.experience && <span className="soft-badge">{p.experience}</span>}
                   {categoryNames.map((c) => (
                     <span key={c} className="soft-badge soft-badge-lilac">{c}</span>

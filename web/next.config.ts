@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
-import { securityHeaders } from "./src/lib/security-headers";
+import { baseSecurityHeaders } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -34,8 +34,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // B523: base hardening-заголовки — на КАЖДЫЙ путь (HSTS/анти-clickjacking
+        // и для api/_next/static). CSP-заголовок документа выставляет proxy.ts,
+        // где есть host/path контекст и per-request nonce, — так на HTML нет
+        // двух конкурирующих CSP-политик.
         source: "/:path*",
-        headers: securityHeaders(),
+        headers: baseSecurityHeaders(),
       },
     ];
   },

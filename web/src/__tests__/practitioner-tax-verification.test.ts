@@ -1,10 +1,11 @@
 import {
   expectedInnLength,
   isValidInnChecksum,
+  namesLikelyMatch,
   validateInn,
   TAX_STATUS_LABELS,
 } from "@/lib/practitioner-tax-verification";
-import { lookupTaxIdentity } from "@/lib/practitioner-tax-verification-provider";
+import { lookupTaxIdentity, parseOfdataParty } from "@/lib/practitioner-tax-verification-provider";
 import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
 
 // B466/B483 — «Налоговый статус»: ИНН обязателен, 12 цифр (самозанятый/ИП) /
@@ -71,7 +72,11 @@ describe("B483 tax-status flow (source contracts)", () => {
   it("saves the status as VERIFIED only on the explicit confirm step", () => {
     const route = source("src/app/api/practitioner/tax-status/route.ts");
     expect(route).toContain('body?.step === "confirm"');
-    expect(route).toContain('taxReviewStatus: "VERIFIED"');
+    // B483 security: авто-VERIFIED только при реестровой привязке личности;
+    // без неё confirm сохраняет PENDING (ручная модерация).
+    expect(route).toContain('autoVerified ? "VERIFIED" : "PENDING"');
+    expect(route).toContain("namesLikelyMatch");
+    expect(route).toContain('identity.identitySource === "registry"');
     // lookup возвращает identity БЕЗ сохранения; сохранение — за confirm.
     expect(route.indexOf("identity")).toBeLessThan(route.indexOf("tx.practitioner.update"));
     expect(route).toContain("payoutDetails.update");
@@ -88,7 +93,9 @@ describe("B483 tax-status flow (source contracts)", () => {
     const provider = source("src/lib/practitioner-tax-verification-provider.ts");
     expect(provider).toContain("TAX_VERIFICATION_PROVIDER");
     expect(provider).toContain("statusnpd.nalog.ru/api/v1/tracker/taxpayer_status");
-    expect(provider).toContain("FNS EGRUL/EGRIP subscriber access is not configured");
+    // ИП/юрлицо: официальный ЕГРЮЛ/ЕГРИП-коннектор (Офдата) fail-closed без ключа.
+    expect(provider).toContain("EGRUL/EGRIP lookup requires OFDATA_API_KEY");
+    expect(provider).toContain("https://api.ofdata.ru/v2");
   });
 });
 
@@ -143,11 +150,12 @@ describe("B483 official FNS NPD provider", () => {
   });
 
   it("fails closed for IP and legal entities without registry access", async () => {
+    delete process.env.OFDATA_API_KEY;
     await expect(lookupTaxIdentity({
       inn: "500100732259",
       status: "INDIVIDUAL_ENTREPRENEUR",
       fallbackDisplayName: "Тестовый практик",
-    })).rejects.toThrow("subscriber access is not configured");
+    })).rejects.toThrow("requires OFDATA_API_KEY");
   });
 
   it("fails closed when the provider is explicitly disabled", async () => {
@@ -174,5 +182,132 @@ describe("B483 official FNS NPD provider", () => {
     await lookupTaxIdentity(query);
     await expect(lookupTaxIdentity(query)).rejects.toThrow("rate is temporarily exhausted");
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("NPD result never claims registry identity (impersonation guard)", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: true }),
+    });
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "SELF_EMPLOYED",
+      fallbackDisplayName: "Тестовый практик",
+    })).resolves.toMatchObject({ identitySource: "profile", registryPersonName: null });
+  });
+});
+
+describe("B483 EGRUL/EGRIP (Ofdata) provider", () => {
+  const originalProvider = process.env.TAX_VERIFICATION_PROVIDER;
+  const originalKey = process.env.OFDATA_API_KEY;
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.TAX_VERIFICATION_PROVIDER = "fns";
+    process.env.OFDATA_API_KEY = "test-key";
+    resetAuthRateLimitForTests();
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    if (originalProvider === undefined) delete process.env.TAX_VERIFICATION_PROVIDER;
+    else process.env.TAX_VERIFICATION_PROVIDER = originalProvider;
+    if (originalKey === undefined) delete process.env.OFDATA_API_KEY;
+    else process.env.OFDATA_API_KEY = originalKey;
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("parses an active ИП with ФИО from the registry", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: { ФИО: "Иванов Иван Иванович", Статус: { Код: "001", Наим: "Действует" }, ОГРНИП: "123" },
+        meta: { status: "ok" },
+      }),
+    });
+    await expect(lookupTaxIdentity({
+      inn: "500100732259",
+      status: "INDIVIDUAL_ENTREPRENEUR",
+      fallbackDisplayName: "Кто-то Другой",
+    })).resolves.toMatchObject({
+      active: true,
+      source: "egrul-ofdata",
+      identitySource: "registry",
+      registryPersonName: "Иванов Иван Иванович",
+    });
+    // Verify it hit the entrepreneur endpoint with key+inn.
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain("/entrepreneur?key=test-key&inn=500100732259");
+  });
+
+  it("parses an active company (LE) with its name and no person match", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: { НаимСокр: "ПАО СБЕРБАНК", Статус: { Наим: "Действует" } },
+        meta: { status: "ok" },
+      }),
+    });
+    await expect(lookupTaxIdentity({
+      inn: "7707083893",
+      status: "LEGAL_ENTITY",
+      fallbackDisplayName: "ООО Тест",
+    })).resolves.toMatchObject({
+      active: true,
+      source: "egrul-ofdata",
+      displayName: "ПАО СБЕРБАНК",
+      registryPersonName: null,
+    });
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain("/company?key=");
+  });
+
+  it("treats an unknown INN or liquidated record as inactive", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: {}, meta: { message: "Не найдено" } }) });
+    await expect(lookupTaxIdentity({
+      inn: "0000000000",
+      status: "LEGAL_ENTITY",
+      fallbackDisplayName: "ООО Тест",
+    })).resolves.toMatchObject({ active: false, identitySource: "registry" });
+
+    expect(parseOfdataParty(
+      { data: { НаимСокр: "ООО Ромашка", Статус: { Наим: "Ликвидировано" } } },
+      "LEGAL",
+    )).toMatchObject({ active: false, displayName: "ООО Ромашка" });
+    // Empty registry data → null (not found).
+    expect(parseOfdataParty({ data: {} }, "INDIVIDUAL")).toBeNull();
+  });
+});
+
+describe("B483 identity matching (impersonation guard)", () => {
+  it("matches free word order and ё/е", () => {
+    expect(namesLikelyMatch("Иван Иванов", "Иванов Иван Иванович")).toBe(true);
+    expect(namesLikelyMatch("Семёнов Пётр", "Петр Семенов")).toBe(true);
+    expect(namesLikelyMatch("Семенов Петр", "Семёнов Пётр Ильич")).toBe(true);
+  });
+
+  it("rejects clearly different people and empty values", () => {
+    expect(namesLikelyMatch("Иван Иванов", "Сидоров Павел Петрович")).toBe(false);
+    expect(namesLikelyMatch("", "Иванов Иван")).toBe(false);
+    expect(namesLikelyMatch("Иван Иванов", null)).toBe(false);
+  });
+
+  it("single-token profile name matches by inclusion", () => {
+    expect(namesLikelyMatch("Иванов", "Иванов Иван Иванович")).toBe(true);
+    expect(namesLikelyMatch("Сидоров", "Иванов Иван Иванович")).toBe(false);
+  });
+});
+
+describe("B483 periodic re-check (source contracts)", () => {
+  const fs = jest.requireActual<typeof import("node:fs")>("node:fs");
+  const path = jest.requireActual<typeof import("node:path")>("node:path");
+  const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+
+  it("re-check expires lost statuses and is wired into the practitioner cron", () => {
+    const recheck = source("src/lib/practitioner-tax-recheck.ts");
+    expect(recheck).toContain('taxReviewStatus: "EXPIRED"');
+    expect(recheck).toContain("taxStatusVerifiedAt: { lte: dueBefore }");
+    // Fail-open по доступности провайдера: аутэйдж не гасит статус.
+    expect(recheck).toContain("result.skipped += 1");
+    expect(source("src/lib/cron-jobs.ts")).toContain("recheckVerifiedTaxStatuses");
   });
 });

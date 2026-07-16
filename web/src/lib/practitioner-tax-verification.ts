@@ -71,6 +71,39 @@ export interface TaxIdentityLookup {
   status: TaxStatusKey;
   /** Статус действителен/активен на момент проверки. */
   active: boolean;
-  /** Источник данных: "fns" | "egrul" | "stub". */
+  /** Источник данных: "fns-npd" | "egrul-dadata" | "stub". */
   source: string;
+  /**
+   * B483 security: откуда взято имя. "registry" — из официального реестра
+   * (ЕГРЮЛ/ЕГРИП), личность можно привязать; "profile" — эхо имени профиля
+   * (NPD API не возвращает ФИО), личность НЕ привязана → авто-VERIFIED
+   * запрещён, только ручная модерация.
+   */
+  identitySource: "registry" | "profile";
+  /** ФИО физлица из реестра (ИП — предприниматель, ООО — руководитель). */
+  registryPersonName: string | null;
+}
+
+function normalizeNameTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^а-яa-z\s-]/g, " ")
+    .split(/[\s-]+/)
+    .filter((token) => token.length >= 2);
+}
+
+/**
+ * B483: совпадает ли имя профиля с ФИО из реестра. Порядок слов свободный
+ * («Иван Иванов» ↔ «Иванов Иван Иванович»); требуем ≥2 общих токена, а если у
+ * профиля только один токен — его вхождение в реестровое ФИО.
+ */
+export function namesLikelyMatch(profileName: string | null | undefined, registryName: string | null | undefined): boolean {
+  if (!profileName || !registryName) return false;
+  const profileTokens = normalizeNameTokens(profileName);
+  const registryTokens = new Set(normalizeNameTokens(registryName));
+  if (profileTokens.length === 0 || registryTokens.size === 0) return false;
+  const matched = profileTokens.filter((token) => registryTokens.has(token));
+  if (profileTokens.length === 1) return matched.length === 1;
+  return matched.length >= 2;
 }

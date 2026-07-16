@@ -7,6 +7,7 @@ import {
   publicAgentResources,
 } from "@/lib/agent-readiness";
 import { authRateLimitResponse, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
+import { verifyAgentAccessToken } from "@/lib/agent-oauth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -63,7 +64,12 @@ async function handleMcpRequest(request: NextRequest) {
     return Response.json({ error: "Origin is not allowed" }, { status: 403 });
   }
 
-  const limit = checkRequestAuthRateLimit(request, "public-mcp", 60, 60_000);
+  // B469: анонимный доступ остаётся; валидный OAuth-токен (scope public:read,
+  // см. /.well-known/oauth-authorization-server) даёт повышенный rate-limit.
+  const agentClientId = await verifyAgentAccessToken(request.headers.get("authorization"));
+  const limit = agentClientId
+    ? checkRequestAuthRateLimit(request, `public-mcp-oauth:${agentClientId}`, 240, 60_000)
+    : checkRequestAuthRateLimit(request, "public-mcp", 60, 60_000);
   if (!limit.allowed) return authRateLimitResponse(limit);
 
   const server = createPublicMcpServer();

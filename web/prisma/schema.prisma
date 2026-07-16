@@ -495,6 +495,9 @@ model Booking {
   cancelledBy       String?   @map("cancelled_by") // CLIENT|PRACTITIONER|ADMIN
   cancelledAt       DateTime? @map("cancelled_at")
   cancelReason      String?   @map("cancel_reason")
+  // B484: отмена случилась <24ч до начала. Снимок на момент отмены — slotId
+  // отвязывается при отмене (Баг 14), пост-фактум «позднесть» не восстановить.
+  lateCancel        Boolean   @default(false) @map("late_cancel")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -918,6 +921,8 @@ enum NotificationEvent {
   BOOKING_PROPOSED // B480: специалист предложил время сессии (для клиента)
   BOOKING_CHANGE_REQUESTED // B481: запрос переноса/отмены (для другой стороны)
   BOOKING_CHANGE_RESOLVED // B481: запрос переноса/отмены согласован/отклонён
+  GOODWILL_CREDITS // B484: компенсационные баллы клиенту за счёт платформы
+  RELIABILITY_WARNING // B484: предупреждение практику о деприоритизации
 }
 
 enum NotificationChannel {
