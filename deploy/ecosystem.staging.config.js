@@ -6,19 +6,26 @@
 // Apply on the VPS with:
 //   pm2 startOrReload deploy/ecosystem.staging.config.js --update-env
 //
-// Lower memory ceilings than prod — staging is for QA, not load. Single
-// instance / fork mode mirrors prod so behaviour matches.
+// The runtime env is declared explicitly so PM2 cannot retain a stale
+// DATABASE_URL after an A/B database switch. Node 22 provides parseEnv.
+const { readFileSync } = require("node:fs");
+const { parseEnv } = require("node:util");
+
+const runtimeEnv = parseEnv(readFileSync("/home/admin/eterapy-staging/web/.env.local", "utf8"));
 
 module.exports = {
   apps: [
     {
       name: "eterapy-staging",
-      script: "npm",
-      args: "start -- --port 3100 --hostname 127.0.0.1",
+      // Runtime dependencies are hoisted at the workspace root by npm ci.
+      script: "/home/admin/eterapy-staging/node_modules/next/dist/bin/next",
+      args: ["start", "--port", "3100", "--hostname", "127.0.0.1"],
       cwd: "/home/admin/eterapy-staging/web",
-      instances: 1,
-      exec_mode: "fork",
+      // Two cluster workers let PM2 replace one HTTP process at a time.
+      instances: 2,
+      exec_mode: "cluster",
       env: {
+        ...runtimeEnv,
         NODE_ENV: "production",
         PORT: 3100,
         HOSTNAME: "127.0.0.1",
@@ -37,6 +44,7 @@ module.exports = {
       instances: 1,
       exec_mode: "fork",
       env: {
+        ...runtimeEnv,
         NODE_ENV: "production",
         WORKER_QUEUE: "default",
         WORKER_POLL_MS: 2000,

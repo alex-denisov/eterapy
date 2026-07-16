@@ -22,6 +22,12 @@ describe("V1 — impersonation sets the cookie directly (one less redirect + DB 
     expect(entry).toContain('target.role === "SUPERADMIN"');
     expect(entry).toContain("target.blockedAt || target.deletedAt");
   });
+
+  it("requires a same-origin POST for the state-changing action", () => {
+    expect(entry).toContain("export async function POST");
+    expect(entry).toContain('req.headers.get("origin")');
+    expect(entry).not.toContain("export async function GET");
+  });
 });
 
 describe("V5 — owner financial loop rendered as grouped metric cards", () => {

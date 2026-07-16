@@ -749,15 +749,13 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               <h3 className={`mb-2 ${LABEL}`}>Статус и доступ</h3>
               <div className="flex flex-wrap gap-2">
                 {permissions.canImpersonate && (
-                  // Plain <a>, not next/link <Link>: the impersonate route is a
-                  // GET with side effects (audit log + cookie). <Link> prefetches
-                  // on hover/viewport, which fired phantom IMPERSONATE audit events
-                  // just from opening this modal (Баг 3). A bare anchor never
-                  // prefetches, so the route only runs on an explicit click.
-                  <a className="soft-admin-action" href={`/api/admin/impersonate?userId=${row.id}`} target="_blank" rel="noopener noreferrer">
-                    <LogIn className="size-3.5" aria-hidden="true" />
-                    Войти как пользователь
-                  </a>
+                  <form action="/api/admin/impersonate" method="post" target="_blank">
+                    <input type="hidden" name="userId" value={row.id} />
+                    <button type="submit" className="soft-admin-action">
+                      <LogIn className="size-3.5" aria-hidden="true" />
+                      Войти как пользователь
+                    </button>
+                  </form>
                 )}
                 {permissions.canBlock && (
                   <button type="button" className="soft-admin-action" data-variant={row.blockedAt ? "subtle" : "danger"} disabled={busy} onClick={() => runAction(row.blockedAt ? "unblock" : "block", row.blockedAt ? undefined : `Заблокировать ${row.email}?`)}>

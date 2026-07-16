@@ -1,8 +1,8 @@
-import * as XLSX from "xlsx";
 import { BookingStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { createXlsxExport } from "@/lib/xlsx-export";
 import { cardMask, formatDateTime } from "@/app/admin/admin-analytics-ui";
 import {
   cardPartsFromMetadata,
@@ -275,15 +275,13 @@ export async function GET(request: Request) {
     });
   }
 
-  const workbook = XLSX.utils.book_new();
-  if (scope === "agent-reports") {
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(agentExportRows), "Электронный отчет");
-  } else {
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(transactionRows), "Поступления");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(reportRows), "Отчеты практиков");
-  }
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
-  return new Response(new Uint8Array(buffer), {
+  const buffer = await createXlsxExport(scope === "agent-reports"
+    ? [{ name: "Электронный отчет", rows: agentExportRows }]
+    : [
+      { name: "Поступления", rows: transactionRows },
+      { name: "Отчеты практиков", rows: reportRows },
+    ]);
+  return new Response(buffer, {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "content-disposition": `attachment; filename="eterapy-${scope === "agent-reports" ? "agent-reports" : "finance"}-${period.startInput}-${period.endInput}.xlsx"`,

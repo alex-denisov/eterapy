@@ -81,6 +81,36 @@ jobs:
           NODE_ENV: test
         run: npm test -- --ci --passWithNoTests --silent
 
+  lint:
+    name: Lint
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            web/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+      - name: Reinstall if cache miss
+        run: |
+          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
+            npm ci --prefer-offline --no-audit --no-fund
+          fi
+      - name: Oxlint fast pre-pass (pilot)
+        continue-on-error: true
+        working-directory: web
+        run: npm run lint:fast
+      - name: ESLint release gate
+        working-directory: web
+        run: npm run lint
+
   build:
     name: Next.js build
     needs: install
