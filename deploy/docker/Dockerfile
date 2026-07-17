@@ -44,6 +44,9 @@ RUN npx prisma generate && npm run build && rm -rf .next/cache
 
 # ── runtime assembly: prod deps + source + built .next ──
 FROM base AS assemble
+# prisma.config.ts refuses to load without DATABASE_URL even for `generate`;
+# the real URL comes from the VM's .env at runtime.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 COPY package.json package-lock.json ./
 COPY web/package.json web/package.json
 RUN npm ci --omit=dev --no-audit --no-fund
