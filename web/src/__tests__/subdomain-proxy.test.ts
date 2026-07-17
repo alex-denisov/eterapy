@@ -7,39 +7,21 @@ jest.mock("@/lib/session-from-cookie", () => ({
 import { internalRewriteUrl, shouldRedirectAppPublicPathToMain } from "@/proxy";
 import { v5Products } from "@/lib/v5-products";
 
-function request(url: string, headers: Record<string, string> = {}): NextRequest {
-  const nextUrl = new URL(url) as URL & { clone(): URL };
-  nextUrl.clone = () => new URL(url);
-  return { url, nextUrl, headers: new Headers(headers) } as unknown as NextRequest;
+function request(url: string): NextRequest {
+  return { url } as NextRequest;
 }
 
 describe("subdomain proxy rewrites", () => {
-  it("keeps the rewrite target a same-origin clone of nextUrl (INC-066: adapter normalizes loopbacks, initUrl must match via --hostname localhost)", () => {
-    // Контракт: adapter Next'а нормализует loopback-цели в 'localhost', а
-    // initUrl роутера строится из флага запуска — поэтому листенеры ОБЯЗАНЫ
-    // стартовать с `--hostname localhost` (ecosystem-конфиги), и цель rewrite
-    // остаётся чистым same-origin clone.
-    const staged = internalRewriteUrl(
-      request("https://localhost:3100/", { host: "staging.app.eterapy.com" }),
-      "/cabinet",
-    );
-    expect(staged.toString()).toBe("https://localhost:3100/cabinet");
+  it("forces local HTTPS rewrite targets back to HTTP for the PM2 listener", () => {
+    const url = internalRewriteUrl(request("https://localhost:3000/"), "/cabinet");
 
-    // Локальный dev/jest: тоже чистый clone.
-    const local = internalRewriteUrl(
-      request("http://localhost:3000/", { host: "localhost:3000" }),
-      "/cabinet",
-    );
-    expect(local.toString()).toBe("http://localhost:3000/cabinet");
+    expect(url.toString()).toBe("http://localhost:3000/cabinet");
+  });
 
-    const app = internalRewriteUrl(
-      request("https://app.eterapy.com/diary?tab=1", { host: "app.eterapy.com" }),
-      "/cabinet/diary",
-    );
-    expect(app.origin).toBe("https://app.eterapy.com");
-    expect(app.pathname).toBe("/cabinet/diary");
-    // search сбрасывается — вызывающая сторона переносит его явно
-    expect(app.search).toBe("");
+  it("keeps real domain rewrite targets on their original protocol", () => {
+    const url = internalRewriteUrl(request("https://app.eterapy.com/"), "/cabinet");
+
+    expect(url.toString()).toBe("https://app.eterapy.com/cabinet");
   });
 
   it("keeps public product and funnel routes canonical on the main domain", () => {

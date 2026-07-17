@@ -91,37 +91,14 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
 }
 
 export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
-  // INC-066: rewrite обрабатывается ВНУТРИ процесса (один проход middleware)
-  // только когда origin цели побайтово равен initUrl, который роутер Next
-  // строит в resolve-routes.js как
-  //   `${req.socket.encrypted || x-forwarded-proto.includes('https') ? 'https' : 'http'}` +
-  //   `://${formatHostname(opts.hostname || 'localhost')}:${opts.port}`,
-  // т.е. ПРОТОКОЛ из x-forwarded-proto, а хост/порт — из флагов запуска
-  // листенера (у нас `next start --hostname 127.0.0.1 --port 3000/3100`;
-  // ecosystem-конфиги зеркалят их в env HOSTNAME/PORT). Host-заголовок в
-  // сравнении НЕ участвует, а request.nextUrl материализуется как
-  // https://localhost:<port> — поэтому ни clone(nextUrl), ни прежний
-  // http://localhost-хак, ни публичный Host-origin никогда не совпадали, и
-  // каждый app-host rewrite уходил внешним прокси-хопом: Next заново
-  // запрашивал сам себя, proxy выполнялся второй раз уже без app-хоста,
-  // B477-защита срезала nonce-маркер, и наружу уходила статическая CSP +
-  // report-only (прод-симптом INC-066).
-  // Почему именно clone и НИЧЕГО больше (выяснено итерациями на staging):
-  // (а) adapter.js Next'а (вбандлен в middleware) прогоняет цель через
-  //     NextURL({headers}), который НОРМАЛИЗУЕТ любой loopback-hostname в
-  //     'localhost' и ре-абсолютизирует относительные цели — значит из
-  //     middleware физически нельзя выпустить ни 127.0.0.1, ни relative;
-  // (б) x-forwarded-proto до middleware не доходит, а env HOSTNAME в
-  //     middleware-рантайме = 'localhost' независимо от --hostname;
-  // (в) протокол nextUrl уже зеркалит протокол initUrl (https при XFP).
-  // Отсюда единственная согласуемая пара: adapter-нормализованный
-  // https://localhost:<port> ⇔ initUrl с ЗАПУСКОМ `--hostname localhost`
-  // (ecosystem-конфиги; бинд остаётся loopback 127.0.0.1 — проверено на VPS,
-  // /etc/hosts маппит localhost только на 127.0.0.1). Запуск с
-  // `--hostname 127.0.0.1` ломает контракт НАВСЕГДА — не возвращать.
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = "";
+  const url = new URL(pathname, request.url);
+  // Behind nginx, Next can materialize request.url as https://localhost:3000
+  // from X-Forwarded-Proto. Rewriting that absolute URL makes Next proxy TLS to
+  // the local HTTP listener and returns 500/EPROTO. Keep internal rewrites local
+  // but force the backend protocol to HTTP.
+  if ((url.hostname === "localhost" || url.hostname === "127.0.0.1") && url.protocol === "https:") {
+    url.protocol = "http:";
+  }
   return url;
 }
 

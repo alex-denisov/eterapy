@@ -19,7 +19,7 @@ module.exports = {
       name: "eterapy-staging",
       // Runtime dependencies are hoisted at the workspace root by npm ci.
       script: "/home/admin/eterapy-staging/node_modules/next/dist/bin/next",
-      args: ["start", "--port", "3100", "--hostname", "localhost"],
+      args: ["start", "--port", "3100", "--hostname", "127.0.0.1"],
       cwd: "/home/admin/eterapy-staging/web",
       // Two cluster workers let PM2 replace one HTTP process at a time.
       instances: 2,
@@ -28,7 +28,7 @@ module.exports = {
         ...runtimeEnv,
         NODE_ENV: "production",
         PORT: 3100,
-        HOSTNAME: "localhost",
+        HOSTNAME: "127.0.0.1",
       },
       max_memory_restart: "768M",
       error_file: "/home/admin/.pm2/logs/eterapy-staging-error.log",
