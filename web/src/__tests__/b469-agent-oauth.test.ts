@@ -149,10 +149,20 @@ describe("B469 agent OAuth — surface wiring (source contracts)", () => {
   });
 
   it("auth.md documents the real OAuth option and its limits", () => {
-    const authMd = source("src/app/auth.md/route.ts");
+    // Текст живёт в общей библиотеке: его отдают ДВА роута (/auth.md и
+    // /.well-known/auth.md), поэтому источник проверяем один.
+    const authMd = source("src/lib/agent-auth-md.ts");
     expect(authMd).toContain("agent/oauth/register");
     expect(authMd).toContain("client_credentials");
     expect(authMd).toContain("oauth_client");
     expect(authMd).toContain("public:read");
+  });
+
+  it("auth.md is served from both /auth.md and the canonical /.well-known/auth.md (RFC 8615)", () => {
+    // Сканеры агент-готовности ищут метаданные по разным путям; оба роута
+    // обязаны отдавать один и тот же текст из общей библиотеки.
+    for (const route of ["src/app/auth.md/route.ts", "src/app/.well-known/auth.md/route.ts"]) {
+      expect(source(route)).toContain("agentAuthMarkdownResponse");
+    }
   });
 });
