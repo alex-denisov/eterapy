@@ -7,6 +7,9 @@ STAGING_ECOSYSTEM="${STAGING_ECOSYSTEM:-/home/admin/eterapy-staging/deploy/ecosy
 STAGING_HEALTH_URL="${STAGING_HEALTH_URL:-http://127.0.0.1:3100/api/health}"
 SYNC_LOCK_FILE="${SYNC_LOCK_FILE:-/tmp/eterapy-staging-db-sync.lock}"
 SYNC_FAILPOINT="${SYNC_FAILPOINT:-}"
+# INC-055: keep stage-only test-account acceptance results across refreshes.
+PRESERVE_STAGE_TEST_RESULTS="${PRESERVE_STAGE_TEST_RESULTS:-1}"
+TEST_ACCOUNT_EMAIL_PATTERN="${TEST_ACCOUNT_EMAIL_PATTERN:-%@test.eterapy.com}"
 RESTART=false
 RUN_MIGRATIONS=false
 
@@ -147,6 +150,7 @@ PROD_DB_NAME="$(db_name_from_url "$PROD_DATABASE_URL")"
 STAGING_DB_NAME="$(db_name_from_url "$STAGING_DATABASE_URL")"
 STAGING_DB_USER="$(database_user_from_url "$STAGING_DATABASE_URL")"
 PROD_PG_URL="$(postgres_cli_url_from_prisma_url "$PROD_DATABASE_URL")"
+STAGING_PG_URL="$(postgres_cli_url_from_prisma_url "$STAGING_DATABASE_URL")"
 
 if [[ "$PROD_DB_NAME" == "$STAGING_DB_NAME" ]]; then
   echo "ERROR: refusing to sync because production and staging DB names are identical" >&2
@@ -320,6 +324,46 @@ log "Validating restored inactive DB"
 psql "$TARGET_PG_URL" -v ON_ERROR_STOP=1 -Atqc \
   "SELECT CASE WHEN to_regclass('public.\"_prisma_migrations\"') IS NOT NULL THEN 1 ELSE 0 END" \
   | grep -qx 1
+
+# INC-055: stage-only acceptance data written by the shared test accounts
+# (…@test.eterapy.com) must survive the prod→staging refresh, otherwise a saved
+# staging reading and its direct URL disappear at the next hourly sync. After
+# the restore (and optional migrations) into the inactive DB, copy the LIVE
+# staging DB's product_results rows for test accounts that the prod snapshot
+# does not contain. Column list = intersection of both schemas (migrations may
+# have added columns to the target); dangling dialogue references are nulled,
+# mirroring the Prisma relation's onDelete: SetNull. A failure aborts the
+# refresh (live staging keeps the data) rather than silently dropping it.
+preserve_stage_test_results() {
+  local src_cols tgt_cols cols inserted
+  src_cols="$(psql "$STAGING_PG_URL" -Atqc \
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='product_results' ORDER BY ordinal_position")"
+  tgt_cols="$(psql "$TARGET_PG_URL" -Atqc \
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='product_results'")"
+  cols="$(SRC_COLS="$src_cols" TGT_COLS="$tgt_cols" node -e '
+    const src = process.env.SRC_COLS.split("\n").filter(Boolean);
+    const tgt = new Set(process.env.TGT_COLS.split("\n").filter(Boolean));
+    const cols = src.filter((column) => tgt.has(column));
+    if (!cols.includes("id") || !cols.includes("user_id")) process.exit(2);
+    process.stdout.write(cols.map((column) => `"${column}"`).join(", "));
+  ')"
+  inserted="$(
+    psql "$STAGING_PG_URL" -v ON_ERROR_STOP=1 -Atqc \
+      "COPY (SELECT ${cols} FROM public.product_results WHERE user_id IN (SELECT id FROM public.users WHERE email LIKE '${TEST_ACCOUNT_EMAIL_PATTERN}')) TO STDOUT" \
+      | psql "$TARGET_PG_URL" -v ON_ERROR_STOP=1 -Atq \
+          -c "CREATE TEMP TABLE _inc055_preserve (LIKE public.product_results INCLUDING DEFAULTS)" \
+          -c "COPY _inc055_preserve (${cols}) FROM STDIN" \
+          -c "UPDATE _inc055_preserve p SET dialogue_id = NULL WHERE p.dialogue_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.dialogues d WHERE d.id = p.dialogue_id)" \
+          -c "WITH ins AS (INSERT INTO public.product_results (${cols}) SELECT ${cols} FROM _inc055_preserve p WHERE EXISTS (SELECT 1 FROM public.users u WHERE u.id = p.user_id) AND NOT EXISTS (SELECT 1 FROM public.product_results t WHERE t.id = p.id) RETURNING 1) SELECT count(*) FROM ins" \
+      | tail -n 1
+  )"
+  log "Preserved $inserted stage-only test-account product_results row(s)"
+}
+
+if [[ "$PRESERVE_STAGE_TEST_RESULTS" == "1" ]]; then
+  log "Preserving stage-only test-account results from '$STAGING_DB_NAME'"
+  preserve_stage_test_results
+fi
 
 if [[ "$SYNC_FAILPOINT" == "after_restore" ]]; then
   log "Fault injection after_restore: aborting before DATABASE_URL activation"

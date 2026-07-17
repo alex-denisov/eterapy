@@ -760,7 +760,9 @@
   }
 
   .soft-footer .text-muted-foreground {
-    color: var(--soft-ink-faint) !important;
+    /* PRB-002: ink-faint (#8a7e76) даёт ~3.7:1 на --soft-paper — ниже AA.
+       ink-soft (#5b514c, ~7.2:1) держит приглушённый тон и проходит AA. */
+    color: var(--soft-ink-soft) !important;
   }
 
   .soft-mobile-menu {
