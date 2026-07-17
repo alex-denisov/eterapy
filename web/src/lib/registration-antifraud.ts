@@ -72,6 +72,18 @@ export function looksMachineGeneratedName(name: string): boolean {
   return caseTransitions(trimmed) >= 4;
 }
 
+/**
+ * ≥16 letters with ≥6 case flips is beyond any human name shape — the prod
+ * bot wave switched from Gmail dot-abuse to plain yahoo.com mailboxes
+ * (`mNXYgzyDaOTXpdpMVnKyzUk` / klm5_1@yahoo.com), leaving the name as the
+ * only signal, so this tier must block on its own.
+ */
+export function looksMachineGeneratedNameStrong(name: string): boolean {
+  const trimmed = (name ?? "").trim();
+  if (!looksMachineGeneratedName(trimmed)) return false;
+  return letters(trimmed).length >= 16 && caseTransitions(trimmed) >= 6;
+}
+
 /** Gmail local-part dots are ignored by Gmail; heavy dotting multiplies one
  *  mailbox into many "unique" addresses — a classic multi-account signal. */
 export function gmailDotAbuseCount(email: string): number {
@@ -100,7 +112,9 @@ export interface RegistrationRiskInput {
 export function scoreRegistration(input: RegistrationRiskInput): RegistrationRiskResult {
   const signals: RegistrationRiskSignal[] = [];
 
-  if (looksMachineGeneratedName(input.name)) {
+  if (looksMachineGeneratedNameStrong(input.name)) {
+    signals.push({ flag: "machine_generated_name_strong", score: 75, detail: "long random mixed-case token" });
+  } else if (looksMachineGeneratedName(input.name)) {
     signals.push({ flag: "machine_generated_name", score: 55, detail: "random mixed-case token" });
   }
 

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getBookingStatus } from "@/lib/booking-status";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 
 export interface AdminBookingRow {
   id: string;
@@ -90,6 +91,7 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
     const body = await res.json().catch(() => ({}));
     if (res.ok) {
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "CANCELLED" } : r)));
+      dispatchAdminCountsChanged();
       toast.success("Бронирование отменено");
       setCancelTarget(null);
     } else {
@@ -246,6 +248,7 @@ function RescheduleControls({ booking, onClose, onApplied }: RescheduleControlsP
           day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
         })} · ${json.booking?.priceRub ?? booking.priceRub} ₽`,
       );
+      dispatchAdminCountsChanged();
       onApplied(picked, json.booking?.priceRub ?? booking.priceRub, duration);
       setPicked(null);
     } else {
