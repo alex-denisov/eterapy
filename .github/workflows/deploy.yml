@@ -72,13 +72,36 @@ jobs:
         run: npm test -- --ci --passWithNoTests --silent
 
   deploy:
-    name: Build image & converge VM
+    name: Deploy ${{ matrix.vm.name }}
     needs: [test]
     if: |
       always() &&
       (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # The RU fleet: every host here receives the release automatically.
+      # prod serves the live domains behind its nginx (app-only compose,
+      # system PG); vm2 is the future standby (full stack, own PG until the
+      # B537 replica) reachable at its sslip.io address.
+      matrix:
+        vm:
+          - name: prod (192.144.14.146)
+            host: 192.144.14.146
+            user: admin
+            compose: docker-compose.prod.yml
+            profile_args: "--profile worker"
+          - name: standby vm2 (192.144.13.153)
+            host: 192.144.13.153
+            user: admin
+            compose: docker-compose.yml
+            profile_args: ""
+    env:
+      VM_HOST: ${{ matrix.vm.host }}
+      VM_USER: ${{ matrix.vm.user }}
+      COMPOSE_FILE_NAME: ${{ matrix.vm.compose }}
+      PROFILE_ARGS: ${{ matrix.vm.profile_args }}
     steps:
       - uses: actions/checkout@v4
 
@@ -110,13 +133,13 @@ jobs:
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
-          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy/compose/docker-compose.prod.yml "$VM_USER@$VM_HOST:/tmp/docker-compose.prod.yml"
-          $SSH 'sudo mkdir -p /opt/eterapy && sudo mv /tmp/docker-compose.prod.yml /opt/eterapy/docker-compose.prod.yml'
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
+          $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
           docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
-            && cd /opt/eterapy && sudo docker compose -f docker-compose.prod.yml --profile worker up -d --remove-orphans \
+            && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
             && sudo docker image prune -f >/dev/null \
-            && sudo docker compose -f docker-compose.prod.yml ps"
+            && sudo docker compose -f $COMPOSE_FILE_NAME ps"
           echo "▶ worker health"
           sleep 5
           WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-worker-1" || echo missing)
@@ -153,6 +176,8 @@ jobs:
               *) echo "::error::$url failed (status: $S)"; exit 1 ;;
             esac
           done
+          STANDBY=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "https://192.144.13.153.sslip.io/api/health" || echo 000)
+          [ "$STANDBY" = "200" ] && echo "✓ standby vm2 health → 200" || echo "::warning::standby vm2 health → $STANDBY"
           echo "🚀 Production deploy verified."
 
   notify:
