@@ -329,11 +329,8 @@ export default async function proxy(request: NextRequest) {
     }
     if (isAdminRole(appRole)) {
       if (isAdminResultInspectionPath(pathname)) {
-        if (pathname.startsWith("/results/")) {
-          const rewriteUrl = internalRewriteUrl(request, `/cabinet${pathname}`);
-          rewriteUrl.search = request.nextUrl.search;
-          return applyRobotsPolicy(rewriteWithContext(rewriteUrl, requestHeaders, context), host, pathname);
-        }
+        // /results/* → /cabinet/results/* happens in next.config rewrites
+        // (B523/INC-066) — the middleware only passes the request through.
         return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
       }
       return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, "/admin", context), host, pathname);
@@ -352,11 +349,11 @@ export default async function proxy(request: NextRequest) {
     if (pathname === "/help" || pathname.startsWith("/help/")) {
       return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
     }
-    // All other paths → internally rewrite to /cabinet prefix so existing route tree still serves
-    const target = pathname === "/" ? "/cabinet" : `/cabinet${pathname}`;
-    const rewriteUrl = internalRewriteUrl(request, target);
-    rewriteUrl.search = request.nextUrl.search;
-    return applyRobotsPolicy(rewriteWithContext(rewriteUrl, requestHeaders, context), host, pathname);
+    // All other paths → the /cabinet prefix is added by the router-level
+    // rewrite in next.config (B523/INC-066). A middleware rewrite here can
+    // never stay internal behind nginx (https initUrl vs plaintext listener),
+    // which is exactly what stripped the CSP nonce on this host.
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // ─── admin.eterapy.com ───
