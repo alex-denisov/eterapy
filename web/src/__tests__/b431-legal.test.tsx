@@ -24,8 +24,9 @@ describe("B431 — legal registry", () => {
   });
 
   it("derives a stable version id per slug", () => {
-    expect(legalDocVersionId("offer")).toBe("offer-v1.0-2026-06-18");
-    expect(legalDocVersionId("consent")).toBe("consent-v1.0-2026-06-18");
+    // B525: пакет переиздан редакцией 1.1 от 2026-07-16.
+    expect(legalDocVersionId("offer")).toBe("offer-v1.1-2026-07-16");
+    expect(legalDocVersionId("consent")).toBe("consent-v1.1-2026-07-16");
   });
 });
 

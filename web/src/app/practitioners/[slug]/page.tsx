@@ -96,6 +96,17 @@ export default async function PractitionerPage({
   const reliabilityBadgeInfo = reliability ? reliabilityBadge(reliability) : null;
   const firstRate = p.priceRates[0];
   const initial = p.user.name.charAt(0).toUpperCase();
+  // B525: юридический статус исполнителя — показываем только подтверждённый
+  // автопроверкой (B483), чтобы не выдавать непроверенное за проверенное.
+  const legalStatusLabel =
+    p.taxReviewStatus === "VERIFIED"
+      ? ({
+          SELF_EMPLOYED: "самозанятый (НПД)",
+          INDIVIDUAL_ENTREPRENEUR: "индивидуальный предприниматель",
+          LEGAL_ENTITY: "юридическое лицо",
+          UNKNOWN: null,
+        } as const)[p.taxStatus]
+      : null;
   // Derive gradient from name length for variety
   const gradientIdx = p.user.name.length % AVATAR_GRADIENTS.length;
   const avatarGradient = AVATAR_GRADIENTS[gradientIdx];
@@ -309,6 +320,34 @@ export default async function PractitionerPage({
                 </div>
               </div>
             )}
+
+            {/* B525: раскрытие сведений об исполнителе до оплаты — обязанность
+                владельца агрегатора (ст. 9 ЗоЗПП) и обязательство, закреплённое
+                в оферте (Документ 1 §7.3). Показываем МИНИМУМ уже имеющихся
+                верифицированных данных: кто исполнитель, его юр. статус и ИНН.
+                Наименование из реестра и ОГРНИП/ОГРН в модели пока не хранятся —
+                остаются в бэклоге B525. */}
+            <div className="soft-card mt-4 p-4" data-testid="practitioner-legal-disclosure">
+              <p className="soft-eyebrow mb-2.5">кто оказывает услугу</p>
+              <div className="flex flex-col gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+                <p>
+                  Услугу оказывает <span style={{ fontWeight: 600 }}>{p.user.name}</span> — самостоятельный
+                  специалист. ETerapy выступает агентом специалиста: организует запись, приём оплаты и
+                  поддержку, но не является исполнителем сессии.
+                </p>
+                {legalStatusLabel && (
+                  <p>
+                    Статус: {legalStatusLabel}
+                    {p.inn ? ` · ИНН ${p.inn}` : ""}
+                  </p>
+                )}
+                <p className="text-xs text-[var(--soft-ink-faint)]">
+                  Отменить или перенести можно за 24 часа — бесплатно. При отмене позже удерживается 50%
+                  стоимости; перенос всегда бесплатен. Подробнее — в{" "}
+                  <Link href="/legal/sessions" className="underline">Правилах сессий</Link>.
+                </p>
+              </div>
+            </div>
 
             {/* Интерфейс 7: reviews with date/rating sort + "показать ещё" */}
             {p.reviews.length > 0 && (
