@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 
 interface Complaint {
   id: string;
@@ -124,6 +125,7 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
             : item,
         ),
       );
+      dispatchAdminCountsChanged();
       const suffix = payload.payoutAction === "released"
         ? " · выплата освобождена"
         : payload.payoutAction === "withheld"

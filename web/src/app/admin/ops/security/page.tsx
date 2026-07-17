@@ -49,6 +49,19 @@ function actionLabel(action: string) {
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
+function fraudFlagLabel(flag: string) {
+  const labels: Record<string, string> = {
+    machine_generated_name: "Сгенерированное имя",
+    machine_generated_name_strong: "Сгенерированное имя (длинное)",
+    gmail_dot_abuse: "Gmail-точки",
+    gmail_dot_abuse_heavy: "Gmail-точки (много)",
+    disposable_email: "Одноразовый email",
+    gmail_alias_duplicate: "Gmail-дубликат",
+    clean: "Чисто",
+  };
+  return labels[flag] ?? flag;
+}
+
 function detailLabel(key: string) {
   const labels: Record<string, string> = {
     email: "Email",
@@ -167,109 +180,136 @@ export default async function AdminOpsSecurityPage() {
     }),
   ]);
 
-  const [clientFraudEvents, clientReferralRisks] = await Promise.all([
+  // Owner 2026-07-17: the table must show ALL antifraud events (including
+  // blocked registrations, where no user row exists) as a paginated journal —
+  // not a date-picked, user-linked top-20. Blocked sign-ups carry the subject
+  // email only in metadata.
+  const [fraudEvents, referralRisks] = await Promise.all([
     db.fraudEvent.findMany({
-      where: {
-        riskScore: { gte: 50 },
-        OR: [{ subjectId: { not: null } }, { actorUserId: { not: null } }],
-      },
-      orderBy: { riskScore: "desc" },
-      take: 200,
-      select: { subjectId: true, actorUserId: true, riskScore: true, action: true, status: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select: { id: true, subjectType: true, subjectId: true, actorUserId: true, riskScore: true, riskFlags: true, action: true, status: true, createdAt: true, metadata: true },
     }),
     db.referralAttribution.findMany({
       where: { riskScore: { gte: 50 } },
-      orderBy: { riskScore: "desc" },
+      orderBy: { createdAt: "desc" },
       take: 200,
-      select: { referrerUserId: true, referredUserId: true, riskScore: true, status: true, createdAt: true },
+      select: { id: true, referrerUserId: true, referredUserId: true, riskScore: true, status: true, createdAt: true },
     }),
   ]);
-  const clientRiskCandidates = new Set<string>();
-  for (const event of clientFraudEvents) {
-    if (event.subjectId) clientRiskCandidates.add(event.subjectId);
-    if (event.actorUserId) clientRiskCandidates.add(event.actorUserId);
+  const fraudUserIds = new Set<string>();
+  for (const event of fraudEvents) {
+    if (event.subjectId) fraudUserIds.add(event.subjectId);
+    if (event.actorUserId) fraudUserIds.add(event.actorUserId);
   }
-  for (const item of clientReferralRisks) {
-    if (item.referrerUserId) clientRiskCandidates.add(item.referrerUserId);
-    if (item.referredUserId) clientRiskCandidates.add(item.referredUserId);
+  for (const item of referralRisks) {
+    if (item.referrerUserId) fraudUserIds.add(item.referrerUserId);
+    if (item.referredUserId) fraudUserIds.add(item.referredUserId);
   }
-  const clientUsers = clientRiskCandidates.size > 0
+  const fraudUsers = fraudUserIds.size > 0
     ? await db.user.findMany({
-      where: { id: { in: [...clientRiskCandidates] }, role: "CLIENT" },
+      where: { id: { in: [...fraudUserIds] } },
       select: { id: true, name: true, email: true, blockedAt: true },
     })
     : [];
-  const clientUserById = new Map(clientUsers.map((user) => [user.id, user]));
-  const clientRiskRowsById = new Map<string, { userId: string; name: string; email: string; score: number; rawScore: number; signal: string; status: string; createdAt: Date; blocked: boolean }>();
-  function addClientSecurityRisk(userId: string | null | undefined, rawScore: number, signal: string, status: string, createdAt: Date) {
-    if (!userId) return;
-    const user = clientUserById.get(userId);
-    if (!user) return;
-    const score = Math.max(0, Math.min(10, Math.ceil(rawScore / 10)));
-    const current = clientRiskRowsById.get(userId);
-    if (!current || score > current.score || (score === current.score && createdAt > current.createdAt)) {
-      clientRiskRowsById.set(userId, {
-        userId,
-        name: user.name,
-        email: user.email,
-        score,
-        rawScore,
-        signal,
-        status,
-        createdAt,
-        blocked: Boolean(user.blockedAt),
-      });
+  const fraudUserById = new Map(fraudUsers.map((user) => [user.id, user]));
+
+  type FraudJournalRow = {
+    id: string;
+    createdAt: Date;
+    subjectName: string;
+    subjectEmail: string;
+    rawScore: number;
+    signal: string;
+    action: string;
+    status: string;
+    blocked: boolean;
+  };
+  function metadataEmail(metadata: unknown): string {
+    if (metadata && typeof metadata === "object" && "emailNormalized" in metadata) {
+      const email = (metadata as { emailNormalized?: unknown }).emailNormalized;
+      if (typeof email === "string" && email.length > 0) return email;
     }
+    return "";
   }
-  for (const event of clientFraudEvents) {
-    addClientSecurityRisk(event.subjectId, event.riskScore, actionLabel(event.action), event.status, event.createdAt);
-    addClientSecurityRisk(event.actorUserId, event.riskScore, actionLabel(event.action), event.status, event.createdAt);
-  }
-  for (const item of clientReferralRisks) {
-    addClientSecurityRisk(item.referrerUserId, item.riskScore, "Реферальный риск", item.status, item.createdAt);
-    addClientSecurityRisk(item.referredUserId, item.riskScore, "Реферальный риск", item.status, item.createdAt);
-  }
-  const clientRiskRows = [...clientRiskRowsById.values()].sort((a, b) => b.score - a.score || b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 20);
-  const highRiskClients = clientRiskRows.filter((row) => row.score >= 8).length;
-  const manualBlockCandidates = clientRiskRows.filter((row) => row.score >= 8 && !row.blocked).length;
+  const fraudJournalRows: FraudJournalRow[] = [
+    ...fraudEvents.map((event) => {
+      const user = fraudUserById.get(event.subjectId ?? "") ?? fraudUserById.get(event.actorUserId ?? "");
+      return {
+        id: `fraud-${event.id}`,
+        createdAt: event.createdAt,
+        subjectName: user?.name ?? (event.subjectType === "registration" ? "Регистрация отклонена" : event.subjectType),
+        subjectEmail: user?.email ?? metadataEmail(event.metadata),
+        rawScore: event.riskScore,
+        signal: event.riskFlags.length > 0 ? event.riskFlags.map(fraudFlagLabel).join(", ") : "—",
+        action: actionLabel(event.action),
+        status: event.status,
+        blocked: Boolean(user?.blockedAt),
+      };
+    }),
+    ...referralRisks.map((item) => {
+      const user = fraudUserById.get(item.referredUserId ?? "") ?? fraudUserById.get(item.referrerUserId ?? "");
+      return {
+        id: `referral-${item.id}`,
+        createdAt: item.createdAt,
+        subjectName: user?.name ?? "Реферал",
+        subjectEmail: user?.email ?? "",
+        rawScore: item.riskScore,
+        signal: "Реферальный риск",
+        action: "Реферальная атрибуция",
+        status: item.status,
+        blocked: Boolean(user?.blockedAt),
+      };
+    }),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const highRiskClients = new Set(
+    fraudJournalRows.filter((row) => row.rawScore >= 80 && row.subjectEmail).map((row) => row.subjectEmail),
+  ).size;
+  const manualBlockCandidates = new Set(
+    fraudJournalRows.filter((row) => row.rawScore >= 80 && row.subjectEmail && !row.blocked && row.status !== "blocked").map((row) => row.subjectEmail),
+  ).size;
 
   const aiRisk = recentRiskActions.filter((row) => row.action.includes("AI_")).length;
   const accessRisk = recentRiskActions.filter((row) => /LOGIN|PASSWORD|ROLE|PERMISSION|IMPERSONATE/i.test(row.action)).length;
+  // No date filter here by design (owner 2026-07-17): the journal shows every
+  // event, newest first, and the pagination bar switches pages.
   const clientRiskColumns: AdminCompactColumn[] = [
-    { key: "client", label: "Клиент", sortable: true, filterKind: "text" },
+    { key: "time", label: "Время", sortable: true, filterKind: "none" },
+    { key: "client", label: "Субъект", sortable: true, filterKind: "text" },
     { key: "score", label: "Скоринг", sortable: true, filterKind: "text", align: "right" },
-    { key: "signal", label: "Сигнал", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.signal)) },
-    { key: "status", label: "Статус", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.blocked ? "Заблокирован" : statusLabel(row.status))) },
-    { key: "time", label: "Время", sortable: true, filterKind: "date" },
+    { key: "signal", label: "Сигналы", sortable: true, options: uniqueOptions(fraudJournalRows.map((row) => row.signal)) },
+    { key: "action", label: "Событие", sortable: true, options: uniqueOptions(fraudJournalRows.map((row) => row.action)) },
+    { key: "status", label: "Статус", sortable: true, options: uniqueOptions(fraudJournalRows.map((row) => row.blocked ? "Заблокирован" : statusLabel(row.status))) },
   ];
-  const clientRiskTableRows = clientRiskRows.map((row) => {
+  const clientRiskTableRows = fraudJournalRows.map((row) => {
     const status = row.blocked ? "Заблокирован" : statusLabel(row.status);
     return {
-      id: row.userId,
+      id: row.id,
       cells: {
+        time: { value: formatDateTime(row.createdAt), filterValue: formatDateTime(row.createdAt), sortValue: row.createdAt.getTime() },
         client: {
-          value: row.name,
-          subvalue: row.email,
-          title: `${row.name} · ${row.email}`,
-          filterValue: `${row.name} ${row.email}`,
-          sortValue: row.name || row.email,
+          value: row.subjectName,
+          subvalue: row.subjectEmail || "—",
+          title: `${row.subjectName} · ${row.subjectEmail || "—"}`,
+          filterValue: `${row.subjectName} ${row.subjectEmail}`,
+          sortValue: row.subjectName || row.subjectEmail,
         },
         score: {
           kind: "status" as const,
-          label: `${row.score}/10`,
-          tone: row.score >= 8 ? "danger" as const : row.score >= 5 ? "warn" as const : "ok" as const,
-          filterValue: String(row.score),
-          sortValue: row.score,
+          label: `${row.rawScore}/100`,
+          tone: row.rawScore >= 70 ? "danger" as const : row.rawScore >= 40 ? "warn" as const : "ok" as const,
+          filterValue: String(row.rawScore),
+          sortValue: row.rawScore,
         },
-        signal: row.signal,
+        signal: { value: row.signal, title: row.signal, filterValue: row.signal, sortValue: row.signal },
+        action: { value: row.action, title: row.action, filterValue: row.action, sortValue: row.action },
         status: {
           kind: "status" as const,
           label: status,
-          tone: row.blocked ? "danger" as const : row.score >= 8 ? "warn" as const : "neutral" as const,
+          tone: row.blocked || row.status === "blocked" ? "danger" as const : row.status === "review" ? "warn" as const : "neutral" as const,
           filterValue: status,
           sortValue: status,
         },
-        time: { value: formatDateTime(row.createdAt), filterValue: formatDateTime(row.createdAt), sortValue: row.createdAt.getTime() },
       },
     };
   });
@@ -362,7 +402,7 @@ export default async function AdminOpsSecurityPage() {
           <AdminCompactDataTable
             columns={clientRiskColumns}
             rows={clientRiskTableRows}
-            empty="Клиентов с антифрод-скорингом 5+ не найдено."
+            empty="Событий антифрода пока нет."
             minWidth="900px"
             pageSize={20}
           />
