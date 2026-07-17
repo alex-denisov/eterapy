@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 
 export function Footer({ variant = "soft", compact = false }: { variant?: "dark" | "soft"; compact?: boolean }) {
   const soft = variant === "soft";
-  const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
+  // PRB-002: inline-block + py-1 доводит touch-target ссылки до ≥24px по
+  // высоте (Lighthouse target-size); -my-0.5 компенсирует визуальный ритм.
+  const linkCls = cn("inline-block py-1 -my-0.5 hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
   const mutedCls = cn("text-muted-foreground", compact ? "space-y-1" : "space-y-1.5", soft && "text-[var(--soft-ink-faint)]");
   const titleCls = cn("font-semibold", compact ? "mb-1" : "mb-2", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
   // B380: footer condensed from 5 → 4 columns and restructured under the M26
