@@ -18,6 +18,8 @@ function readPack(): string {
 // are deliberately LEFT as visible "[...]" placeholders: the legal entity is not
 // registered yet, so they must remain blank until the owner provides them.
 const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
+  // Owner-решение 2026-07-17: остаёмся на редакции 1.0 — сервис не запущен,
+  // оферту никто не акцептовал, переиздавать нечего (см. registry.ts).
   ["[Версия документа]", "1.0"],
   ["[Дата публикации]", "18 июня 2026 г."],
   ["[Email поддержки]", "support@eterapy.com"],
@@ -41,7 +43,9 @@ function applySubstitutions(text: string): string {
 const DOC_HEADER = /^## Документ (\d+)\.\s*(.*)$/;
 // Leading metadata lines that we render from the registry instead, to avoid a
 // duplicate version/date/requisites block at the top of every document.
-const META_LINE = /^\*\*(Редакция|Дата публикации|Исполнитель):\*\*/;
+// B525: «Исполнитель» больше не применяется к платформе — оферта представляет
+// её как «Оператор платформы». Старое значение сохранено для устойчивости.
+const META_LINE = /^\*\*(Редакция|Дата публикации|Исполнитель|Оператор платформы):\*\*/;
 
 /**
  * Returns the substituted markdown body for a single public legal document,

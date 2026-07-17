@@ -210,6 +210,8 @@ export default function RegisterPage() {
                 <Link href="/legal/subscriptions" target="_blank" rel="noopener" className="underline">Правила подписок</Link>,{" "}
                 <Link href="/legal/points" target="_blank" rel="noopener" className="underline">Правила баллов ясности</Link>,{" "}
                 <Link href="/legal/sessions" target="_blank" rel="noopener" className="underline">Правила сессий со специалистами</Link>,{" "}
+                <Link href="/legal/uploads" target="_blank" rel="noopener" className="underline">Правила загрузки материалов</Link>,{" "}
+                <Link href="/legal/transcription" target="_blank" rel="noopener" className="underline">Правила транскрибации сессий</Link>,{" "}
                 <Link href="/legal/disclaimer" target="_blank" rel="noopener" className="underline">Дисклеймер</Link>{" "}
                 и подтверждаю, что мне исполнилось 18 лет.
               </span>
