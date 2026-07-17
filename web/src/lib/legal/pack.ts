@@ -18,8 +18,10 @@ function readPack(): string {
 // are deliberately LEFT as visible "[...]" placeholders: the legal entity is not
 // registered yet, so they must remain blank until the owner provides them.
 const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
-  ["[Версия документа]", "1.1"],
-  ["[Дата публикации]", "16 июля 2026 г."],
+  // Owner-решение 2026-07-17: остаёмся на редакции 1.0 — сервис не запущен,
+  // оферту никто не акцептовал, переиздавать нечего (см. registry.ts).
+  ["[Версия документа]", "1.0"],
+  ["[Дата публикации]", "18 июня 2026 г."],
   ["[Email поддержки]", "support@eterapy.com"],
   ["[Email для ПДн]", "privacy@eterapy.com"],
   ["[Ссылка на личный кабинет]", "app.eterapy.com"],
