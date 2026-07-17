@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, Edit3, ExternalLink, RotateCcw, Search, Trash2, X } from "lucide-react";
 import {
   adminMonthDays,
@@ -490,21 +491,40 @@ function DateHeaderFilter({
 }) {
   const [open, setOpen] = useState(false);
   const [monthIso, setMonthIso] = useState(() => adminPeriodFromRuDate(value) ?? todayIso());
+  // Owner 2026-07-17: the calendar was clipped by the table's overflow-auto
+  // scroll container on short tables. Render it in a body portal at a fixed
+  // position instead, so table height never limits it.
+  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const selectedIso = adminPeriodFromRuDate(value);
   const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
 
   useEffect(() => {
     if (!open) return;
     function close(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    function closeOnScroll(event: Event) {
+      if (dropdownRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
     }
     window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("scroll", closeOnScroll, true);
+    window.addEventListener("resize", closeOnScroll);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", closeOnScroll, true);
+      window.removeEventListener("resize", closeOnScroll);
+    };
   }, [open]);
 
   function openCalendar() {
     setMonthIso(adminPeriodFromRuDate(value) ?? todayIso());
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (rect) setAnchorRect({ top: rect.bottom + 2, left: rect.left });
     setOpen((current) => !current);
   }
 
@@ -546,9 +566,14 @@ function DateHeaderFilter({
           <CalendarDays className="size-3" aria-hidden="true" />
         </button>
       </div>
-      {open ? (
+      {open && anchorRect ? createPortal(
         <div
-          className="absolute left-1 top-[calc(100%+1px)] z-[95] w-56 rounded-md border border-[var(--soft-paper-edge)] bg-white p-2 shadow-[var(--soft-shadow-sm)]"
+          ref={dropdownRef}
+          className="fixed z-[95] w-56 rounded-md border border-[var(--soft-paper-edge)] bg-white p-2 shadow-[var(--soft-shadow-sm)]"
+          style={{
+            top: Math.min(anchorRect.top, typeof window !== "undefined" ? window.innerHeight - 260 : anchorRect.top),
+            left: Math.min(anchorRect.left, typeof window !== "undefined" ? window.innerWidth - 240 : anchorRect.left),
+          }}
           onMouseDown={(event) => event.preventDefault()}
         >
           <div className="mb-1 flex items-center justify-between gap-1">
@@ -595,7 +620,8 @@ function DateHeaderFilter({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
