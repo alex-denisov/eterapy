@@ -1,0 +1,54 @@
+# B473 — prod-VM variant: app runtime only. nginx, TLS certs and the system
+# PostgreSQL stay exactly as they are (host network, DATABASE_URL=localhost);
+# only the PM2 processes are replaced by containers.
+#
+#   sudo docker compose -f docker-compose.prod.yml up -d               # web (+migrate)
+#   sudo docker compose -f docker-compose.prod.yml --profile worker up -d   # + worker (cutover only:
+#                                                        stop the PM2 worker first — the DB queue
+#                                                        must never have two consumers)
+#
+# Rollback: switch the nginx upstream back to the PM2 port and (if needed)
+# `pm2 start eterapy-worker`.
+
+name: eterapy
+
+services:
+  migrate:
+    image: ${ETERAPY_IMAGE:?set in .env}
+    network_mode: host
+    restart: "no"
+    env_file: .env
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  web:
+    image: ${ETERAPY_IMAGE}
+    network_mode: host
+    restart: always
+    env_file: .env
+    # Bound to loopback — only the host nginx talks to it.
+    command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3200}", "--hostname", "127.0.0.1"]
+    volumes:
+      - uploads:/app/web/public/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${ETERAPY_APP_PORT:-3200}/api/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    image: ${ETERAPY_IMAGE}
+    profiles: ["worker"]
+    network_mode: host
+    restart: always
+    env_file: .env
+    command: ["npm", "run", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  uploads:
