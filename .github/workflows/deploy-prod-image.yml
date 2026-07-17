@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup SSH
         env:
-          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+          SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
