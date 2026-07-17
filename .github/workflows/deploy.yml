@@ -87,14 +87,24 @@ jobs:
       # B537 replica) reachable at its sslip.io address.
       matrix:
         vm:
-          - name: prod (192.144.14.146)
+          - name: eterapy-1 prod RU (192.144.14.146)
             host: 192.144.14.146
             user: admin
             compose: docker-compose.prod.yml
             profile_args: "--profile worker"
-          - name: standby vm2 (192.144.13.153)
+          - name: eterapy-2 standby RU (192.144.13.153)
             host: 192.144.13.153
             user: admin
+            compose: docker-compose.yml
+            profile_args: ""
+          - name: eterapy-3 US racknerd (107.172.153.202)
+            host: 107.172.153.202
+            user: root
+            compose: docker-compose.yml
+            profile_args: ""
+          - name: eterapy-4 EU aws (18.195.184.182)
+            host: 18.195.184.182
+            user: ubuntu
             compose: docker-compose.yml
             profile_args: ""
     env:
@@ -118,7 +128,7 @@ jobs:
 
       - name: Setup SSH
         env:
-          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+          SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then

@@ -13,13 +13,14 @@ import { sanitizeEmail, getEmailError } from "@/lib/validation";
 import { homePathForRole, homeUrlForRole } from "@/lib/subdomain";
 import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 
-const TEST_ACCOUNTS = [
-  { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
-  { label: "Практик", email: "practitioner@test.eterapy.com", password: "test1234", href: "/cabinet/practitioner" },
-  { label: "Админ", email: "admin@test.eterapy.com", password: "admin1234", href: "/admin" },
-  { label: "СуперАдмин", email: "superadmin@test.eterapy.com", password: "test1234", href: "/admin" },
-  { label: "Модератор", email: "moderator@test.eterapy.com", password: "admin1234", href: "/admin" },
-];
+// B539: no credentials in the repo. Dev-only quick-login buttons read from
+// the local env (never committed):
+//   NEXT_PUBLIC_DEV_TEST_ACCOUNTS="Метка|email|пароль|/href,Метка2|…"
+const TEST_ACCOUNTS = (process.env.NEXT_PUBLIC_DEV_TEST_ACCOUNTS ?? "")
+  .split(",")
+  .map((entry) => entry.split("|"))
+  .filter((parts) => parts.length === 4)
+  .map(([label, email, password, href]) => ({ label, email, password, href }));
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -215,7 +216,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {process.env.NODE_ENV === "development" && (
+            {process.env.NODE_ENV === "development" && TEST_ACCOUNTS.length > 0 && (
               <div
                 className="rounded-2xl p-4"
                 style={{ background: "rgba(214,117,88,0.06)", border: "1px solid rgba(214,117,88,0.18)" }}
@@ -241,9 +242,6 @@ export default function LoginPage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                  Пароль: <code style={{ color: "var(--soft-terracotta-dark)" }}>test1234</code>
-                </p>
               </div>
             )}
           </div>
