@@ -12,29 +12,31 @@ function source(relativePath: string) {
 }
 
 describe("production runtime", () => {
-  it("keeps the PM2 worker command installable with production dependencies only", () => {
+  it("keeps the worker command installable with production dependencies only", () => {
+    // The release image installs with --omit=dev and runs `npm run worker`,
+    // so tsx must stay a production dependency.
     const webPackage = readJson("web/package.json");
-    const ecosystem = source("deploy/ecosystem.config.js");
+    const composeProd = source("deploy/compose/docker-compose.prod.yml");
 
     expect(webPackage.scripts.worker).toBe("tsx src/worker/index.ts");
     expect(webPackage.dependencies.tsx).toBeDefined();
     expect(webPackage.devDependencies.tsx).toBeUndefined();
-    expect(ecosystem).toContain('name: "eterapy-worker"');
-    expect(ecosystem).toContain('args: "run worker"');
+    expect(composeProd).toContain('command: ["npm", "run", "worker"]');
+    expect(composeProd).toContain('profiles: ["worker"]');
   });
 
-  it("fails deploys when the production worker is not online", () => {
+  it("fails deploys when the production worker container is not running", () => {
     const workflow = source(".github/workflows/deploy.yml");
 
     expect(workflow).toContain("▶ worker health");
-    expect(workflow).toContain("eterapy-worker PM2");
-    expect(workflow).toContain('if [ "$WORKER_STATUS" != "online" ]; then');
+    expect(workflow).toContain("docker inspect -f '{{.State.Status}}' eterapy-worker-1");
+    expect(workflow).toContain('if [ "$WORKER_STATUS" != "running" ]; then');
   });
 
   it("shows the complete eight-character operational SHA in deploy notifications", () => {
     const workflow = source(".github/workflows/deploy.yml");
 
-    expect(workflow).toContain('SHORT_SHA="${GH_SHA:0:8}"');
-    expect(workflow).not.toContain('SHORT_SHA="${GH_SHA:0:7}"');
+    expect(workflow).toContain("${GH_SHA:0:8}");
+    expect(workflow).not.toContain("${GH_SHA:0:7}");
   });
 });

@@ -117,6 +117,14 @@ jobs:
             && cd /opt/eterapy && sudo docker compose -f docker-compose.prod.yml --profile worker up -d --remove-orphans \
             && sudo docker image prune -f >/dev/null \
             && sudo docker compose -f docker-compose.prod.yml ps"
+          echo "▶ worker health"
+          sleep 5
+          WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-worker-1" || echo missing)
+          echo "eterapy-worker container → $WORKER_STATUS"
+          if [ "$WORKER_STATUS" != "running" ]; then
+            $SSH "sudo docker logs eterapy-worker-1 --tail 100" || true
+            exit 1
+          fi
 
       - name: Cleanup SSH key
         if: always()
