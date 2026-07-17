@@ -1,0 +1,22 @@
+# B473 — keep the image build context small (context = repo root).
+.git
+node_modules
+web/node_modules
+web/.next
+web/coverage
+web/playwright-report
+web/test-results
+web/public/uploads
+docs
+output
+.artifacts
+.agents
+.claude
+.gemini
+.qwen
+.opencode
+*.log
+.DS_Store
+deploy/eTerapy_web
+web/.env
+web/.env.*

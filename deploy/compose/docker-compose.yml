@@ -1,0 +1,107 @@
+# B473 — full eterapy stack on one VM. Everything tunable lives in ./.env
+# (see .env.example): image tag, domain, DB password, app secrets.
+#
+#   docker compose pull/load → docker compose up -d      # deploy / converge
+#   ETERAPY_IMAGE=eterapy-web:<old sha> docker compose up -d   # instant rollback
+
+name: eterapy
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${ETERAPY_DB_NAME:-eterapy}
+      POSTGRES_USER: ${ETERAPY_DB_USER:-eterapy}
+      POSTGRES_PASSWORD: ${ETERAPY_DB_PASSWORD:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ETERAPY_DB_USER:-eterapy} -d ${ETERAPY_DB_NAME:-eterapy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: ${ETERAPY_IMAGE:?set in .env}
+    restart: "no"
+    env_file: .env
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ${ETERAPY_IMAGE}
+    restart: always
+    env_file: .env
+    volumes:
+      - uploads:/app/web/public/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    image: ${ETERAPY_IMAGE}
+    restart: always
+    env_file: .env
+    command: ["npm", "run", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # ":80" (bare-IP HTTP) or "eterapy.com, app.eterapy.com, admin.eterapy.com"
+      # (Caddy then provisions Let's Encrypt certificates automatically).
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  # Daily logical backup → ./backups (RPO). Ship the directory off-host (cron
+  # rsync / object storage) for a real disaster story.
+  backup:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      PGHOST: db
+      PGUSER: ${ETERAPY_DB_USER:-eterapy}
+      PGPASSWORD: ${ETERAPY_DB_PASSWORD}
+      PGDATABASE: ${ETERAPY_DB_NAME:-eterapy}
+      BACKUP_KEEP: ${ETERAPY_BACKUP_KEEP:-14}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          pg_dump -Fc -f "/backups/eterapy-$$(date +%Y%m%d-%H%M%S).dump" \
+            && ls -1t /backups/eterapy-*.dump | tail -n +$$((BACKUP_KEEP+1)) | xargs -r rm -f \
+            && echo "backup ok $$(date)"
+          sleep 86400
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

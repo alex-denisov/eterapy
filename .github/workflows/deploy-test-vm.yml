@@ -1,0 +1,95 @@
+# B473 — image-based deploy to the test VM (and any additional VM later).
+# The runner builds the immutable release image; the VM only loads and runs
+# it (`docker save | ssh docker load` — no registry, no extra credentials).
+# The ONLY GitHub secret used is the SSH deploy key.
+name: Deploy Test VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      vm_host:
+        description: "Target VM IP/host"
+        required: false
+        default: "107.172.153.202"
+      public_url:
+        description: "NEXT_PUBLIC_APP_URL baked into the build"
+        required: false
+        default: "http://107.172.153.202"
+      main_domain:
+        description: "NEXT_PUBLIC_MAIN_DOMAIN (IP or domain)"
+        required: false
+        default: "107.172.153.202"
+      use_subdomains:
+        description: "NEXT_PUBLIC_USE_SUBDOMAINS"
+        required: false
+        default: "false"
+
+concurrency:
+  group: deploy-test-vm
+  cancel-in-progress: false
+
+env:
+  VM_USER: root
+  VM_HOST: ${{ inputs.vm_host }}
+  PUBLIC_URL: ${{ inputs.public_url }}
+  MAIN_DOMAIN: ${{ inputs.main_domain }}
+  USE_SUBDOMAINS: ${{ inputs.use_subdomains }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release image
+        run: |
+          docker build -f deploy/docker/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL="$PUBLIC_URL" \
+            --build-arg NEXT_PUBLIC_USE_SUBDOMAINS="$USE_SUBDOMAINS" \
+            --build-arg NEXT_PUBLIC_MAIN_DOMAIN="$MAIN_DOMAIN" \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN="$MAIN_DOMAIN" \
+            --build-arg NEXT_PUBLIC_ADMIN_DOMAIN="$MAIN_DOMAIN" \
+            --build-arg NEXT_PUBLIC_LIVEKIT_URL="wss://$MAIN_DOMAIN" \
+            -t "eterapy-web:${GITHUB_SHA::8}" -t eterapy-web:latest .
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          else
+            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          fi
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship image + stack to VM
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          echo "▶ sync compose bundle"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -r deploy/compose "$VM_USER@$VM_HOST:/opt/eterapy-bootstrap"
+          $SSH 'bash /opt/eterapy-bootstrap/bootstrap.sh'
+          echo "▶ stream image (docker save | ssh docker load)"
+          docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | docker load'
+          echo "▶ pin release + up"
+          $SSH "sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
+            && cd /opt/eterapy && docker compose up -d --remove-orphans \
+            && docker image prune -f >/dev/null \
+            && docker compose ps"
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://$VM_HOST/api/health" || echo 000)
+            [ "$STATUS" = "200" ] && { echo "✓ /api/health → 200"; exit 0; }
+            echo "… attempt $i: $STATUS"; sleep 6
+          done
+          echo "::error::health check failed"; exit 1
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
