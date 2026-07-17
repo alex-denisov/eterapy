@@ -44,11 +44,16 @@ fi
 chmod 600 "$ETERAPY_DIR/.env"
 
 echo "▶ CI deploy key"
-if [ -f "$SRC_DIR/ci_authorized_key.pub" ]; then
-  mkdir -p /root/.ssh && chmod 700 /root/.ssh
-  grep -qf "$SRC_DIR/ci_authorized_key.pub" /root/.ssh/authorized_keys 2>/dev/null \
-    || cat "$SRC_DIR/ci_authorized_key.pub" >> /root/.ssh/authorized_keys
-  chmod 600 /root/.ssh/authorized_keys
+# When run via `sudo bash bootstrap.sh`, CI connects as the sudo-ing user
+# (e.g. admin), so the key must land in THAT user's authorized_keys.
+KEY_USER="${SUDO_USER:-root}"
+KEY_HOME="$(getent passwd "$KEY_USER" | cut -d: -f6)"
+if [ -f "$SRC_DIR/ci_authorized_key.pub" ] && [ -n "$KEY_HOME" ]; then
+  mkdir -p "$KEY_HOME/.ssh" && chmod 700 "$KEY_HOME/.ssh"
+  grep -qf "$SRC_DIR/ci_authorized_key.pub" "$KEY_HOME/.ssh/authorized_keys" 2>/dev/null \
+    || cat "$SRC_DIR/ci_authorized_key.pub" >> "$KEY_HOME/.ssh/authorized_keys"
+  chmod 600 "$KEY_HOME/.ssh/authorized_keys"
+  chown -R "$KEY_USER" "$KEY_HOME/.ssh"
 fi
 
 echo "▶ start stack (no-op if the app image is not loaded yet)"
