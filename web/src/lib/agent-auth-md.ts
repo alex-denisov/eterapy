@@ -21,9 +21,15 @@ Neither mode creates a personal account or grants access to user data. ETerapy d
 {
   "agent_auth": {
     "skill": "https://eterapy.com/auth.md",
+    "register_uri": "https://eterapy.com/agent/oauth/register",
+    "claim_uri": "https://eterapy.com/agent/auth",
     "identity_endpoint": "https://eterapy.com/agent/oauth/register",
     "claim_endpoint": "https://eterapy.com/agent/auth",
     "identity_types_supported": ["anonymous"],
+    "anonymous": {
+      "credential_types_supported": ["none"],
+      "claim_uri": "https://eterapy.com/agent/auth"
+    },
     "oauth_client": {
       "credential_types_supported": ["client_secret"],
       "grant_types_supported": ["client_credentials"],

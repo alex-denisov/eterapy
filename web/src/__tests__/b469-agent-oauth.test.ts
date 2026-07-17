@@ -109,8 +109,13 @@ describe("B469 agent OAuth — stateless clients and tokens", () => {
     // Per auth.md spec, `skill` is the https URL of the auth.md document
     // (scanner check: "Missing or unsafe skill URL pointing to /auth.md").
     expect(metadata.agent_auth.skill).toBe("https://eterapy.com/auth.md");
+    // The isitagentready validator requires register_uri/claim_uri names;
+    // the spec names identity_endpoint/claim_endpoint are published too.
+    expect(metadata.agent_auth.register_uri).toBe("https://eterapy.com/agent/oauth/register");
+    expect(metadata.agent_auth.claim_uri).toBe("https://eterapy.com/agent/auth");
     expect(metadata.agent_auth.identity_endpoint).toBe("https://eterapy.com/agent/oauth/register");
     expect(metadata.agent_auth.claim_endpoint).toBe("https://eterapy.com/agent/auth");
+    expect(metadata.agent_auth.anonymous.credential_types_supported).toEqual(["none"]);
     // Only spec-recognized identity types (scanner rejects unknown values).
     expect(metadata.agent_auth.identity_types_supported).toEqual(["anonymous"]);
     // OAuth client_credentials advertised under an extension key.
