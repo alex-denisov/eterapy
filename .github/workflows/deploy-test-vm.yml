@@ -83,10 +83,15 @@ jobs:
 
       - name: Health check
         run: |
+          # Probe the real site host (Caddy serves CADDY_SITE_ADDRESS, not the
+          # bare IP) over https first, then the http fallback for :80 setups.
           for i in $(seq 1 30); do
-            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "http://$VM_HOST/api/health" || echo 000)
-            [ "$STATUS" = "200" ] && { echo "✓ /api/health → 200"; exit 0; }
-            echo "… attempt $i: $STATUS"; sleep 6
+            for URL in "https://$MAIN_DOMAIN/api/health" "http://$VM_HOST/api/health"; do
+              STATUS=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo 000)
+              [ "$STATUS" = "200" ] && { echo "✓ $URL → 200"; exit 0; }
+              echo "… attempt $i: $URL → $STATUS"
+            done
+            sleep 6
           done
           echo "::error::health check failed"; exit 1
 
