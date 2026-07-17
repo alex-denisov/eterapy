@@ -3,12 +3,19 @@ import { legalDocVersionId, type LegalDocSlug } from "@/lib/legal/registry";
 // B427 (M28 / scope 4.1): exactly two registration checkboxes.
 // Checkbox 1 (contract package) covers these documents; checkbox 2 is the
 // separate personal-data (ПДн) consent. Each is logged as its own record.
+//
+// B525: «uploads» и «transcription» добавлены в договорный пакет — их условия
+// теперь принимаются ПРИ РЕГИСТРАЦИИ, а не отдельными галочками внутри услуг.
+// Количество чекбоксов не меняется (их по-прежнему ровно два) — расширяется
+// только состав пакета, который покрывает checkbox 1.
 const CONTRACT_DOCS: LegalDocSlug[] = [
   "terms",
   "offer",
   "subscriptions",
   "points",
   "sessions",
+  "uploads",
+  "transcription",
   "disclaimer",
 ];
 const PDN_DOCS: LegalDocSlug[] = ["consent", "privacy"];
