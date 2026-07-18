@@ -5,7 +5,8 @@
     "host": "192.144.14.146",
     "user": "admin",
     "compose": "docker-compose.prod.yml",
-    "profile_args": "--profile worker"
+    "profile_args": "--profile worker",
+    "standby": false
   },
   {
     "name": "eterapy-2 standby RU (192.144.13.153)",
@@ -13,7 +14,8 @@
     "host": "192.144.13.153",
     "user": "admin",
     "compose": "docker-compose.yml",
-    "profile_args": ""
+    "profile_args": "",
+    "standby": true
   },
   {
     "name": "eterapy-3 US racknerd (107.172.153.202)",
@@ -21,7 +23,8 @@
     "host": "107.172.153.202",
     "user": "root",
     "compose": "docker-compose.yml",
-    "profile_args": ""
+    "profile_args": "--profile worker",
+    "standby": false
   },
   {
     "name": "eterapy-4 EU aws (18.195.184.182)",
@@ -29,6 +32,7 @@
     "host": "18.195.184.182",
     "user": "ubuntu",
     "compose": "docker-compose.yml",
-    "profile_args": ""
+    "profile_args": "--profile worker",
+    "standby": false
   }
 ]
