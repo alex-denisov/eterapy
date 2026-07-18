@@ -6,6 +6,7 @@
  * пер-нода, таймаут жёсткий.
  */
 import { fleetNodeStatusUrl, type FleetNode } from "./nodes";
+import { parseNodeState, type NodeState } from "./node-state";
 
 export type NodeResourceUsage = { usedPct: number; totalBytes?: number; freeBytes?: number };
 
@@ -20,6 +21,8 @@ export type FleetNodeStatus = {
   memory?: NodeResourceUsage;
   error?: string;
   latencyMs?: number;
+  /** B544: контейнеры, бэкапы, бакеты, HAProxy — от host-коллектора ноды. */
+  host?: NodeState | null;
 };
 
 export type CollectOptions = {
@@ -68,6 +71,7 @@ async function fetchNodeStatus(
       uptimeSec: typeof payload.uptimeSec === "number" ? payload.uptimeSec : undefined,
       disk: (payload.disk as NodeResourceUsage | undefined) ?? undefined,
       memory: (payload.memory as NodeResourceUsage | undefined) ?? undefined,
+      host: parseNodeState(payload.host),
       latencyMs: Date.now() - startedAt,
     };
   } catch (error) {

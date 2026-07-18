@@ -168,6 +168,6 @@ describe("B541 · one-click redeploy (dispatchFleetDeploy)", () => {
 
     await expect(
       dispatchFleetDeploy({ ...base, workflow: "deploy.yml", nodes: [], fetchImpl }),
-    ).rejects.toThrow(/^(?!.*ghp_test).*$/s);
+    ).rejects.toThrow(expect.objectContaining({ message: expect.not.stringContaining("ghp_test") }));
   });
 });

@@ -5,7 +5,7 @@
  * Вся авторизация — на сервере (`actions.ts`); здесь только UI и статусы.
  */
 import { useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, RefreshCw, XCircle } from "lucide-react";
 import { redeployFleetAction, type DeployActionResult } from "./actions";
 
 export type FleetRow = {
@@ -21,6 +21,12 @@ export type FleetRow = {
   memoryUsedPct: number | null;
   latencyMs: number | null;
   error: string | null;
+  containers: Array<{ name: string; image: string; tag: string; state: string; health: string; uptime: string }>;
+  containerSummary: { total: number; running: number; unhealthy: number; appVersions: string[] } | null;
+  collectorStale: boolean;
+  backup: { timer: string; lastFile: string | null; ageSec: number | null; sizeBytes: number | null } | null;
+  buckets: Array<{ remote: string; objects: number; lastObject: string | null; ageSec: number | null; ok: boolean }>;
+  haproxy: { state: string; version: string } | null;
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -35,6 +41,22 @@ function usageTone(pct: number | null): string {
   if (pct === null) return "var(--soft-bordeaux)";
   if (pct >= 90) return "#b3261e";
   if (pct >= 75) return "var(--soft-terracotta-dark)";
+  return "#2e7d4f";
+}
+
+function formatAge(sec: number | null): string {
+  if (sec === null) return "неизвестно";
+  const hours = Math.floor(sec / 3600);
+  if (hours < 1) return `${Math.floor(sec / 60)} мин назад`;
+  if (hours < 48) return `${hours} ч назад`;
+  return `${Math.floor(hours / 24)} дн назад`;
+}
+
+/** Цвет по порогам RPO: держим единые с lib/fleet/node-state.ts. */
+function rpoColor(sec: number | null): string {
+  if (sec === null) return "#b3261e";
+  if (sec > 12 * 3600) return "#b3261e";
+  if (sec > 8 * 3600) return "var(--soft-terracotta-dark)";
   return "#2e7d4f";
 }
 
@@ -57,6 +79,7 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
   const [pending, startTransition] = useTransition();
   const [busyNode, setBusyNode] = useState<string | null>(null);
   const [result, setResult] = useState<DeployActionResult | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   function redeploy(nodeName: string | null) {
     const confirmed = window.confirm(
@@ -123,6 +146,7 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
               <th className="py-2 pr-3">Контур</th>
               <th className="py-2 pr-3">Статус</th>
               <th className="py-2 pr-3">Релиз</th>
+              <th className="py-2 pr-3">Контейнеры</th>
               <th className="py-2 pr-3">Ресурсы</th>
               <th className="py-2 pr-3">Uptime</th>
               <th className="py-2 pr-3 text-right">Действие</th>
@@ -153,6 +177,26 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
                 </td>
                 <td className="py-2 pr-3 font-mono text-xs">{row.releaseSha ?? "—"}</td>
                 <td className="py-2 pr-3">
+                  {row.containerSummary ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+                      onClick={() => setExpanded(expanded === row.name ? null : row.name)}
+                      data-testid={`fleet-containers-${row.name}`}
+                      style={{ color: row.containerSummary.unhealthy > 0 ? "#b3261e" : "inherit" }}
+                    >
+                      {expanded === row.name ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      {row.containerSummary.running}/{row.containerSummary.total}
+                      {row.containerSummary.unhealthy > 0 ? ` · ${row.containerSummary.unhealthy} unhealthy` : ""}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">нет агента</span>
+                  )}
+                  {row.collectorStale && row.containerSummary && (
+                    <div className="text-xs" style={{ color: "var(--soft-terracotta-dark)" }}>данные устарели</div>
+                  )}
+                </td>
+                <td className="py-2 pr-3">
                   <div className="flex flex-col">
                     <Usage label="диск" pct={row.diskUsedPct} />
                     <Usage label="память" pct={row.memoryUsedPct} />
@@ -173,6 +217,63 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
                 </td>
               </tr>
             ))}
+            {rows.map((row) =>
+              expanded === row.name ? (
+                <tr key={`${row.name}-detail`} data-testid={`fleet-detail-${row.name}`}>
+                  <td colSpan={9} className="bg-black/[0.02] px-3 py-3">
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Контейнеры и версии</p>
+                        <ul className="space-y-1">
+                          {row.containers.map((c) => (
+                            <li key={c.name} className="flex flex-wrap items-baseline gap-2 text-xs">
+                              <span className="font-medium">{c.name}</span>
+                              <span className="font-mono text-[0.7rem] text-muted-foreground">{c.image}</span>
+                              <span style={{ color: c.state === "running" ? "#2e7d4f" : c.state === "exited" ? "var(--soft-bordeaux)" : "#b3261e" }}>
+                                {c.state}
+                                {c.health ? ` · ${c.health}` : ""}
+                              </span>
+                            </li>
+                          ))}
+                          {row.containers.length === 0 && <li className="text-xs text-muted-foreground">нет данных</li>}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Бэкапы (RPO)</p>
+                        {row.backup ? (
+                          <div className="space-y-1 text-xs">
+                            <div>таймер: <span style={{ color: row.backup.timer === "active" ? "#2e7d4f" : "#b3261e" }}>{row.backup.timer}</span></div>
+                            <div style={{ color: rpoColor(row.backup.ageSec) }}>последний: {formatAge(row.backup.ageSec)}</div>
+                            {row.backup.lastFile && <div className="font-mono text-[0.68rem] text-muted-foreground break-all">{row.backup.lastFile}</div>}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">бэкапы не настроены</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Бакеты и балансировщик</p>
+                        <ul className="space-y-1 text-xs">
+                          {row.buckets.map((b) => (
+                            <li key={b.remote} style={{ color: b.ok ? rpoColor(b.ageSec) : "#b3261e" }}>
+                              {b.remote}: {b.ok ? `${b.objects} копий · ${formatAge(b.ageSec)}` : "пусто — копии не доезжают"}
+                            </li>
+                          ))}
+                          {row.buckets.length === 0 && <li className="text-muted-foreground">офф-хост копий нет</li>}
+                          <li className="pt-1">
+                            HAProxy:{" "}
+                            {row.haproxy?.state === "running"
+                              ? <span style={{ color: "#2e7d4f" }}>работает{row.haproxy.version ? ` · ${row.haproxy.version}` : ""}</span>
+                              : <span className="text-muted-foreground">не развёрнут (B540)</span>}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : null,
+            )}
           </tbody>
         </table>
       </div>

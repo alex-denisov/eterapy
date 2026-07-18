@@ -29,6 +29,8 @@ services:
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3200}", "--hostname", "127.0.0.1"]
     volumes:
       - uploads:/app/web/public/uploads
+      # B544: состояние хоста от collect-node-state.sh (docker-сокет НЕ пробрасываем)
+      - ./state:/app/state:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
