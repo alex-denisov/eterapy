@@ -79,6 +79,14 @@ function formatBytes(bytes: number): string {
   return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 
+/** B537: отставание — это длительность, а не возраст: «0 с», не «0 мин назад». */
+function formatLag(sec: number | null): string {
+  if (sec === null) return "—";
+  if (sec < 60) return `${Math.max(0, Math.round(sec))} с`;
+  if (sec < 3600) return `${Math.round(sec / 60)} мин`;
+  return `${(sec / 3600).toFixed(1)} ч`;
+}
+
 /** B537: пороги мягкие — репликация async, секунды отставания это норма. */
 function replLagColor(repl: { ok: boolean; lagSeconds: number | null }): string {
   if (!repl.ok) return "#b3261e";
@@ -318,7 +326,7 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
                               ) : (
                                 <li style={{ color: replLagColor(row.replication) }}>
                                   standby: {row.replication.streamStatus || "нет потока"}
-                                  {row.replication.lagSeconds !== null && ` · отставание ${formatAge(row.replication.lagSeconds)}`}
+                                  {row.replication.lagSeconds !== null && ` · отставание ${formatLag(row.replication.lagSeconds)}`}
                                 </li>
                               )}
                             </ul>
