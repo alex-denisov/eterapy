@@ -1,0 +1,41 @@
+# B542 — LiveKit node config template (per-contour cluster).
+# Copy to ./livekit.yaml next to the compose files and fill NODE_IP, the
+# per-contour API key/secret, and the Redis address of THIS contour.
+#
+# Single-node today has no `redis:` block; adding it (below) is what turns the
+# nodes of a contour into one horizontally-scalable cluster.
+
+port: 7880
+# Bind signalling to loopback when a local reverse proxy / HAProxy terminates
+# TLS in front. For a direct-to-node contour LB, bind the private IP instead.
+bind_addresses:
+  - 127.0.0.1
+log_level: info
+
+rtc:
+  tcp_port: 7881
+  # A range (not a single port) so many concurrent media sessions fan out.
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: true
+  # Set explicitly on multi-homed / NAT'd hosts (e.g. AWS) so the node
+  # advertises the correct public address for media.
+  # node_ip: "203.0.113.10"
+
+# ── Cluster mode: shared Redis makes the contour's nodes one mesh ───────────
+# Uncomment on every node of the contour, pointing at the SAME Redis. Rooms
+# are then routed across nodes; add a node to add capacity.
+# redis:
+#   address: "10.0.0.2:6379"
+
+keys:
+  # ONE key/secret per contour, shared by every node in it. NEVER the LiveKit
+  # default devkey/devsecret (INC-067). Must match the app's
+  # LIVEKIT_API_KEY / LIVEKIT_API_SECRET.
+  ETERAPY_LIVEKIT_KEY: ETERAPY_LIVEKIT_SECRET
+
+# Optional embedded TURN for clients behind strict NAT (TLS on 443/5349).
+# turn:
+#   enabled: true
+#   domain: turn.eterapy.com
+#   tls_port: 5349
