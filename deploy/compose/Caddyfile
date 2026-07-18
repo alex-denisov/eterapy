@@ -1,0 +1,9 @@
+# B473 — reverse proxy. The site address comes from .env (CADDY_SITE_ADDRESS):
+#   ":80"                                       → plain HTTP (bare-IP test VM)
+#   "eterapy.com, app.eterapy.com, admin.eterapy.com" → automatic HTTPS (LE)
+{$CADDY_SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

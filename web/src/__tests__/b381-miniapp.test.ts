@@ -73,13 +73,13 @@ describe("B381 — mini-app shell detection", () => {
 
   describe("shouldShowMiniAppBackButton", () => {
     it("hides the back button on home/root surfaces", () => {
-      for (const root of ["/", "/cabinet", "/cabinet/", "/login", "/checkin"]) {
+      for (const root of ["/", "/miniapp", "/miniapp/", "/cabinet", "/cabinet/", "/login", "/checkin"]) {
         expect(shouldShowMiniAppBackButton(root)).toBe(false);
       }
     });
 
     it("shows the back button on deeper routes", () => {
-      for (const path of ["/products/tarot", "/cabinet/diary", "/library/x", "/practitioners/anna"]) {
+      for (const path of ["/miniapp/services", "/products/tarot", "/cabinet/diary", "/library/x", "/practitioners/anna"]) {
         expect(shouldShowMiniAppBackButton(path)).toBe(true);
       }
     });

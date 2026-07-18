@@ -113,6 +113,8 @@ describe("B469 AI search readiness", () => {
     // identity_types_supported uses only the spec-recognized "anonymous"
     // value; OAuth client_credentials is advertised as an extension block.
     expect(auth).toContain('"skill": "https://eterapy.com/auth.md"');
+    expect(auth).toContain('"register_uri": "https://eterapy.com/agent/oauth/register"');
+    expect(auth).toContain('"claim_uri": "https://eterapy.com/agent/auth"');
     expect(auth).toContain('"identity_endpoint": "https://eterapy.com/agent/oauth/register"');
     expect(auth).toContain('"identity_types_supported": ["anonymous"]');
     expect(auth).toContain('"claim_endpoint": "https://eterapy.com/agent/auth"');

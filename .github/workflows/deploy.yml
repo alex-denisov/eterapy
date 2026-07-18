@@ -1,3 +1,8 @@
+# B473 — production deploy: immutable image built in CI, streamed to the VM,
+# converged by docker compose. Replaces the rsync+PM2 pipeline (cutover
+# 2026-07-18; rollback = repin the previous SHA image, or switch the nginx
+# upstream back to the PM2 port while PM2 is kept installed).
+# Secrets used: CLOUDRU_ETERAPY_WEB_DEPLOY_KEY (SSH) + optional Telegram pair.
 name: Deploy to Production
 
 on:
@@ -8,10 +13,10 @@ on:
       - '**/*.md'
       - '.gitignore'
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/workflows/deploy.yml'
       - '.github/workflows/deploy-staging.yml'
       - '.github/workflows/sync-staging-db.yml'
       - '.github/workflows/playwright.yml'
+      - '.github/workflows/deploy-test-vm.yml'
       - 'deploy/*staging*'
       - 'deploy/telegram-proxy*'
       - '.artifacts/**'
@@ -27,447 +32,167 @@ on:
         required: false
         default: false
         type: boolean
-      skip_migrations:
-        description: 'Skip prisma migrate deploy on VPS'
-        required: false
-        default: false
-        type: boolean
 
-# Queue deploys instead of cancelling — never abort a deploy mid-flight,
-# but never start two at once either.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 env:
   NODE_VERSION: '22'
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  VPS_HOST: 192.144.14.146
-  VPS_USER: admin
-  VPS_REPO_DIR: /home/admin/eterapy
-  VPS_WEB_DIR: /home/admin/eterapy/web
-  VPS_DEPLOY_DIR: /home/admin/eterapy/deploy
+  VM_USER: admin
+  VM_HOST: 192.144.14.146
   HEALTH_URL: https://eterapy.com/api/health
   APP_URL: https://app.eterapy.com
   ADMIN_URL: https://admin.eterapy.com
 
 jobs:
-  # ╔═══════════════ STAGE 1: INSTALL ═══════════════╗
-  install:
-    name: Install dependencies
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    outputs:
-      cache-key: ${{ steps.cache-keys.outputs.deps }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Compute cache keys
-        id: cache-keys
-        run: echo "deps=node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
-
-      - name: Restore node_modules cache
-        id: cache-deps
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ steps.cache-keys.outputs.deps }}
-
-      - name: Install dependencies (npm ci)
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Generate Prisma client
-        working-directory: web
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
-        run: npx prisma generate
-
-  # ╔═══════════════ STAGE 2: TEST ═══════════════╗
   test:
     name: Unit tests
-    needs: install
     if: ${{ !inputs.skip_tests }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
-      - name: Restore node_modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: false
-
-      - name: Reinstall if cache miss
-        run: |
-          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
-            npm ci --prefer-offline --no-audit --no-fund
-          fi
-
-      - name: Ensure Prisma client
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Prisma client
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         run: npx prisma generate
-
       - name: Run tests
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           NODE_ENV: test
         run: npm test -- --ci --passWithNoTests --silent
 
-  # ╔═══════════════ STAGE 3: BUILD ═══════════════╗
-  build:
-    name: Next.js build
-    needs: install
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Restore node_modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: false
-
-      - name: Reinstall if cache miss
-        run: |
-          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
-            npm ci --prefer-offline --no-audit --no-fund
-          fi
-
-      - name: Ensure Prisma client
-        working-directory: web
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
-        run: npx prisma generate
-
-      - name: Restore Next.js build cache
-        uses: actions/cache@v5
-        with:
-          path: web/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('web/src/**/*.{ts,tsx,js,jsx,css}', 'web/public/**', 'web/next.config.*') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
-            ${{ runner.os }}-nextjs-
-
-      - name: Build Next.js (production)
-        working-directory: web
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-          AUTH_TRUST_HOST: 'true'
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          YUKASSA_SHOP_ID: ${{ secrets.YUKASSA_SHOP_ID }}
-          YUKASSA_SECRET_KEY: ${{ secrets.YUKASSA_SECRET_KEY }}
-          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: 'eterapy_bot'
-          NEXT_PUBLIC_APP_URL: 'https://eterapy.com'
-          NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
-          NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'
-          NEXT_PUBLIC_MAIN_DOMAIN: 'eterapy.com'
-          NEXT_PUBLIC_APP_DOMAIN: 'app.eterapy.com'
-          NEXT_PUBLIC_ADMIN_DOMAIN: 'admin.eterapy.com'
-          NEXT_PUBLIC_LIVEKIT_URL: 'wss://app.eterapy.com'
-          NODE_ENV: production
-        run: npm run build
-
-      - name: Trim build artifact
-        run: |
-          rm -rf web/.next/cache
-          rm -rf web/.next/dev
-          echo "▶ Artifact size:"
-          du -sh web/.next
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-build-${{ github.sha }}
-          path: ${{ github.workspace }}/web/.next
-          retention-days: 3
-          if-no-files-found: error
-          compression-level: 6
-          # `.next/` is a hidden dir (starts with dot); v4 skips hidden by default.
-          include-hidden-files: true
-
-  # ╔═══════════════ STAGE 4: DEPLOY ═══════════════╗
   deploy:
-    name: Sync to VPS & reload
-    needs: [build, test]
+    name: Deploy ${{ matrix.vm.name }}
+    needs: [test]
     if: |
       always() &&
-      needs.build.result == 'success' &&
       (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # The RU fleet: every host here receives the release automatically.
+      # prod serves the live domains behind its nginx (app-only compose,
+      # system PG); vm2 is the future standby (full stack, own PG until the
+      # B537 replica) reachable at its sslip.io address.
+      matrix:
+        vm:
+          - name: eterapy-1 prod RU (192.144.14.146)
+            host: 192.144.14.146
+            user: admin
+            compose: docker-compose.prod.yml
+            profile_args: "--profile worker"
+          - name: eterapy-2 standby RU (192.144.13.153)
+            host: 192.144.13.153
+            user: admin
+            compose: docker-compose.yml
+            profile_args: ""
+          - name: eterapy-3 US racknerd (107.172.153.202)
+            host: 107.172.153.202
+            user: root
+            compose: docker-compose.yml
+            profile_args: ""
+          - name: eterapy-4 EU aws (18.195.184.182)
+            host: 18.195.184.182
+            user: ubuntu
+            compose: docker-compose.yml
+            profile_args: ""
+    env:
+      VM_HOST: ${{ matrix.vm.host }}
+      VM_USER: ${{ matrix.vm.user }}
+      COMPOSE_FILE_NAME: ${{ matrix.vm.compose }}
+      PROFILE_ARGS: ${{ matrix.vm.profile_args }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: next-build-${{ github.sha }}
-          path: web/.next
-
-      - name: Setup SSH key & Pre-flight
-        env:
-          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+      - name: Build release image (prod domains)
         run: |
-          if [ -z "$SSH_KEY" ]; then
-            echo "::error::secret CLOUDRU_ETERAPY_WEB_DEPLOY_KEY is empty"
-            exit 1
-          fi
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          docker build -f deploy/docker/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL="https://eterapy.com" \
+            --build-arg NEXT_PUBLIC_USE_SUBDOMAINS="true" \
+            --build-arg NEXT_PUBLIC_MAIN_DOMAIN="eterapy.com" \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN="app.eterapy.com" \
+            --build-arg NEXT_PUBLIC_ADMIN_DOMAIN="admin.eterapy.com" \
+            --build-arg NEXT_PUBLIC_LIVEKIT_URL="wss://app.eterapy.com" \
+            -t "eterapy-web:${GITHUB_SHA::8}" .
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
           if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
             printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           else
             printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
           fi
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          
-          echo "▶ Verifying VPS environment..."
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=15 \
-            "$VPS_USER@$VPS_HOST" \
-            'echo "✓ SSH connection established";
-             command -v node >/dev/null || { echo "::error::node missing on VPS"; exit 1; };
-             command -v npm >/dev/null || { echo "::error::npm missing on VPS"; exit 1; };
-             command -v pm2 >/dev/null || { echo "::error::pm2 missing on VPS"; exit 1; };
-             echo "✓ node $(node -v); npm v$(npm -v); pm2 v$(pm2 -v)"'
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Sync application to VPS
+      - name: Ship image + converge stack
         run: |
           set -euo pipefail
-          SSH_CMD='ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=20'
-
-          echo "▶ rsync root manifest"
-          rsync -az --human-readable -e "$SSH_CMD" \
-            package.json package-lock.json \
-            "$VPS_USER@$VPS_HOST:$VPS_REPO_DIR/"
-
-          echo "▶ rsync ecosystem config"
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "mkdir -p $VPS_DEPLOY_DIR"
-          rsync -az --human-readable -e "$SSH_CMD" \
-            deploy/ecosystem.config.js \
-            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/ecosystem.config.js"
-
-          echo "▶ rsync web/ tree (including artifact)"
-          rsync -az --delete --human-readable -e "$SSH_CMD" \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='node_modules' \
-            --exclude='.git' \
-            --exclude='.next/cache' \
-            --exclude='public/uploads' \
-            --exclude='*.log' \
-            --exclude='.DS_Store' \
-            --exclude='coverage' \
-            --exclude='playwright-report' \
-            --exclude='test-results' \
-            web/ \
-            "$VPS_USER@$VPS_HOST:$VPS_WEB_DIR/"
-
-      - name: Install runtime deps, migrate DB, reload PM2
-        env:
-          SKIP_MIGRATIONS: ${{ inputs.skip_migrations }}
-        run: |
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=30 \
-            "$VPS_USER@$VPS_HOST" \
-            "SKIP_MIGRATIONS='${SKIP_MIGRATIONS:-false}' bash -se" <<'REMOTE'
-              set -euo pipefail
-
-              REPO_DIR=/home/admin/eterapy
-              WEB_DIR=$REPO_DIR/web
-
-              echo "▶ Sourcing environment variables"
-              if [ -f "/home/admin/db-creds.txt" ]; then
-                echo "  - sourcing /home/admin/db-creds.txt"
-                set -a; . /home/admin/db-creds.txt; set +a
-              fi
-              if [ -f "$WEB_DIR/.env.local" ]; then
-                echo "  - sourcing $WEB_DIR/.env.local"
-                set -a; . "$WEB_DIR/.env.local"; set +a
-              fi
-              
-              if [ -z "${DATABASE_URL:-}" ]; then
-                echo "::error::DATABASE_URL not found in environment — bootstrap required"
-                exit 1
-              fi
-
-              echo "▶ npm ci --omit=dev"
-              cd "$REPO_DIR"
-              npm ci --omit=dev --prefer-offline --no-audit --no-fund
-
-              echo "▶ prisma generate"
-              cd "$WEB_DIR"
-              npx prisma generate
-
-              if [ "${SKIP_MIGRATIONS}" != "true" ]; then
-                echo "▶ prisma migrate deploy"
-                npx prisma migrate deploy
-              else
-                echo "⏭  skipping migrations"
-              fi
-
-              echo "▶ Ensure Telegram env vars in .env.local"
-              ENV_FILE="$WEB_DIR/.env.local"
-              if ! grep -q '^TELEGRAM_API_BASE=' "$ENV_FILE" 2>/dev/null; then
-                echo "  - adding TELEGRAM_API_BASE"
-                echo "TELEGRAM_API_BASE=https://eterapy-telegram-proxy.890525.workers.dev/bot${TELEGRAM_BOT_TOKEN}" >> "$ENV_FILE"
-              fi
-              if ! grep -q '^TELEGRAM_WEBHOOK_URL=' "$ENV_FILE" 2>/dev/null; then
-                echo "  - adding TELEGRAM_WEBHOOK_URL"
-                echo "TELEGRAM_WEBHOOK_URL=https://eterapy-telegram-proxy.890525.workers.dev/webhook" >> "$ENV_FILE"
-              fi
-
-              echo "▶ pm2 startOrReload"
-              pm2 startOrReload /home/admin/eterapy/deploy/ecosystem.config.js --update-env
-              pm2 save --force
-
-              echo "▶ worker health"
-              sleep 3
-              WORKER_STATUS="$(pm2 jlist | node -e 'let data="";process.stdin.on("data",c=>data+=c);process.stdin.on("end",()=>{const apps=JSON.parse(data);const w=apps.find(a=>a.name==="eterapy-worker");process.stdout.write(w?.pm2_env?.status || "missing")})')"
-              echo "eterapy-worker PM2 → $WORKER_STATUS"
-              if [ "$WORKER_STATUS" != "online" ]; then
-                pm2 logs eterapy-worker --lines 100 --nostream || true
-                exit 1
-              fi
-          REMOTE
-
-      - name: Register Telegram webhook (via CF Worker relay)
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            echo "⚠ TELEGRAM_BOT_TOKEN not set — skipping webhook registration"
-            exit 0
-          fi
-          WEBHOOK_URL="https://eterapy-telegram-proxy.890525.workers.dev/webhook"
-          echo "▶ Registering Telegram webhook: $WEBHOOK_URL"
-          RESULT=$(curl -sf -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
-            -H "Content-Type: application/json" \
-            -d "{\"url\":\"${WEBHOOK_URL}\",\"secret_token\":\"${TELEGRAM_WEBHOOK_SECRET:-}\",\"allowed_updates\":[\"message\"]}" || echo '{"ok":false}')
-          if echo "$RESULT" | grep -q '"ok":true'; then
-            echo "✓ Telegram webhook registered"
-          else
-            echo "::warning::Telegram webhook registration failed: $RESULT"
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
+          $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
+          docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
+            && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
+            && sudo docker image prune -f >/dev/null \
+            && sudo docker compose -f $COMPOSE_FILE_NAME ps"
+          echo "▶ worker health"
+          sleep 5
+          WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-worker-1" || echo missing)
+          echo "eterapy-worker container → $WORKER_STATUS"
+          if [ "$WORKER_STATUS" != "running" ]; then
+            $SSH "sudo docker logs eterapy-worker-1 --tail 100" || true
+            exit 1
           fi
 
       - name: Cleanup SSH key
         if: always()
-        run: rm -rf ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key
 
-  # ╔═══════════════ STAGE 5: VERIFY ═══════════════╗
   verify:
     name: Health check
     needs: deploy
     if: needs.deploy.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
-      - name: Probe /api/health (with retry)
-        id: probe
-        continue-on-error: true
+      - name: Probe /api/health and subdomains
         run: |
-          set -euo pipefail
-          MAX_ATTEMPTS=30
-          DELAY=6
-          STATUS=000
-
-          echo "Waiting 10s for PM2 zero-downtime reload to complete..."
           sleep 10
-
-          for i in $(seq 1 $MAX_ATTEMPTS); do
-            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "✓ /api/health → 200 (attempt $i/$MAX_ATTEMPTS)"
-              exit 0
-            fi
-            echo "… attempt $i/$MAX_ATTEMPTS: status=$STATUS, retrying in ${DELAY}s"
-            sleep $DELAY
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo 000)
+            [ "$STATUS" = "200" ] && { echo "✓ $HEALTH_URL → 200"; break; }
+            [ "$i" = "30" ] && { echo "::error::health failed"; exit 1; }
+            echo "… attempt $i: $STATUS"; sleep 6
           done
-          echo "::error::/api/health failed after $MAX_ATTEMPTS attempts (last status: $STATUS)"
-          exit 1
-
-      - name: Post-deploy diagnostics (on failure)
-        if: steps.probe.outcome == 'failure'
-        env:
-          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
-            printf '%s\n' "$SSH_KEY" > ~/.ssh/diag_key
-          else
-            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/diag_key
-          fi
-          chmod 600 ~/.ssh/diag_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          
-          echo "::group::PM2 Logs"
-          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
-            "pm2 logs eterapy --lines 100 --nostream || echo 'Failed to get logs'"
-          echo "::endgroup::"
-          
-          echo "::group::PM2 Status"
-          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
-            "pm2 status"
-          echo "::endgroup::"
-          
-          echo "::group::System Resources"
-          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
-            "free -h; df -h /"
-          echo "::endgroup::"
-          rm -f ~/.ssh/diag_key
-          exit 1
-
-      - name: Verify subdomains
-        if: steps.probe.outcome == 'success'
-        run: |
           for url in "$APP_URL" "$ADMIN_URL"; do
-            S=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo "000")
+            S=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo 000)
             case "$S" in
               2*|3*) echo "✓ $url → $S" ;;
               *) echo "::error::$url failed (status: $S)"; exit 1 ;;
             esac
           done
+          STANDBY=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "https://192.144.13.153.sslip.io/api/health" || echo 000)
+          [ "$STANDBY" = "200" ] && echo "✓ standby vm2 health → 200" || echo "::warning::standby vm2 health → $STANDBY"
           echo "🚀 Production deploy verified."
 
-  # ╔═══════════════ STAGE 6: NOTIFY ═══════════════╗
   notify:
     name: Notify Telegram
-    needs: [install, test, build, deploy, verify]
+    needs: [test, deploy, verify]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -476,13 +201,10 @@ jobs:
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-          INSTALL_RESULT: ${{ needs.install.result }}
           TEST_RESULT: ${{ needs.test.result }}
-          BUILD_RESULT: ${{ needs.build.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           VERIFY_RESULT: ${{ needs.verify.result }}
           GH_ACTOR: ${{ github.actor }}
-          GH_REF: ${{ github.ref_name }}
           GH_SHA: ${{ github.sha }}
           GH_REPO: ${{ github.repository }}
           GH_RUN_ID: ${{ github.run_id }}
@@ -492,50 +214,15 @@ jobs:
             echo "Telegram not configured — skipping notification."
             exit 0
           fi
-
-          icon() {
-            case "$1" in
-              success) echo "✅" ;;
-              failure) echo "❌" ;;
-              cancelled) echo "⚠️" ;;
-              skipped) echo "⏭" ;;
-              *) echo "❔" ;;
-            esac
-          }
-
           if [ "$VERIFY_RESULT" = "success" ]; then
-            HEADER="🚀 <b>Production deploy SUCCESS</b>"
-          elif [ "$DEPLOY_RESULT" = "failure" ]; then
-            HEADER="❌ <b>Pipeline FAILED at DEPLOY</b>"
-          elif [ "$BUILD_RESULT" = "failure" ]; then
-            HEADER="❌ <b>Pipeline FAILED at BUILD</b>"
-          elif [ "$TEST_RESULT" = "failure" ]; then
-            HEADER="❌ <b>Pipeline FAILED at TESTS</b>"
-          elif [ "$INSTALL_RESULT" = "failure" ]; then
-            HEADER="❌ <b>Pipeline FAILED at INSTALL</b>"
-          elif [ "$VERIFY_RESULT" = "failure" ]; then
-            HEADER="❌ <b>Pipeline FAILED at VERIFY (deploy partial)</b>"
+            HEADER="🚀 <b>Production deploy SUCCESS (image)</b>"
           else
-            HEADER="❔ <b>Pipeline finished with mixed status</b>"
+            HEADER="❌ <b>Production pipeline: test=$TEST_RESULT deploy=$DEPLOY_RESULT verify=$VERIFY_RESULT</b>"
           fi
-
-          STATUS_LINE="$(icon "$INSTALL_RESULT") install · $(icon "$TEST_RESULT") test · $(icon "$BUILD_RESULT") build · $(icon "$DEPLOY_RESULT") deploy · $(icon "$VERIFY_RESULT") verify"
-
-          SHORT_SHA="${GH_SHA:0:8}"
-          FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1)
-          if [ ${#FIRST_LINE} -gt 200 ]; then
-            FIRST_LINE="${FIRST_LINE:0:200}…"
-          fi
-
           esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
-          ESC_MSG=$(esc "$FIRST_LINE")
-          ESC_ACTOR=$(esc "$GH_ACTOR")
-          ESC_REF=$(esc "$GH_REF")
-          ESC_REPO=$(esc "$GH_REPO")
-
-          TEXT=$(printf '%s\n\n%s\n\n<b>Repo:</b> %s\n<b>Branch:</b> %s\n<b>Commit:</b> <code>%s</code>\n<b>Author:</b> %s\n<b>Message:</b> %s\n\n<a href="https://github.com/%s/actions/runs/%s">View run</a>' \
-            "$HEADER" "$STATUS_LINE" "$ESC_REPO" "$ESC_REF" "$SHORT_SHA" "$ESC_ACTOR" "$ESC_MSG" "$GH_REPO" "$GH_RUN_ID")
-
+          FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1 | cut -c1-200)
+          TEXT=$(printf '%s\n\n<b>Commit:</b> <code>%s</code>\n<b>Author:</b> %s\n<b>Message:</b> %s\n\n<a href="https://github.com/%s/actions/runs/%s">View run</a>' \
+            "$HEADER" "${GH_SHA:0:8}" "$(esc "$GH_ACTOR")" "$(esc "$FIRST_LINE")" "$GH_REPO" "$GH_RUN_ID")
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT}" \
             --data-urlencode "text=${TEXT}" \

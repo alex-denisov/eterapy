@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
   // in-process after middleware, so the nonce request header survives and the
   // self-proxy hop disappears. Middleware keeps auth/redirect/CSP logic only.
   async rewrites() {
+    // Single-host mode (local dev, bare-IP/one-domain test VMs): every host
+    // equals the "app domain", so the host-matched rules would swallow the
+    // whole public site into /cabinet/*. Path-level auth handles this mode.
+    if (process.env.NEXT_PUBLIC_USE_SUBDOMAINS !== "true") {
+      return { beforeFiles: [] };
+    }
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
     const appHost = [{ type: "host" as const, value: appDomain }];
     return {
