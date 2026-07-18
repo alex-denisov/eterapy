@@ -146,7 +146,15 @@ export default function CheckinPage() {
   const { status } = useSession();
   const [question, setQuestion] = useState(() => {
     if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("question")?.slice(0, 4000) ?? "";
+    const params = new URLSearchParams(window.location.search);
+    const queryQuestion = params.get("question")?.slice(0, 4000);
+    if (queryQuestion) return queryQuestion;
+    if (params.get("miniappDraft") !== "1") return "";
+    try {
+      return window.sessionStorage.getItem("eterapy:miniapp-question")?.slice(0, 4000) ?? "";
+    } catch {
+      return "";
+    }
   });
   const [clarification, setClarification] = useState("");
   const [clarifyingAnswers, setClarifyingAnswers] = useState<string[]>([]);
@@ -337,6 +345,8 @@ export default function CheckinPage() {
         const url = new URL(window.location.href);
         url.searchParams.set("dialogueId", data.dialogue.id);
         url.searchParams.delete("question");
+        url.searchParams.delete("miniappDraft");
+        try { window.sessionStorage.removeItem("eterapy:miniapp-question"); } catch { /* storage unavailable */ }
         window.history.replaceState(null, "", url.toString());
       }
       if (data.dialogue.status === "SAFETY_INTERRUPTED" || data.dialogue.safety?.interrupt) {
@@ -369,7 +379,7 @@ export default function CheckinPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (!params.has("question")) return;
+    if (!params.has("question") && params.get("miniappDraft") !== "1") return;
     if (autoStartedRef.current || phase !== "question" || question.trim().length < 3) return;
     autoStartedRef.current = true;
     void startDialogue();
@@ -496,6 +506,7 @@ export default function CheckinPage() {
       const url = new URL(window.location.href);
       url.searchParams.delete("dialogueId");
       url.searchParams.delete("question");
+      url.searchParams.delete("miniappDraft");
       window.history.replaceState(null, "", url.toString());
     }
   }

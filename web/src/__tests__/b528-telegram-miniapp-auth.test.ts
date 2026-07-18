@@ -84,10 +84,13 @@ describe("B528 — bounded Telegram Mini App identity", () => {
     const root = process.cwd();
     const bootstrap = fs.readFileSync(path.join(root, "src/components/miniapp/telegram-bootstrap.tsx"), "utf8");
     const account = fs.readFileSync(path.join(root, "src/components/miniapp/journey-screens.tsx"), "utf8");
+    const checkin = fs.readFileSync(path.join(root, "src/app/checkin/page.tsx"), "utf8");
     const cronJobs = fs.readFileSync(path.join(root, "src/lib/cron-jobs.ts"), "utf8");
 
     expect(bootstrap).not.toContain("/api/miniapp/auth/telegram/link");
     expect(account).toContain("Связать этот Telegram");
+    expect(account).toContain("/checkin?miniappDraft=1");
+    expect(checkin).toContain('sessionStorage.getItem("eterapy:miniapp-question")');
     expect(cronJobs).toContain("cleanupExpiredMiniAppAuthGrants");
   });
 
