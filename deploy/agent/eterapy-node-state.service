@@ -1,0 +1,7 @@
+[Unit]
+Description=B544 collect eterapy node state for the fleet monitoring panel
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eterapy/collect-node-state.sh

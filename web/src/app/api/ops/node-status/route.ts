@@ -10,8 +10,10 @@ import { freemem, totalmem } from "node:os";
 import { NextRequest, NextResponse } from "next/server";
 import { getReadinessHealth } from "@/lib/health";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { readFile } from "node:fs/promises";
 import { timingSafeEqualString } from "@/lib/ops-secret";
 import { parseReleaseSha } from "@/lib/fleet/nodes";
+import { parseNodeState } from "@/lib/fleet/node-state";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +38,19 @@ async function diskUsage() {
   }
 }
 
+/**
+ * Состояние хоста пишет host-коллектор (B544) — docker-сокет в контейнер
+ * не пробрасывается. Файла может не быть: тогда просто нет секции.
+ */
+async function hostState() {
+  const path = process.env.FLEET_NODE_STATE_FILE ?? "/app/state/node-state.json";
+  try {
+    return parseNodeState(JSON.parse(await readFile(path, "utf8")));
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const expected = process.env.FLEET_OPS_SECRET ?? process.env.CRON_SECRET ?? "";
   const provided = req.headers.get("x-ops-secret") ?? "";
@@ -56,6 +71,7 @@ export async function GET(req: NextRequest) {
       uptimeSec: Math.round(process.uptime()),
       disk: await diskUsage(),
       memory: usage(totalmem(), freemem()),
+      host: await hostState(),
     },
     { status: 200, headers: { "cache-control": "no-store" } },
   );
