@@ -14,6 +14,7 @@ import { normalizeResultSectionHeadings, splitSections } from "@/lib/report-sect
 import { stripEmbeddedResultDisclaimers } from "@/lib/result-text-sanitize";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 // B442/B444 (M28): «Подробный разбор» — самодостаточная услуга (клиническая
 // формулировка случая «5 P» + problem-solving). Контекст собирается ВНУТРИ услуги
@@ -111,8 +112,8 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 
 function redirectToLogin() {
   if (typeof window === "undefined") return;
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.href = `${loginUrl()}?next=${next}`;
+  const next = window.location.pathname + window.location.search;
+  window.location.href = miniAppLoginPath(next) ?? `${loginUrl()}?next=${encodeURIComponent(next)}`;
 }
 
 export function DeepReportActions({ resultId }: { resultId?: string | null }) {

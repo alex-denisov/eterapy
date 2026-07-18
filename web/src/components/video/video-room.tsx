@@ -22,6 +22,7 @@ interface VideoRoomProps {
   otherPartyName: string;
   priceRub: number;
   sessionDurationMin: number;
+  exitHref?: string;
 }
 
 type SpeechRecognitionEventLike = Event & {
@@ -66,7 +67,7 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 }
 
-export function VideoRoom({ bookingId, role, participantName, otherPartyName, priceRub, sessionDurationMin }: VideoRoomProps) {
+export function VideoRoom({ bookingId, role, participantName, otherPartyName, priceRub, sessionDurationMin, exitHref }: VideoRoomProps) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [videoSessionId, setVideoSessionId] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
   const [connecting, setConnecting] = useState(true);
 
   const lkUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "ws://localhost:7880";
+  const resolvedExitHref = exitHref ?? (role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients");
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +153,7 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
       connect={true}
       audio={true}
       video={true}
-      onDisconnected={() => router.push(role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients")}
+      onDisconnected={() => router.push(resolvedExitHref)}
     >
       <VideoRoomInner
         bookingId={bookingId}
@@ -163,6 +165,7 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
         otherPartyName={otherPartyName}
         priceRub={priceRub}
         sessionDurationMin={sessionDurationMin}
+        exitHref={resolvedExitHref}
       />
     </LiveKitRoom>
   );
@@ -178,6 +181,7 @@ function VideoRoomInner({
   otherPartyName,
   priceRub,
   sessionDurationMin,
+  exitHref,
 }: {
   bookingId: string;
   videoSessionId: string | null;
@@ -188,6 +192,7 @@ function VideoRoomInner({
   otherPartyName: string;
   priceRub: number;
   sessionDurationMin: number;
+  exitHref: string;
 }) {
   const router = useRouter();
   const room = useRoomContext();
@@ -370,7 +375,7 @@ function VideoRoomInner({
     }).catch(() => {});
 
     room.disconnect();
-    router.push(role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients");
+    router.push(exitHref);
   }
 
   function toggleFullscreen() {
@@ -489,7 +494,7 @@ function VideoRoomInner({
               Время вашей сессии истекло. Спасибо за использование ETerapy!
             </p>
             <button
-              onClick={() => router.push(role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients")}
+              onClick={() => router.push(exitHref)}
               className="rounded-lg bg-primary px-8 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-primary/90"
             >
               Перейти к бронированиям

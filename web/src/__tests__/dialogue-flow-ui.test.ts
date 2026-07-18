@@ -5,9 +5,11 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
+const CHECKIN_EXPERIENCE = "src/components/dialogue/checkin-experience.tsx";
+
 describe("B071-B074 dialogue flow UI", () => {
   it("uses the v5 dialogue APIs instead of the old check-in generator", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
 
     expect(page).toContain('requestJson<{ dialogue: DialoguePayload }>("/api/dialogues"');
     expect(page).toContain("/api/dialogues/${dialogueId}/answer");
@@ -16,7 +18,7 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("covers question, clarification, processing, safety, and result states", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
 
     expect(page).toContain('data-testid="dialogue-question-step"');
     expect(page).toContain('data-testid="dialogue-clarifying-step"');
@@ -27,7 +29,7 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("offers save and v4.2 triage actions after the primary answer", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
 
     // #10: share + «новый вопрос» removed; authed users see the shared auto-saved
     // note (same as tarot), guests get the save→/login action.
@@ -45,7 +47,7 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain("secondaryProducts.map(");
     expect(page).toContain("${item.href}?dialogueId=${dialogue.id}");
     // B441: reframe is self-contained — the checkin fallback links to it without ?dialogueId.
-    expect(page).toContain('href="/products/reframe"');
+    expect(page).toContain('href={productPath("/products/reframe")}');
     expect(page).toContain('data-analytics-event="triage_primary_clicked"');
     expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
     expect(page).toContain('data-analytics-event="triage_subscription_clicked"');
@@ -62,7 +64,7 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("keeps paid CTAs out of the safety interrupt state", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     const safetySection = page.slice(
       page.indexOf('phase === "safety" &&'),
       page.indexOf('phase === "result" &&'),
@@ -76,14 +78,14 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("shows a soft daily-limit paywall for standalone checkin creation", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
 
     expect(page).toContain("DIALOGUE_DAILY_LIMIT");
     expect(page).toContain('data-testid="dialogue-limit-paywall"');
     expect(page).toContain('data-testid="register-to-continue"');
-    expect(page).toContain('href="/register?intent=continue-dialogue"');
+    expect(page).toContain('href={accountPath("register", "continue-dialogue")}');
     expect(page).toContain('data-testid="upgrade-to-plus"');
-    expect(page).toContain('href="/pricing#plus"');
+    expect(page).toContain('href={productPath("/pricing#plus")}');
     expect(page).toContain("dialogue_limit_hit");
     expect(page).toContain("dialogue_limit_paywall_shown");
     expect(page).toContain("dialogue_limit_register_clicked");
@@ -94,7 +96,7 @@ describe("B071-B074 dialogue flow UI", () => {
   // generation page that crops the dialogue to just the first question, and the
   // full dialogue collapses into an expandable «Первичный разбор».
   it("B411: kills the cropped generation screen and collapses the dialogue", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     const processing = page.slice(
       page.indexOf('data-testid="dialogue-processing-step"'),
       page.indexOf('phase === "safety" &&'),
@@ -110,7 +112,7 @@ describe("B071-B074 dialogue flow UI", () => {
 
   // B412: recommendation priority + rename + price-in-card + specialist highlight.
   it("B412: orders recommendations by priority with prices and a specialist highlight", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     expect(page).toContain("подобрано для вас");
     expect(page).not.toContain("рекомендуем именно вам");
     expect(page).toContain('data-testid="continue-in-chat-cta"');
@@ -124,7 +126,7 @@ describe("B071-B074 dialogue flow UI", () => {
   // Subtask (2026-06-17, owner): the «продолжить разговор в чате» service is paid —
   // no «бесплатно» framing on the chat CTA (the FREE part is the первичный разбор).
   it("presents the chat continuation as a paid service (no free mention)", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     const chatCard = page.slice(
       page.indexOf('data-testid="continue-in-chat-cta"'),
       page.indexOf('data-testid="triage-primary-cta"'),
@@ -139,7 +141,7 @@ describe("B071-B074 dialogue flow UI", () => {
   // the «зашифровано» plate became a quiet shield line; the low-value
   // «не заменяет профильную помощь» disclaimer is gone.
   it("uses an iOS-style back-arrow header on the result and drops the noise plates", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     const result = page.slice(
       page.indexOf('data-testid="dialogue-result-step"'),
       page.indexOf('{error && phase !== "processing"'),
@@ -156,7 +158,7 @@ describe("B071-B074 dialogue flow UI", () => {
   // #10: the checkin result no longer shows a share button; the AIShareButton
   // component still supports iconOnly for other surfaces.
   it("checkin result has no share button; AIShareButton still supports iconOnly", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     expect(page).not.toContain("AIShareButton");
     const share = source("src/components/ai-share-button.tsx");
     expect(share).toContain("iconOnly");
@@ -165,7 +167,7 @@ describe("B071-B074 dialogue flow UI", () => {
 
   // B416: the limit gate is a blocking popup, never shown during a safety interrupt.
   it("B416: limit is a blocking popup gated off the safety state", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source(CHECKIN_EXPERIENCE);
     expect(page).toContain('limitPaywall && phase !== "safety"');
     expect(page).toContain('role="dialog"');
     expect(page).toContain("На сегодня — достаточно");

@@ -16,7 +16,8 @@ export function SectionHeader({ eyebrow, title, action }: { eyebrow: string; tit
 }
 
 export function AccountGate({ title, text, next = "/miniapp" }: { title: string; text: string; next?: string }) {
-  return <section className={styles.accountGate} data-testid="miniapp-account-gate"><span className={styles.gateIcon}><LockKey size={23} /></span><div><h2>{title}</h2><p>{text}</p></div><Link href={`/register?next=${encodeURIComponent(next)}`} className={styles.primaryButton}>Сохранить прогресс<ArrowRight size={18} /></Link><Link href={`/login?next=${encodeURIComponent(next)}`} className={styles.textLink}>Уже есть аккаунт</Link></section>;
+  const returnTo = next.startsWith("/miniapp") ? next : "/miniapp";
+  return <section className={styles.accountGate} data-testid="miniapp-account-gate"><span className={styles.gateIcon}><LockKey size={23} /></span><div><h2>{title}</h2><p>{text}</p></div><Link href={`/miniapp/account?mode=register&returnTo=${encodeURIComponent(returnTo)}`} className={styles.primaryButton}>Сохранить прогресс<ArrowRight size={18} /></Link><Link href={`/miniapp/account?mode=login&returnTo=${encodeURIComponent(returnTo)}`} className={styles.textLink}>Уже есть аккаунт</Link></section>;
 }
 
 export function ServiceCard({ service, compact = false }: { service: MiniAppService; compact?: boolean }) {

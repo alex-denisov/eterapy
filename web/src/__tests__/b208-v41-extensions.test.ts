@@ -43,7 +43,7 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
 
   it("surfaces complaint/support and safety interrupt extensions without paid CTAs", () => {
     const complaintModal = source("src/components/complaint-modal.tsx");
-    const checkin = source("src/app/checkin/page.tsx");
+    const checkin = source("src/components/dialogue/checkin-experience.tsx");
 
     expect(complaintModal).toContain('data-testid="support-complaint-flow"');
     expect(complaintModal).toContain("эскалация");

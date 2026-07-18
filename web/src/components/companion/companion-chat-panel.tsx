@@ -13,6 +13,7 @@ import { dispatchCompanionSession } from "@/lib/companion-session-events";
 import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { pointsWord } from "@/lib/points";
 import { loginUrl } from "@/lib/subdomain";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 type Msg = { role: "user" | "companion"; text: string; at: string };
 
@@ -73,7 +74,7 @@ function formatClock(ms: number): string {
 function redirectToLogin(next?: string) {
   if (typeof window === "undefined") return;
   const target = next ?? window.location.pathname + window.location.search;
-  window.location.href = `${loginUrl()}?next=${encodeURIComponent(target)}`;
+  window.location.href = miniAppLoginPath(target) ?? `${loginUrl()}?next=${encodeURIComponent(target)}`;
 }
 
 export type CompanionChatPanelProps = {

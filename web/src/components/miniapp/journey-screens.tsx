@@ -25,6 +25,7 @@ import {
   Lock,
   Notebook,
   PaperPlaneTilt,
+  Paperclip,
   Password,
   ShieldCheck,
   SignIn,
@@ -35,6 +36,7 @@ import {
   User,
   UserPlus,
   Users,
+  VideoCamera,
   Wallet,
   type Icon,
 } from "@phosphor-icons/react";
@@ -69,10 +71,10 @@ function GateLink({ href, children }: { href: string; children: React.ReactNode 
 export function ServiceDetailScreen({ service }: { service: MiniAppService }) {
   const { data, share } = useMiniAppV21();
   const next = service.id === "primary"
-    ? "/miniapp/dialogues/new"
+    ? "/miniapp/checkin"
     : service.id === "specialist"
       ? "/miniapp/practitioners"
-      : `/miniapp/services/${encodeURIComponent(service.id)}/prepare`;
+      : service.href;
   return (
     <MiniAppChrome data={data}>
       <article className={styles.subpage} data-testid="miniapp-service-detail">
@@ -87,9 +89,7 @@ export function ServiceDetailScreen({ service }: { service: MiniAppService }) {
         </section>
         <section className={styles["result-card"]}><StarFour size={23} /><div><small>РЕЗУЛЬТАТ</small><strong>{service.result}</strong></div></section>
         <p className={styles["privacy-card"]}><ShieldCheck size={18} />{service.privacy}</p>
-        {data.viewer.authenticated || service.id === "primary" || service.id === "specialist"
-          ? <Link className={styles["journey-primary"]} href={next}>{service.cta}<ArrowRight size={18} /></Link>
-          : <GateLink href={next}>Продолжить</GateLink>}
+        <Link className={styles["journey-primary"]} href={next}>{service.cta}<ArrowRight size={18} /></Link>
         {service.shareable ? <button className={styles["journey-secondary"]} type="button" onClick={() => share(service.title, `/miniapp/services/${service.id}`)}><LinkSimple size={17} />Поделиться ссылкой</button> : null}
       </article>
     </MiniAppChrome>
@@ -331,6 +331,43 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
   );
 }
 
+export function AccountRecoveryScreen() {
+  const { data } = useMiniAppV21();
+  const [email, setEmail] = useState(data.viewer.email ?? "");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Не удалось отправить письмо");
+      setSent(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось отправить письмо");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <MiniAppChrome data={data}>
+      <div className={styles.subpage}>
+        <PageHead back="/miniapp/profile/security" eyebrow="безопасность" title="Восстановить пароль" description="Ссылка придёт на email аккаунта. В Telegram сквозной вход продолжит работать." />
+        {sent ? <section className={styles["conversation-card"]}><span><CheckCircle size={22} weight="fill" /><strong>Письмо отправлено</strong></span><p>Если такой аккаунт существует, в письме будет безопасная ссылка для нового пароля.</p><Link className={styles["journey-primary"]} href="/miniapp/profile/security">Готово<ArrowRight size={18} /></Link></section> : <form className={styles["account-form"]} onSubmit={submit}><label><span>Email</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required placeholder="name@example.com" /></label>{error ? <p className={styles["form-error"]} role="alert">{error}</p> : null}<button className={styles["journey-primary"]} type="submit" disabled={loading}>{loading ? "Отправляем…" : "Получить ссылку"}<ArrowRight size={18} /></button></form>}
+      </div>
+    </MiniAppChrome>
+  );
+}
+
 export function LibraryScreen({ entries }: { entries: AnonymousLibraryEntry[] }) {
   const { data } = useMiniAppV21();
   return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/dialogues" eyebrow="библиотека вопросов" title="Вы не одни с этим вопросом" description="Анонимные одобренные истории из действующей библиотеки платформы." /><div className={styles["library-list"]}>{entries.map((entry) => <Link href={`/miniapp/library/${entry.slug}`} key={entry.slug}><small>{entry.topic}</small><strong>{entry.question}</strong><span>{entry.reactions} откликов <ArrowRight size={16} /></span></Link>)}</div></div></MiniAppChrome>;
@@ -348,7 +385,7 @@ export function DialogueNewScreen() {
     const timer = window.setTimeout(() => setQuestion(window.sessionStorage.getItem("eterapy:miniapp-question") ?? ""), 0);
     return () => window.clearTimeout(timer);
   }, []);
-  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp" eyebrow="новый диалог" title="Один вопрос за раз" description="Первичный взгляд бесплатный. Следующий шаг выбираете только вы." /><label className={styles["journey-field"]}><span>С чем хотите разобраться?</span><textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1200} placeholder="Опишите ситуацию своими словами" /><small>{question.length} / 1200</small></label><Link className={c("journey-primary", question.trim().length < 3 && "is-disabled")} aria-disabled={question.trim().length < 3} href={question.trim().length >= 3 ? "/checkin?miniappDraft=1" : "#question"} onClick={() => { if (question.trim().length < 3) notify("Напишите хотя бы несколько слов"); else window.sessionStorage.setItem("eterapy:miniapp-question", question.trim()); }}>Начать первичный разбор<PaperPlaneTilt size={18} /></Link><p className={styles["flow-note"]}><ShieldCheck size={16} />Вопрос не публикуется. Рабочий диалог откроется без оплаты.</p></div></MiniAppChrome>;
+  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp" eyebrow="новый диалог" title="Один вопрос за раз" description="Первичный взгляд бесплатный. Следующий шаг выбираете только вы." /><label className={styles["journey-field"]}><span>С чем хотите разобраться?</span><textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1200} placeholder="Опишите ситуацию своими словами" /><small>{question.length} / 1200</small></label><Link className={c("journey-primary", question.trim().length < 3 && "is-disabled")} aria-disabled={question.trim().length < 3} href={question.trim().length >= 3 ? "/miniapp/checkin?miniappDraft=1" : "#question"} onClick={() => { if (question.trim().length < 3) notify("Напишите хотя бы несколько слов"); else window.sessionStorage.setItem("eterapy:miniapp-question", question.trim()); }}>Начать первичный разбор<PaperPlaneTilt size={18} /></Link><p className={styles["flow-note"]}><ShieldCheck size={16} />Вопрос не публикуется. Рабочий диалог откроется без оплаты.</p></div></MiniAppChrome>;
 }
 
 export function DialogueDetailScreen({ dialogueId }: { dialogueId: string }) {
@@ -366,7 +403,7 @@ export function DiaryDetailScreen({ itemId }: { itemId: string }) {
 type ProfileSection = "about" | "security" | "notifications" | "data" | "bookings" | "materials" | "wallet" | "invites" | "subscription";
 const PROFILE_CONTENT: Record<ProfileSection, { eyebrow: string; title: string; description: string; Icon: Icon; rows: Array<{ Icon: Icon; title: string; text: string; href?: string }> }> = {
   about: { eyebrow: "профиль", title: "О себе", description: "Базовые данные и темы, которые помогают не начинать с нуля.", Icon: IdentificationCard, rows: [{ Icon: User, title: "Имя", text: "Из профиля ETerapy" }, { Icon: Notebook, title: "Темы и цели", text: "Добавление будет доступно в форме профиля" }] },
-  security: { eyebrow: "настройки", title: "Безопасность", description: "Email, пароль и связанные приложения.", Icon: Lock, rows: [{ Icon: Password, title: "Пароль", text: "Изменяется только после подтверждения email", href: "/forgot-password" }, { Icon: LinkSimple, title: "Telegram", text: "Связывается подписанным запуском внутри Mini App" }, { Icon: ShieldCheck, title: "Вход с сайта", text: "Только email и пароль" }] },
+  security: { eyebrow: "настройки", title: "Безопасность", description: "Email, пароль и связанные приложения.", Icon: Lock, rows: [{ Icon: Password, title: "Пароль", text: "Изменяется только после подтверждения email", href: "/miniapp/account/recover" }, { Icon: LinkSimple, title: "Telegram", text: "Связывается подписанным запуском внутри Mini App" }, { Icon: ShieldCheck, title: "Вход с сайта", text: "Только email и пароль" }] },
   notifications: { eyebrow: "настройки", title: "Уведомления", description: "Сервисные напоминания без лишних сообщений.", Icon: Bell, rows: [{ Icon: Bell, title: "Telegram", text: "Напоминания доступны после привязки" }, { Icon: CalendarBlank, title: "Записи", text: "Время встречи и изменения расписания" }] },
   data: { eyebrow: "приватность", title: "Данные и удаление", description: "Экспорт, деактивация и понятные последствия.", Icon: ShieldCheck, rows: [{ Icon: DownloadSimple, title: "Экспорт данных", text: "Собрать архив аккаунта", href: "/api/auth/export-data" }, { Icon: Trash, title: "Деактивация", text: "Требует отдельного подтверждения" }] },
   bookings: { eyebrow: "встречи", title: "Мои записи", description: "Будущие и завершённые встречи со специалистами.", Icon: CalendarBlank, rows: [{ Icon: CalendarBlank, title: "Ближайшая запись", text: "Появится после подтверждения бронирования" }, { Icon: Users, title: "Выбрать специалиста", text: "Открыть каталог", href: "/miniapp/practitioners" }] },
@@ -380,6 +417,12 @@ export function ProfileSectionScreen({ section }: { section: ProfileSection }) {
   const { data } = useMiniAppV21();
   const content = PROFILE_CONTENT[section];
   const HeaderIcon = content.Icon;
+  if (section === "bookings") {
+    return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow="встречи" title="Мои записи" description="Действующие и завершённые записи из вашего аккаунта." />{data.bookings.length ? <div className={styles["profile-detail-list"]}>{data.bookings.map((booking) => <article key={booking.id}><span><CalendarBlank size={20} /></span><div><small>{booking.status}</small><strong>{booking.practitioner}</strong><p>{booking.date} · {booking.price}</p></div>{booking.canJoin ? <Link href={`/miniapp/session/${booking.id}`}><VideoCamera size={17} />Войти</Link> : null}</article>)}</div> : <section className={styles["empty-detail"]}><CalendarBlank size={28} /><strong>Записей пока нет</strong><p>Выберите специалиста и удобное время — без обязательств до подтверждения.</p></section>}<Link className={styles["journey-primary"]} href="/miniapp/practitioners">Выбрать специалиста<ArrowRight size={18} /></Link></div></MiniAppChrome>;
+  }
+  if (section === "materials") {
+    return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow="после встречи" title="Материалы" description="Задания и заметки от специалиста. Это не общий чат — ответить можно на следующей встрече." />{data.materials.length ? <div className={styles["profile-detail-list"]}>{data.materials.map((material) => <Link key={material.id} href={`/miniapp/materials/${material.id}`} className={material.unread ? styles["is-unread"] : undefined}><span><FileText size={20} /></span><div><small>{material.practitioner} · {material.date}</small><strong>{material.preview}</strong>{material.attachmentName ? <p><Paperclip size={13} />{material.attachmentName}</p> : null}</div><CaretRight size={18} /></Link>)}</div> : <section className={styles["empty-detail"]}><FileText size={28} /><strong>Новых материалов нет</strong><p>После сессии специалист сможет оставить здесь задание или полезный файл.</p></section>}</div></MiniAppChrome>;
+  }
   return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow={content.eyebrow} title={content.title} description={content.description} /><section className={styles["settings-hero"]}><HeaderIcon size={27} /><div><small>ВАШ ПРОФИЛЬ</small><strong>{section === "wallet" ? `${data.viewer.points} баллов` : section === "subscription" ? data.viewer.plan : data.viewer.email ?? "Гостевой режим"}</strong></div></section><div className={styles["settings-list"]}>{content.rows.map(({ Icon: RowIcon, title, text, href }) => { const body = <><span><RowIcon size={19} /></span><span><strong>{title}</strong><small>{text}</small></span>{href ? <CaretRight size={18} /> : null}</>; return href ? <Link href={href} key={title}>{body}</Link> : <div key={title}>{body}</div>; })}</div>{!data.viewer.authenticated ? <GateLink href={`/miniapp/profile/${section}`}>Войти, чтобы управлять</GateLink> : null}</div></MiniAppChrome>;
 }
 

@@ -86,6 +86,7 @@ function TopBar({ data, onUtility }: {
 function BottomNav() {
   const pathname = usePathname();
   const active = miniAppFeatureForPath(pathname).id;
+  const { data } = useMiniAppV21();
 
   return (
     <nav className={styles["bottom-nav"]} aria-label="Основная навигация">
@@ -102,8 +103,9 @@ function BottomNav() {
         }
         return (
           <Link key={feature.id} href={feature.route} aria-current={current ? "page" : undefined} className={c("nav-item", current && "is-active")}>
-            <span className={styles["nav-icon-wrap"]}>
+            <span className={c("nav-icon-wrap", feature.id === "profile" && data.profileNotice && "has-notice")}>
               <Icon size={feature.id === "profile" ? 24 : 22} weight={current ? "fill" : "regular"} />
+              {feature.id === "profile" && data.profileNotice ? <span className="sr-only">Есть новые события</span> : null}
             </span>
             <span>{feature.label}</span>
           </Link>
@@ -213,7 +215,7 @@ function ServiceSheet({ service, onClose, onShare }: {
       </div>
       <p className={styles["privacy-note"]}><ShieldCheck size={17} /> {service.privacy}</p>
       <div className={styles["sheet-actions"]}>
-        <Link href={`/miniapp/services/${encodeURIComponent(service.id)}`} onClick={() => track({ event: "miniapp_service_cta", surface: "miniapp", properties: { service: service.id } })} className={c("primary-action", "compact")}>
+        <Link href={`/miniapp/services/${encodeURIComponent(service.id)}`} onClick={() => { onClose(); track({ event: "miniapp_service_cta", surface: "miniapp", properties: { service: service.id } }); }} className={c("primary-action", "compact")}>
           Подробнее <ArrowRight size={18} />
         </Link>
         {service.shareable ? <button type="button" className={styles["secondary-action"]} onClick={() => onShare(service.title, `/miniapp/services/${service.id}`)}><ShareNetwork size={18} /> Пригласить по ссылке</button> : null}
