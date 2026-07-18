@@ -11,6 +11,7 @@ type TelegramBackButton = {
 
 export type TelegramWebApp = {
   initData?: string;
+  initDataUnsafe?: { user?: { first_name?: string } };
   colorScheme?: "light" | "dark";
   safeAreaInset?: Insets;
   contentSafeAreaInset?: Insets;

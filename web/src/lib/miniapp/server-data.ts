@@ -23,7 +23,7 @@ function libraryItems(): MiniAppInitialData["libraryItems"] {
     slug: entry.slug,
     topic: entry.topic,
     question: entry.question,
-    href: `/library/${entry.slug}`,
+    href: `/miniapp/library/${entry.slug}`,
   }));
 }
 

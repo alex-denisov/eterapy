@@ -11,6 +11,7 @@ import { authConfig } from "./auth.config";
 import { authRateLimitKey, checkAuthRateLimit } from "./auth-rate-limit";
 import { readImpersonation } from "./impersonation";
 import { getRequestMeta } from "./request-meta";
+import { consumeMiniAppAuthGrant, telegramMiniAppSsoEnabled } from "./miniapp/telegram/auth";
 
 /**
  * U5 (antifraud) — record a LOGIN event with the source IP, device label and
@@ -24,7 +25,7 @@ async function logLoginEvent(userId: string, channel: string): Promise<void> {
   await logAudit(userId, "LOGIN", undefined, details, meta.ip ?? undefined);
 }
 
-type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
+type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken" | "telegramGrant", unknown>>;
 
 function isBcryptHash(passwordHash: string) {
   return /^\$2[aby]\$\d{2}\$/.test(passwordHash);
@@ -55,6 +56,24 @@ export async function authorize(credentials: CredentialsInput | undefined) {
       name: target.name,
       emailVerified: target.emailVerified,
       role: target.role,
+    };
+  }
+
+  // B528 — a short-lived, one-time grant may only be minted after Telegram
+  // initData has been verified server-side. This path is feature-flagged so it
+  // cannot become a web-site Telegram login or reach production accidentally.
+  const telegramGrant = credentials?.telegramGrant;
+  if (typeof telegramGrant === "string" && telegramGrant) {
+    if (!telegramMiniAppSsoEnabled()) return null;
+    const user = await consumeMiniAppAuthGrant(telegramGrant);
+    if (!user) return null;
+    await logLoginEvent(user.id, "telegram-miniapp");
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      emailVerified: user.emailVerified,
+      role: user.role,
     };
   }
 
@@ -98,6 +117,7 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Пароль", type: "password" },
         impersonateToken: { label: "Impersonate Token", type: "text" },
+        telegramGrant: { label: "Telegram Mini App grant", type: "password" },
       },
       // @ts-expect-error NextAuth v5 Credentials authorize type mismatch
       async authorize(credentials) {

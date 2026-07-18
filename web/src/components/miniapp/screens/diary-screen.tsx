@@ -1,29 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BookOpen, Check, LockKey, ShareNetwork, ShieldCheck } from "@phosphor-icons/react";
+import { ArrowRight, Check, Eye, Lock, ShareNetwork, StarFour } from "@phosphor-icons/react";
 import { MINIAPP_DIARY_SERVICE } from "@/lib/miniapp/catalog";
-import { useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
-import { AccountGate, PageHeading, SectionHeader, ServiceCard } from "@/components/miniapp/miniapp-ui";
-import styles from "@/app/miniapp/miniapp.module.css";
+import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
+import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 export function DiaryScreen() {
-  const { data, share, notify } = useMiniAppV21();
+  const { data, share, notify, openService } = useMiniAppV21();
   const router = useRouter();
   const completedToday = data.completedWeekdays.includes(new Date().getDay());
-  const [answered, setAnswered] = useState(completedToday);
-  const [editing, setEditing] = useState(false);
-  const [question, setQuestion] = useState("");
+  const [reflection, setReflection] = useState("");
+  const [dailyDone, setDailyDone] = useState(completedToday);
   const [saving, setSaving] = useState(false);
   const [perspective, setPerspective] = useState("");
+  const [topic, setTopic] = useState("Все");
+  const [activeItem, setActiveItem] = useState(data.diaryItems[0]?.id ?? "");
+  const topics = useMemo(() => ["Все", ...Array.from(new Set(data.diaryItems.map((item) => item.topic))).slice(0, 4)], [data.diaryItems]);
+  const filtered = useMemo(() => topic === "Все" ? data.diaryItems : data.diaryItems.filter((item) => item.topic === topic), [data.diaryItems, topic]);
+  const selected = data.diaryItems.find((item) => item.id === activeItem) ?? data.diaryItems[0];
+  const repeatedTopic = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of data.diaryItems) counts.set(item.topic, (counts.get(item.topic) ?? 0) + 1);
+    return Array.from(counts.entries()).find(([, count]) => count > 1)?.[0] ?? null;
+  }, [data.diaryItems]);
 
   const saveReflection = async () => {
-    const value = question.trim();
-    if (value.length < 3) return notify("Запишите хотя бы несколько слов");
+    const value = reflection.trim();
+    if (value.length < 3) {
+      notify("Напишите хотя бы несколько слов");
+      return;
+    }
+    if (!data.viewer.authenticated) {
+      window.sessionStorage.setItem("eterapy:miniapp-diary-draft", value);
+      router.push("/miniapp/account?intent=diary");
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch("/api/cabinet/daily-card", {
@@ -34,8 +50,7 @@ export function DiaryScreen() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Не удалось сохранить запись");
       setPerspective(payload.card?.perspective ?? "Запись сохранена. Вернитесь к ней позже и посмотрите, что изменилось.");
-      setAnswered(true);
-      setEditing(false);
+      setDailyDone(true);
       router.refresh();
     } catch (error) {
       notify(error instanceof Error ? error.message : "Не удалось сохранить запись");
@@ -43,23 +58,57 @@ export function DiaryScreen() {
       setSaving(false);
     }
   };
-  if (!data.viewer.authenticated) return <div className={styles.screen} data-testid="miniapp-diary-screen"><PageHeading eyebrow="ЛИЧНОЕ ПРОСТРАНСТВО" title="Дневник" description="История вопросов, результатов и маленьких шагов." /><AccountGate title="Дневник должен помнить именно вас" text="Добавьте email и пароль перед сохранением личных результатов. После этого они будут доступны и на сайте." next="/miniapp/diary" /></div>;
 
-  return <div className={styles.screen} data-testid="miniapp-diary-screen">
-    <PageHeading eyebrow="ВАША ЛИЧНАЯ КАРТА" title="Дневник" description="Готовые итоги, наблюдения и ритм практики в одном месте." action={<span className={styles.roundAction} aria-label="Видно только вам"><LockKey size={20} /></span>} />
-    <section className={styles.diaryHero}>
-      <SectionHeader eyebrow="ВОПРОС ДНЯ" title={answered ? "Сегодняшняя запись готова" : "Что сегодня стало чуть яснее?"} action={data.streak > 0 ? <span className={styles.streak}>{data.streak} дня</span> : null} />
-      {answered ? <div className={styles.dailyResult}><Check size={19} weight="bold" /><p>{perspective || "Сегодняшняя запись уже сохранена в вашем личном Дневнике."}</p></div> : editing ? <div className={styles.practiceComposer}><label className={styles.srOnly} htmlFor="miniapp-daily-question">Вопрос дня</label><textarea id="miniapp-daily-question" value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={600} autoFocus placeholder="Запишите мысль или вопрос своими словами" /><button type="button" className={styles.primaryButton} disabled={saving} onClick={saveReflection}>{saving ? "Сохраняем…" : "Получить взгляд дня"}<ArrowRight size={17} /></button></div> : <button type="button" className={styles.dailyAnswer} onClick={() => setEditing(true)}>Записать для себя<ArrowRight size={17} /></button>}
-      <div className={styles.weekMini}>{WEEKDAYS.map((day, index) => <span key={day} className={data.completedWeekdays.includes((index + 1) % 7) ? styles.dayDone : ""}>{day}</span>)}</div>
-      <p className={styles.privateNote}><ShieldCheck size={15} />Вопрос дня и ответы видны только вам</p>
-    </section>
+  return (
+    <MiniAppChrome data={data}>
+      <div className={styles["diary-screen"]} data-screen="diary" data-testid="miniapp-diary-screen">
+        <section className={styles["page-heading"]}>
+          <div className={styles["page-heading-copy"]}><p className={styles.eyebrow}>дневник</p><h1>Ваше пространство</h1><p className={styles["page-description"]}>Вопросы, разборы и заметки. Видите только вы.</p></div>
+          <Link className={styles["privacy-button"]} href="/miniapp/profile/security" aria-label="Защита Дневника"><Lock size={19} /></Link>
+        </section>
 
-    <section className={styles.diaryTimeline}>
-      <SectionHeader eyebrow="ВАШИ РЕЗУЛЬТАТЫ" title={data.diaryItems.length ? `${data.diaryItems.length} последних записей` : "Здесь появятся готовые итоги"} />
-      {data.diaryItems.map((item) => <article key={item.id} className={styles.diaryItem}><Link href={item.href}><span><small>{item.type} · {item.topic}</small><strong>{item.title}</strong><em>{item.date}</em><p>{item.insight}</p></span><ArrowRight size={18} /></Link><button type="button" aria-label={`Поделиться: ${item.title}`} onClick={() => share(item.title, item.href)}><ShareNetwork size={17} /></button></article>)}
-      {data.diaryItems.length === 0 ? <div className={styles.emptyState}><BookOpen size={29} /><h2>Дневник пока чист</h2><p>Завершите первый разбор, итог сохранится автоматически.</p><Link className={styles.primaryButton} href="/checkin">Начать разбор<ArrowRight size={18} /></Link></div> : null}
-    </section>
+        <section className={styles["diary-practice"]}>
+          <div className={styles["practice-head"]}>
+            <span><small>ВОПРОС ДНЯ · ДЛЯ ВАС</small><strong>Что сегодня помогло вам не торопиться с решением?</strong></span>
+            <span className={styles["streak-ring"]}><b>{data.streak}</b><small>дня</small></span>
+          </div>
+          {dailyDone ? (
+            <div className={styles["practice-answer"]}><span><Check size={20} weight="bold" /></span><div><small>ВАШ ВЗГЛЯД</small><p>{reflection || "Сегодняшняя запись уже сохранена."}</p><small>МАЛЕНЬКИЙ ШАГ</small><p>{perspective || "Можно вернуться к мысли позже, без требования решить всё сегодня."}</p></div></div>
+          ) : (
+            <div className={styles["practice-form"]}><textarea value={reflection} onChange={(event) => setReflection(event.target.value)} placeholder="Несколько слов для себя" aria-label="Ответ на вопрос дня" /><button type="button" disabled={saving} onClick={saveReflection}>{saving ? "Сохраняем…" : data.viewer.authenticated ? "Получить взгляд" : "Сохранить в своём Дневнике"}<ArrowRight size={17} /></button></div>
+          )}
+          <div className={styles["week-strip"]} aria-label="Практика на этой неделе">
+            {WEEKDAYS.map((day, index) => {
+              const weekday = (index + 1) % 7;
+              const done = data.completedWeekdays.includes(weekday);
+              return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b>{done ? <Check size={14} weight="bold" /> : index + 14}</b></span>;
+            })}
+          </div>
+          <p className={styles["practice-footnote"]}>На 7-й день серии появится итог недели. Можно пропускать, без давления.</p>
+        </section>
 
-    {MINIAPP_DIARY_SERVICE ? <section className={styles.diaryRecommendation}><SectionHeader eyebrow="ПО ПОВТОРЯЮЩИМСЯ ТЕМАМ" title="Если хочется увидеть семейный контекст" /><ServiceCard service={MINIAPP_DIARY_SERVICE} /></section> : null}
-  </div>;
+        {selected ? (
+          <section className={styles["journal-history"]}>
+            <div className={styles["section-title-row"]}><span><small>ВАШИ ЗАПИСИ</small><strong>Последние дни</strong></span></div>
+            <div className={styles["journal-day-buttons"]}>{data.diaryItems.slice(0, 5).map((item, index) => <button key={item.id} type="button" className={activeItem === item.id ? styles["is-active"] : undefined} onClick={() => setActiveItem(item.id)}><small>{14 + index}</small><span>{item.topic}</span></button>)}</div>
+            <article className={styles["journal-expanded"]}><p>{selected.insight}</p><button type="button" onClick={() => share(selected.title, `/miniapp/diary/${encodeURIComponent(selected.id)}`)}><ShareNetwork size={16} /> Поделиться анонимным инсайтом</button></article>
+          </section>
+        ) : null}
+
+        {repeatedTopic ? <section className={styles["diary-observation"]}><span className={styles["observation-mark"]}><Eye size={20} /></span><div><small>НАБЛЮДЕНИЕ</small><p>Тема «{repeatedTopic.toLocaleLowerCase("ru")}» возвращается в ваших разборах. Возможно, сейчас полезно заметить не один ответ, а повторяющийся способ действовать.</p><em>Это просто наблюдение, можно ничего не делать.</em></div></section> : null}
+
+        <section className={styles["diary-items-block"]}>
+          <div className={styles["section-title-row"]}><span><small>ВАШИ РАЗБОРЫ</small><strong>{filtered.length} сохранено</strong></span></div>
+          {data.viewer.authenticated ? (
+            <>
+              <div className={c("filter-row", "diary-filters")} role="group" aria-label="Фильтр по темам">{topics.map((item) => <button key={item} type="button" className={topic === item ? styles["is-selected"] : undefined} aria-pressed={topic === item} onClick={() => setTopic(item)}>{item}</button>)}</div>
+              <div className={styles["diary-item-list"]}>{filtered.map((item) => <article key={item.id}><Link className={styles["diary-item-main"]} href={`/miniapp/diary/${encodeURIComponent(item.id)}`}><span className={styles["diary-item-icon"]}><StarFour size={19} /></span><span><em>{item.topic} · {item.type}</em><strong>{item.title}</strong><small>{item.date}</small></span><ArrowRight size={17} /></Link><button className={styles["diary-share"]} type="button" aria-label={`Поделиться: ${item.title}`} onClick={() => share(item.title, `/miniapp/diary/${item.id}`)}><ShareNetwork size={17} /></button></article>)}</div>
+            </>
+          ) : <div className={styles["empty-state"]}><Lock size={29} /><h2>Дневник должен помнить именно вас</h2><p>Добавьте email и пароль перед сохранением личных результатов.</p><Link href="/miniapp/account?intent=diary">Создать личное пространство</Link></div>}
+        </section>
+
+        {MINIAPP_DIARY_SERVICE && data.diaryItems.length >= 2 ? <section className={styles["family-scenario"]}><div><small>ПОВТОРЯЮЩАЯСЯ ТЕМА</small><strong>{MINIAPP_DIARY_SERVICE.title}</strong><p>{MINIAPP_DIARY_SERVICE.description}</p></div><button type="button" onClick={() => openService(MINIAPP_DIARY_SERVICE!)}>Посмотреть <ArrowRight size={16} /></button></section> : null}
+      </div>
+    </MiniAppChrome>
+  );
 }

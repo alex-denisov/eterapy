@@ -92,6 +92,18 @@ describe("B054 auth rate limits", () => {
     expect(checkRequestAuthRateLimit(req, "forgot-password", 1, 60_000)).toEqual(expect.objectContaining({ allowed: false }));
   });
 
+  it("prefers the proxy-authenticated real IP over a spoofed forwarded prefix", () => {
+    const first = new Request("https://eterapy.com/api/auth/forgot-password", {
+      headers: { "x-real-ip": "198.51.100.40", "x-forwarded-for": "203.0.113.1, 198.51.100.40" },
+    }) as NextRequest;
+    const second = new Request("https://eterapy.com/api/auth/forgot-password", {
+      headers: { "x-real-ip": "198.51.100.40", "x-forwarded-for": "203.0.113.99, 198.51.100.40" },
+    }) as NextRequest;
+
+    expect(authRateLimitKeyFromRequest(first, "forgot-password"))
+      .toBe(authRateLimitKeyFromRequest(second, "forgot-password"));
+  });
+
   it("returns 429 with Retry-After for auth endpoints when limited", async () => {
     mockUsersDb.get.mockResolvedValue(null);
 
