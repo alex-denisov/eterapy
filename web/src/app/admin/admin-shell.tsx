@@ -88,6 +88,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/ops/files"),    icon: FolderOpen,           label: "Файлы", section: "ops", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/ops/database"), icon: Database,             label: "База данных", section: "ops", level: 1, permission: "system.read" },
   { href: adminUrl("/admin/ops/system"),   icon: Wrench,               label: "Надежность сервисов", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/ops/monitoring"), icon: ServerCog,          label: "Мониторинг флота", section: "ops", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/ops/jobs"),     icon: ListTodo,             label: "Очереди и задачи", section: "ops", level: 1, permission: "system.read" },
   { href: adminUrl("/admin/ops/logs"),     icon: BookOpenText,         label: "Журналы и аудит", section: "ops", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/ops/security"), icon: FileSearch,           label: "Безопасность и инциденты", section: "ops", level: 1, permission: "system.read" },
