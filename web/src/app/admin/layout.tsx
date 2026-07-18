@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import db from "@/lib/db";
+import { getAdminNavCounts } from "@/lib/admin-nav-counts";
 import { AdminShell } from "./admin-shell";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { loginUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
@@ -23,18 +23,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const permissions = await getUserPermissions(session.user!.id!, role);
 
-  // X9: sidebar «непрочитанные» counters — actionable items awaiting a moderator.
-  const [applications, bookings, complaints, reviews, libraryRequests, support] = await Promise.all([
-    db.practitionerApplication.count({ where: { status: "PENDING" } }).catch(() => 0),
-    db.booking.count({ where: { status: "PENDING" } }).catch(() => 0),
-    db.complaint.count({ where: { status: "OPEN" } }).catch(() => 0),
-    db.review.count({ where: { status: "REVIEW" } }).catch(() => 0),
-    db.dialogue.count({ where: { libraryStatus: "PENDING_REVIEW", deletedAt: null } }).catch(() => 0),
-    permissions.includes("support.manage")
-      ? db.supportConversation.count({ where: { status: "OPEN" } }).catch(() => 0)
-      : Promise.resolve(0),
-  ]);
-  const counts = { applications, bookings, complaints, reviews, libraryRequests, support, quality: applications + complaints + reviews + libraryRequests };
+  // X9 / INC-065: SSR snapshot of the sidebar counters; AdminShell keeps them
+  // live through /api/admin/nav-counts (same query, shared lib).
+  const counts = await getAdminNavCounts(permissions);
 
   return (
     <AdminShell user={session.user} role={role} permissions={permissions} counts={counts}>

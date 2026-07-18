@@ -8,6 +8,7 @@ import {
   gmailDotAbuseCount,
   isDisposableEmail,
   looksMachineGeneratedName,
+  looksMachineGeneratedNameStrong,
   scoreRegistration,
   REGISTRATION_BLOCK_THRESHOLD,
 } from "@/lib/registration-antifraud";
@@ -34,6 +35,16 @@ describe("machine-generated name detection", () => {
     expect(caseTransitions("aBcD")).toBe(3);
     expect(caseTransitions("Ivan")).toBe(1);
   });
+
+  it("marks long random tokens as strong (block-alone) signals", () => {
+    // The 2026-07-16 prod wave: yahoo mailbox, so the name is the only signal.
+    for (const name of ["mNXYgzyDaOTXpdpMVnKyzUk", "lVwYfQCJzEmRgiJHImCmaTzz", "aEpatvJAmHShHCjfQrjQsI", "NYjEEDCpFFjjfCTqeISruNv"]) {
+      expect(looksMachineGeneratedNameStrong(name)).toBe(true);
+    }
+    // Shorter gibberish stays a review-tier signal, not a block.
+    expect(looksMachineGeneratedNameStrong("aBcDeFghijkl")).toBe(false);
+    expect(looksMachineGeneratedNameStrong("Kate Cherrydwen")).toBe(false);
+  });
 });
 
 describe("email signals", () => {
@@ -56,7 +67,7 @@ describe("scoreRegistration", () => {
     const r = scoreRegistration({ name: "lVwYfQCJzEmRgiJHIm", email: "al.e.xzh.ou.3.9.9.9@gmail.com" });
     expect(r.score).toBeGreaterThanOrEqual(REGISTRATION_BLOCK_THRESHOLD);
     expect(r.block).toBe(true);
-    expect(r.flags).toEqual(expect.arrayContaining(["machine_generated_name", "gmail_dot_abuse_heavy"]));
+    expect(r.flags).toEqual(expect.arrayContaining(["machine_generated_name_strong", "gmail_dot_abuse_heavy"]));
   });
 
   it("blocks a disposable-email + alias-duplicate signup", () => {
@@ -64,8 +75,15 @@ describe("scoreRegistration", () => {
     expect(r.block).toBe(true);
   });
 
-  it("flags but does not block a gibberish name on a clean domain", () => {
-    const r = scoreRegistration({ name: "mNXYgzyDaOTXpdpMVn", email: "klm5_1@yahoo.com" });
+  it("blocks the yahoo bot wave where the name is the only signal", () => {
+    // klm5_1@yahoo.com slipped through before this tier existed.
+    const r = scoreRegistration({ name: "mNXYgzyDaOTXpdpMVnKyzUk", email: "klm5_1@yahoo.com" });
+    expect(r.flags).toContain("machine_generated_name_strong");
+    expect(r.block).toBe(true);
+  });
+
+  it("flags but does not block short gibberish on a clean domain", () => {
+    const r = scoreRegistration({ name: "aBcDeFghijkl", email: "someone@yahoo.com" });
     expect(r.flags).toContain("machine_generated_name");
     expect(r.block).toBe(false);
   });

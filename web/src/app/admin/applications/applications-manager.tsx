@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 
 interface Application {
   id: string;
@@ -81,6 +82,7 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
     const payload = await response.json();
     if (payload.ok) {
       setApps((current) => current.map((app) => (app.id === id ? { ...app, status } : app)));
+      dispatchAdminCountsChanged();
       if (payload.verificationCompleted) {
         toast.success("Практик верифицирован");
       } else if (payload.accountCreated) {

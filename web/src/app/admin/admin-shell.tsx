@@ -31,6 +31,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
+import { useAdminNavCounts } from "./use-admin-nav-counts";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
@@ -172,7 +173,7 @@ export function AdminShell({
   user,
   role,
   permissions,
-  counts,
+  counts: initialCounts,
   children,
 }: {
   user: { name?: string | null; email?: string | null } | undefined;
@@ -181,6 +182,9 @@ export function AdminShell({
   counts?: Record<string, number>;
   children: ReactNode;
 }) {
+  // INC-065 (round 2): keep the sidebar badges live — the SSR value is only
+  // the first paint; mutations, tab focus and a backstop poll re-sync it.
+  const counts = useAdminNavCounts(initialCounts);
   const pathname = usePathname();
   const hrefForNav = useAdminNavigationHref();
   const activePathname = canonicalAdminPath(pathname);

@@ -1,0 +1,84 @@
+# B473 — image-based production deploy (replaces the rsync+PM2 pipeline after
+# the container cutover). Build once in CI with the prod domain args, stream
+# the image over SSH, converge the compose stack. The only secret used is the
+# SSH deploy key. All inputs flow through env vars (no direct interpolation
+# in run blocks). The worker profile is included: by the time this workflow
+# is the deploy path, the PM2 worker is stopped.
+name: Deploy Production (image)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_worker:
+        description: "Also (re)start the worker container (cutover done)"
+        required: false
+        default: "true"
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VM_USER: admin
+  VM_HOST: 192.144.14.146
+  START_WORKER: ${{ inputs.start_worker }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release image (prod domains)
+        run: |
+          docker build -f deploy/docker/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL="https://eterapy.com" \
+            --build-arg NEXT_PUBLIC_USE_SUBDOMAINS="true" \
+            --build-arg NEXT_PUBLIC_MAIN_DOMAIN="eterapy.com" \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN="app.eterapy.com" \
+            --build-arg NEXT_PUBLIC_ADMIN_DOMAIN="admin.eterapy.com" \
+            --build-arg NEXT_PUBLIC_LIVEKIT_URL="wss://app.eterapy.com" \
+            -t "eterapy-web:${GITHUB_SHA::8}" .
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          else
+            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          fi
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship image + converge stack
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy/compose/docker-compose.prod.yml "$VM_USER@$VM_HOST:/tmp/docker-compose.prod.yml"
+          $SSH 'sudo mkdir -p /opt/eterapy && sudo mv /tmp/docker-compose.prod.yml /opt/eterapy/docker-compose.prod.yml'
+          echo "▶ stream image"
+          docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          echo "▶ pin release + up"
+          PROFILE_ARGS=""
+          [ "$START_WORKER" = "true" ] && PROFILE_ARGS="--profile worker"
+          $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
+            && cd /opt/eterapy && sudo docker compose -f docker-compose.prod.yml $PROFILE_ARGS up -d --remove-orphans \
+            && sudo docker image prune -f >/dev/null \
+            && sudo docker compose -f docker-compose.prod.yml ps"
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://eterapy.com/api/health" || echo 000)
+            [ "$STATUS" = "200" ] && { echo "✓ https://eterapy.com/api/health → 200"; exit 0; }
+            echo "… attempt $i: $STATUS"; sleep 6
+          done
+          echo "::error::health check failed"; exit 1
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

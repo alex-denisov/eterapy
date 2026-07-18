@@ -77,7 +77,8 @@ jobs:
       - name: Run tests
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          # Jest never hits a live DB — a syntactically valid URL is enough.
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/eterapy_ci
           NODE_ENV: test
         run: npm test -- --ci --passWithNoTests --silent
 
@@ -148,16 +149,11 @@ jobs:
       - name: Build (verify only, no deploy)
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          # Build-verification needs no real secrets (proven by the Docker
+          # release image, which builds with dummies) — runtime env lives on
+          # the VMs only.
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
           AUTH_TRUST_HOST: 'true'
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          YUKASSA_SHOP_ID: ${{ secrets.YUKASSA_SHOP_ID }}
-          YUKASSA_SECRET_KEY: ${{ secrets.YUKASSA_SECRET_KEY }}
-          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           NEXT_PUBLIC_APP_URL: 'https://eterapy.com'
           NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
           NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'

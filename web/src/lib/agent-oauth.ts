@@ -132,16 +132,21 @@ export function authorizationServerMetadata() {
     grant_types_supported: ["client_credentials"],
     token_endpoint_auth_methods_supported: ["client_secret_post", "client_secret_basic"],
     service_documentation: `${origin}/auth.md`,
-    // auth.md (workos.com/auth-md) agent registration block. `identity_types_
-    // supported` uses only spec-recognized values ("anonymous"); the anonymous
-    // flow is the complete registration method (credential_types_supported +
-    // claim_uri). The OAuth client_credentials capability is advertised
-    // separately under `oauth_client` (an extension key the scanner ignores).
+    // auth.md (workos.com/auth-md) agent registration block. Per spec,
+    // `skill` is the https URL of the auth.md skill document itself. The
+    // isitagentready validator additionally requires the `register_uri`/
+    // `claim_uri` field names (its own schema), so both aliases are published
+    // alongside the spec names `identity_endpoint`/`claim_endpoint`.
+    // `identity_types_supported` uses only spec-recognized values
+    // ("anonymous"). The OAuth client_credentials capability is advertised
+    // separately under `oauth_client` (an extension key scanners ignore).
     agent_auth: {
-      skill: "public-read-anonymous",
+      skill: `${origin}/auth.md`,
       register_uri: `${origin}/agent/oauth/register`,
-      identity_types_supported: ["anonymous"],
       claim_uri: `${origin}/agent/auth`,
+      identity_endpoint: `${origin}/agent/oauth/register`,
+      claim_endpoint: `${origin}/agent/auth`,
+      identity_types_supported: ["anonymous"],
       anonymous: {
         credential_types_supported: ["none"],
         claim_uri: `${origin}/agent/auth`,

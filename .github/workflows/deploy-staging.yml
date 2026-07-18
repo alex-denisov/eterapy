@@ -87,7 +87,7 @@ jobs:
       - name: Generate Prisma client
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         run: npx prisma generate
 
   # ╔═══════════════ STAGE 2: TEST ═══════════════╗
@@ -119,12 +119,12 @@ jobs:
       - name: Ensure Prisma client
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         run: npx prisma generate
       - name: Run tests
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           NODE_ENV: test
         run: npm test -- --ci --passWithNoTests --silent
 
@@ -156,7 +156,7 @@ jobs:
       - name: Ensure Prisma client
         working-directory: web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         run: npx prisma generate
       - name: Restore Next.js build cache
         uses: actions/cache@v5
@@ -174,7 +174,7 @@ jobs:
           # some route modules (e.g. yukassa) assert env presence during
           # Next.js "collect page data". These dummies are NOT real credentials
           # and the build makes no live calls (DATABASE_URL is a placeholder too).
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           AUTH_SECRET: 'staging-build-placeholder-secret-min-32-characters'
           AUTH_COOKIE_DOMAIN: '.eterapy.com'
           AUTH_SESSION_COOKIE_NAME: '__Secure-authjs.staging.session-token'
@@ -232,7 +232,7 @@ jobs:
           path: web/.next
       - name: Setup SSH key & Pre-flight
         env:
-          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+          SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
         run: |
           if [ -z "$SSH_KEY" ]; then
             echo "::error::secret CLOUDRU_ETERAPY_WEB_DEPLOY_KEY is empty"

@@ -109,11 +109,15 @@ describe("B469 AI search readiness", () => {
       status: expect.any(Array),
     }));
     expect(auth).toContain("# ETerapy auth.md");
-    // B469: identity_types_supported uses only the spec-recognized "anonymous"
+    // B469: `skill` is the https URL of auth.md itself (spec requirement);
+    // identity_types_supported uses only the spec-recognized "anonymous"
     // value; OAuth client_credentials is advertised as an extension block.
+    expect(auth).toContain('"skill": "https://eterapy.com/auth.md"');
     expect(auth).toContain('"register_uri": "https://eterapy.com/agent/oauth/register"');
-    expect(auth).toContain('"identity_types_supported": ["anonymous"]');
     expect(auth).toContain('"claim_uri": "https://eterapy.com/agent/auth"');
+    expect(auth).toContain('"identity_endpoint": "https://eterapy.com/agent/oauth/register"');
+    expect(auth).toContain('"identity_types_supported": ["anonymous"]');
+    expect(auth).toContain('"claim_endpoint": "https://eterapy.com/agent/auth"');
     expect(auth).toContain('"oauth_client"');
     expect(profile).toEqual(expect.objectContaining({
       identity_type: "anonymous",

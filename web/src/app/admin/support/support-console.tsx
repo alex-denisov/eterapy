@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 import {
   Archive,
   ArrowLeft,
@@ -206,6 +207,7 @@ export function SupportConsole() {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Не удалось изменить статус");
       setDetail((current) => current ? { ...current, status, closedAt: status === "CLOSED" ? new Date().toISOString() : null } : current);
+      dispatchAdminCountsChanged();
       await loadList(true);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Ошибка обновления");

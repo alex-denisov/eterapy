@@ -5,6 +5,7 @@ import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { formatDateTime, statusLabel } from "../../admin-analytics-ui";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 
 export interface LibraryRequestRow {
   id: string;
@@ -57,6 +58,7 @@ export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryReq
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(typeof data.error === "string" ? data.error : "Не удалось обновить");
+      dispatchAdminCountsChanged();
       toast.success(nextStatus === "PUBLISHED" ? "Вопрос опубликован" : nextStatus === "WITHDRAWN" ? "Вопрос снят с публикации" : "Вопрос возвращен на модерацию");
     } catch (error) {
       setRows(previous);

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { dispatchAdminCountsChanged } from "@/lib/admin-counts-events";
 
 interface AdminReview {
   id: string;
@@ -99,6 +100,7 @@ export function ReviewsManager({
         body: JSON.stringify({ status }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      dispatchAdminCountsChanged();
       toast.success(`Статус обновлён: ${STATUS_META[status]?.label ?? status}`);
     } catch {
       setReviews(previous);
@@ -137,6 +139,7 @@ export function ReviewsManager({
     try {
       const response = await fetch(`/api/admin/reviews/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      dispatchAdminCountsChanged();
       toast.success("Отзыв удалён");
     } catch {
       setReviews(previous);
