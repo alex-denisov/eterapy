@@ -1,0 +1,43 @@
+# B542 — LiveKit as an IaC service (phase 1 scaffolding), one cluster per
+# geo-contour. OPT-IN overlay: it changes nothing unless you explicitly select
+# it, so it can live in the repo while the full rollout waits on B540
+# (contours / HAProxy / firewall / AWS keys).
+#
+# Bring up a contour node:
+#   docker compose -f docker-compose.yml -f docker-compose.livekit.yml \
+#     --profile livekit up -d
+#
+# Scaling model (see the B542 ticket for the full picture):
+#   * Redis-backed mesh: every livekit-server in a contour shares ONE Redis;
+#     rooms are routed between nodes via Redis. Add a node → add capacity.
+#   * Signalling (:7880) sits behind the contour HAProxy (B540); media (RTC
+#     7881/tcp + UDP range) goes DIRECT to the node hosting the room, which
+#     advertises its own public IP — the LB never proxies media.
+#   * One shared API key/secret per contour (tokens must verify cluster-wide);
+#     never the LiveKit default devkey (INC-067).
+#
+# 152-ФЗ: run the RU cluster only on RU nodes (eterapy-1/2) with cloud.ru
+# egress; the Foreign cluster on eterapy-4/3 with AWS egress. Media and
+# recordings must not cross the contour boundary.
+
+name: eterapy
+
+services:
+  livekit-redis:
+    image: redis:7-alpine
+    profiles: ["livekit"]
+    restart: always
+    # Contour-internal only: bind to the private interface, reachable from the
+    # peer node's IP by firewall, never the public internet.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    network_mode: host
+
+  livekit:
+    image: livekit/livekit-server:v1.12.0
+    profiles: ["livekit"]
+    restart: always
+    # host networking so RTC media uses the node's real IP/ports directly.
+    network_mode: host
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    command: ["--config", "/etc/livekit.yaml"]

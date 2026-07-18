@@ -35,7 +35,10 @@ describe("Staging database sync guardrails", () => {
     expect(deployStaging).not.toContain("*/15 * * * * flock -n /tmp/eterapy-staging-db-sync.lock");
     expect(workflow).toContain("sync-staging-db-from-prod.sh --migrate --restart");
     expect(deployStaging).toContain("remove retired VPS DB-sync cron");
-    expect(deployStaging).toContain('SHORT_SHA="${GH_SHA:0:8}"');
-    expect(deployStaging).not.toContain('SHORT_SHA="${GH_SHA:0:7}"');
+    // The Telegram alert must report an 8-char short SHA, never a 7-char one.
+    // (The notify block moved to the shared telegram-notify.sh; the staging
+    // workflow now feeds it Commit=${GH_SHA:0:8} instead of a SHORT_SHA var.)
+    expect(deployStaging).toContain("${GH_SHA:0:8}");
+    expect(deployStaging).not.toContain("${GH_SHA:0:7}");
   });
 });
