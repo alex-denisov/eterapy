@@ -1,0 +1,53 @@
+# B540 — contour load balancer (HAProxy). One instance per geo-contour:
+#   eterapy-1 (cloud.ru) fronts the RU contour  → app nodes eterapy-1 + eterapy-2
+#   eterapy-4 (AWS)      fronts the Foreign one  → app nodes eterapy-4 + eterapy-3
+#
+# Free-tier design (no paid Cloudflare Load Balancing):
+#   * Cloudflare geo-routing (Worker, cf-geo-router.worker.js) decides the
+#     CONTOUR and forwards to the contour's public HAProxy (orange-clouded).
+#   * Session affinity is done HERE, cookie-based (SRVID) — the free equivalent
+#     of CF LB Session Affinity — pinning a user to one app node WITHIN the
+#     contour. Contour choice itself is by user home-region, never sticky
+#     across contours (152-ФЗ: an RF user must always reach the RU contour).
+#   * Health checks hide a dead app node (retry on the live one).
+#
+# Copy to ./haproxy.cfg, fill the two backend server IPs of THIS contour, and
+# the TLS cert path (Cloudflare Origin cert recommended).
+
+global
+    log stdout format raw local0 info
+    maxconn 2048
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    option redispatch          # if the sticky node is down, use another
+    retries 3
+    timeout connect 5s
+    timeout client 60s
+    timeout server 60s
+    timeout tunnel 1h          # WebSocket / SSE (chat, notifications)
+
+frontend https_in
+    # Cloudflare terminates client TLS at the edge and re-encrypts to origin
+    # (SSL mode "Full (strict)") — present a Cloudflare Origin certificate.
+    bind :443 ssl crt /etc/haproxy/certs/origin.pem alpn h2,http/1.1
+    # Only accept traffic that actually came through Cloudflare (defence in
+    # depth; pair with a firewall allowing 443 from CF ranges only).
+    http-request set-header X-Forwarded-Proto https
+    default_backend app_nodes
+
+backend app_nodes
+    balance roundrobin
+    option httpchk GET /api/health
+    http-check expect status 200
+    # Cookie-based sticky sessions (free CF-LB-affinity equivalent). NextAuth
+    # JWTs are stateless with one AUTH_SECRET per contour, so a failover does
+    # NOT drop the session even if affinity moves — affinity only helps LiveKit
+    # room locality and rate-limit locality.
+    cookie SRVID insert indirect nocache httponly secure
+    # Fill with the two app nodes of THIS contour (private IPs preferred):
+    server node-a 10.0.0.1:3200 check cookie a
+    server node-b 10.0.0.2:3200 check cookie b
