@@ -33,13 +33,19 @@ log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
 alert() {
   # $1 = status word, $2 = detail. Best-effort; never fails the backup itself.
-  [ -n "${TG_TOKEN:-}" ] && [ -n "${TG_CHAT:-}" ] || return 0
+  # RU nodes cannot reach api.telegram.org (geo-blocked) — set TG_API_BASE to
+  # the Cloudflare Worker relay (same one the app uses, form
+  # https://<worker>.workers.dev/bot<TOKEN>). Falls back to the direct API.
+  [ -n "${TG_CHAT:-}" ] || return 0
+  local base="${TG_API_BASE:-}"
+  [ -n "$base" ] || { [ -n "${TG_TOKEN:-}" ] && base="https://api.telegram.org/bot${TG_TOKEN}"; }
+  [ -n "$base" ] || return 0
   local icon head
   if [ "$1" = "ok" ]; then icon="💾"; head="Backup OK"; else icon="🛑"; head="BACKUP FAILED"; fi
   local text
   text=$(printf '%s <b>%s</b> — %s\n<b>Object:</b> <code>%s</code>\n<b>Detail:</b> %s' \
     "$icon" "$head" "$LABEL" "$BASENAME" "$2")
-  curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+  curl -fsS -m 20 -X POST "${base}/sendMessage" \
     --data-urlencode "chat_id=${TG_CHAT}" \
     --data-urlencode "text=${text}" \
     -d parse_mode=HTML -d disable_web_page_preview=true >/dev/null 2>&1 || true
