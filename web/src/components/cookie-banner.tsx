@@ -108,7 +108,7 @@ export function CookieBanner() {
 
   // Render nothing until after hydration to keep SSR and the first
   // client render identical (server returns "pending" → null).
-  if (!hydrated || consent !== "missing" || pathname.startsWith("/admin")) return null;
+  if (!hydrated || consent !== "missing" || pathname.startsWith("/admin") || pathname.startsWith("/miniapp")) return null;
 
   return (
     // B395: тёплая «стеклянная» плашка в стиле iOS — полупрозрачный фон +
