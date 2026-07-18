@@ -63,7 +63,7 @@ describe("M11 client retention surfaces", () => {
   });
 
   it("restores an existing dialogue on the question-first page", () => {
-    const checkin = source("src/app/checkin/page.tsx");
+    const checkin = source("src/components/dialogue/checkin-experience.tsx");
 
     expect(checkin).toContain("dialogueId");
     expect(checkin).toContain("fetch(`/api/dialogues/${dialogueId}`");

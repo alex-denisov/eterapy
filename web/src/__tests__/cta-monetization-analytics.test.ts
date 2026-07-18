@@ -8,7 +8,7 @@ describe("B230 v4.2 CTA monetization analytics", () => {
   it("persists Triage CTA clicks as first-party events with offer metadata", () => {
     const analytics = source("src/components/analytics.tsx");
     const analyticsLib = source("src/lib/analytics.ts");
-    const checkin = source("src/app/checkin/page.tsx");
+    const checkin = source("src/components/dialogue/checkin-experience.tsx");
 
     expect(analyticsLib).toContain('fetch("/api/analytics/track"');
     expect(analytics).toContain("track({");

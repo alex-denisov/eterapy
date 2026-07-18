@@ -9,6 +9,7 @@ import { appUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 import { pointsWord } from "@/lib/points";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
+import { toMiniAppPath } from "@/lib/miniapp/navigation";
 
 type ProductPurchaseControlsProps = {
   productKey: string;
@@ -56,6 +57,7 @@ export function ProductPurchaseControls({
   const [message, setMessage] = useState<string | null>(null);
   const search = searchParams.toString();
   const currentUrl = `${pathname}${search ? `?${search}` : ""}`;
+  const inMiniApp = pathname.startsWith("/miniapp");
   const paymentStatus = searchParams.get("payment");
   const returnedProductKey = searchParams.get("productKey");
   const busy = status === "loading" || action !== "idle";
@@ -130,6 +132,10 @@ export function ProductPurchaseControls({
   }
 
   async function payWithCard() {
+    if (inMiniApp) {
+      window.location.href = `/miniapp/checkout/review?offer=${encodeURIComponent(`service:${productKey}`)}`;
+      return;
+    }
     setAction("card");
     setMessage(null);
     try {
@@ -152,7 +158,9 @@ export function ProductPurchaseControls({
   if (status === "unauthenticated") {
     return (
       <Link
-        href={`/login?next=${encodeURIComponent(currentUrl)}&intent=buy-product&productKey=${encodeURIComponent(productKey)}`}
+        href={inMiniApp
+          ? `/miniapp/account?mode=login&intent=buy-product&productKey=${encodeURIComponent(productKey)}&returnTo=${encodeURIComponent(currentUrl)}`
+          : `/login?next=${encodeURIComponent(currentUrl)}&intent=buy-product&productKey=${encodeURIComponent(productKey)}`}
         className={cn("soft-button soft-button-primary", className)}
         data-analytics-event="direct_product_login_clicked"
         data-analytics-product={productKey}
@@ -168,7 +176,7 @@ export function ProductPurchaseControls({
     <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
       {message}{" "}
       {message.includes("балл") && (
-        <Link href={appUrl("/wallet")} prefetch={false} className="font-semibold underline">
+        <Link href={inMiniApp ? toMiniAppPath(appUrl("/wallet")) : appUrl("/wallet")} prefetch={false} className="font-semibold underline">
           Баллы
         </Link>
       )}

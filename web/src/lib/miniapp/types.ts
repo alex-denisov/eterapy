@@ -69,6 +69,24 @@ export type MiniAppPractitioner = {
   avatar: string | null;
 };
 
+export type MiniAppBooking = {
+  id: string;
+  practitioner: string;
+  status: string;
+  date: string;
+  price: string;
+  canJoin: boolean;
+};
+
+export type MiniAppMaterial = {
+  id: string;
+  practitioner: string;
+  preview: string;
+  date: string;
+  unread: boolean;
+  attachmentName: string | null;
+};
+
 export type MiniAppInitialData = {
   viewer: {
     authenticated: boolean;
@@ -83,6 +101,9 @@ export type MiniAppInitialData = {
   diaryItems: MiniAppDiaryItem[];
   libraryItems: MiniAppLibraryItem[];
   practitioner: MiniAppPractitioner | null;
+  bookings: MiniAppBooking[];
+  materials: MiniAppMaterial[];
+  profileNotice: boolean;
   upcomingBookingLabel: string | null;
   streak: number;
   completedWeekdays: number[];

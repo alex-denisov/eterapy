@@ -6,6 +6,7 @@ import {
 import { formatSessionFloor } from "@/lib/session-pricing";
 import { v5Products, type V5ProductSlug } from "@/lib/v5-products";
 import type { MiniAppService, MiniAppServiceApproach } from "@/lib/miniapp/types";
+import { miniAppProductPath } from "@/lib/miniapp/navigation";
 
 const PSYCHOLOGY_PRODUCTS = new Set<V5ProductSlug>([
   "reframe", "deep-report", "chat-analysis", "pair",
@@ -29,7 +30,7 @@ const digitalServices: MiniAppService[] = v5Products.map((product) => ({
   price: product.price,
   priceMeta: product.priceMeta,
   creditCost: product.creditCost,
-  href: product.route,
+  href: miniAppProductPath(product.slug),
   cta: product.directCta ?? product.cta,
   mechanics: product.mechanics,
   privacy: product.privacy,
@@ -50,7 +51,7 @@ const primaryService: MiniAppService = {
   price: "Бесплатно",
   priceMeta: "без карты и подписки",
   creditCost: null,
-  href: "/checkin",
+  href: "/miniapp/checkin",
   cta: "Задать вопрос",
   mechanics: ["вопрос своими словами", "короткие уточнения", "первичный взгляд", "следующий шаг"],
   privacy: "Вопрос не публикуется и доступен только в вашем диалоге.",
@@ -65,7 +66,7 @@ const chatService: MiniAppService = {
   description: `Диалог вокруг одного вопроса в течение ${CHAT_SESSION_MINUTES} минут.`,
   price: `${(CHAT_SESSION_PRICE_KOPECKS / 100).toLocaleString("ru-RU")} ₽`,
   priceMeta: `или −${CHAT_SESSION_COST_CREDITS} балла`, creditCost: CHAT_SESSION_COST_CREDITS,
-  href: "/products/chat", cta: "Начать чат",
+  href: "/miniapp/products/chat", cta: "Начать чат",
   mechanics: ["короткое бесплатное начало", "45 минут разговора", "уточнения в своём темпе", "итог в Дневнике"],
   privacy: "Диалог остаётся в вашем аккаунте.",
   result: "Разговор вокруг одного вопроса с зафиксированным итогом.",
@@ -77,7 +78,7 @@ const specialistService: MiniAppService = {
   eyebrow: "проверенные специалисты",
   description: "Психолог, коуч или практик онлайн. Цена и формат видны до записи.",
   price: formatSessionFloor(), priceMeta: "60 минут", creditCost: null,
-  href: "/practitioners", cta: "Выбрать специалиста",
+  href: "/miniapp/practitioners", cta: "Выбрать специалиста",
   mechanics: ["выбор направления", "проверенный профиль", "свободное время", "онлайн-встреча"],
   privacy: "Запись и материалы встречи доступны только вам и выбранному специалисту.",
   result: "Живой разговор и возможность продолжить с тем же специалистом.",

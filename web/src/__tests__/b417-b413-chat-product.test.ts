@@ -101,7 +101,7 @@ describe("paid-only companion panel", () => {
 // in-place (B413) continuation that never changed the address bar.
 describe("issue #5 — checkin continues into the /chat service", () => {
   it("routes the chat CTA to /products/chat keyed to the dialogue (not an in-place toggle)", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source("src/components/dialogue/checkin-experience.tsx");
     // the old external cabinet link is gone
     expect(page).not.toContain("/cabinet/chat?dialogueId=");
     // the CTA routes to the /chat service with the dialogue as the session key

@@ -6,7 +6,7 @@ const source = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 
 describe("B441 tarot + checkin follow-ups", () => {
   const actions = source("src/components/products/symbolic-product-actions.tsx");
-  const checkin = source("src/app/checkin/page.tsx");
+  const checkin = source("src/components/dialogue/checkin-experience.tsx");
   const clarifier = source("src/lib/dialogue-clarifier.ts");
   const lib = source("src/lib/symbolic-products.ts");
 

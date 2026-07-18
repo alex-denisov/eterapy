@@ -28,7 +28,7 @@ describe("B527 — Mini App v2.1 product contract", () => {
         slug: product.slug,
         title: product.name,
         price: product.price,
-        href: product.route,
+        href: `/miniapp/products/${product.slug}`,
       }));
     }
   });
@@ -47,8 +47,7 @@ describe("B527 — Mini App v2.1 product contract", () => {
 
   it("keeps catalogue links first-party and explicit", () => {
     for (const service of MINIAPP_SERVICES) {
-      expect(service.href).toMatch(/^\//);
-      expect(service.href).not.toMatch(/^\/\//);
+      expect(service.href).toMatch(/^\/miniapp(?:\/|$)/);
     }
   });
 });

@@ -9,7 +9,10 @@ import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { effectivePracticeStreak } from "@/lib/streak-display";
 import { startOfPracticeWeek } from "@/lib/weekly-summary";
 import { formatSessionFloor } from "@/lib/session-pricing";
+import { canJoinBooking } from "@/lib/booking-actions";
+import { getBookingStatus } from "@/lib/booking-status";
 import type { MiniAppInitialData } from "@/lib/miniapp/types";
+import { toMiniAppPath } from "@/lib/miniapp/navigation";
 
 type MiniAppViewer = {
   id?: string | null;
@@ -33,6 +36,7 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
   return {
     viewer: { authenticated, client, firstName: viewer?.name?.trim().split(/\s+/)[0] || "Гость", points: 0, plan: "Базовый", planStatus: authenticated ? "Базовый доступ" : "Гостевой режим", email: viewer?.email ?? null },
     dialogues: [], diaryItems: [], libraryItems: libraryItems(), practitioner: null,
+    bookings: [], materials: [], profileNotice: false,
     upcomingBookingLabel: null, streak: 0, completedWeekdays: [], loadError: false,
   };
 }
@@ -63,7 +67,7 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       listDiaryItems(viewer.id),
     ]);
 
-    const [practitioner, booking, streak, weekCards] = await Promise.all([
+    const [practitioner, bookings, materials, unreadNotifications, streak, weekCards] = await Promise.all([
       db.practitioner.findFirst({
         where: { status: "ACTIVE", verified: true },
         orderBy: [{ founding: "desc" }, { reviewCount: "desc" }],
@@ -74,11 +78,22 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
           user: { select: { name: true, avatarUrl: true } },
         },
       }),
-      db.booking.findFirst({
-        where: { clientId: viewer.id, status: { in: ["PENDING", "CONFIRMED"] }, slot: { startAt: { gt: new Date() } } },
-        orderBy: { slot: { startAt: "asc" } },
-        select: { slot: { select: { startAt: true } } },
+      db.booking.findMany({
+        where: { clientId: viewer.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true, status: true, priceRub: true, createdAt: true,
+          slot: { select: { startAt: true, endAt: true } },
+          practitioner: { select: { user: { select: { name: true } } } },
+        },
       }),
+      db.practitionerClientMessage.findMany({
+        where: { clientId: viewer.id },
+        orderBy: { sentAt: "desc" }, take: 40,
+        select: { id: true, text: true, attachmentName: true, sentAt: true, readAt: true, practitioner: { select: { user: { select: { name: true } } } } },
+      }),
+      db.notification.count({ where: { userId: viewer.id, readAt: null } }),
       getPracticeStreakSnapshot(viewer.id),
       db.dailyCard.findMany({
         where: { userId: viewer.id, completedAt: { not: null }, cardDate: { gte: startOfPracticeWeek() } },
@@ -100,20 +115,55 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         id: item.id, title: item.title,
         topic: dialogueTopicLabelRu(item.topic), status: dialogueStatusLabelRu(item.status),
         updated: relativeDate(item.updatedAt), messageCount: item._count.messages,
-        href: `/checkin?dialogueId=${encodeURIComponent(item.id)}`,
+        href: `/miniapp/checkin?dialogueId=${encodeURIComponent(item.id)}`,
       })),
       diaryItems: diary.slice(0, 20).map((item) => ({
         id: `${item.kind}:${item.id}`, title: item.title, type: item.eyebrow,
         topic: item.topicLabel ?? item.topic ?? "Личное", date: relativeDate(item.updatedAt),
-        insight: item.description, href: item.href,
+        insight: item.description, href: toMiniAppPath(item.href),
       })),
       practitioner: practitioner ? {
         name: practitioner.user.name ?? "Специалист", title: practitioner.title,
         price: formatSessionFloor(practitioner.pricePerSession),
-        href: `/practitioners/${practitioner.slug}`,
+        href: `/miniapp/practitioners/${practitioner.slug}`,
         avatar: practitioner.user.avatarUrl?.startsWith("/") ? practitioner.user.avatarUrl : null,
       } : null,
-      upcomingBookingLabel: booking?.slot?.startAt.toLocaleDateString("ru-RU", {
+      bookings: [...bookings].sort((left, right) => {
+        const now = Date.now();
+        const leftAt = left.slot?.startAt.getTime() ?? left.createdAt.getTime();
+        const rightAt = right.slot?.startAt.getTime() ?? right.createdAt.getTime();
+        const leftUpcoming = ["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(left.status) && leftAt >= now;
+        const rightUpcoming = ["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(right.status) && rightAt >= now;
+        if (leftUpcoming !== rightUpcoming) return leftUpcoming ? -1 : 1;
+        return leftUpcoming ? leftAt - rightAt : rightAt - leftAt;
+      }).map((booking) => {
+        const start = booking.slot?.startAt ?? null;
+        const canJoin = canJoinBooking({
+          status: booking.status,
+          slot: booking.slot ? {
+            startAt: booking.slot.startAt.toISOString(),
+            endAt: booking.slot.endAt.toISOString(),
+          } : null,
+        });
+        return {
+          id: booking.id,
+          practitioner: booking.practitioner.user.name ?? "Специалист",
+          status: getBookingStatus(booking.status).label,
+          date: start ? start.toLocaleDateString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "Время уточняется",
+          price: `${booking.priceRub.toLocaleString("ru-RU")} ₽`,
+          canJoin,
+        };
+      }),
+      materials: materials.map((material) => ({
+        id: material.id,
+        practitioner: material.practitioner.user.name ?? "Ваш специалист",
+        preview: material.text.slice(0, 180),
+        date: relativeDate(material.sentAt),
+        unread: !material.readAt,
+        attachmentName: material.attachmentName,
+      })),
+      profileNotice: unreadNotifications > 0 || materials.some((material) => !material.readAt),
+      upcomingBookingLabel: bookings.find((booking) => booking.slot?.startAt && booking.slot.startAt > new Date() && ["PENDING", "CONFIRMED"].includes(booking.status))?.slot?.startAt.toLocaleDateString("ru-RU", {
         day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       }) ?? null,
       streak: effectivePracticeStreak(streak.count, streak.lastDoneDate),
