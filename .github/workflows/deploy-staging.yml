@@ -402,7 +402,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-    steps:
       - uses: actions/checkout@v4
       - name: Send Telegram message
         env:
