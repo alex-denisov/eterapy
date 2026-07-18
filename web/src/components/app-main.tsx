@@ -13,5 +13,6 @@ import { cn } from "@/lib/utils";
 export function AppMain({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isProductPage = /^\/products\/[^/]+/.test(pathname);
-  return <main className={cn("flex-1", isProductPage && "soft-product-shell")}>{children}</main>;
+  const isMiniApp = pathname.startsWith("/miniapp");
+  return <main className={cn("flex-1", isProductPage && "soft-product-shell", isMiniApp && "min-w-0 bg-[#02070d]")}>{children}</main>;
 }

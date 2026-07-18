@@ -112,6 +112,7 @@ function applyRobotsPolicy<T extends NextResponse>(response: T, host: string, pa
 // Paths that are OK on any subdomain (auth flow, nextauth callbacks at app-route level)
 const ALWAYS_ALLOW = ["/auth/", "/callback/"];
 const APP_PUBLIC_MAIN_PATHS = [
+  "/miniapp",
   "/about",
   "/all-modalities",
   "/catalog",

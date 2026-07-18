@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Footer } from "./footer";
 import { useMiniApp } from "@/components/miniapp-provider";
 
-const HIDDEN_PREFIXES = ["/admin", "/session"];
+const HIDDEN_PREFIXES = ["/admin", "/session", "/miniapp"];
 
 export function FooterConditional() {
   const pathname = usePathname();

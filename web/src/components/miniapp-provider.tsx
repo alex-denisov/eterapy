@@ -1,14 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import {
   detectMiniAppPlatform,
-  shouldShowMiniAppBackButton,
   MINIAPP_STORAGE_KEY,
   MINIAPP_ATTR,
   type MiniAppPlatform,
 } from "@/lib/miniapp";
+import { createTelegramRuntime, type TelegramRuntime } from "@/lib/miniapp/telegram/client";
 
 interface MiniAppState {
   platform: MiniAppPlatform | null;
@@ -22,53 +22,11 @@ export function useMiniApp(): MiniAppState {
   return useContext(MiniAppContext);
 }
 
-// Minimal slice of the Telegram WebApp API we rely on. The full SDK is loaded
-// from telegram.org on demand; everything is feature-detected and guarded
-// because methods are version-gated and may be absent in older clients.
-interface TelegramBackButton {
-  show: () => void;
-  hide: () => void;
-  onClick: (cb: () => void) => void;
-  offClick: (cb: () => void) => void;
-}
-interface TelegramWebApp {
-  initData?: string;
-  ready?: () => void;
-  expand?: () => void;
-  BackButton?: TelegramBackButton;
-}
-
-function getTelegramWebApp(): TelegramWebApp | undefined {
-  return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
-}
-
-const TELEGRAM_SDK_SRC = "https://telegram.org/js/telegram-web-app.js";
-
-function loadTelegramSdk(): Promise<TelegramWebApp | undefined> {
-  return new Promise((resolve) => {
-    const existing = getTelegramWebApp();
-    if (existing) {
-      resolve(existing);
-      return;
-    }
-    const prior = document.querySelector<HTMLScriptElement>(`script[src="${TELEGRAM_SDK_SRC}"]`);
-    if (prior) {
-      prior.addEventListener("load", () => resolve(getTelegramWebApp()), { once: true });
-      prior.addEventListener("error", () => resolve(undefined), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = TELEGRAM_SDK_SRC;
-    script.async = true;
-    script.addEventListener("load", () => resolve(getTelegramWebApp()), { once: true });
-    script.addEventListener("error", () => resolve(undefined), { once: true });
-    document.head.appendChild(script);
-  });
-}
-
 export function MiniAppProvider({ children }: { children: ReactNode }) {
   const [platform, setPlatform] = useState<MiniAppPlatform | null>(null);
   const pathname = usePathname();
+  const initialPathname = useRef(pathname);
+  const telegramRuntime = useRef<TelegramRuntime | null>(null);
 
   // Detect once on mount and remember it for the rest of the session.
   useEffect(() => {
@@ -98,47 +56,25 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
     setPlatform(detected);
   }, []);
 
-  // Telegram lifecycle: claim the viewport (ready/expand). VK/MAX are stubs.
+  // B527: one runtime owns Telegram SDK lifecycle, safe areas and native Back.
+  // It awaits a delayed SDK before registering BackButton, fixing KE-006.
   useEffect(() => {
     if (platform !== "telegram") return;
     let cancelled = false;
-    loadTelegramSdk().then((wa) => {
-      if (cancelled || !wa) return;
-      try {
-        wa.ready?.();
-        wa.expand?.();
-      } catch {
-        // older clients may lack these — the lean layout still applies.
-      }
+    createTelegramRuntime(initialPathname.current).then((runtime) => {
+      if (cancelled) runtime?.dispose();
+      else telegramRuntime.current = runtime;
     });
     return () => {
       cancelled = true;
+      telegramRuntime.current?.dispose();
+      telegramRuntime.current = null;
     };
   }, [platform]);
 
-  // Map the native Telegram Back button to browser history, toggling its
-  // visibility per route so "home" surfaces stay clean.
   useEffect(() => {
-    if (platform !== "telegram") return;
-    const wa = getTelegramWebApp();
-    const back = wa?.BackButton;
-    if (!back) return;
-    const onClick = () => window.history.back();
-    try {
-      back.onClick(onClick);
-      if (shouldShowMiniAppBackButton(pathname)) back.show();
-      else back.hide();
-    } catch {
-      // version-gated — ignore.
-    }
-    return () => {
-      try {
-        back.offClick(onClick);
-      } catch {
-        // ignore
-      }
-    };
-  }, [platform, pathname]);
+    telegramRuntime.current?.updatePath(pathname);
+  }, [pathname]);
 
   return (
     <MiniAppContext.Provider value={{ platform, isMiniApp: platform !== null }}>

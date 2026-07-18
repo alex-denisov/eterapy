@@ -395,7 +395,7 @@ export function Header() {
   // B381: inside a messenger mini-app the shell draws its own native header —
   // hiding the site header avoids the "double header". The pre-paint inline
   // script (data-miniapp) hides it via CSS before this unmount lands.
-  if (isMiniApp) return null;
+  if (isMiniApp || livePathname.startsWith("/miniapp")) return null;
 
   // Скрываем header на странице видеосессии
   if (mounted && livePathname.startsWith("/session")) return null;

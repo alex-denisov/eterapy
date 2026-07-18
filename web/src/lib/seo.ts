@@ -47,6 +47,7 @@ export const publicSeoRoutes = [
 ] as const;
 
 export const protectedNoIndexPrefixes = [
+  "/miniapp",
   "/admin",
   "/cabinet",
   "/dashboard",
