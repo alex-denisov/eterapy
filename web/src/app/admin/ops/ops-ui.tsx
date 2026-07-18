@@ -34,28 +34,34 @@ export function AdminOpsMetric({
   value,
   hint,
   tone = "neutral",
+  href,
 }: {
   icon: ComponentType<LucideProps>;
   label: string;
   value: string;
   hint: string;
   tone?: Tone;
+  /** B543: якорь на блок с детализацией (`#services`) или ссылка на подраздел. */
+  href?: string;
 }) {
-  return <MetricCard icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />} label={label} value={value} hint={hint} tone={TONE_MAP[tone]} />;
+  return <MetricCard icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />} label={label} value={value} hint={hint} tone={TONE_MAP[tone]} href={href} />;
 }
 
 export function AdminOpsSection({
+  id,
   title,
   actionHref,
   actionLabel,
   children,
 }: {
+  /** B543: цель для якорной ссылки с карточки-метрики. */
+  id?: string;
   title: string;
   actionHref?: string;
   actionLabel?: string;
   children: ReactNode;
 }) {
-  return <AnalyticsSection title={title} actionHref={actionHref} actionLabel={actionLabel}>{children}</AnalyticsSection>;
+  return <AnalyticsSection id={id} title={title} actionHref={actionHref} actionLabel={actionLabel}>{children}</AnalyticsSection>;
 }
 
 export function AdminOpsLinkCard({

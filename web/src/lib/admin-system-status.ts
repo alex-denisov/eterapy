@@ -2,6 +2,7 @@ import { BookingStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { getLiveHealth, getReadinessHealth, type HealthStatus } from "@/lib/health";
 import { log, serializeError } from "@/lib/logger";
+import { getLivekitStatus } from "@/lib/livekit-status";
 
 export const PRODUCT_CRONS = [
   {
@@ -270,8 +271,7 @@ export async function getAdminSystemStatus(context: { requestId: string }): Prom
     {
       key: "video",
       name: "Video (LiveKit)",
-      status: configured(Boolean(process.env.LIVEKIT_API_KEY)),
-      detail: "LIVEKIT_API_KEY",
+      ...getLivekitStatus(),
     },
     {
       key: "telegram",

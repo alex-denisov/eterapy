@@ -140,6 +140,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={statusLabel(status.status)}
           hint={`${unhealthyServices} сервисов требуют внимания`}
           tone={statusTone(status.status)}
+                  href="#services"
         />
         <AdminOpsMetric
           icon={ListTodo}
@@ -147,6 +148,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={formatNumber(queuePressure)}
           hint={`${status.stats.jobsPending} ожидают, ${status.stats.jobsFailed} failed, ${status.stats.jobsDead} dead`}
           tone={status.stats.jobsFailed || status.stats.jobsDead ? "danger" : queuePressure ? "warn" : "ok"}
+                  href="#queues"
         />
         <AdminOpsMetric
           icon={BrainCircuit}
@@ -154,6 +156,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={formatAdminAiCost(aiCostMicros, currencyRates, currency)}
           hint={`${formatNumber(aiTokens)} токенов`}
           tone={aiCostMicros > 0 ? "neutral" : "ok"}
+                  href="/admin/ops/ai-cost"
         />
         <AdminOpsMetric
           icon={AlertTriangle}
@@ -161,6 +164,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={formatPercent(aiErrorRate)}
           hint={`${formatNumber(aiErrors)} ошибок на ${formatNumber(aiRequests)} запросов`}
           tone={aiErrorRate >= 10 ? "danger" : aiErrorRate > 0 ? "warn" : "ok"}
+                  href="/admin/ops/ai-cost"
         />
         <AdminOpsMetric
           icon={BookOpenText}
@@ -168,6 +172,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={formatNumber(audit24h)}
           hint={`${formatNumber(securityEvents24h)} риск-действий за сутки`}
           tone={securityEvents24h > 0 ? "warn" : "ok"}
+                  href="/admin/ops/logs"
         />
         <AdminOpsMetric
           icon={BellRing}
@@ -175,11 +180,12 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           value={formatNumber(status.stats.notificationPreferences)}
           hint={`${formatNumber(status.stats.telegramLinked)} Telegram-привязок`}
           tone="neutral"
+                  href="/admin/ops/notifications"
         />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <AdminOpsSection title="Карта здоровья платформы">
+        <AdminOpsSection id="health-map" title="Карта здоровья платформы">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCost(aiCostMicros, currencyRates, currency)} hint="Детализация расхода по продуктам, моделям и статусам." />
             <AdminOpsLinkCard href="/admin/ops/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, маршрутизация, промты." />
@@ -193,7 +199,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Сервисы и зависимости" actionHref="/admin/ops/system" actionLabel="Открыть мониторинг">
+        <AdminOpsSection id="services" title="Сервисы и зависимости" actionHref="/admin/ops/system" actionLabel="Открыть мониторинг">
           <AdminCompactDataTable
             columns={serviceColumns}
             rows={status.services.slice(0, 10).map((service) => ({
@@ -216,7 +222,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           />
         </AdminOpsSection>
 
-        <AdminOpsSection title="Очереди и cron-контур" actionHref="/admin/ops/jobs" actionLabel="Открыть задачи">
+        <AdminOpsSection id="queues" title="Очереди и cron-контур" actionHref="/admin/ops/jobs" actionLabel="Открыть задачи">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3">
               <p className="text-xl font-semibold tabular-nums">{formatNumber(status.stats.jobsPending)}</p>
@@ -248,7 +254,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Контуры данных" actionHref="/admin/ops/database" actionLabel="Открыть БД">
+        <AdminOpsSection id="data-contours" title="Контуры данных" actionHref="/admin/ops/database" actionLabel="Открыть БД">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <AdminOpsLinkCard href="/admin/ops/database?table=users" title="Пользователи" value={formatNumber(status.stats.users)} hint="Аккаунты, роли, каналы, доступ." />
             <AdminOpsLinkCard href="/admin/ops/database?table=practitioners" title="Практики" value={formatNumber(status.stats.practitioners)} hint="Профили, статусы, тарифы." />
