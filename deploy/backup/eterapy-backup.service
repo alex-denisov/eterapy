@@ -1,0 +1,13 @@
+[Unit]
+Description=eterapy off-host encrypted DB backup (B536)
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eterapy/offhost-backup.sh
+# Backup must never wedge the box; give it a generous but bounded window.
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
