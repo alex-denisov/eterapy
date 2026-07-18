@@ -88,21 +88,25 @@ jobs:
       matrix:
         vm:
           - name: eterapy-1 prod RU (192.144.14.146)
+            slug: eterapy-1
             host: 192.144.14.146
             user: admin
             compose: docker-compose.prod.yml
             profile_args: "--profile worker"
           - name: eterapy-2 standby RU (192.144.13.153)
+            slug: eterapy-2
             host: 192.144.13.153
             user: admin
             compose: docker-compose.yml
             profile_args: ""
           - name: eterapy-3 US racknerd (107.172.153.202)
+            slug: eterapy-3
             host: 107.172.153.202
             user: root
             compose: docker-compose.yml
             profile_args: ""
           - name: eterapy-4 EU aws (18.195.184.182)
+            slug: eterapy-4
             host: 18.195.184.182
             user: ubuntu
             compose: docker-compose.yml
@@ -145,6 +149,16 @@ jobs:
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
+          # Reclaim space BEFORE loading: each release image is ~2.6GB and the
+          # old `docker image prune -f` only removes dangling layers, so tagged
+          # releases piled up until the disk filled and `docker load` failed.
+          # Drop every eterapy-web image except the one the running container
+          # uses (never touches the live container's image).
+          $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-web-1 2>/dev/null || true); \
+            sudo docker images eterapy-web --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web:${GITHUB_SHA::8}\$\" \
+            | xargs -r sudo docker rmi 2>/dev/null || true; \
+            sudo docker image prune -f >/dev/null 2>&1 || true"
           docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
@@ -163,12 +177,33 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/deploy_key
 
+      # Matrix legs collapse into a single needs.deploy.result, which hides
+      # WHICH host failed. Each leg records its own verdict for the notifier.
+      - name: Record node result
+        if: always()
+        env:
+          NODE_NAME: ${{ matrix.vm.name }}
+          NODE_RESULT: ${{ job.status }}
+        run: |
+          mkdir -p node-status
+          printf '%s=%s\n' "$NODE_NAME" "$NODE_RESULT" > "node-status/${{ matrix.vm.slug }}.txt"
+
+      - name: Upload node result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-status-${{ matrix.vm.slug }}
+          path: node-status/
+          retention-days: 7
+
   verify:
     name: Health check
     needs: deploy
-    if: needs.deploy.result == 'success'
+    # Runs even when a standby leg failed: a broken secondary must never hide
+    # whether the live site is actually up. Only eterapy-1 gates this job.
+    if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - name: Probe /api/health and subdomains
         run: |
@@ -186,9 +221,34 @@ jobs:
               *) echo "::error::$url failed (status: $S)"; exit 1 ;;
             esac
           done
-          STANDBY=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "https://192.144.13.153.sslip.io/api/health" || echo 000)
-          [ "$STANDBY" = "200" ] && echo "✓ standby vm2 health → 200" || echo "::warning::standby vm2 health → $STANDBY"
-          echo "🚀 Production deploy verified."
+
+      - name: Probe fleet health
+        if: always()
+        run: |
+          mkdir -p health-status
+          probe() {
+            slug="$1"; label="$2"; url="$3"
+            S=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo 000)
+            if [ "$S" = "200" ]; then
+              echo "✓ $label → 200"
+              printf '%s=success\n' "$label" > "health-status/$slug.txt"
+            else
+              echo "::warning::$label health → $S"
+              printf '%s=failure\n' "$label" > "health-status/$slug.txt"
+            fi
+          }
+          probe eterapy-1 "eterapy-1 prod RU" "$HEALTH_URL"
+          probe eterapy-2 "eterapy-2 standby RU" "https://192.144.13.153.sslip.io/api/health"
+          probe eterapy-3 "eterapy-3 US racknerd" "https://107.172.153.202.sslip.io/api/health"
+          probe eterapy-4 "eterapy-4 EU aws" "https://18.195.184.182.sslip.io/api/health"
+
+      - name: Upload fleet health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-health
+          path: health-status/
+          retention-days: 7
 
   notify:
     name: Notify Telegram
@@ -197,35 +257,68 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect per-node results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: deploy-status-*
+          path: node-status
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Collect fleet health
+        uses: actions/download-artifact@v4
+        with:
+          name: fleet-health
+          path: health-status
+        continue-on-error: true
+
       - name: Send Telegram message
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TEST_RESULT: ${{ needs.test.result }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          VERIFY_RESULT: ${{ needs.verify.result }}
+          TITLE: PRODUCTION deploy
+          STAGES: |
+            tests=${{ needs.test.result }}
+            deploy=${{ needs.deploy.result }}
+            health=${{ needs.verify.result }}
           GH_ACTOR: ${{ github.actor }}
           GH_SHA: ${{ github.sha }}
+          GH_REF: ${{ github.ref_name }}
           GH_REPO: ${{ github.repository }}
-          GH_RUN_ID: ${{ github.run_id }}
+          GH_SERVER: ${{ github.server_url }}
+          # Commit messages are attacker-influenceable and multi-line: kept in
+          # env, flattened to one line, and HTML-escaped by the notifier.
           GH_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
-            echo "Telegram not configured — skipping notification."
-            exit 0
-          fi
-          if [ "$VERIFY_RESULT" = "success" ]; then
-            HEADER="🚀 <b>Production deploy SUCCESS (image)</b>"
-          else
-            HEADER="❌ <b>Production pipeline: test=$TEST_RESULT deploy=$DEPLOY_RESULT verify=$VERIFY_RESULT</b>"
-          fi
-          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
           FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1 | cut -c1-200)
-          TEXT=$(printf '%s\n\n<b>Commit:</b> <code>%s</code>\n<b>Author:</b> %s\n<b>Message:</b> %s\n\n<a href="https://github.com/%s/actions/runs/%s">View run</a>' \
-            "$HEADER" "${GH_SHA:0:8}" "$(esc "$GH_ACTOR")" "$(esc "$FIRST_LINE")" "$GH_REPO" "$GH_RUN_ID")
-          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TG_CHAT}" \
-            --data-urlencode "text=${TEXT}" \
-            -d "parse_mode=HTML" \
-            -d "disable_web_page_preview=true" \
-            >/dev/null || echo "::warning::Telegram notification failed"
+          export FIELDS="Env=production (4-node fleet)
+          Repo=$GH_REPO
+          Branch=$GH_REF
+          Commit=${GH_SHA:0:8}
+          Image=eterapy-web:${GH_SHA:0:8}
+          Author=$GH_ACTOR
+          Message=$FIRST_LINE"
+
+          # Deploy verdict per host, plus the health probe that followed it.
+          NODES=""
+          for slug in eterapy-1 eterapy-2 eterapy-3 eterapy-4; do
+            [ -f "node-status/$slug.txt" ] || continue
+            entry=$(cat "node-status/$slug.txt")
+            label="${entry%%=*}"
+            result="${entry#*=}"
+            if [ -f "health-status/$slug.txt" ]; then
+              health=$(cat "health-status/$slug.txt")
+              health="${health#*=}"
+              [ "$health" = "success" ] && label="$label · health 200" || label="$label · health DOWN"
+              [ "$result" = "success" ] && [ "$health" != "success" ] && result="failure"
+            fi
+            NODES="$NODES$label=$result
+          "
+          done
+          export NODES
+          export EXTRA_LINKS="Commit=$GH_SERVER/$GH_REPO/commit/$GH_SHA"
+          bash .github/scripts/telegram-notify.sh
+        continue-on-error: true

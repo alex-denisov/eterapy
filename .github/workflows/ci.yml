@@ -163,3 +163,44 @@ jobs:
           NEXT_PUBLIC_LIVEKIT_URL: 'wss://eterapy.com:7880'
           NODE_ENV: production
         run: npm run build
+
+  # PR pipelines used to be silent on Telegram, so a red CI only ever showed up
+  # as a GitHub e-mail while the chat kept reporting green deploys. Same rich
+  # block as staging/production now.
+  notify:
+    name: Notify Telegram
+    needs: [install, test, lint, build]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send Telegram message
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TITLE: CI (pull request)
+          STAGES: |
+            install=${{ needs.install.result }}
+            test=${{ needs.test.result }}
+            lint=${{ needs.lint.result }}
+            build=${{ needs.build.result }}
+          # Untrusted PR-controlled values stay in env — never interpolated
+          # into the shell command line.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          export FIELDS="Env=pull request
+          Repo=$GH_REPO
+          PR=#$PR_NUMBER — $PR_TITLE
+          Branch=$PR_BRANCH
+          Commit=${PR_SHA:0:8}
+          Author=$PR_AUTHOR"
+          export EXTRA_LINKS="Open PR=$PR_URL"
+          bash .github/scripts/telegram-notify.sh

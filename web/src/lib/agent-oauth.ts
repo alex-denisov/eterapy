@@ -15,7 +15,7 @@
  * ключа token endpoint отвечает 503 (fail-closed), метаданные это отражают.
  */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { SignJWT, jwtVerify, importJWK, exportJWK, calculateJwkThumbprint, type JWK } from "jose";
+import { SignJWT, jwtVerify, importJWK, calculateJwkThumbprint, type JWK } from "jose";
 import { seoOrigins } from "@/lib/seo";
 
 export const AGENT_OAUTH_SCOPE = "public:read";

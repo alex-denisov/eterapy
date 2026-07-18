@@ -1,0 +1,12 @@
+[Unit]
+Description=Run eterapy off-host DB backup every 6h (B536)
+
+[Timer]
+# Every 6 hours → worst-case RPO 6h. Persistent so a missed window (box off)
+# fires on next boot. Randomized delay avoids a thundering herd across nodes.
+OnCalendar=*-*-* 00,06,12,18:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

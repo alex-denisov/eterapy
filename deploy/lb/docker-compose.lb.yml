@@ -1,0 +1,23 @@
+# B540 — contour load balancer (HAProxy) as an opt-in overlay. Runs on the two
+# LB nodes only (eterapy-1 RU, eterapy-4 Foreign). Changes nothing until the
+# `lb` profile is selected — safe to keep in the repo pre-cutover.
+#
+#   docker compose -f docker-compose.lb.yml --profile lb up -d
+#
+# host networking so it owns :443 on the LB node. During cutover the system
+# nginx must first free :443 (or HAProxy binds an alt port and nginx proxies to
+# it) — see deploy/lb/README.md.
+
+name: eterapy
+
+services:
+  haproxy:
+    image: haproxy:2.9-alpine
+    profiles: ["lb"]
+    restart: always
+    network_mode: host
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./certs:/etc/haproxy/certs:ro
+    # Fail fast if the config is invalid rather than serving a broken LB.
+    command: ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]

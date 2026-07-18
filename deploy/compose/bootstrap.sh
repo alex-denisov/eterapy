@@ -2,8 +2,12 @@
 # B473 — from-scratch VM bootstrap. Run ON the VM as root after an OS
 # reinstall (Ubuntu 22.04/24.04):
 #
-#   scp -r deploy/compose root@VM:/opt/eterapy-bootstrap
-#   ssh root@VM 'bash /opt/eterapy-bootstrap/bootstrap.sh'
+#   scp -r deploy root@VM:/opt/eterapy-bootstrap
+#   ssh root@VM 'bash /opt/eterapy-bootstrap/compose/bootstrap.sh'
+#
+# (Copy the whole `deploy/` tree, not just `compose/`, so the B536 backup
+# units under deploy/backup/ are installed too. Copying only compose/ still
+# works — the backup step self-skips when those files are absent.)
 #
 # Idempotent: re-running converges (docker install skipped when present,
 # compose up -d only restarts what changed). The app image arrives separately
@@ -54,6 +58,22 @@ if [ -f "$SRC_DIR/ci_authorized_key.pub" ] && [ -n "$KEY_HOME" ]; then
     || cat "$SRC_DIR/ci_authorized_key.pub" >> "$KEY_HOME/.ssh/authorized_keys"
   chmod 600 "$KEY_HOME/.ssh/authorized_keys"
   chown -R "$KEY_USER" "$KEY_HOME/.ssh"
+fi
+
+# B536 — off-host backup tooling. Installs the binary + units; the operator
+# fills /opt/eterapy/backup.env and /root/.config/rclone/rclone.conf with
+# secrets (never in the repo), then `systemctl enable --now eterapy-backup.timer`.
+echo "▶ backup tooling (rclone + systemd units)"
+if ! command -v rclone >/dev/null 2>&1; then
+  curl -fsSL https://rclone.org/install.sh | bash || echo "  → rclone install skipped"
+fi
+if [ -f "$SRC_DIR/../backup/offhost-backup.sh" ]; then
+  install -m 0755 "$SRC_DIR/../backup/offhost-backup.sh" "$ETERAPY_DIR/offhost-backup.sh"
+  install -m 0644 "$SRC_DIR/../backup/eterapy-backup.service" /etc/systemd/system/eterapy-backup.service
+  install -m 0644 "$SRC_DIR/../backup/eterapy-backup.timer" /etc/systemd/system/eterapy-backup.timer
+  [ -f "$ETERAPY_DIR/backup.env" ] || install -m 0600 "$SRC_DIR/../backup/backup.env.example" "$ETERAPY_DIR/backup.env"
+  systemctl daemon-reload
+  echo "  → fill $ETERAPY_DIR/backup.env + rclone.conf, then: systemctl enable --now eterapy-backup.timer"
 fi
 
 echo "▶ start stack (no-op if the app image is not loaded yet)"
