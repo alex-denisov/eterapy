@@ -40,6 +40,20 @@ export type BucketState = {
 
 export type HaproxyState = { state: string; version: string };
 
+/** B537: репликация async — секунды отставания это норма, минуты уже нет. */
+export const REPL_LAG_WARN_SEC = 30;
+export const REPL_LAG_FAIL_SEC = 300;
+
+export type ReplicaState = { name: string; state: string; lagBytes: number };
+
+export type ReplicationState = {
+  role: "primary" | "standby" | "none";
+  ok: boolean;
+  streamStatus: string;
+  lagSeconds: number | null;
+  replicas: ReplicaState[];
+};
+
 export type NodeState = {
   collectedAt: string | null;
   ageSec: number | null;
@@ -48,6 +62,7 @@ export type NodeState = {
   backup: BackupState | null;
   buckets: BucketState[];
   haproxy: HaproxyState | null;
+  replication: ReplicationState | null;
 };
 
 function str(value: unknown, fallback = ""): string {
@@ -70,6 +85,30 @@ function parseContainer(raw: unknown): ContainerState | null {
     state: str(record.state),
     health: str(record.health),
     uptime: str(record.uptime),
+  };
+}
+
+function parseReplica(raw: unknown): ReplicaState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const name = str(record.name);
+  if (!name) return null;
+  return { name, state: str(record.state), lagBytes: num(record.lagBytes) ?? 0 };
+}
+
+function parseReplication(raw: unknown): ReplicationState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const role = str(record.role);
+  if (role !== "primary" && role !== "standby" && role !== "none") return null;
+  return {
+    role,
+    ok: record.ok === true,
+    streamStatus: str(record.streamStatus),
+    lagSeconds: num(record.lagSeconds),
+    replicas: Array.isArray(record.replicas)
+      ? record.replicas.map(parseReplica).filter((r): r is ReplicaState => r !== null)
+      : [],
   };
 }
 
@@ -124,7 +163,23 @@ export function parseNodeState(raw: unknown, nowMs: number = Date.now()): NodeSt
             version: str((record.haproxy as Record<string, unknown>).version),
           }
         : null,
+    // Ноды со старым коллектором просто не отдают поле — секция скрывается.
+    replication: parseReplication(record.replication),
   };
+}
+
+/**
+ * B537 — цвет для лага реплики. Primary без единой подключённой реплики
+ * считается сбоем: слот держит WAL, и диск primary кончится, если standby
+ * отвалился надолго.
+ */
+export function replicationTone(state: ReplicationState | null): "ok" | "warn" | "danger" | "none" {
+  if (!state || state.role === "none") return "none";
+  if (!state.ok) return "danger";
+  const lag = state.role === "standby" ? state.lagSeconds : null;
+  if (lag !== null && lag >= REPL_LAG_FAIL_SEC) return "danger";
+  if (lag !== null && lag >= REPL_LAG_WARN_SEC) return "warn";
+  return "ok";
 }
 
 export type ContainerSummary = {

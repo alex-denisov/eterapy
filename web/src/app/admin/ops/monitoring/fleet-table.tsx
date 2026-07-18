@@ -27,6 +27,13 @@ export type FleetRow = {
   backup: { timer: string; lastFile: string | null; ageSec: number | null; sizeBytes: number | null } | null;
   buckets: Array<{ remote: string; objects: number; lastObject: string | null; ageSec: number | null; ok: boolean }>;
   haproxy: { state: string; version: string } | null;
+  replication: {
+    role: "primary" | "standby" | "none";
+    ok: boolean;
+    streamStatus: string;
+    lagSeconds: number | null;
+    replicas: Array<{ name: string; state: string; lagBytes: number }>;
+  } | null;
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -57,6 +64,27 @@ function rpoColor(sec: number | null): string {
   if (sec === null) return "#b3261e";
   if (sec > 12 * 3600) return "#b3261e";
   if (sec > 8 * 3600) return "var(--soft-terracotta-dark)";
+  return "#2e7d4f";
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 Б";
+  const units = ["Б", "КБ", "МБ", "ГБ"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+/** B537: пороги мягкие — репликация async, секунды отставания это норма. */
+function replLagColor(repl: { ok: boolean; lagSeconds: number | null }): string {
+  if (!repl.ok) return "#b3261e";
+  if (repl.lagSeconds === null) return "#2e7d4f";
+  if (repl.lagSeconds >= 300) return "#b3261e";
+  if (repl.lagSeconds >= 30) return "var(--soft-terracotta-dark)";
   return "#2e7d4f";
 }
 
@@ -268,6 +296,34 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
                               : <span className="text-muted-foreground">не развёрнут (B540)</span>}
                           </li>
                         </ul>
+
+                        {/* B537: репликация РФ-контура. Ноды со старым коллектором поля не отдают. */}
+                        {row.replication && row.replication.role !== "none" && (
+                          <>
+                            <p className="mt-3 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Репликация PG
+                            </p>
+                            <ul className="space-y-1 text-xs">
+                              {row.replication.role === "primary" ? (
+                                row.replication.replicas.length > 0 ? (
+                                  row.replication.replicas.map((r) => (
+                                    <li key={r.name} style={{ color: r.state === "streaming" ? "#2e7d4f" : "#b3261e" }}>
+                                      {r.name}: {r.state} · отставание {formatBytes(r.lagBytes)}
+                                    </li>
+                                  ))
+                                ) : (
+                                  // Пустой список опаснее, чем кажется: слот держит WAL.
+                                  <li style={{ color: "#b3261e" }}>реплик не подключено — WAL копится на primary</li>
+                                )
+                              ) : (
+                                <li style={{ color: replLagColor(row.replication) }}>
+                                  standby: {row.replication.streamStatus || "нет потока"}
+                                  {row.replication.lagSeconds !== null && ` · отставание ${formatAge(row.replication.lagSeconds)}`}
+                                </li>
+                              )}
+                            </ul>
+                          </>
+                        )}
                       </div>
                     </div>
                   </td>

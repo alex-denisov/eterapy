@@ -46,6 +46,7 @@ export default async function AdminFleetMonitoringPage() {
     backup: status.host?.backup ?? null,
     buckets: status.host?.buckets ?? [],
     haproxy: status.host?.haproxy ?? null,
+    replication: status.host?.replication ?? null,
   }));
 
   // Рассинхрон версий контейнеров приложения по всему флоту — признак

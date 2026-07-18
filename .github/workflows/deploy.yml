@@ -134,6 +134,9 @@ jobs:
       VM_USER: ${{ matrix.vm.user }}
       COMPOSE_FILE_NAME: ${{ matrix.vm.compose }}
       PROFILE_ARGS: ${{ matrix.vm.profile_args }}
+      NODE_SLUG: ${{ matrix.vm.slug }}
+      # B537: standby nodes carry a read-only replica of eterapy-1.
+      NODE_STANDBY: ${{ matrix.vm.standby && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -178,10 +181,18 @@ jobs:
             | xargs -r sudo docker rmi 2>/dev/null || true; \
             sudo docker image prune -f >/dev/null 2>&1 || true"
           docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
-          # B541: stamp the node's own slug so /api/ops/node-status can name itself.
-          $SSH "grep -q '^FLEET_NODE_NAME=' /opt/eterapy/.env \
-            && sudo sed -i 's#^FLEET_NODE_NAME=.*#FLEET_NODE_NAME=${{ matrix.vm.slug }}#' /opt/eterapy/.env \
-            || echo 'FLEET_NODE_NAME=${{ matrix.vm.slug }}' | sudo tee -a /opt/eterapy/.env >/dev/null"
+          # B541/B537: stamp the node's identity and role into its .env.
+          # Values come from env (NODE_SLUG/NODE_STANDBY), never interpolated
+          # into the shell. NB: grep must run under sudo — /opt/eterapy/.env is
+          # root-only, so an unprivileged grep always failed and the append
+          # branch ran on every deploy, piling up duplicate keys (seen on
+          # eterapy-2, found while building B537).
+          for kv in "FLEET_NODE_NAME=$NODE_SLUG" "FLEET_NODE_STANDBY=$NODE_STANDBY"; do
+            key="${kv%%=*}"
+            $SSH "sudo grep -q '^$key=' /opt/eterapy/.env \
+              && sudo sed -i 's#^$key=.*#$kv#' /opt/eterapy/.env \
+              || echo '$kv' | sudo tee -a /opt/eterapy/.env >/dev/null"
+          done
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
             && sudo docker image prune -f >/dev/null \
