@@ -27,7 +27,18 @@ services:
     image: ${ETERAPY_IMAGE:?set in .env}
     restart: "no"
     env_file: .env
-    command: ["npx", "prisma", "migrate", "deploy"]
+    # B537: на standby-узле локальная БД — read-only реплика eterapy-1, миграции
+    # там выполнить нельзя. Выходим 0, иначе web не поднимется: он ждёт
+    # service_completed_successfully. Схему на реплику приносит сама репликация.
+    command:
+      - sh
+      - -c
+      - |
+        if [ "${FLEET_NODE_STANDBY:-0}" = "1" ]; then
+          echo "standby node: skipping prisma migrate deploy (read-only replica)"
+          exit 0
+        fi
+        exec npx prisma migrate deploy
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +66,11 @@ services:
     restart: always
     env_file: .env
     command: ["npm", "run", "worker"]
+    # B537: за профилем — worker пишет на каждом тике (job.create), на
+    # read-only реплике это крэш-луп. Профиль дают только узлы с пишущей БД
+    # (см. profile_args в deploy/fleet-matrix.json); на standby он стартует
+    # шагом промоута, см. deploy/README-ru-replica.md.
+    profiles: ["worker"]
     depends_on:
       migrate:
         condition: service_completed_successfully
