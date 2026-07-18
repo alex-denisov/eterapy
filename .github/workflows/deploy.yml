@@ -149,6 +149,16 @@ jobs:
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
+          # Reclaim space BEFORE loading: each release image is ~2.6GB and the
+          # old `docker image prune -f` only removes dangling layers, so tagged
+          # releases piled up until the disk filled and `docker load` failed.
+          # Drop every eterapy-web image except the one the running container
+          # uses (never touches the live container's image).
+          $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-web-1 2>/dev/null || true); \
+            sudo docker images eterapy-web --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web:${GITHUB_SHA::8}\$\" \
+            | xargs -r sudo docker rmi 2>/dev/null || true; \
+            sudo docker image prune -f >/dev/null 2>&1 || true"
           docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
