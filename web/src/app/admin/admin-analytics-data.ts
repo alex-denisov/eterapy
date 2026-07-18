@@ -10,6 +10,10 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "full-question": "Полный разбор вопроса",
   "chat-analysis": "Анализ переписки",
   "chat-analysis-ocr": "Распознавание переписки",
+  "chat-analysis-ocr-structure": "Разбор структуры переписки",
+  "outside-questions": "Взгляд со стороны",
+  "ai-healthcheck": "Проверка доступности AI",
+  "provider-smoke": "Смоук-тест провайдера",
   compatibility: "Совместимость",
   circle: "Круг",
   pair: "Разобраться вдвоём",
@@ -236,6 +240,14 @@ export function cardPartsFromMetadata(metadata: unknown) {
 export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
   const normalized = normalizeAdminProductKey(productKey);
+
+  // Служебные смоук-тесты приходят как `ops.provider-smoke.<провайдер>` —
+  // сырой ключ в таблице расходов выглядел как техномусор.
+  const smoke = normalized.match(/^(?:ops\.)?provider-smoke\.?(.*)$/);
+  if (smoke) {
+    return smoke[1] ? `Смоук-тест провайдера (${smoke[1]})` : "Смоук-тест провайдера";
+  }
+
   return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
 }
 
