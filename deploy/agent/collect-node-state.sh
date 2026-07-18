@@ -46,7 +46,12 @@ containers_json() {
 backup_json() {
   local latest age size timer="unknown"
   if command -v systemctl >/dev/null 2>&1; then
-    timer="$(systemctl is-active eterapy-backup.timer 2>/dev/null || echo inactive)"
+    # `is-active` на несуществующем юните печатает "inactive" И падает —
+    # без head -1 в JSON уезжал перевод строки и ломал разбор.
+    # is-active падает с кодом 3 на неактивном юните, а pipefail роняет
+            # весь скрипт — поэтому явный `|| true`.
+    timer="$(systemctl is-active eterapy-backup.timer 2>/dev/null | head -1 || true)"
+    [ -n "$timer" ] || timer="inactive"
   fi
   latest="$(ls -1t "$BACKUP_DIR"/*.gpg 2>/dev/null | head -1 || true)"
   if [ -n "$latest" ]; then
@@ -70,6 +75,7 @@ buckets_json() {
       # Самый свежий объект: сортируем по имени (имена содержат UTC-таймштамп).
       newest="$(rclone lsf "$remote" --files-only 2>/dev/null | sort | tail -1 || true)"
       count="$(rclone lsf "$remote" --files-only 2>/dev/null | grep -c . || echo 0)"
+      count="${count:-0}"
       name="${remote%%:*}"
       if [ -n "$newest" ]; then
         # Штамп вида ...-20260718T092419Z.dump.gpg → секунды с эпохи.
@@ -98,7 +104,7 @@ haproxy_json() {
   local state="absent" version=""
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^eterapy-haproxy'; then
     state="running"
-    version="$(docker exec eterapy-haproxy-1 haproxy -v 2>/dev/null | head -1 || true)"
+    version="$(docker exec eterapy-haproxy-1 haproxy -v 2>/dev/null | head -1 | tr -d '\r\n"' || true)"
   elif [ -f /opt/eterapy/haproxy.cfg ]; then
     state="configured"
   fi
@@ -107,7 +113,7 @@ haproxy_json() {
 
 {
   printf '{"collectedAt":"%s","containers":' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  containers_json
+  containers_json || printf '[]'
   printf ',"backup":'
   backup_json
   printf ',"buckets":'
