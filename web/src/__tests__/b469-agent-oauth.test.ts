@@ -6,6 +6,7 @@
  * (node-окружение: jose требует настоящие WebCrypto/Uint8Array, а не jsdom.)
  */
 import { webcrypto } from "node:crypto";
+import v8 from "node:v8";
 import fs from "fs";
 import path from "path";
 
@@ -14,13 +15,10 @@ if (!globalThis.crypto?.subtle) {
   Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
 }
 if (typeof globalThis.structuredClone !== "function") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  globalThis.structuredClone = require("node:v8").deserialize
-    ? (value: unknown) => {
-        const v8 = require("node:v8") as typeof import("node:v8");
-        return v8.deserialize(v8.serialize(value));
-      }
-    : ((value: unknown) => JSON.parse(JSON.stringify(value)));
+  globalThis.structuredClone =
+    typeof v8.deserialize === "function"
+      ? (value: unknown) => v8.deserialize(v8.serialize(value))
+      : ((value: unknown) => JSON.parse(JSON.stringify(value)));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
