@@ -45,6 +45,12 @@ export const metadata: Metadata = {
     "нумерология онлайн",
     "этичная эзотерика",
   ],
+  // B548: ownership verification for Яндекс.Вебмастер and Google Search
+  // Console (owner accounts, 2026-07-20). Public by design.
+  verification: {
+    yandex: "2c1d83026c573683",
+    google: "zCKEvZUd6Kqbvl2iqyC1Tc_dl52ot9kFbSevY9hYRwU",
+  },
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
