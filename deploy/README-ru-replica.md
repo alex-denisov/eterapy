@@ -1,7 +1,10 @@
 # RU HA: PostgreSQL streaming replica eterapy-1 → eterapy-2 (B537)
 
-Состояние на 2026-07-18: **реплика работает**, лаг ~0, промоут отрепетирован
-не был (учение с owner — отдельный шаг B537).
+Состояние на 2026-07-19: **реплика работает**, лаг ~0. Промоут ОТРЕПЕТИРОВАН
+(изолированно, без переключения трафика): promote 0.22 с, failback-пересборка
+~1 мин — процедура ниже. Учение потери целой ВМ пройдено дважды (жёсткий
+ребут и полный power-off через API `set-power`). Не пройдено: двустороннее
+failover-учение с owner (потеря primary + реальное переключение трафика).
 
 ## Топология
 
@@ -81,20 +84,21 @@ Postgres на публичный IP всё равно не выставляли:
    БД. На standby он стартует шагом промоута.
 3. Тест-гарды: `web/src/__tests__/b537-standby-deploy-guard.test.ts`.
 
-⚠ Всё это живёт в ветке **`claude/b537-ru-pg-replica`**. Пока она не в `main`,
-прод-деплой пойдёт по старому compose — на ноду новый файл положен руками,
-но пайплайн перезапишет его. **Мержить до следующего прод-деплоя.**
+(Исторично: гейты жили в ветке `claude/b537-ru-pg-replica`; на 2026-07-19
+они в `main` и стерегутся `b537-standby-deploy-guard.test.ts` — прод-деплои
+eterapy-2 зелёные.)
 
 ## Промоут (failover eterapy-1 → eterapy-2)
 
-Не отрепетировано с owner. Порядок:
+Отрепетировано 2026-07-19 (изолированно). Порядок:
 
 ```bash
 # 1. убедиться, что primary действительно мёртв (иначе split-brain)
 ssh admin@192.144.14.146 'sudo -u postgres psql -Atc "select 1"'   # должно НЕ ответить
 
 # 2. промоут реплики
-ssh admin@192.144.13.153 'sudo docker exec eterapy-db-1 pg_ctl promote -D /var/lib/postgresql/data'
+# ⚠ обязательно -u postgres: под root pg_ctl откажется
+ssh admin@192.144.13.153 'sudo docker exec -u postgres eterapy-db-1 pg_ctl promote -D /var/lib/postgresql/data'
 ssh admin@192.144.13.153 'sudo docker exec eterapy-db-1 psql -U postgres -Atc "select pg_is_in_recovery()"'  # ждём f
 
 # 3. поднять worker (на standby он намеренно выключен)
@@ -109,11 +113,37 @@ ssh admin@192.144.13.153 'cd /opt/eterapy && sudo docker update --restart=always
 Сессии переживают failover: JWT + единый `AUTH_SECRET` на обоих узлах.
 Рвутся: LiveKit-сессии и in-memory rate-limit (ожидаемо, зафиксировано в B537).
 
-### Failback
+### Failback / пересборка standby (отрепетировано 2026-07-19)
 
-Обратно «как было» автоматически не собирается: бывший primary после
-промоута реплики отстаёт и его надо перезаливать `pg_basebackup` уже с
-eterapy-2. Отдельная процедура, писать при учении.
+Диверженный после промоута каталог в standby не возвращается — только
+пересборка. На БД текущего размера весь цикл ~1 мин (basebackup 6 с):
+
+```bash
+# 0. сохранить конфиги ДО очистки (их нет в basebackup — грабля №1)
+sudo docker run --rm -v eterapy_pgdata:/v -v /root/b537-rehearsal:/b alpine   sh -c 'cp /v/postgresql.conf /v/pg_hba.conf /v/postgresql.auto.conf /b/'
+
+# 1. стоп + архив старого каталога + очистка тома
+sudo docker stop eterapy-db-1
+sudo docker run --rm -v eterapy_pgdata:/v -v /root/b537-rehearsal:/b alpine   sh -c 'tar czf /b/pgdata-old.tar.gz -C /v . && find /v -mindepth 1 -delete'
+
+# 2. basebackup с primary по WG (пароль replicator — в сохранённом auto.conf)
+PASS=$(sudo grep -o 'password=[^ ]*' /root/b537-rehearsal/postgresql.auto.conf | cut -d= -f2)
+IMG=$(sudo docker inspect -f '{{.Config.Image}}' eterapy-db-1)
+sudo docker run --rm -v eterapy_pgdata:/var/lib/postgresql/data   -e PGPASSWORD="$PASS" --network host "$IMG"   pg_basebackup -h 10.77.0.1 -U replicator -D /var/lib/postgresql/data   -X stream -S eterapy2 --no-password
+
+# 3. вернуть конфиги (auto.conf свой — обходит граблю sslnegotiation из -R),
+#    standby.signal, права; старт
+sudo docker run --rm -v eterapy_pgdata:/v -v /root/b537-rehearsal:/b alpine   sh -c 'cp /b/postgresql.conf /b/pg_hba.conf /b/postgresql.auto.conf /v/     && touch /v/standby.signal && chown -R 999:999 /v'
+sudo docker start eterapy-db-1
+
+# 4. проверка: streaming + лаг 0 + слот active на primary
+sudo docker exec eterapy-db-1 psql -U postgres -Atc   'select status, slot_name from pg_stat_wal_receiver'
+sudo docker exec eterapy-db-1 psql -U postgres -Atc   'select pg_last_wal_receive_lsn() = pg_last_wal_replay_lsn()'
+```
+
+Тот же рецепт перезаливает бывший primary после настоящего failover —
+только хост в `pg_basebackup` будет 10.77.0.2 (новый primary), и на
+eterapy-1 PG нативный (не контейнер): пути/юниты соответственно.
 
 ## Панель мониторинга
 
