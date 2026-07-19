@@ -43,8 +43,11 @@ alert() {
   local icon head
   if [ "$1" = "ok" ]; then icon="💾"; head="Backup OK"; else icon="🛑"; head="BACKUP FAILED"; fi
   local text
-  text=$(printf '%s <b>%s</b> — %s\n<b>Object:</b> <code>%s</code>\n<b>Detail:</b> %s' \
+  text=$(printf '%s <b>%s</b> — %s\n<b>Файл:</b> <code>%s</code>\n%s' \
     "$icon" "$head" "$LABEL" "$BASENAME" "$2")
+  # Optional 3rd arg: pre-signed download URL (rclone link) — rendered as a
+  # tap-friendly anchor instead of the raw object path (owner 2026-07-20).
+  [ -n "${3:-}" ] && text="$text"$'\n'"<a href=\"$3\">⬇️ Скачать бэкап (ссылка на 72 ч)</a>"
   curl -fsS -m 20 -X POST "${base}/sendMessage" \
     --data-urlencode "chat_id=${TG_CHAT}" \
     --data-urlencode "text=${text}" \
@@ -76,10 +79,15 @@ log "encrypted dump ready ($SIZE bytes)"
 
 # ── 2. Ship to every remote (two independent RU copies) ─────────────────────
 SHIPPED=0
+DOWNLOAD_URL=""
 for remote in $BACKUP_REMOTES; do
   if rclone copyto --s3-no-check-bucket "$LOCAL_PATH" "$remote/$BASENAME" 2>&1; then
     log "shipped → $remote"
     SHIPPED=$((SHIPPED + 1))
+    # Первая удачная копия даёт pre-signed URL для TG-алерта (best-effort).
+    if [ -z "$DOWNLOAD_URL" ]; then
+      DOWNLOAD_URL=$(rclone link --expire 72h "$remote/$BASENAME" 2>/dev/null || true)
+    fi
     # Remote rotation: keep the newest $KEEP objects for this label.
     rclone lsf "$remote" 2>/dev/null \
       | grep -E "^${LABEL}-.*\.dump\.gpg$" | sort | head -n -"$KEEP" \
@@ -95,4 +103,5 @@ ls -1t "$LOCAL_DIR/${LABEL}-"*.dump.gpg 2>/dev/null | tail -n +"$((KEEP + 1))" \
   | xargs -r rm -f
 
 log "done: $BASENAME shipped to $SHIPPED/$(echo "$BACKUP_REMOTES" | wc -w) remotes"
-alert ok "$SIZE bytes → $SHIPPED remote(s)"
+SIZE_H=$(numfmt --to=iec-i --suffix=B "$SIZE" 2>/dev/null || echo "$SIZE bytes")
+alert ok "<b>Размер:</b> $SIZE_H · <b>Копии:</b> $SHIPPED/$(echo "$BACKUP_REMOTES" | wc -w) · <b>База:</b> $PGDATABASE" "$DOWNLOAD_URL"
