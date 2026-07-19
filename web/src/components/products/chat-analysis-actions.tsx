@@ -1315,6 +1315,7 @@ export function ChatAnalysisActions() {
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 multiple
+                aria-label="Загрузить скриншоты переписки"
                 className="sr-only"
                 disabled={status === "loading"}
                 onChange={(e) => {
@@ -1326,6 +1327,7 @@ export function ChatAnalysisActions() {
                 ref={fileInputRef}
                 type="file"
                 accept=".txt,.html,.json,text/plain,text/html,application/json"
+                aria-label="Загрузить файл-выгрузку переписки"
                 className="sr-only"
                 disabled={status === "loading"}
                 onChange={(e) => {

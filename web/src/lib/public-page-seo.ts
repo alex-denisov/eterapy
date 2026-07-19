@@ -133,11 +133,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Рассчитайте число фамилии и Старший Аркан, разберите родовой ресурс, тень, деньги и отношения или сравните код до и после смены фамилии.",
     schemaKind: "Product",
   },
-  "/all-modalities": {
-    title: "Сервисы самопознания — ETerapy",
-    description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
-    schemaKind: "Product",
-  },
   "/checkin": {
     title: "Разбор — ETerapy",
     description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",

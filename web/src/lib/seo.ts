@@ -37,7 +37,6 @@ export const publicSeoRoutes = [
   "/products/family-scenarios",
   "/products/human-design",
   "/products/surname-story",
-  "/all-modalities",
   "/checkin",
   "/practitioners",
   "/practitioners/apply",

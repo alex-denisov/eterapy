@@ -38,20 +38,33 @@ bootstrap; дальше каждый push в `main` раскатывает её 
 | RackNerd (панель SolusVM) | только внутри ВМ → `BOOTSTRAP_UFW=1` | консоль |
 | AWS EC2 | Security Groups (нужен рабочий AKIA — на 2026-07-19 ❌) | консоль/API |
 
-## Terraform для cloud.ru — статус 2026-07-19
+## API cloud.ru — полный lifecycle ЕСТЬ (исправлено 2026-07-19)
 
-Terraform-слой здесь имел бы смысл только для lifecycle-операций через API
-провайдера. Проверено живьём (см. HANDOFF-2026-07-19): у
-`compute.api.cloud.ru/api/v1/vms` есть **list / get / PUT(метаданные) /
-DELETE**, но **нет** create- и power-эндпоинтов (`POST {id}:stop` → 405, все
-угаданные пути → 404, в открытой документации отсутствуют; IAM-токен через
-`POST iam.api.cloud.ru/api/v1/auth/token` работает). Управлять жизненным
-циклом ВМ из Terraform нечем → полноценный `terraform apply/destroy` для
-этих аккаунтов **заблокирован до ответа поддержки cloud.ru** (вопрос
-у owner). Когда/если появится API (или переезд на Evolution-платформу с её
-официальным Terraform-провайдером `cloudru`), слой добавляется сюда,
-state — в приватный bucket (cloud.ru S3, как у B536).
+Ранний вывод «у cloud.ru нет create/power-эндпоинтов» был ОШИБОЧЕН —
+угадывались не те пути. Официальная OpenAPI-спека сервиса «Виртуальные
+машины» (https://cloud.ru/docs/virtual-machines/ug/topics/api-ref, YAML
+по ссылке «Спецификация OpenAPI») документирует на `compute.api.cloud.ru`:
 
-До тех пор фактический «провижининг» = шаги 1–5 выше: единственные ручные
-действия — создание ВМ в консоли и одна доставка секретов; всё остальное
-делает CI от инвентаря.
+- `POST /api/v1.1/vms` — **создание ВМ** (v1 create помечен устаревшим);
+- `POST /api/v1/vms/{vm_id}/set-power` — **питание**: `power_on` /
+  `power_off` / `reboot`;
+- `DELETE /api/v1/vms/{vm_id}`, `/rebuild`, `/get-vnc`, `/remote-console`;
+- security-groups (+rules), disks (+attach/detach/reimage), subnets,
+  images, interfaces, flavors, availability-zones, tasks.
+
+Проверено живьём 2026-07-19 (IAM-токен `POST iam.api.cloud.ru/api/v1/auth/token`):
+`set-power` с валидным телом и несуществующим UUID → **422** (маршрут
+существует, вход валидируется), `POST /api/v1.1/vms` с пустым телом → **422**.
+Прошлые 405/404 — это `POST {id}:stop` и прочие угаданные пути, которых в
+спеке нет.
+
+Следствия: Terraform-слой для cloud.ru **реализован** — см.
+[terraform/README.md](./terraform/README.md) (OpenTofu + провайдер
+`cloud.ru/cloudru/cloud` v2.1.1: ВМ+SG+диск+интерфейс+внешний IP, output
+сразу даёт запись для fleet-matrix; там же грабли схемы v2.1.x). Учение
+B537 «стоп целой ВМ через API» пройдено 2026-07-19: `set-power
+{"state":"power_off"}` → stopped за ~40 с (прод жив 10/10, HAProxy спрятал
+ноду) → `power_on` → running за ~2 м, стек поднялся сам (реплика цела).
+
+Ручной путь (шаги 1–5 выше) остаётся рабочей альтернативой; Terraform-путь
+заменяет в нём шаг 1 и открытие портов.
