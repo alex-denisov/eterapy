@@ -29,6 +29,20 @@ if [ ! -f /swapfile ] && [ "$(free -m | awk '/^Swap/{print $2}')" -lt 1024 ]; th
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
+# B538 — panel providers (RackNerd и т.п.) have no API-managed firewall, so
+# the only firewall is inside the VM. OPT-IN (BOOTSTRAP_UFW=1): existing fleet
+# nodes run WireGuard/replica/LB/LiveKit ports that a blanket ufw would cut —
+# never enable this on an already-integrated node without listing those ports.
+if [ "${BOOTSTRAP_UFW:-0}" = "1" ]; then
+  echo "▶ ufw (22/80/443 + extra ports from BOOTSTRAP_UFW_EXTRA)"
+  apt-get install -y ufw >/dev/null 2>&1 || true
+  ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp
+  for port in ${BOOTSTRAP_UFW_EXTRA:-}; do
+    ufw allow "$port"
+  done
+  ufw --force enable
+fi
+
 echo "▶ /opt/eterapy layout"
 mkdir -p "$ETERAPY_DIR/backups"
 cp "$SRC_DIR/docker-compose.yml" "$ETERAPY_DIR/docker-compose.yml"

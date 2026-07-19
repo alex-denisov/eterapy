@@ -1,0 +1,54 @@
+# B473 — staging on the SAME VM as prod, containerised (replaces the PM2
+# rsync flow). Own compose project name so containers never collide with the
+# prod stack; state lives in /opt/eterapy-staging (.env + this file). The
+# staging .env is admin-owned 0600 (unlike the root-only prod .env) so the
+# hourly DB A/B refresh can flip DATABASE_URL without sudo-tee gymnastics.
+#
+#   sudo docker compose -f docker-compose.staging.yml up -d
+#
+# The web port binds loopback only — the host nginx staging vhosts
+# (staging.eterapy.com / staging.app / staging.admin, Basic Auth) proxy into
+# it. Known limitation (same as prod since the container cutover): the admin
+# runtime-log viewer can't see host /var/log from inside the container.
+name: eterapy-staging
+
+services:
+  migrate:
+    image: ${ETERAPY_IMAGE:?set in .env}
+    network_mode: host
+    restart: "no"
+    env_file: .env
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  web:
+    image: ${ETERAPY_IMAGE}
+    network_mode: host
+    restart: always
+    env_file: .env
+    # Loopback bind: staging must never be reachable except through the
+    # Basic-Auth nginx vhosts. 3201 ≠ 3200 (prod web on the same host).
+    command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3201}", "--hostname", "127.0.0.1"]
+    volumes:
+      - uploads:/app/web/public/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${ETERAPY_APP_PORT:-3201}/api/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    image: ${ETERAPY_IMAGE}
+    network_mode: host
+    restart: always
+    env_file: .env
+    command: ["npm", "run", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  uploads:

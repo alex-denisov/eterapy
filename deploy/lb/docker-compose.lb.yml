@@ -1,14 +1,15 @@
-# B540 — contour load balancer (HAProxy) as an opt-in overlay. Runs on the two
-# LB nodes only (eterapy-1 RU, eterapy-4 Foreign). Changes nothing until the
-# `lb` profile is selected — safe to keep in the repo pre-cutover.
+# B540 — контурный балансировщик (HAProxy) как opt-in оверлей. Работает только
+# на LB-нодах (eterapy-1 = RU, eterapy-4 = Foreign). Без профиля `lb` не
+# поднимается вообще — файл безопасно держать в репозитории до катовера.
 #
-#   docker compose -f docker-compose.lb.yml --profile lb up -d
+#   sudo docker compose -f docker-compose.lb.yml --profile lb up -d
 #
-# host networking so it owns :443 on the LB node. During cutover the system
-# nginx must first free :443 (or HAProxy binds an alt port and nginx proxies to
-# it) — see deploy/lb/README.md.
+# host networking: HAProxy должен видеть 127.0.0.1:3200 (app на этой же ноде) и
+# WireGuard-адрес соседней ноды. Наружу он не слушает — только loopback:3300,
+# в который проксирует существующий фронт (nginx на eterapy-1 / Caddy на
+# eterapy-4). Сертификаты и vhost'ы (включая staging) остаются у фронта.
 
-name: eterapy
+name: eterapy-lb
 
 services:
   haproxy:
@@ -16,8 +17,23 @@ services:
     profiles: ["lb"]
     restart: always
     network_mode: host
+    environment:
+      # Адреса app-нод ЭТОГО контура (host:port), обязательны.
+      LB_NODE_A: ${LB_NODE_A:?set LB_NODE_A in .env (local app, e.g. 127.0.0.1:3200)}
+      LB_NODE_B: ${LB_NODE_B:?set LB_NODE_B in .env (peer app over WireGuard, e.g. 10.77.0.2:3200)}
+      LB_BIND_PORT: ${LB_BIND_PORT:-3300}
+      LB_STATS_PORT: ${LB_STATS_PORT:-3301}
+      # B542: LiveKit-сигналинг контура (WS). Адреса :7880 нод кластера —
+      # локальная нода по loopback, пир по WireGuard.
+      LB_LIVEKIT_PORT: ${LB_LIVEKIT_PORT:-3310}
+      LB_LIVEKIT_NODE_A: ${LB_LIVEKIT_NODE_A:?set LB_LIVEKIT_NODE_A in .env (local livekit, e.g. 127.0.0.1:7880)}
+      LB_LIVEKIT_NODE_B: ${LB_LIVEKIT_NODE_B:?set LB_LIVEKIT_NODE_B in .env (peer livekit over WireGuard, e.g. 10.77.0.2:7880)}
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./certs:/etc/haproxy/certs:ro
-    # Fail fast if the config is invalid rather than serving a broken LB.
+    # Падаем сразу на битом конфиге, а не отдаём сломанный LB.
     command: ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${LB_STATS_PORT:-3301}/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

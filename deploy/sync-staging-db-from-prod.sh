@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROD_WEB_DIR="${PROD_WEB_DIR:-/home/admin/eterapy/web}"
-STAGING_WEB_DIR="${STAGING_WEB_DIR:-/home/admin/eterapy-staging/web}"
-STAGING_ECOSYSTEM="${STAGING_ECOSYSTEM:-/home/admin/eterapy-staging/deploy/ecosystem.staging.config.js}"
-STAGING_HEALTH_URL="${STAGING_HEALTH_URL:-http://127.0.0.1:3100/api/health}"
+# B473: staging runs as containers (compose project eterapy-staging in
+# /opt/eterapy-staging); the A/B flip rewrites DATABASE_URL in the staging
+# .env and recreates the web+worker containers instead of a PM2 reload.
+PROD_ENV_FILE="${PROD_ENV_FILE:-/opt/eterapy/.env}"
+STAGING_DIR="${STAGING_DIR:-/opt/eterapy-staging}"
+STAGING_ENV_FILE="${STAGING_ENV_FILE:-$STAGING_DIR/.env}"
+STAGING_COMPOSE_FILE="${STAGING_COMPOSE_FILE:-$STAGING_DIR/docker-compose.staging.yml}"
+STAGING_HEALTH_URL="${STAGING_HEALTH_URL:-http://127.0.0.1:3201/api/health}"
 SYNC_LOCK_FILE="${SYNC_LOCK_FILE:-/tmp/eterapy-staging-db-sync.lock}"
 SYNC_FAILPOINT="${SYNC_FAILPOINT:-}"
 # INC-055: keep stage-only test-account acceptance results across refreshes.
@@ -18,14 +22,16 @@ usage() {
 Usage: sync-staging-db-from-prod.sh [--restart] [--migrate]
 
 Copies the production PostgreSQL database into an inactive staging A/B database
-on the VPS, then flips staging to it with a graceful PM2 reload.
+on the VPS, then flips staging to it by rewriting DATABASE_URL in the staging
+.env and recreating the staging containers.
 The script never writes to production. It reads DATABASE_URL from:
-  /home/admin/eterapy/web/.env.local
-  /home/admin/eterapy-staging/web/.env.local
+  /opt/eterapy/.env           (prod, root-only — read via sudo)
+  /opt/eterapy-staging/.env   (staging, admin-owned)
 
 Options:
-  --restart   Activate the restored DB and gracefully reload staging processes.
-  --migrate   Run prisma migrate deploy against the inactive DB before activation.
+  --restart   Activate the restored DB and recreate the staging containers.
+  --migrate   Run prisma migrate deploy against the inactive DB before activation
+              (inside the staging release image, one-shot container).
 
 Operational fault injection:
   SYNC_FAILPOINT=after_restore  Abort after restore/migrations, before activation.
@@ -59,16 +65,25 @@ log() {
   printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*" >&2
 }
 
+# .env files are dotenv-style KEY=value lines (the prod one is root-only, so
+# read through sudo). Last assignment wins; optional surrounding quotes are
+# stripped — matching how docker compose itself parses env_file.
 load_database_url() {
   local -r env_file="$1"
-  [[ -f "$env_file" ]] || { echo "ERROR: env file not found: $env_file" >&2; return 1; }
-  (
-    set -a
-    # shellcheck disable=SC1090
-    . "$env_file"
-    set +a
-    printf '%s' "${DATABASE_URL:-}"
-  )
+  sudo test -f "$env_file" || { echo "ERROR: env file not found: $env_file" >&2; return 1; }
+  sudo cat "$env_file" | node -e '
+    let body = "";
+    process.stdin.on("data", (chunk) => { body += chunk; });
+    process.stdin.on("end", () => {
+      const lines = body.split("\n").filter((line) => /^DATABASE_URL=/.test(line));
+      if (lines.length === 0) process.exit(0);
+      let value = lines[lines.length - 1].slice("DATABASE_URL=".length).trim();
+      if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'\''") && value.endsWith("'\''"))) {
+        value = value.slice(1, -1);
+      }
+      process.stdout.write(value);
+    });
+  '
 }
 
 db_name_from_url() {
@@ -124,7 +139,7 @@ require_command psql
 require_command node
 require_command sudo
 require_command curl
-require_command pm2
+require_command docker
 require_command flock
 
 # Serialize scheduled, manual, and deployment-triggered invocations on the VPS.
@@ -140,8 +155,8 @@ if [[ -n "$SYNC_FAILPOINT" && "$SYNC_FAILPOINT" != "after_restore" ]]; then
   exit 1
 fi
 
-PROD_DATABASE_URL="$(load_database_url "$PROD_WEB_DIR/.env.local")"
-STAGING_DATABASE_URL="$(load_database_url "$STAGING_WEB_DIR/.env.local")"
+PROD_DATABASE_URL="$(load_database_url "$PROD_ENV_FILE")"
+STAGING_DATABASE_URL="$(load_database_url "$STAGING_ENV_FILE")"
 
 [[ -n "$PROD_DATABASE_URL" ]] || { echo "ERROR: production DATABASE_URL is empty" >&2; exit 1; }
 [[ -n "$STAGING_DATABASE_URL" ]] || { echo "ERROR: staging DATABASE_URL is empty" >&2; exit 1; }
@@ -221,6 +236,8 @@ SELECT format('CREATE DATABASE %I OWNER %I TEMPLATE template0', :'target', :'own
 SQL
 }
 
+# Unquoted dotenv value on purpose: docker compose env_file passes quotes
+# through inconsistently across parsers; a URL never needs them.
 write_database_url_atomically() {
   local -r env_file="$1"
   local -r database_url="$2"
@@ -230,9 +247,9 @@ const path = require("node:path");
 const envFile = process.env.ENV_FILE;
 const current = fs.readFileSync(envFile, "utf8");
 if (!/^DATABASE_URL=/m.test(current)) throw new Error("DATABASE_URL line not found");
-const next = current.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${JSON.stringify(process.env.NEW_DATABASE_URL)}`);
+const next = current.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${process.env.NEW_DATABASE_URL}`);
 const stat = fs.statSync(envFile);
-const temp = path.join(path.dirname(envFile), `.env.local.${process.pid}.tmp`);
+const temp = path.join(path.dirname(envFile), `.env.${process.pid}.tmp`);
 fs.writeFileSync(temp, next, { mode: stat.mode });
 fs.renameSync(temp, envFile);
 NODE
@@ -256,39 +273,39 @@ wait_for_staging_health() {
   return 1
 }
 
-reload_staging_with_env_file() {
-  (
-    cd "$STAGING_WEB_DIR"
-    # The descriptor parses .env.local and explicitly supplies it to PM2. This
-    # avoids inherited process variables taking precedence over the A/B target.
-    pm2 startOrReload "$STAGING_ECOSYSTEM" --update-env
-  )
+# Recreate web+worker so they re-read the staging .env (env_file is only
+# applied at container creation). --no-deps: the one-shot migrate service must
+# not rerun here — migrations already ran against the inactive DB.
+reload_staging_containers() {
+  sudo docker compose -f "$STAGING_COMPOSE_FILE" up -d --force-recreate --no-deps web worker
 }
 
-verify_pm2_database_target() {
+verify_container_database_target() {
   local -r expected_database="$1"
-  EXPECTED_DATABASE="$expected_database" pm2 jlist | EXPECTED_DATABASE="$expected_database" node -e '
+  sudo docker inspect eterapy-staging-web-1 eterapy-staging-worker-1 \
+    | EXPECTED_DATABASE="$expected_database" node -e '
     let body = "";
     process.stdin.on("data", (chunk) => { body += chunk; });
     process.stdin.on("end", () => {
       const expected = process.env.EXPECTED_DATABASE;
-      const selected = JSON.parse(body).filter(({ name }) =>
-        name === "eterapy-staging" || name === "eterapy-staging-worker"
-      );
-      const web = selected.filter(({ name }) => name === "eterapy-staging");
-      const worker = selected.filter(({ name }) => name === "eterapy-staging-worker");
-      const invalid = selected.filter((process) => {
+      const containers = JSON.parse(body);
+      const invalid = containers.filter((container) => {
         try {
-          const database = decodeURIComponent(new URL(process.pm2_env?.DATABASE_URL ?? "").pathname.slice(1));
-          return process.pm2_env?.status !== "online" || database !== expected;
+          const env = Object.fromEntries(
+            (container.Config?.Env ?? []).map((entry) => {
+              const separator = entry.indexOf("=");
+              return [entry.slice(0, separator), entry.slice(separator + 1)];
+            }),
+          );
+          const database = decodeURIComponent(new URL(env.DATABASE_URL ?? "").pathname.slice(1));
+          return container.State?.Status !== "running" || database !== expected;
         } catch {
           return true;
         }
       });
-
-      if (web.length !== 2 || worker.length !== 1 || invalid.length > 0) {
+      if (containers.length !== 2 || invalid.length > 0) {
         process.stderr.write(
-          `PM2 target verification failed: expected two web processes and one worker on ${expected}\n`,
+          `Container target verification failed: expected web+worker running on ${expected}\n`,
         );
         process.exit(1);
       }
@@ -308,16 +325,9 @@ log "Restoring production dump into inactive DB '$TARGET_DB_NAME'"
 pg_restore --exit-on-error --no-owner --no-acl --dbname="$TARGET_PG_URL" "$DUMP_FILE"
 
 if [[ "$RUN_MIGRATIONS" == "true" ]]; then
-  log "Running prisma migrate deploy on inactive DB '$TARGET_DB_NAME'"
-  (
-    cd "$STAGING_WEB_DIR"
-    set -a
-    # shellcheck disable=SC1090
-    . ./.env.local
-    set +a
-    export DATABASE_URL="$TARGET_DATABASE_URL"
-    npx prisma migrate deploy
-  )
+  log "Running prisma migrate deploy on inactive DB '$TARGET_DB_NAME' (one-shot container)"
+  sudo docker compose -f "$STAGING_COMPOSE_FILE" run --rm --no-deps \
+    -e DATABASE_URL="$TARGET_DATABASE_URL" migrate
 fi
 
 log "Validating restored inactive DB"
@@ -371,37 +381,36 @@ if [[ "$SYNC_FAILPOINT" == "after_restore" ]]; then
 fi
 
 if [[ "$RESTART" == "true" ]]; then
-  cp -p -- "$STAGING_WEB_DIR/.env.local" "$ENV_BACKUP"
+  cp -p -- "$STAGING_ENV_FILE" "$ENV_BACKUP"
   log "Activating '$TARGET_DB_NAME' with an atomic env-file replacement"
-  write_database_url_atomically "$STAGING_WEB_DIR/.env.local" "$TARGET_DATABASE_URL"
+  write_database_url_atomically "$STAGING_ENV_FILE" "$TARGET_DATABASE_URL"
 
-  log "Gracefully reloading staging PM2 processes"
-  if ! reload_staging_with_env_file; then
-    log "Activation reload failed; restoring previous DATABASE_URL"
-    cp -p -- "$ENV_BACKUP" "$STAGING_WEB_DIR/.env.local"
-    reload_staging_with_env_file || true
+  log "Recreating staging containers on the new database"
+  if ! reload_staging_containers; then
+    log "Activation recreate failed; restoring previous DATABASE_URL"
+    cp -p -- "$ENV_BACKUP" "$STAGING_ENV_FILE"
+    reload_staging_containers || true
     exit 1
   fi
 
-  if ! verify_pm2_database_target "$TARGET_DB_NAME"; then
-    log "PM2 retained the wrong database target; restoring '$STAGING_DB_NAME'"
-    cp -p -- "$ENV_BACKUP" "$STAGING_WEB_DIR/.env.local"
-    reload_staging_with_env_file || true
-    verify_pm2_database_target "$STAGING_DB_NAME" || true
+  if ! verify_container_database_target "$TARGET_DB_NAME"; then
+    log "Containers retained the wrong database target; restoring '$STAGING_DB_NAME'"
+    cp -p -- "$ENV_BACKUP" "$STAGING_ENV_FILE"
+    reload_staging_containers || true
+    verify_container_database_target "$STAGING_DB_NAME" || true
     exit 1
   fi
 
   if ! wait_for_staging_health; then
     log "Health verification failed; rolling back to '$STAGING_DB_NAME'"
-    cp -p -- "$ENV_BACKUP" "$STAGING_WEB_DIR/.env.local"
-    reload_staging_with_env_file || true
-    verify_pm2_database_target "$STAGING_DB_NAME" || true
+    cp -p -- "$ENV_BACKUP" "$STAGING_ENV_FILE"
+    reload_staging_containers || true
+    verify_container_database_target "$STAGING_DB_NAME" || true
     wait_for_staging_health || log "WARNING: staging health did not recover after rollback"
     exit 1
   fi
 
   ACTIVATED=true
-  pm2 save --force >/dev/null
   log "A/B refresh complete: '$TARGET_DB_NAME' is live; '$STAGING_DB_NAME' is the rollback generation"
 else
   log "Inactive restore validated; --restart was not supplied, so live staging remains unchanged"

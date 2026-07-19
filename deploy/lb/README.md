@@ -1,93 +1,132 @@
-# B540 — Fleet LB + Cloudflare geo-routing + 152-ФЗ data contours
+# B540 — контурный LB + Cloudflare geo-routing + гео-контуры данных (152-ФЗ)
 
-Owner decision (2026-07-18): **free scheme, no paid Cloudflare Load Balancing.**
-Cloudflare geo-routes to two HAProxy load balancers on the existing VMs
-(eterapy-1 cloud.ru + eterapy-4 AWS), proxying (orange cloud) **on**, with
-session affinity via cookie.
+Решение owner (2026-07-18): **бесплатная схема, платный Cloudflare Load
+Balancing не используем.** Балансировка внутри контура — HAProxy на нодах,
+разделение контуров — Cloudflare Worker по стране запроса.
 
-## Topology
+## Что уже РАБОТАЕТ в проде (2026-07-19)
+
+RU-контур собран и проверен учениями:
 
 ```
-                       Cloudflare (proxied, orange cloud)
-                        cf-geo-router.worker.js (free)
-                     reads request.cf.country → contour
-                 ┌──────────────┴───────────────┐
-        country == RU                      everything else
-                 │                                │
-        ru-lb.eterapy.com                intl-lb.eterapy.com
-        HAProxy @ eterapy-1              HAProxy @ eterapy-4
-        (cookie SRVID sticky)           (cookie SRVID sticky)
-                 │                                │
-        ┌────────┴────────┐              ┌────────┴────────┐
-   eterapy-1 app     eterapy-2 app   eterapy-4 app     eterapy-3 app
-        │  (RU contour)   │              │ (Foreign contour)│
-   PG primary  ← stream → PG replica   PG primary ← stream → PG replica
-        └── RU DB (РФ PDn) ──┘          └── Foreign DB (no РФ PDn) ──┘
-              NO replication between contours (152-ФЗ)
-   backups → cloud.ru S3 ×2            backups → AWS S3 (eterapy-foreign-backups)
+                    Cloudflare (DNS-only, как и было)
+                                 │
+                    nginx :443 на eterapy-1  (LE-сертификаты, все vhost'ы,
+                                 │            включая staging — не тронуты)
+                    HAProxy 127.0.0.1:3300   (контурный LB, cookie SRVID)
+                    ┌────────────┴────────────┐
+              node-a                      node-b
+        eterapy-1 app                eterapy-2 app
+        127.0.0.1:3200               10.77.0.2:3200 (WireGuard)
+                    └────────────┬────────────┘
+                      PG primary на eterapy-1
+                      (eterapy-2 пишет в него по WG 10.77.0.1:5432)
+
+        локальная БД eterapy-2 = streaming-реплика primary (B537),
+        read-only, ждёт промоута; в трафике не участвует
 ```
 
-## Why this satisfies 152-ФЗ
+Ключевое отличие от первоначального наброска: **HAProxy НЕ забирает :443.**
+Он слушает только loopback:3300, а существующий фронт (nginx на eterapy-1,
+Caddy на eterapy-4) проксирует в него вместо прямого app-порта. Это даёт
+прозрачный отказ app-ноды, не трогая сертификаты, staging-vhost'ы, CSP-правила
+и настройки Cloudflare — то есть катовер обратим одной строчкой в nginx.
 
-- **Two independent Postgres clusters, never replicated across the boundary.**
-  RF citizens' personal data is stored only in the RU cluster (in RF). The
-  Foreign cluster never receives РФ PDn.
-- **Routing is by user home-region, not just request IP.** The Worker sends
-  RF-country requests to the RU contour authoritatively (a stale affinity
-  cookie cannot move an RF visitor to Foreign). The app records each user's
-  home contour at registration (by declared residency / `cf-ipcountry`) so an
-  RF user travelling abroad is still routed/redirected to the RU contour where
-  their account lives.
-- **Residual item for counsel:** requests transit the Cloudflare edge (already
-  the project's accepted posture — CF fronts eterapy.com today). Data at rest
-  stays in-contour. Track with the existing legal queue if a stricter reading
-  is required.
+### Проверено учениями (2026-07-19, лог в тикете B540)
 
-## Session handling across contours
+| Сценарий | Результат |
+|----------|-----------|
+| `docker stop eterapy-web-1` на eterapy-1 (локальная app-нода) | 10/10 запросов 200; HAProxy: `node-a is DOWN … 1 active server left` |
+| Жёсткий ребут ВСЕЙ ноды eterapy-2 (`sysrq b`) | 40/40 запросов 200, одна задержка 3.3 с в момент срабатывания health-check; `node-b is DOWN, Layer4 timeout` → через ~2 мин `is UP` |
+| Возврат ноды | контейнеры сами (restart: always), WireGuard-хендшейк, реплика по-прежнему `pg_is_in_recovery = t` |
 
-NextAuth JWTs are stateless with one `AUTH_SECRET` **per contour**. Within a
-contour, a node failover never drops the session (no sticky needed for auth);
-the HAProxy `SRVID` cookie pins a node only for LiveKit-room and rate-limit
-locality. A user only ever authenticates against their home contour.
+RTO app-ноды: ~6 с на выпадение (`inter 3s fall 2`), 0 потерянных запросов
+благодаря `option redispatch` + `retries 3`.
 
-## Files
+## Файлы
 
-| File | Purpose |
-|------|---------|
-| `cf-geo-router.worker.js` | CF Worker: country → contour, affinity cookie |
-| `haproxy.cfg.example` | contour LB config (copy per contour, fill IPs/cert) |
-| `docker-compose.lb.yml` | opt-in `lb`-profile HAProxy container |
+| Файл | Назначение |
+|------|------------|
+| `haproxy.cfg` | конфиг контурного LB; адреса нод — из `.env` (`LB_NODE_A`/`LB_NODE_B`) |
+| `docker-compose.lb.yml` | overlay с профилем `lb`; ставится в `/opt/eterapy/lb` |
+| `cf-geo-router.worker.js` | CF Worker: страна → контур, affinity-cookie (**НЕ включён**, см. ниже) |
 
-## Cutover runbook (LIVE — do with owner present, not solo)
+Установка на LB-ноде:
 
-This is the irreversible part; each step is reversible on its own, but the DB
-split and DNS repoint affect live users. Suggested order:
+```bash
+sudo mkdir -p /opt/eterapy/lb && cd /opt/eterapy/lb
+# скопировать haproxy.cfg + docker-compose.lb.yml из репозитория
+cat > .env <<EOF
+LB_NODE_A=127.0.0.1:3200          # app на этой же ноде
+LB_NODE_B=10.77.0.2:3200          # app соседа контура по WireGuard
+LB_BIND_PORT=3300
+LB_STATS_PORT=3301
+EOF
+sudo docker compose -f docker-compose.lb.yml --profile lb up -d
+# затем фронт: proxy_pass http://127.0.0.1:3300;
+```
 
-1. **Foreign DB stands up first (no live users yet).** Bring the Foreign
-   cluster's PG primary up on eterapy-4 with a fresh empty schema (migrations),
-   replica on eterapy-3 (B537 streaming). Point eterapy-4/eterapy-3 apps at it.
-2. **RU replica.** eterapy-1 → eterapy-2 streaming replica (B537), so the RU
-   contour is HA before it goes behind an LB.
-3. **HAProxy on eterapy-4 (Foreign)** first — no live RU traffic at risk.
-   Validate `/api/health` through it on the sslip/origin hostname.
-4. **HAProxy on eterapy-1 (RU):** free :443 (stop system nginx or bind HAProxy
-   on an alt port with nginx proxying to it), start HAProxy, validate. Keep
-   nginx config backed up (`eterapy.pre-container-cutover.bak` already exists).
-5. **Cloudflare:** deploy the Worker, create the proxied `ru-lb`/`intl-lb`
-   origin hostnames, route the app hostnames through the Worker. Verify from an
-   RU IP and a non-RU IP that each lands on the correct contour.
-6. **App: user home-contour assignment** at registration + wrong-contour
-   redirect. Backfill existing users → RU contour (all current data is RF).
-7. **Failover drill (owner present):** kill an app node — user unaffected
-   (LB retries live node). Kill an LB — CF retries the other origin. Kill a PG
-   primary — promote the replica (B537 procedure). Record RTO/RPO in DEPLOY.md.
+Состояние бэкендов: `curl -s "http://127.0.0.1:3301/;csv"` (только loopback).
 
-Rollback at any step: repoint CF to the direct origin, stop HAProxy, restore
-nginx :443. Sessions survive (stateless JWT).
+## Почему geo-routing ЕЩЁ НЕ ВКЛЮЧЁН
 
-## Ports (minimal; record in DEPLOY.md)
+Worker готов, но включать его сейчас нельзя: **у Foreign-контура нет данных
+пользователей.** Все 40 аккаунтов живут в RU-БД, а eterapy-3/eterapy-4 держат
+собственные пустые базы. Включи мы сегодня geo-steering — не-РФ посетитель
+попадёт в пустую БД и не сможет войти. Это регресс, а не отказоустойчивость.
 
-- Public per node: 22 (SSH, source-limited where possible), 443 (LB/origin).
-- 443 on LB nodes: allow from Cloudflare ranges only (defence in depth).
-- Inter-node: 5432 (PG replica, only the peer's IP), 3200 (LB→app, only LB IP).
-- LiveKit RTC (B542): 7881/tcp + UDP range, only on LiveKit nodes.
+Порядок, в котором это снимается (следующий этап B540):
+
+1. Приложение получает понятие **home contour** у пользователя: контур
+   фиксируется на регистрации (по резидентству / `cf-ipcountry`) и хранится
+   durable; вход не в свой контур → редирект в свой. Существующие 40 юзеров
+   бэкфиллятся в RU.
+2. Foreign-контур становится HA: PG-реплика eterapy-4 → eterapy-3 (WireGuard,
+   как в B537), HAProxy на eterapy-4 с теми же двумя нодами.
+3. Только после этого — CF: проксирование (orange cloud) на app-хостах, Worker
+   на маршруте, проверка с РФ- и не-РФ-IP.
+
+До шага 1 любая гео-развилка ломает живых пользователей — поэтому CF-записи
+остаются DNS-only, как сейчас.
+
+## Как это удовлетворяет 152-ФЗ
+
+- **Два независимых Postgres-кластера, между контурами репликации НЕТ.** ПДн
+  граждан РФ лежат только в RU-кластере (в РФ). Foreign-кластер РФ-ПДн не
+  получает.
+- **Маршрутизация по домашнему региону пользователя, а не только по IP.**
+  Worker отправляет запросы из РФ в RU-контур авторитетно — устаревшая
+  affinity-cookie не может увести посетителя из РФ в Foreign.
+- **Остаточный вопрос для юриста:** трафик проходит через edge Cloudflare (уже
+  принятая позиция проекта). Данные в покое не покидают контур.
+
+## Порты (минимум)
+
+- Наружу на ноде: 22 (SSH) и 443 (фронт). App-порт 3200 наружу **не
+  публикуется** — только на loopback или на WireGuard-адрес ноды.
+- Меж-нодовые (через WireGuard 10.77.0.0/24, в интернет не выходят):
+  5432 (PG-реплика + запись app соседа), 3200 (LB → app соседа).
+- LiveKit RTC (B542): 7881/tcp + UDP-диапазон, только на нодах с LiveKit.
+
+## Откат
+
+1. nginx: вернуть `proxy_pass http://127.0.0.1:3200;` (бэкап
+   `/etc/nginx/sites-available/eterapy.bak.b540`), `nginx -t && reload`.
+2. `sudo docker compose -f /opt/eterapy/lb/docker-compose.lb.yml down`.
+3. eterapy-2 обратно в чистый standby: `.env.bak.b540` (там `DATABASE_URL`
+   на локальную реплику).
+
+Сессии переживают откат — NextAuth JWT stateless, `AUTH_SECRET` одинаковый.
+
+## Готчи
+
+- **CI перезаписывает `/opt/eterapy/docker-compose.yml` из репозитория.**
+  Публикация app-порта живёт в самом compose (`ETERAPY_WEB_BIND`), поэтому
+  правка обязана быть в `main` — иначе первый же деплой уносит node-b из LB.
+- **Power API cloud.ru не найден.** `compute.api.cloud.ru/api/v1/vms` умеет
+  list/get/PUT(метаданные)/DELETE; отдельного stop/start-эндпоинта в открытой
+  документации нет, все угаданные пути дают 404/405. Полная остановка ВМ пока
+  только через консоль — учение делали жёстким ребутом изнутри (эквивалентная
+  потеря узла, но самовосстанавливающаяся). Уточнить у поддержки cloud.ru.
+- `pg_hba.conf` на eterapy-1 должен разрешать `eterapy` с `10.77.0.2/32`
+  (бэкап `pg_hba.conf.bak.b540`), иначе app соседа не поднимется.

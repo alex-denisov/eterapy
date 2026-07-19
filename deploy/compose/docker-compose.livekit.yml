@@ -1,20 +1,24 @@
-# B542 — LiveKit as an IaC service (phase 1 scaffolding), one cluster per
-# geo-contour. OPT-IN overlay: it changes nothing unless you explicitly select
-# it, so it can live in the repo while the full rollout waits on B540
-# (contours / HAProxy / firewall / AWS keys).
+# B542 — LiveKit as an IaC service, one cluster per geo-contour. OPT-IN
+# overlay: nothing starts unless the node's fleet-matrix profile_args select
+# it, so the file safely travels with every deploy.
 #
-# Bring up a contour node:
-#   docker compose -f docker-compose.yml -f docker-compose.livekit.yml \
-#     --profile livekit up -d
+# Bring up a contour node (RU primary runs Redis too):
+#   docker compose -f docker-compose.prod.yml -f docker-compose.livekit.yml \
+#     --profile livekit --profile livekit-redis up -d
 #
 # Scaling model (see the B542 ticket for the full picture):
-#   * Redis-backed mesh: every livekit-server in a contour shares ONE Redis;
-#     rooms are routed between nodes via Redis. Add a node → add capacity.
+#   * Redis-backed mesh: every livekit-server in a contour shares ONE Redis
+#     (on the contour's primary node); rooms are routed between nodes via
+#     Redis. Add a node → add capacity.
 #   * Signalling (:7880) sits behind the contour HAProxy (B540); media (RTC
 #     7881/tcp + UDP range) goes DIRECT to the node hosting the room, which
 #     advertises its own public IP — the LB never proxies media.
 #   * One shared API key/secret per contour (tokens must verify cluster-wide);
 #     never the LiveKit default devkey (INC-067).
+#
+# The node's /opt/eterapy/livekit.yaml is host state (holds the contour
+# secret), created from livekit.yaml.example at bootstrap — like .env, it is
+# NOT shipped by CI.
 #
 # 152-ФЗ: run the RU cluster only on RU nodes (eterapy-1/2) with cloud.ru
 # egress; the Foreign cluster on eterapy-4/3 with AWS egress. Media and
@@ -25,11 +29,21 @@ name: eterapy
 services:
   livekit-redis:
     image: redis:7-alpine
-    profiles: ["livekit"]
+    # Only the contour's primary node (one Redis per contour cluster).
+    profiles: ["livekit-redis"]
     restart: always
-    # Contour-internal only: bind to the private interface, reachable from the
-    # peer node's IP by firewall, never the public internet.
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # host networking + EXPLICIT binds: the fleet hosts have no firewall, so
+    # Redis must listen only on loopback and the WireGuard mesh address —
+    # never a public interface.
+    command:
+      - redis-server
+      - "--save"
+      - ""
+      - "--appendonly"
+      - "no"
+      - "--bind"
+      - "127.0.0.1"
+      - ${LIVEKIT_REDIS_BIND_IP:?set LIVEKIT_REDIS_BIND_IP in .env (this node's WireGuard IP, e.g. 10.77.0.1)}
     network_mode: host
 
   livekit:

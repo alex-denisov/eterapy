@@ -5,7 +5,7 @@
     "host": "192.144.14.146",
     "user": "admin",
     "compose": "docker-compose.prod.yml",
-    "profile_args": "--profile worker",
+    "profile_args": "--profile worker -f docker-compose.livekit.yml --profile livekit --profile livekit-redis",
     "standby": false
   },
   {
@@ -14,7 +14,7 @@
     "host": "192.144.13.153",
     "user": "admin",
     "compose": "docker-compose.yml",
-    "profile_args": "",
+    "profile_args": "-f docker-compose.livekit.yml --profile livekit",
     "standby": true
   },
   {

@@ -47,6 +47,12 @@ services:
     image: ${ETERAPY_IMAGE}
     restart: always
     env_file: .env
+    # B540: узел контура должен быть достижим для HAProxy соседней ноды. По
+    # умолчанию публикуем только на loopback (ничего не меняется, снаружи
+    # закрыто); LB-пир получает адрес через ETERAPY_WEB_BIND — на RU-контуре
+    # это WireGuard-адрес ноды (10.77.0.x), т.е. порт не выходит в интернет.
+    ports:
+      - "${ETERAPY_WEB_BIND:-127.0.0.1}:${ETERAPY_APP_PORT:-3200}:3000"
     volumes:
       - uploads:/app/web/public/uploads
       # B544: состояние хоста от collect-node-state.sh (docker-сокет НЕ пробрасываем)

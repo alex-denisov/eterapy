@@ -34,9 +34,11 @@ describe("B537 · standby-узел переживает деплой", () => {
   });
 
   it("standby не получает worker-профиль, пишущие узлы получают", () => {
+    // B542: standby может нести читающие сервисы (livekit), но worker —
+    // пишущий на каждом тике — на read-only реплике запрещён навсегда.
     for (const vm of matrix) {
       if (vm.standby === true) {
-        expect(vm.profile_args).toBe("");
+        expect(String(vm.profile_args)).not.toContain("--profile worker");
       } else {
         expect(String(vm.profile_args)).toContain("--profile worker");
       }
@@ -57,6 +59,17 @@ describe("B537 · standby-узел переживает деплой", () => {
     expect(workflow).toContain("NODE_STANDBY:");
     expect(workflow).toContain("FLEET_NODE_STANDBY=$NODE_STANDBY");
     expect(workflow).not.toMatch(/FLEET_NODE_STANDBY=\$\{\{/);
+  });
+
+  it("проверка worker health не валит деплой на standby", () => {
+    // Первый прод-выкат B537 упал именно здесь: compose-профиль worker'а не
+    // поднимал, а шаг верификации требовал «running» безусловно.
+    expect(workflow).toMatch(/worker health[\s\S]{0,400}NODE_STANDBY.*=.*"1"/);
+    const check = workflow.slice(workflow.indexOf("▶ worker health"));
+    const guardIdx = check.indexOf("NODE_STANDBY");
+    const inspectIdx = check.indexOf("docker inspect -f '{{.State.Status}}' eterapy-worker-1");
+    expect(guardIdx).toBeGreaterThanOrEqual(0);
+    expect(inspectIdx).toBeGreaterThan(guardIdx); // гейт стоит ДО проверки
   });
 
   it("проверка существующего ключа в .env идёт под sudo (иначе плодятся дубли)", () => {

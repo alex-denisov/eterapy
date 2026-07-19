@@ -170,6 +170,12 @@ jobs:
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
+          # B542: the LiveKit overlay travels with every deploy so nodes whose
+          # matrix profile_args reference it (-f docker-compose.livekit.yml)
+          # always converge from the repo copy. The node's livekit.yaml
+          # (contour secret) is host state and is NOT shipped.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy/compose/docker-compose.livekit.yml "$VM_USER@$VM_HOST:/tmp/docker-compose.livekit.yml"
+          $SSH "sudo mv /tmp/docker-compose.livekit.yml /opt/eterapy/docker-compose.livekit.yml"
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
           # releases piled up until the disk filled and `docker load` failed.
@@ -199,11 +205,19 @@ jobs:
             && sudo docker compose -f $COMPOSE_FILE_NAME ps"
           echo "▶ worker health"
           sleep 5
-          WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-worker-1" || echo missing)
-          echo "eterapy-worker container → $WORKER_STATUS"
-          if [ "$WORKER_STATUS" != "running" ]; then
-            $SSH "sudo docker logs eterapy-worker-1 --tail 100" || true
-            exit 1
+          if [ "$NODE_STANDBY" = "1" ]; then
+            # B537: на standby worker намеренно не поднимается — он пишет на
+            # каждом тике, а локальная БД read-only. Требовать его «running»
+            # здесь значит валить деплой за штатное поведение (и получить в
+            # логах старые ошибки уже остановленного контейнера).
+            echo "standby node: worker намеренно не запущен — проверка пропущена"
+          else
+            WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-worker-1" || echo missing)
+            echo "eterapy-worker container → $WORKER_STATUS"
+            if [ "$WORKER_STATUS" != "running" ]; then
+              $SSH "sudo docker logs eterapy-worker-1 --tail 100" || true
+              exit 1
+            fi
           fi
 
       - name: Cleanup SSH key
