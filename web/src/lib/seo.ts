@@ -37,7 +37,6 @@ export const publicSeoRoutes = [
   "/products/family-scenarios",
   "/products/human-design",
   "/products/surname-story",
-  "/all-modalities",
   "/checkin",
   "/practitioners",
   "/practitioners/apply",
@@ -47,6 +46,7 @@ export const publicSeoRoutes = [
 ] as const;
 
 export const protectedNoIndexPrefixes = [
+  "/miniapp",
   "/admin",
   "/cabinet",
   "/dashboard",
