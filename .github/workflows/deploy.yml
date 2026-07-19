@@ -170,6 +170,12 @@ jobs:
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
+          # B542: the LiveKit overlay travels with every deploy so nodes whose
+          # matrix profile_args reference it (-f docker-compose.livekit.yml)
+          # always converge from the repo copy. The node's livekit.yaml
+          # (contour secret) is host state and is NOT shipped.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy/compose/docker-compose.livekit.yml "$VM_USER@$VM_HOST:/tmp/docker-compose.livekit.yml"
+          $SSH "sudo mv /tmp/docker-compose.livekit.yml /opt/eterapy/docker-compose.livekit.yml"
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
           # releases piled up until the disk filled and `docker load` failed.

@@ -6,10 +6,12 @@
 # nodes of a contour into one horizontally-scalable cluster.
 
 port: 7880
-# Bind signalling to loopback when a local reverse proxy / HAProxy terminates
-# TLS in front. For a direct-to-node contour LB, bind the private IP instead.
+# Bind signalling to loopback AND this node's WireGuard address: the contour
+# HAProxy reaches the peer node's :7880 over the WG mesh (never the public
+# interface — the fleet hosts have no firewall).
 bind_addresses:
   - 127.0.0.1
+  - 10.77.0.1   # ← this node's WG IP (10.77.0.2 on eterapy-2)
 log_level: info
 
 rtc:
@@ -23,10 +25,11 @@ rtc:
   # node_ip: "203.0.113.10"
 
 # ── Cluster mode: shared Redis makes the contour's nodes one mesh ───────────
-# Uncomment on every node of the contour, pointing at the SAME Redis. Rooms
-# are then routed across nodes; add a node to add capacity.
-# redis:
-#   address: "10.0.0.2:6379"
+# Set on EVERY node of the contour, pointing at the SAME Redis (the
+# livekit-redis service on the contour's primary node, reachable over WG).
+# Rooms are then routed across nodes; add a node to add capacity.
+redis:
+  address: "10.77.0.1:6379"
 
 keys:
   # ONE key/secret per contour, shared by every node in it. NEVER the LiveKit

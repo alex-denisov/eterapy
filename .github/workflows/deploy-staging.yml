@@ -1,10 +1,9 @@
+# B473 — staging deploy: same immutable-image flow as production (deploy.yml),
+# pointed at the staging contour on eterapy-1 (/opt/eterapy-staging, port 3201,
+# database eterapy_staging). The image is built with staging NEXT_PUBLIC_*
+# domains; runtime secrets live only in the VM's /opt/eterapy-staging/.env —
+# this workflow never receives prod runtime secrets.
 name: Deploy to Staging
-
-# Staging mirror of deploy.yml. Triggered by push to `develop`; deploys to the
-# isolated staging contour on the same VPS (port 3100, /home/admin/eterapy-staging,
-# database eterapy_staging). Runtime secrets live in the VPS staging .env.local —
-# this workflow only bakes the public staging NEXT_PUBLIC_* values into the build
-# and never receives prod runtime secrets.
 
 on:
   push:
@@ -29,11 +28,6 @@ on:
         required: false
         default: false
         type: boolean
-      skip_migrations:
-        description: 'Skip prisma migrate deploy on VPS'
-        required: false
-        default: false
-        type: boolean
 
 # Staging deploys queue independently of production.
 concurrency:
@@ -42,81 +36,29 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  VPS_HOST: 192.144.14.146
-  VPS_USER: admin
-  VPS_REPO_DIR: /home/admin/eterapy-staging
-  VPS_WEB_DIR: /home/admin/eterapy-staging/web
-  VPS_DEPLOY_DIR: /home/admin/eterapy-staging/deploy
+  VM_HOST: 192.144.14.146
+  VM_USER: admin
+  STAGING_DIR: /opt/eterapy-staging
+  COMPOSE_FILE_NAME: docker-compose.staging.yml
   # Probe the app subdomain: it resolves directly to the VPS and /api/health is
-  # exempt from Basic Auth. staging.eterapy.com (main) stays behind Cloudflare
-  # until grey-clouded, so it would 301 here — switch back once DNS is direct.
+  # exempt from Basic Auth.
   HEALTH_URL: https://staging.app.eterapy.com/api/health
-  APP_URL: https://staging.app.eterapy.com
-  ADMIN_URL: https://staging.admin.eterapy.com
 
 jobs:
-  # ╔═══════════════ STAGE 1: INSTALL ═══════════════╗
-  install:
-    name: Install dependencies
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    outputs:
-      cache-key: ${{ steps.cache-keys.outputs.deps }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - name: Compute cache keys
-        id: cache-keys
-        run: echo "deps=node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
-      - name: Restore node_modules cache
-        id: cache-deps
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ steps.cache-keys.outputs.deps }}
-      - name: Install dependencies (npm ci)
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Generate Prisma client
-        working-directory: web
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-        run: npx prisma generate
-
-  # ╔═══════════════ STAGE 2: TEST ═══════════════╗
   test:
     name: Unit tests
-    needs: install
     if: ${{ !inputs.skip_tests }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - name: Restore node_modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: false
-      - name: Reinstall if cache miss
-        run: |
-          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
-            npm ci --prefer-offline --no-audit --no-fund
-          fi
-      - name: Ensure Prisma client
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Prisma client
         working-directory: web
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
@@ -128,245 +70,84 @@ jobs:
           NODE_ENV: test
         run: npm test -- --ci --passWithNoTests --silent
 
-  # ╔═══════════════ STAGE 3: BUILD ═══════════════╗
-  build:
-    name: Next.js build (staging)
-    needs: install
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - name: Restore node_modules
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            web/node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: false
-      - name: Reinstall if cache miss
-        run: |
-          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
-            npm ci --prefer-offline --no-audit --no-fund
-          fi
-      - name: Ensure Prisma client
-        working-directory: web
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-        run: npx prisma generate
-      - name: Restore Next.js build cache
-        uses: actions/cache@v5
-        with:
-          path: web/.next/cache
-          key: ${{ runner.os }}-nextjs-staging-${{ hashFiles('package-lock.json') }}-${{ hashFiles('web/src/**/*.{ts,tsx,js,jsx,css}', 'web/public/**', 'web/next.config.*') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-staging-${{ hashFiles('package-lock.json') }}-
-            ${{ runner.os }}-nextjs-staging-
-      - name: Build Next.js (staging)
-        working-directory: web
-        env:
-          # Placeholder server-side values — real runtime secrets live in the
-          # VPS staging .env.local. Build only needs these present/non-empty:
-          # some route modules (e.g. yukassa) assert env presence during
-          # Next.js "collect page data". These dummies are NOT real credentials
-          # and the build makes no live calls (DATABASE_URL is a placeholder too).
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-          AUTH_SECRET: 'staging-build-placeholder-secret-min-32-characters'
-          AUTH_COOKIE_DOMAIN: '.eterapy.com'
-          AUTH_SESSION_COOKIE_NAME: '__Secure-authjs.staging.session-token'
-          NEXTAUTH_URL: 'https://staging.eterapy.com'
-          AUTH_TRUST_HOST: 'true'
-          RESEND_API_KEY: 'staging-build-placeholder'
-          YUKASSA_SHOP_ID: 'staging-build-placeholder'
-          YUKASSA_SECRET_KEY: 'staging-build-placeholder'
-          LIVEKIT_API_KEY: 'staging-build-placeholder'
-          LIVEKIT_API_SECRET: 'staging-build-placeholder'
-          TELEGRAM_BOT_TOKEN: 'staging-build-placeholder'
-          # Public values baked into the client bundle — STAGING domains.
-          NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: 'eterapy_staging_bot'
-          NEXT_PUBLIC_APP_URL: 'https://staging.eterapy.com'
-          NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
-          NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'
-          NEXT_PUBLIC_MAIN_DOMAIN: 'staging.eterapy.com'
-          NEXT_PUBLIC_APP_DOMAIN: 'staging.app.eterapy.com'
-          NEXT_PUBLIC_ADMIN_DOMAIN: 'staging.admin.eterapy.com'
-          NEXT_PUBLIC_LIVEKIT_URL: ''
-          NODE_ENV: production
-        run: npm run build
-      - name: Trim build artifact
-        run: |
-          rm -rf web/.next/cache
-          rm -rf web/.next/dev
-          echo "▶ Artifact size:"
-          du -sh web/.next
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-build-staging-${{ github.sha }}
-          path: ${{ github.workspace }}/web/.next
-          retention-days: 3
-          if-no-files-found: error
-          compression-level: 6
-          include-hidden-files: true
-
-  # ╔═══════════════ STAGE 4: DEPLOY ═══════════════╗
   deploy:
-    name: Sync to VPS & reload (staging)
-    needs: [build, test]
+    name: Build image & converge staging
+    needs: test
     if: |
       always() &&
-      needs.build.result == 'success' &&
       (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: next-build-staging-${{ github.sha }}
-          path: web/.next
-      - name: Setup SSH key & Pre-flight
+
+      - name: Build release image (staging domains)
+        run: |
+          docker build -f deploy/docker/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL="https://staging.eterapy.com" \
+            --build-arg NEXT_PUBLIC_USE_SUBDOMAINS="true" \
+            --build-arg NEXT_PUBLIC_MAIN_DOMAIN="staging.eterapy.com" \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN="staging.app.eterapy.com" \
+            --build-arg NEXT_PUBLIC_ADMIN_DOMAIN="staging.admin.eterapy.com" \
+            --build-arg NEXT_PUBLIC_LIVEKIT_URL="" \
+            --build-arg NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="eterapy_staging_bot" \
+            -t "eterapy-web-staging:${GITHUB_SHA::8}" .
+
+      - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
         run: |
           if [ -z "$SSH_KEY" ]; then
-            echo "::error::secret CLOUDRU_ETERAPY_WEB_DEPLOY_KEY is empty"
+            echo "::error::secret ETERAPY_FLEET_DEPLOY_KEY is empty"
             exit 1
           fi
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
           if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
             printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           else
             printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
           fi
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=15 \
-            "$VPS_USER@$VPS_HOST" \
-            'echo "SSH OK"; command -v pm2 >/dev/null || { echo "::error::pm2 missing"; exit 1; }'
-      - name: Sync application to VPS
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship image + converge stack
         run: |
           set -euo pipefail
-          SSH_CMD='ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=20'
-          echo "rsync root manifest"
-          rsync -az --human-readable -e "$SSH_CMD" \
-            package.json package-lock.json \
-            "$VPS_USER@$VPS_HOST:$VPS_REPO_DIR/"
-          echo "rsync ecosystem config"
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "mkdir -p $VPS_DEPLOY_DIR"
-          rsync -az --human-readable -e "$SSH_CMD" \
-            deploy/ecosystem.staging.config.js \
-            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/ecosystem.staging.config.js"
-          echo "rsync staging DB sync utility"
-          rsync -az --human-readable -e "$SSH_CMD" \
-            deploy/sync-staging-db-from-prod.sh \
-            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/sync-staging-db-from-prod.sh"
-          echo "rsync web/ tree (including artifact)"
-          rsync -az --delete --human-readable -e "$SSH_CMD" \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='node_modules' \
-            --exclude='.git' \
-            --exclude='.next/cache' \
-            --exclude='.next/dev' \
-            --exclude='public/uploads' \
-            --exclude='*.log' \
-            --exclude='.DS_Store' \
-            --exclude='coverage' \
-            --exclude='playwright-report' \
-            --exclude='test-results' \
-            web/ \
-            "$VPS_USER@$VPS_HOST:$VPS_WEB_DIR/"
-      - name: Install runtime deps, migrate DB, reload PM2
-        env:
-          SKIP_MIGRATIONS: ${{ inputs.skip_migrations }}
-        run: |
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=30 \
-            "$VPS_USER@$VPS_HOST" \
-            "SKIP_MIGRATIONS='${SKIP_MIGRATIONS:-false}' bash -se" <<'REMOTE'
-              set -euo pipefail
-              REPO_DIR=/home/admin/eterapy-staging
-              WEB_DIR=$REPO_DIR/web
-              upsert_env() {
-                key="$1"
-                value="$2"
-                if grep -q "^${key}=" "$WEB_DIR/.env.local" 2>/dev/null; then
-                  sed -i "s|^${key}=.*|${key}=${value}|" "$WEB_DIR/.env.local"
-                else
-                  printf '\n%s=%s\n' "$key" "$value" >> "$WEB_DIR/.env.local"
-                fi
-              }
-              upsert_env AUTH_COOKIE_DOMAIN .eterapy.com
-              upsert_env AUTH_SESSION_COOKIE_NAME __Secure-authjs.staging.session-token
-              echo "Sourcing staging environment"
-              if [ -f "$WEB_DIR/.env.local" ]; then
-                set -a; . "$WEB_DIR/.env.local"; set +a
-              fi
-              if [ -z "${DATABASE_URL:-}" ]; then
-                echo "::error::DATABASE_URL not found in staging .env.local"
-                exit 1
-              fi
-              echo "configure staging runtime log read access"
-              sudo usermod -aG adm admin || true
-              if ! command -v setfacl >/dev/null 2>&1; then
-                sudo DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null
-                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y acl >/dev/null
-              fi
-              for dir in /var/log /var/log/nginx /var/log/postgresql /var/log/letsencrypt; do
-                if [ -d "$dir" ]; then
-                  sudo setfacl -m u:admin:rx "$dir" || true
-                  sudo setfacl -d -m u:admin:rx "$dir" || true
-                fi
-              done
-              for file in \
-                /var/log/nginx/access.log \
-                /var/log/nginx/error.log \
-                /var/log/syslog \
-                /var/log/auth.log \
-                /var/log/kern.log \
-                /var/log/cloud-init.log \
-                /var/log/ufw.log \
-                /var/log/postgresql/postgresql-16-main.log \
-                /var/log/letsencrypt/letsencrypt.log; do
-                [ -e "$file" ] && sudo setfacl -m u:admin:r "$file" || true
-              done
-              echo "remove retired VPS DB-sync cron (GitHub Actions owns the hourly schedule)"
-              (crontab -l 2>/dev/null | grep -v 'sync-staging-db-from-prod.sh --migrate --restart' || true) | crontab -
-              echo "npm ci --omit=dev"
-              cd "$REPO_DIR"
-              npm ci --omit=dev --prefer-offline --no-audit --no-fund
-              echo "prisma generate"
-              cd "$WEB_DIR"
-              npx prisma generate
-              if [ "${SKIP_MIGRATIONS}" != "true" ]; then
-                echo "prisma migrate deploy"
-                npx prisma migrate deploy
-              else
-                echo "skipping migrations"
-              fi
-              echo "pm2 startOrReload (staging)"
-              pm2 startOrReload /home/admin/eterapy-staging/deploy/ecosystem.staging.config.js --update-env
-              pm2 save --force
-              echo "worker health"
-              sleep 3
-              WORKER_STATUS="$(pm2 jlist | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);const w=a.find(x=>x.name==="eterapy-staging-worker");process.stdout.write(w?.pm2_env?.status||"missing")})')"
-              echo "eterapy-staging-worker -> $WORKER_STATUS"
-              if [ "$WORKER_STATUS" != "online" ]; then
-                pm2 logs eterapy-staging-worker --lines 80 --nostream || true
-                exit 1
-              fi
-          REMOTE
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
+          $SSH "sudo mkdir -p $STAGING_DIR && sudo mv /tmp/$COMPOSE_FILE_NAME $STAGING_DIR/$COMPOSE_FILE_NAME"
+          # Keep the hourly DB A/B refresh utility current (it flips the
+          # staging DATABASE_URL and recreates these containers).
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/sync-staging-db-from-prod.sh "$VM_USER@$VM_HOST:/tmp/sync-staging-db-from-prod.sh"
+          $SSH "mkdir -p /home/admin/eterapy-staging/deploy && mv /tmp/sync-staging-db-from-prod.sh /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh && chmod 755 /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh"
+          # Reclaim space BEFORE loading (same rationale as prod deploy.yml):
+          # drop every staging image except the running one and the incoming tag.
+          $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-staging-web-1 2>/dev/null || true); \
+            sudo docker images eterapy-web-staging --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web-staging:${GITHUB_SHA::8}\$\" \
+            | xargs -r sudo docker rmi 2>/dev/null || true; \
+            sudo docker image prune -f >/dev/null 2>&1 || true"
+          docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
+          $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web-staging:${GITHUB_SHA::8}#' $STAGING_DIR/.env \
+            && cd $STAGING_DIR && sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans \
+            && sudo docker image prune -f >/dev/null \
+            && sudo docker compose -f $COMPOSE_FILE_NAME ps"
+          echo "▶ worker health"
+          sleep 5
+          WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-staging-worker-1" || echo missing)
+          echo "eterapy-staging-worker container → $WORKER_STATUS"
+          if [ "$WORKER_STATUS" != "running" ]; then
+            $SSH "sudo docker logs eterapy-staging-worker-1 --tail 100" || true
+            exit 1
+          fi
+
       - name: Cleanup SSH key
         if: always()
-        run: rm -rf ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key
 
-  # ╔═══════════════ STAGE 5: VERIFY ═══════════════╗
   verify:
     name: Health check (staging)
     needs: deploy
@@ -377,27 +158,20 @@ jobs:
       - name: Probe /api/health (with retry)
         run: |
           set -euo pipefail
-          MAX_ATTEMPTS=30
-          DELAY=6
-          STATUS=000
-          echo "Waiting 10s for PM2 reload..."
           sleep 10
-          for i in $(seq 1 $MAX_ATTEMPTS); do
-            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "OK /api/health -> 200 (attempt $i)"
-              exit 0
-            fi
-            echo "attempt $i/$MAX_ATTEMPTS: status=$STATUS"
-            sleep $DELAY
+          STATUS=000
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo 000)
+            [ "$STATUS" = "200" ] && { echo "OK /api/health -> 200 (attempt $i)"; exit 0; }
+            echo "attempt $i/30: status=$STATUS"
+            sleep 6
           done
-          echo "::error::staging /api/health failed after $MAX_ATTEMPTS attempts (last: $STATUS)"
+          echo "::error::staging /api/health failed (last: $STATUS)"
           exit 1
 
-  # ╔═══════════════ STAGE 6: NOTIFY ═══════════════╗
   notify:
     name: Notify Telegram
-    needs: [install, test, build, deploy, verify]
+    needs: [test, deploy, verify]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -409,9 +183,7 @@ jobs:
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           TITLE: STAGING deploy
           STAGES: |
-            install=${{ needs.install.result }}
-            test=${{ needs.test.result }}
-            build=${{ needs.build.result }}
+            tests=${{ needs.test.result }}
             deploy=${{ needs.deploy.result }}
             health=${{ needs.verify.result }}
           GH_ACTOR: ${{ github.actor }}
@@ -425,10 +197,11 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1 | cut -c1-200)
-          export FIELDS="Env=staging
+          export FIELDS="Env=staging (container)
           Repo=$GH_REPO
           Branch=$GH_REF
           Commit=${GH_SHA:0:8}
+          Image=eterapy-web-staging:${GH_SHA:0:8}
           Author=$GH_ACTOR
           Message=$FIRST_LINE"
           export EXTRA_LINKS="Commit=$GH_SERVER/$GH_REPO/commit/$GH_SHA
