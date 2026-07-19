@@ -10,6 +10,8 @@
 # Input (env):
 #   TG_TOKEN, TG_CHAT   Telegram credentials. Missing → no-op, exit 0.
 #   TITLE               Pipeline name, e.g. "PRODUCTION deploy".
+#   EMOJI               Optional channel emoji prepended to the headline
+#                       (🚀 prod, 🧪 staging, 🤖 CI) — owner 2026-07-20.
 #   STAGES              Newline list "label=result" (result = GitHub job
 #                       result: success/failure/cancelled/skipped). Drives both
 #                       the icon strip and the headline verdict.
@@ -76,6 +78,7 @@ elif [ "$ALL_SKIPPED" = "1" ]; then
 else
   HEADER="✅ <b>$(esc "$TITLE") SUCCESS</b>"
 fi
+[ -n "${EMOJI:-}" ] && HEADER="${EMOJI} ${HEADER}"
 
 TEXT="$HEADER"
 [ -n "$STATUS_LINE" ] && TEXT="$TEXT"$'\n\n'"$STATUS_LINE"

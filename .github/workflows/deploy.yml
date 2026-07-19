@@ -202,7 +202,7 @@ jobs:
               || echo '$kv' | sudo tee -a /opt/eterapy/.env >/dev/null"
           done
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
-            && cd /opt/eterapy && sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans \
+            && cd /opt/eterapy && { sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \
             && sudo docker compose -f $COMPOSE_FILE_NAME ps"
           echo "▶ worker health"
@@ -328,6 +328,7 @@ jobs:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           TITLE: PRODUCTION deploy
+          EMOJI: "🚀"
           STAGES: |
             tests=${{ needs.test.result }}
             deploy=${{ needs.deploy.result }}

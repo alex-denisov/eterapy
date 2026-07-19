@@ -180,6 +180,7 @@ jobs:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           TITLE: CI (pull request)
+          EMOJI: "🤖"
           STAGES: |
             install=${{ needs.install.result }}
             test=${{ needs.test.result }}
