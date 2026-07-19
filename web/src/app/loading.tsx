@@ -1,6 +1,13 @@
 export default function Loading() {
   return (
-    <div
+    <>
+      {/* B549: the overlay below is position:fixed and takes no layout space,
+          so while a page streams the footer sat inside the viewport and jumped
+          down when content arrived (CLS 0.30 on product pages). This in-flow
+          spacer reserves a viewport of height during the fallback only — the
+          final page layout (B395 single-screen product pages) is untouched. */}
+      <div aria-hidden="true" style={{ minHeight: "100svh" }} />
+      <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5"
       style={{ background: "#fbf6ee" }}
     >
@@ -21,6 +28,7 @@ export default function Loading() {
         aria-hidden="true"
       />
       <p style={{ fontSize: "0.875rem", color: "#8a7e76", margin: 0 }}>Загрузка...</p>
-    </div>
+      </div>
+    </>
   );
 }
