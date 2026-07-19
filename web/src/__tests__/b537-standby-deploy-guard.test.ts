@@ -34,9 +34,11 @@ describe("B537 · standby-узел переживает деплой", () => {
   });
 
   it("standby не получает worker-профиль, пишущие узлы получают", () => {
+    // B542: standby может нести читающие сервисы (livekit), но worker —
+    // пишущий на каждом тике — на read-only реплике запрещён навсегда.
     for (const vm of matrix) {
       if (vm.standby === true) {
-        expect(vm.profile_args).toBe("");
+        expect(String(vm.profile_args)).not.toContain("--profile worker");
       } else {
         expect(String(vm.profile_args)).toContain("--profile worker");
       }

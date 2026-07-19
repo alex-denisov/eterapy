@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     # B513: hourly A/B refresh. Restore and migrations happen against the
-    # inactive database; staging only switches on a graceful PM2 reload.
+    # inactive database; staging only switches by recreating the staging
+    # containers on the new DATABASE_URL (B473 container model).
     - cron: '0 * * * *'
 
 concurrency:

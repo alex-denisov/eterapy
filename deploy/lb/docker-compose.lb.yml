@@ -23,6 +23,11 @@ services:
       LB_NODE_B: ${LB_NODE_B:?set LB_NODE_B in .env (peer app over WireGuard, e.g. 10.77.0.2:3200)}
       LB_BIND_PORT: ${LB_BIND_PORT:-3300}
       LB_STATS_PORT: ${LB_STATS_PORT:-3301}
+      # B542: LiveKit-сигналинг контура (WS). Адреса :7880 нод кластера —
+      # локальная нода по loopback, пир по WireGuard.
+      LB_LIVEKIT_PORT: ${LB_LIVEKIT_PORT:-3310}
+      LB_LIVEKIT_NODE_A: ${LB_LIVEKIT_NODE_A:?set LB_LIVEKIT_NODE_A in .env (local livekit, e.g. 127.0.0.1:7880)}
+      LB_LIVEKIT_NODE_B: ${LB_LIVEKIT_NODE_B:?set LB_LIVEKIT_NODE_B in .env (peer livekit over WireGuard, e.g. 10.77.0.2:7880)}
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     # Падаем сразу на битом конфиге, а не отдаём сломанный LB.
