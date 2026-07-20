@@ -78,7 +78,7 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         select: { planKey: true, status: true, cancelAtPeriodEnd: true },
       }),
       db.dialogue.findMany({
-        where: { userId: viewer.id, deletedAt: null, status: { in: ["OPEN", "AWAITING_USER", "PROCESSING", "ANSWERED"] } },
+        where: { userId: viewer.id, deletedAt: null, status: { in: ["OPEN", "AWAITING_USER", "PROCESSING"] } },
         orderBy: { updatedAt: "desc" }, take: 12,
         select: { id: true, title: true, topic: true, status: true, updatedAt: true, _count: { select: { messages: true } } },
       }),

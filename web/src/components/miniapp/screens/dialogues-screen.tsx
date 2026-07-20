@@ -6,6 +6,13 @@ import { ArrowRight, ChatCircleDots, MagnifyingGlass, Plus } from "@phosphor-ico
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { styles } from "@/components/miniapp/styles";
 
+function messagesLabel(value: number) {
+  const mod100 = value % 100;
+  const mod10 = value % 10;
+  const word = mod100 >= 11 && mod100 <= 14 ? "сообщений" : mod10 === 1 ? "сообщение" : mod10 >= 2 && mod10 <= 4 ? "сообщения" : "сообщений";
+  return `${value} ${word}`;
+}
+
 export function DialoguesScreen() {
   const { data } = useMiniAppV21();
   const [query, setQuery] = useState("");
@@ -50,7 +57,7 @@ export function DialoguesScreen() {
                     <span className={styles["dialogue-copy"]}>
                       <span className={styles["dialogue-badges"]}><em>{dialogue.topic}</em><em>{dialogue.status}</em></span>
                       <strong>{dialogue.title}</strong>
-                      <small>{dialogue.updated} · {dialogue.messageCount} сообщений</small>
+                      <small>{dialogue.updated} · {messagesLabel(dialogue.messageCount)}</small>
                     </span>
                     <ArrowRight size={18} />
                   </Link>
