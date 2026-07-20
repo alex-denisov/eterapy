@@ -19,11 +19,28 @@ function clearCookie(response: NextResponse, name: string, withDomain = false) {
 }
 
 export async function GET(request: Request) {
-  const reason = new URL(request.url).searchParams.get("reason");
+  const params = new URL(request.url).searchParams;
+  const reason = params.get("reason");
+  // B554: Mini App звал `?callbackUrl=/miniapp`, но параметр не читался — клиент
+  // из Telegram-вебвью выбрасывало на публичный сайт без пути назад. Принимаем
+  // только относительный внутренний путь: абсолютный URL здесь стал бы
+  // open redirect.
+  const callbackUrl = params.get("callbackUrl");
+  const safeCallback = callbackUrl
+    && callbackUrl.startsWith("/")
+    && !callbackUrl.startsWith("//")
+    ? callbackUrl
+    : null;
   const target = reason === "blocked" || reason === "deleted"
     ? `/login?account=${reason}`
-    : "/";
-  const response = NextResponse.redirect(new URL(mainUrl(target), request.url));
+    : safeCallback ?? "/";
+  // Внутренний путь резолвим относительно текущего origin, а не главного
+  // домена: иначе возврат в Mini App снова уводит на публичный сайт.
+  const response = NextResponse.redirect(
+    safeCallback && !reason
+      ? new URL(safeCallback, request.url)
+      : new URL(mainUrl(target), request.url),
+  );
 
   const names = [
     SESSION_COOKIE_NAME,

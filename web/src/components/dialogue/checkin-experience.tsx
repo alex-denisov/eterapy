@@ -254,6 +254,31 @@ export function CheckinExperience({
     if (el) el.scrollTop = el.scrollHeight;
   }, [clarifyingAnswers.length, awaitingAssistant, currentClarifyingQuestion?.question, phase]);
 
+  // B554: открытие экранной клавиатуры сокращает видимую высоту, но не двигает
+  // scrollTop треда — пользователь оказывался в середине переписки и каждый раз
+  // доскроллировал вручную. Держим последнее сообщение видимым и при фокусе
+  // композера, и при любом изменении visual viewport (появление/скрытие
+  // клавиатуры, смена ориентации).
+  useEffect(() => {
+    if (phase !== "clarifying") return;
+    const pinToBottom = () => {
+      const el = clarifyThreadRef.current;
+      if (!el) return;
+      // Клавиатура анимируется: одного кадра мало, нужен повтор после анимации.
+      el.scrollTop = el.scrollHeight;
+      window.setTimeout(() => { el.scrollTop = el.scrollHeight; }, 250);
+    };
+    // Композер использует callback-ref автогроусера, поэтому слушаем фокус на
+    // самом треде (событие всплывает из textarea) вместо ref.current.
+    const thread = clarifyThreadRef.current?.parentElement ?? null;
+    thread?.addEventListener("focusin", pinToBottom);
+    window.visualViewport?.addEventListener("resize", pinToBottom);
+    return () => {
+      thread?.removeEventListener("focusin", pinToBottom);
+      window.visualViewport?.removeEventListener("resize", pinToBottom);
+    };
+  }, [phase]);
+
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
     track({ event: "primary_answer_viewed", surface: "checkin", dialogueId: dialogue.id });
@@ -662,9 +687,7 @@ export function CheckinExperience({
                 <AssistantMsgAvatar />
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
                   <p style={{ whiteSpace: "pre-wrap" }}>
-                    {index === 0
-                      ? `Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.\n\n${clarifyingQuestions[index]?.question}`
-                      : clarifyingQuestions[index]?.question}
+                    {clarifyingQuestions[index]?.question}
                   </p>
                 </div>
               </div>
@@ -694,14 +717,21 @@ export function CheckinExperience({
               <AssistantMsgAvatar />
               <div>
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
+                  {/* B554: раньше первый ход предварялся фиксированным
+                      приветствием, и весь диалог читался как «поздоровались и
+                      дальше только спрашивают». Первая реплика модели уже
+                      содержит отражение сказанного — отдельное приветствие
+                      только отодвигает его и делает ход шаблонным. */}
                   <p style={{ whiteSpace: "pre-wrap" }}>
-                    {clarifyingAnswers.length === 0
-                      ? `Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.\n\n${currentClarifyingQuestion.question}`
-                      : currentClarifyingQuestion.question}
+                    {currentClarifyingQuestion.question}
                   </p>
                 </div>
+                {/* B554 (owner): на телефоне и в Mini App подсказки съедали
+                    высоту треда и не окупались — оставляем их только для
+                    десктопа, где место есть. Разметка не удаляется: чипы
+                    остаются доступны с клавиатуры на широких экранах. */}
                 {(currentClarifyingQuestion.chips?.length ?? 0) > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2" data-testid="dialogue-clarifying-chips">
+                  <div className="mt-3 hidden flex-wrap gap-2 lg:flex" data-testid="dialogue-clarifying-chips">
                     {currentClarifyingQuestion.chips?.map((chip) => (
                       <button
                         key={chip}

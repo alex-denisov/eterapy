@@ -11,6 +11,16 @@ import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
+// B554: приветствие было захардкожено «Добрый вечер» — первая же строка первого
+// экрана сообщала пользователю, что приложение за ним не следит.
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 6) return "Доброй ночи";
+  if (hour < 12) return "Доброе утро";
+  if (hour < 18) return "Добрый день";
+  return "Добрый вечер";
+}
+
 export function HomeScreen() {
   const { data, viewerName, openService, notify, share } = useMiniAppV21();
   const [question, setQuestion] = useState("");
@@ -36,7 +46,7 @@ export function HomeScreen() {
       <div className={styles["home-screen"]} data-screen="home" data-testid="miniapp-home-screen">
         <section className={styles["home-hero"]} aria-labelledby="miniapp-home-title">
           <div className={styles["home-hero-copy"]}>
-            <p className={styles.greeting}>Добрый вечер, {viewerName}</p>
+            <p className={styles.greeting}>{greeting()}, {viewerName}</p>
             <h1 id="miniapp-home-title">Что хочется прояснить?</h1>
           </div>
           <span className={styles["halo-crop"]} aria-hidden="true">

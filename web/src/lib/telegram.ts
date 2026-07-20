@@ -89,14 +89,16 @@ export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl
   const suffix = staging ? " Тестовая версия." : "";
   const requests: Array<[string, Record<string, unknown>]> = [
     ["setMyName", { name }],
-    ["setMyDescription", { description: `ETerapy помогает прояснить личный вопрос: бесплатный первый разбор, углубления и проверенные специалисты в одном приложении.${suffix}` }],
-    ["setMyShortDescription", { short_description: `Разберите свой вопрос и выберите следующий шаг.${suffix}` }],
+    // B554 (owner): описание обязано называть результат, а не цель платформы.
+    // «Помогает прояснить вопрос» не говорит клиенту, что он получит.
+    ["setMyDescription", { description: `Опишите ситуацию — ETerapy задаст 2–3 уточняющих вопроса и вернёт разбор: что происходит, что на это влияет и с чего начать. Первый разбор бесплатно, без карты. Дальше — подробные разборы и запись к специалистам.${suffix}` }],
+    ["setMyShortDescription", { short_description: `Опишите ситуацию — получите разбор и первый шаг. Первый разбор бесплатно.${suffix}` }],
     ["setMyCommands", { commands: [
-      { command: "start", description: "Открыть ETerapy" },
+      { command: "start", description: "Разобрать ситуацию" },
       { command: "status", description: "Проверить связь с аккаунтом" },
       { command: "stop", description: "Отключить уведомления Telegram" },
     ] }],
-    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть ETerapy", web_app: { url: miniAppUrl } } }],
+    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Разобрать ситуацию", web_app: { url: miniAppUrl } } }],
   ];
   const results = [];
   for (const [method, body] of requests) {

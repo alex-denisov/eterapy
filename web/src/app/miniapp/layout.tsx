@@ -15,6 +15,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#07111f",
   colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  // Без viewport-fit=cover все env(safe-area-inset-*) резолвятся в 0, и нижняя
+  // кромка композера/навигации уезжает под системный индикатор iPhone.
+  viewportFit: "cover",
+  // Клавиатура должна сжимать layout viewport, а не накрывать его: тогда
+  // 100dvh, sticky-композер и автоскролл треда считаются от видимой области.
+  interactiveWidget: "resizes-content",
 };
 
 export default async function MiniAppLayout({ children }: { children: React.ReactNode }) {

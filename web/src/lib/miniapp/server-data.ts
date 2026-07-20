@@ -140,6 +140,7 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       diaryItems: diary.slice(0, 20).map((item) => ({
         id: `${item.kind}:${item.id}`, title: item.title, type: item.eyebrow,
         topic: item.topicLabel ?? item.topic ?? "Личное", date: relativeDate(item.updatedAt),
+        dayLabel: String(item.updatedAt.getDate()),
         insight: item.description, href: toMiniAppPath(item.href),
       })),
       practitioner: practitioner ? {
