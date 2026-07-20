@@ -223,8 +223,10 @@ describe("B525 — ограничения владельца соблюдены"
     expect(all).not.toContain("Твои платежи");
   });
 
-  it("не печатает адрес оператора в публичных документах (owner 2026-07-20)", () => {
+  it("печатает адрес оператора ТОЛЬКО в Политике обработки ПДн (owner 2026-07-20)", () => {
+    expect(legalDocMarkdown("privacy")).toContain("г. Ивантеевка");
+    // В Оферте и агентской оферте адреса быть не должно.
+    expect(legalDocMarkdown("offer")).not.toContain("г. Ивантеевка");
     expect(all).not.toContain("[Адрес]");
-    expect(all).not.toContain("Адрес: ");
   });
 });
