@@ -178,6 +178,28 @@ jobs:
           # (contour secret) is host state and is NOT shipped.
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy/compose/docker-compose.livekit.yml "$VM_USER@$VM_HOST:/tmp/docker-compose.livekit.yml"
           $SSH "sudo mv /tmp/docker-compose.livekit.yml /opt/eterapy/docker-compose.livekit.yml"
+          # B536: the backup script and its systemd units travel with every
+          # deploy too. They used to be installed only by deploy/compose/
+          # bootstrap.sh, which runs once when a node is provisioned — so any
+          # later edit to offhost-backup.sh silently never reached the fleet
+          # and would have had to be copied by hand. Node-local state
+          # (backup.env, rclone.conf) is NOT shipped.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/backup/offhost-backup.sh \
+            deploy/backup/eterapy-backup.service \
+            deploy/backup/eterapy-backup.timer \
+            "$VM_USER@$VM_HOST:/tmp/"
+          $SSH "sudo install -m 0755 /tmp/offhost-backup.sh /opt/eterapy/offhost-backup.sh \
+            && sudo install -m 0644 /tmp/eterapy-backup.service /etc/systemd/system/eterapy-backup.service \
+            && sudo install -m 0644 /tmp/eterapy-backup.timer /etc/systemd/system/eterapy-backup.timer \
+            && rm -f /tmp/offhost-backup.sh /tmp/eterapy-backup.service /tmp/eterapy-backup.timer \
+            && sudo systemctl daemon-reload \
+            && if sudo systemctl is-enabled eterapy-backup.timer >/dev/null 2>&1; then \
+                 sudo systemctl restart eterapy-backup.timer; \
+                 echo 'backup timer reloaded'; \
+               else \
+                 echo 'backup timer not enabled on this node — files staged only'; \
+               fi"
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
           # releases piled up until the disk filled and `docker load` failed.

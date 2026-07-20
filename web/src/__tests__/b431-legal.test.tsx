@@ -54,10 +54,19 @@ describe("B431 — legal pack content pipeline", () => {
     expect(all).toContain("privacy@eterapy.com");
   });
 
-  it("keeps company requisites as visible placeholders until the entity exists", () => {
+  it("renders the real ИП requisites (B452)", () => {
     const offer = legalDocMarkdown("offer");
-    expect(offer).toContain("[ИНН]");
-    expect(offer).toContain("[ОГРНИП]");
+    expect(offer).toContain("774315089677");
+    expect(offer).toContain("326508100422433");
+    expect(offer).toContain("Индивидуальный предприниматель Денисов Алексей Сергеевич");
+  });
+
+  it("leaves no square-bracket placeholder in any published document", () => {
+    for (const slug of allLegalDocSlugs()) {
+      const md = legalDocMarkdown(slug);
+      const leftovers = md.match(/\[[А-ЯЁ][^\]]*\]/g) ?? [];
+      expect(leftovers).toEqual([]);
+    }
   });
 });
 

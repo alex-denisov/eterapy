@@ -217,9 +217,16 @@ describe("B525 — ограничения владельца соблюдены"
     expect(legalDocMarkdown("uploads")).toContain("не собирает и не запрашивает согласия третьих лиц");
   });
 
-  it("сохраняет плейсхолдеры реквизитов и безымянный платёжный сервис", () => {
-    expect(legalDocMarkdown("offer")).toContain("[ИНН]");
-    expect(legalDocMarkdown("offer")).toContain("[ОГРНИП]");
+  it("печатает реальные реквизиты ИП и безымянный платёжный сервис", () => {
+    expect(legalDocMarkdown("offer")).toContain("774315089677");
+    expect(legalDocMarkdown("offer")).toContain("326508100422433");
     expect(all).not.toContain("Твои платежи");
+  });
+
+  it("печатает адрес оператора ТОЛЬКО в Политике обработки ПДн (owner 2026-07-20)", () => {
+    expect(legalDocMarkdown("privacy")).toContain("г. Ивантеевка");
+    // В Оферте и агентской оферте адреса быть не должно.
+    expect(legalDocMarkdown("offer")).not.toContain("г. Ивантеевка");
+    expect(all).not.toContain("[Адрес]");
   });
 });
