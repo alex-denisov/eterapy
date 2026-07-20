@@ -20,6 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { MINIAPP_SERVICES } from "@/lib/miniapp/catalog";
 import type { MiniAppService } from "@/lib/miniapp/types";
+import { pointsWord } from "@/lib/points";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
@@ -69,7 +70,7 @@ function CatalogCard({ service, layout }: { service: MiniAppService; layout: Ser
         <span className={styles["catalog-copy"]}>
           <strong>{service.title}</strong>
           <p>{service.description}</p>
-          <span className={styles["catalog-price"]}><b>{service.price}</b><em>{service.creditCost ? `или ${service.creditCost} балла` : service.priceMeta}</em></span>
+          <span className={styles["catalog-price"]}><b>{service.price}</b><em>{service.creditCost ? `или ${service.creditCost} ${pointsWord(service.creditCost)}` : service.priceMeta}</em></span>
         </span>
         <ArrowRight className={styles["catalog-arrow"]} size={18} />
       </button>

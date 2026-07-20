@@ -650,6 +650,11 @@ function headingKey(value: string) {
 
 function mergeSymbolicSections(productKey: string, headings: string[], texts: string[]) {
   const wanted = new Map(headings.map((heading) => [headingKey(heading), heading]));
+  const tarotPositionHeadings = productKey === "tarot"
+    ? headings
+        .filter((heading) => heading.includes(":"))
+        .map((heading) => ({ heading, position: headingKey(heading.slice(0, heading.indexOf(":"))) }))
+    : [];
   const bodies = new Map<string, string>();
   for (const text of texts) {
     const normalized = normalizeResultSectionHeadings(
@@ -657,7 +662,17 @@ function mergeSymbolicSections(productKey: string, headings: string[], texts: st
       normalizeResult(text).replace(/([^\n])\s+(##\s+)/g, "$1\n\n$2"),
     );
     for (const section of splitSections(normalized)) {
-      const canonical = wanted.get(headingKey(section.title));
+      const sectionKey = headingKey(section.title);
+      // Models occasionally decline a Russian card name in a dynamic Tarot
+      // heading (e.g. «Восьмёрка Жезлов» instead of the deck label
+      // «Восьмёрка Жезлы»). The position is deterministic and unique within a
+      // spread, so use it to restore the canonical heading instead of rejecting
+      // an otherwise complete paid result.
+      const canonical = wanted.get(sectionKey) ?? tarotPositionHeadings.find(({ position }) => (
+        sectionKey === position
+        || sectionKey.startsWith(`${position}:`)
+        || sectionKey.startsWith(`${position} —`)
+      ))?.heading;
       if (!canonical || !section.body.trim()) continue;
       const existing = bodies.get(canonical) ?? "";
       if (section.body.trim().length > existing.length) bodies.set(canonical, section.body.trim());
