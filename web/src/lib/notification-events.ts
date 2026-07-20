@@ -265,7 +265,7 @@ export const ALL_EVENTS: Array<{
     event: "ABANDONED_CHECKOUT",
     category: "payments",
     label: "Незавершенная оплата",
-    description: "Мягкое возвращение к оплате продукта или подписки",
+    description: "Напоминание о незавершённой оплате продукта или подписки",
     roles: ["CLIENT"],
   },
   {
@@ -300,7 +300,7 @@ export const ALL_EVENTS: Array<{
     event: "WEEKLY_DIGEST",
     category: "retention",
     label: "Недельный дайджест",
-    description: "Недельная сводка вопросов, практик и мягких выводов",
+    description: "Недельная сводка вопросов, практик и выводов",
     roles: ["CLIENT"],
   },
   {
@@ -328,7 +328,7 @@ export const ALL_EVENTS: Array<{
     event: "STREAK_AT_RISK",
     category: "retention",
     label: "Ритм практики",
-    description: "Мягкое возвращение к практике, когда вчера был стрик",
+    description: "Напоминание вернуться к практике после пропущенного дня",
     roles: ["CLIENT"],
   },
   {

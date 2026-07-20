@@ -178,6 +178,40 @@ describe("B502 segmented symbolic generation", () => {
     expect(mockAiComplete).toHaveBeenCalledTimes(5);
   });
 
+  it("restores canonical Tarot card headings when the model declines card names", async () => {
+    mockAiComplete.mockImplementation(async (request) => {
+      const userMessage = request.messages.find((message) => message.role === "user");
+      const content = typeof userMessage?.content === "string" ? userMessage.content : "";
+      const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
+      const body = "Конкретная трактовка карты, её позиции и связи с вопросом. ".repeat(24);
+      return {
+        text: headings.map((heading) => {
+          const separator = heading.indexOf(":");
+          const emitted = separator > 0 ? `${heading.slice(0, separator)}: название карты в другой форме` : heading;
+          return `## ${emitted}\n\n${body}`;
+        }).join("\n\n"),
+        provider: "yandex" as never,
+        model: "yandexgpt/latest",
+        tokensIn: 500,
+        tokensOut: 900,
+        latencyMs: 120,
+      };
+    });
+
+    const result = await generateSymbolicProductResult({
+      productKey: "tarot",
+      userInput: "Как подготовиться к важному разговору?",
+      tarotSpread: "three",
+      tarotTheme: "Любовь и отношения",
+      userId: "user-tarot-inflection",
+      requestId: "req-tarot-inflection",
+    });
+
+    expect(result.metadata).toEqual(expect.objectContaining({ source: "ai", generationParts: 5 }));
+    expect(result.text).not.toContain("название карты в другой форме");
+    expect(result.text.match(/^## /gm)).toHaveLength(9);
+  });
+
   it("repairs the exact surname layer named by the quality gate", async () => {
     const richHeadings = new Set([
       "Главный ресурс рода",
