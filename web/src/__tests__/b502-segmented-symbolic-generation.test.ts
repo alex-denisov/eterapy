@@ -212,6 +212,45 @@ describe("B502 segmented symbolic generation", () => {
     expect(result.text.match(/^## /gm)).toHaveLength(9);
   });
 
+  it("never ships the prompt context back as a section body", async () => {
+    // Наблюдалось на staging (B554): модель приняла хвостовой блок контекста за
+    // содержимое `## Картина расклада`, и служебный текст «Услуга: …/Выпавшие
+    // карты: …» уехал в платный результат клиента.
+    const body = "Конкретная трактовка карты, её позиции и связи с вопросом. ".repeat(24);
+    mockAiComplete.mockImplementation(async (request) => {
+      const userMessage = request.messages.find((message) => message.role === "user");
+      const content = typeof userMessage?.content === "string" ? userMessage.content : "";
+      const headings = [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]);
+      const context = content.slice(content.indexOf("Услуга: "));
+      const echoed = request.requestId?.endsWith("-repair") ? null : "Картина расклада";
+      return {
+        text: headings
+          .map((heading) => `## ${heading}\n\n${heading === echoed ? context : body}`)
+          .join("\n\n"),
+        provider: "yandex" as never,
+        model: "yandexgpt/latest",
+        tokensIn: 500,
+        tokensOut: 900,
+        latencyMs: 120,
+      };
+    });
+
+    const result = await generateSymbolicProductResult({
+      productKey: "tarot",
+      userInput: "Что помогает мне двигаться дальше?",
+      tarotSpread: "three",
+      tarotTheme: "Самопознание",
+      userId: "user-tarot-echo",
+      requestId: "req-tarot-echo",
+    });
+
+    expect(result.text).not.toContain("Услуга: ");
+    expect(result.text).not.toContain("Выпавшие карты:");
+    expect(result.text).not.toContain("Данные для разбора:");
+    expect(result.text).toContain("## Картина расклада");
+    expect(result.text.match(/^## /gm)).toHaveLength(9);
+  });
+
   it("repairs the exact surname layer named by the quality gate", async () => {
     const richHeadings = new Set([
       "Главный ресурс рода",
