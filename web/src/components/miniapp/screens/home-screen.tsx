@@ -46,7 +46,10 @@ export function HomeScreen() {
       <div className={styles["home-screen"]} data-screen="home" data-testid="miniapp-home-screen">
         <section className={styles["home-hero"]} aria-labelledby="miniapp-home-title">
           <div className={styles["home-hero-copy"]}>
-            <p className={styles.greeting}>{greeting()}, {viewerName}</p>
+            {/* Приветствие зависит от локального времени клиента, поэтому
+                серверная и клиентская отрисовка законно расходятся — гасим
+                предупреждение гидрации точечно (React error #418). */}
+            <p className={styles.greeting} suppressHydrationWarning>{greeting()}, {viewerName}</p>
             <h1 id="miniapp-home-title">Что хочется прояснить?</h1>
           </div>
           <span className={styles["halo-crop"]} aria-hidden="true">

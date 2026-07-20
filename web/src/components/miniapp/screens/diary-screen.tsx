@@ -97,7 +97,9 @@ export function DiaryScreen() {
             {WEEKDAYS.map((day, index) => {
               const weekday = (index + 1) % 7;
               const done = data.completedWeekdays.includes(weekday);
-              return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b>{done ? <Check size={14} weight="bold" /> : weekDates[index]}</b></span>;
+              // Числа недели считаются от локальной даты клиента — расхождение
+              // с серверной отрисовкой здесь ожидаемо (React error #418).
+              return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b suppressHydrationWarning>{done ? <Check size={14} weight="bold" /> : weekDates[index]}</b></span>;
             })}
           </div>
           <p className={styles["practice-footnote"]}>На 7-й день серии появится итог недели. Можно пропускать, без давления.</p>
