@@ -96,6 +96,8 @@ export type MiniAppInitialData = {
     plan: string;
     planStatus: string;
     email: string | null;
+    hasPassword: boolean;
+    telegramLinked: boolean;
   };
   dialogues: MiniAppDialogue[];
   diaryItems: MiniAppDiaryItem[];

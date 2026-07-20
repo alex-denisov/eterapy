@@ -53,15 +53,20 @@ function px(value: number | undefined): string {
   return `${Math.max(0, value ?? 0)}px`;
 }
 
-function syncViewport(webApp: TelegramWebApp): void {
+function syncViewport(webApp: TelegramWebApp, stableHeight: number): void {
   const root = document.documentElement;
   const safe = webApp.safeAreaInset ?? {};
   const content = webApp.contentSafeAreaInset ?? {};
+  const telegramHeight = webApp.viewportHeight ?? webApp.viewportStableHeight ?? window.innerHeight;
+  const visualHeight = window.visualViewport?.height ?? window.innerHeight;
+  const keyboardHeight = stableHeight - visualHeight;
+  const viewportHeight = Math.max(240, Math.round(keyboardHeight > 120 ? Math.min(telegramHeight, visualHeight) : telegramHeight));
   root.style.setProperty("--miniapp-safe-top", px(Math.max(safe.top ?? 0, content.top ?? 0)));
   root.style.setProperty("--miniapp-safe-right", px(Math.max(safe.right ?? 0, content.right ?? 0)));
   root.style.setProperty("--miniapp-safe-bottom", px(Math.max(safe.bottom ?? 0, content.bottom ?? 0)));
   root.style.setProperty("--miniapp-safe-left", px(Math.max(safe.left ?? 0, content.left ?? 0)));
-  root.style.setProperty("--miniapp-viewport-height", px(webApp.viewportStableHeight ?? webApp.viewportHeight));
+  root.style.setProperty("--miniapp-viewport-height", px(viewportHeight));
+  root.dataset.miniappKeyboardOpen = keyboardHeight > 120 ? "true" : "false";
   root.dataset.miniappTheme = webApp.colorScheme ?? "dark";
 }
 
@@ -73,13 +78,22 @@ export type TelegramRuntime = {
 export async function createTelegramRuntime(initialPathname: string): Promise<TelegramRuntime | null> {
   const webApp = await loadTelegramSdk();
   if (!webApp) return null;
+  const stableHeight = Math.max(
+    webApp.viewportStableHeight ?? 0,
+    webApp.viewportHeight ?? 0,
+    window.visualViewport?.height ?? 0,
+    window.innerHeight,
+  );
   const onBack = () => window.history.back();
-  const onViewport = () => syncViewport(webApp);
+  const onViewport = () => syncViewport(webApp, stableHeight);
   const events: TelegramEvent[] = ["safeAreaChanged", "contentSafeAreaChanged", "viewportChanged", "themeChanged"];
 
   try { webApp.ready?.(); webApp.expand?.(); } catch { /* old client */ }
-  syncViewport(webApp);
+  syncViewport(webApp, stableHeight);
   for (const event of events) webApp.onEvent?.(event, onViewport);
+  window.visualViewport?.addEventListener("resize", onViewport);
+  window.visualViewport?.addEventListener("scroll", onViewport);
+  window.addEventListener("resize", onViewport);
   webApp.BackButton?.onClick(onBack);
 
   const updatePath = (pathname: string) => {
@@ -94,6 +108,10 @@ export async function createTelegramRuntime(initialPathname: string): Promise<Te
     updatePath,
     dispose: () => {
       for (const event of events) webApp.offEvent?.(event, onViewport);
+      window.visualViewport?.removeEventListener("resize", onViewport);
+      window.visualViewport?.removeEventListener("scroll", onViewport);
+      window.removeEventListener("resize", onViewport);
+      delete document.documentElement.dataset.miniappKeyboardOpen;
       try { webApp.BackButton?.offClick(onBack); } catch { /* old client */ }
     },
   };

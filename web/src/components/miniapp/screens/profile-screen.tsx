@@ -49,8 +49,10 @@ function ProfileRow({ href, Icon: RowIcon, title, subtitle, meta }: {
       <Link href={href}>
         <span className={styles["profile-row-icon"]}><RowIcon size={20} /></span>
         <span><strong>{title}</strong><small>{subtitle}</small></span>
-        {meta ? <em>{meta}</em> : null}
-        <ArrowRight className={styles["profile-row-caret"]} size={18} />
+        <span className={styles["profile-row-trailing"]}>
+          {meta ? <em>{meta}</em> : null}
+          <ArrowRight className={styles["profile-row-caret"]} size={18} />
+        </span>
       </Link>
     </article>
   );
@@ -74,10 +76,13 @@ export function ProfileScreen() {
           <Link href={viewer.authenticated ? "/miniapp/profile/about" : "/miniapp/account?intent=profile"}>{viewer.authenticated ? "Изменить" : "Сохранить"}</Link>
         </section>
 
-        <section className={styles["plan-card"]} aria-label="Текущий тариф">
+        <section className={styles["plan-card"]} aria-label={viewer.authenticated ? "Текущий тариф" : "Сохранение разборов"}>
           <span className={styles["plan-icon"]}><CrownSimple size={21} weight="duotone" /></span>
-          <div><small>ТЕКУЩИЙ ТАРИФ</small><strong>{viewer.plan}</strong><p>{viewer.planStatus}. Условия видны до любого изменения.</p></div>
-          <Link href="/miniapp/packages">Изменить тариф <ArrowRight size={15} /></Link>
+          {viewer.authenticated ? (
+            <><div><small>ТЕКУЩИЙ ТАРИФ</small><strong>{viewer.plan}</strong><p>{viewer.planStatus}. Условия видны до любого изменения.</p></div><Link href="/miniapp/packages">Изменить <ArrowRight size={15} /></Link></>
+          ) : (
+            <><div><small>СОХРАНЯЙТЕ РЕЗУЛЬТАТЫ</small><strong>Создайте профиль</strong><p>Разборы появятся в Дневнике и будут доступны с сайта.</p></div><Link href="/miniapp/account?mode=register&intent=profile">Создать <ArrowRight size={15} /></Link></>
+          )}
         </section>
 
         {!viewer.authenticated ? (

@@ -206,19 +206,12 @@ function ServiceSheet({ service, onClose, onShare }: {
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }} title={service.title} eyebrow={service.eyebrow} lead={service.description} label={service.title}>
       <div className={styles["sheet-price-row"]}><strong>{service.price}</strong><span>{service.priceMeta}</span></div>
-      <div className={styles["mechanics-list"]}>
-        {service.mechanics.map((item) => <div key={item}><CheckCircle size={17} weight="fill" /><span>{item}</span></div>)}
-      </div>
-      <div className={styles["result-preview"]}>
-        <span className={styles["result-preview-icon"]}><StarFour size={20} /></span>
-        <span><small>ЧТО ПОЛУЧИТСЯ</small><strong>{service.result}</strong></span>
-      </div>
       <p className={styles["privacy-note"]}><ShieldCheck size={17} /> {service.privacy}</p>
       <div className={styles["sheet-actions"]}>
-        <Link href={`/miniapp/services/${encodeURIComponent(service.id)}`} onClick={() => { onClose(); track({ event: "miniapp_service_cta", surface: "miniapp", properties: { service: service.id } }); }} className={c("primary-action", "compact")}>
-          Подробнее <ArrowRight size={18} />
+        <Link href={service.href} onClick={() => { onClose(); track({ event: "miniapp_service_cta", surface: "miniapp", properties: { service: service.id } }); }} className={c("primary-action", "compact")}>
+          {service.cta} <ArrowRight size={18} />
         </Link>
-        {service.shareable ? <button type="button" className={styles["secondary-action"]} onClick={() => onShare(service.title, `/miniapp/services/${service.id}`)}><ShareNetwork size={18} /> Пригласить по ссылке</button> : null}
+        {service.shareable ? <button type="button" className={styles["secondary-action"]} onClick={() => onShare(service.title, service.href)}><ShareNetwork size={18} /> Пригласить по ссылке</button> : null}
       </div>
     </Sheet>
   );
@@ -226,9 +219,11 @@ function ServiceSheet({ service, onClose, onShare }: {
 
 export function MiniAppChrome({ data, children }: { data: MiniAppInitialData; children: ReactNode }) {
   const { openUtility } = useMiniAppV21();
+  const pathname = usePathname();
+  const topLevel = ["/miniapp", "/miniapp/dialogues", "/miniapp/services", "/miniapp/diary", "/miniapp/profile"].includes(pathname);
   return (
-    <div className={styles["screen-scroll"]}>
-      <TopBar data={data} onUtility={openUtility} />
+    <div className={c("screen-scroll", !topLevel && "is-subpage")}>
+      {topLevel ? <TopBar data={data} onUtility={openUtility} /> : null}
       {children}
     </div>
   );

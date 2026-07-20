@@ -1,2 +1,5 @@
-import { DialogueNewScreen } from "@/components/miniapp/journey-screens";
-export default function MiniAppNewDialoguePage() { return <DialogueNewScreen />; }
+import { redirect } from "next/navigation";
+
+export default function MiniAppNewDialoguePage() {
+  redirect("/miniapp/checkin");
+}

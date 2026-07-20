@@ -47,7 +47,7 @@ const primaryService: MiniAppService = {
   slug: "primary",
   title: "Первичный разбор",
   eyebrow: "диалог ясности",
-  description: "Начните с вопроса и получите первый бережный взгляд бесплатно.",
+  description: "Начните с вопроса и получите первый взгляд на ситуацию бесплатно.",
   price: "Бесплатно",
   priceMeta: "без карты и подписки",
   creditCost: null,
