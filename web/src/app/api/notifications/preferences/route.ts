@@ -8,7 +8,7 @@ import { NotificationChannel, NotificationEvent } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { ALL_EVENTS } from "@/lib/notification-events";
+import { ALL_EVENTS, getEventsForRole, type UserRole } from "@/lib/notification-events";
 import {
   getUserQuietHours,
   quietHoursSchema,
@@ -46,6 +46,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
+  const availableEvents = getEventsForRole((session.user.role ?? "CLIENT") as UserRole);
   const [prefs, user] = await Promise.all([
     db.notificationPreference.findMany({ where: { userId } }),
     db.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
@@ -53,12 +54,14 @@ export async function GET() {
 
   // Merge with defaults — return full matrix.
   // Default enabled: EMAIL, WEB (in-cabinet bell).  TELEGRAM opt-in.
-  const result = ALL_EVENTS.flatMap(({ event, category }) =>
+  const result = availableEvents.flatMap(({ event, category, label, description }) =>
     channels.map(channel => {
       const pref = prefs.find(p => p.event === event && p.channel === channel);
       return {
         event,
         category,
+        label,
+        description,
         channel,
         enabled: pref ? pref.enabled : channel !== "TELEGRAM",
         remindBeforeHours: typeof pref?.remindBeforeHours === "number" ? [pref.remindBeforeHours] : [],
@@ -80,6 +83,8 @@ export async function PATCH(req: NextRequest) {
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid preferences payload" }, { status: 400 });
   const { event, channel, enabled, remindBeforeHours } = parsed.data;
+  const allowed = getEventsForRole((session.user.role ?? "CLIENT") as UserRole).some((item) => item.event === event);
+  if (!allowed) return NextResponse.json({ error: "Notification event is not available for this account" }, { status: 403 });
   const typedEvent = event as NotificationEvent;
   const typedChannel = channel as NotificationChannel;
   const nextEnabled = enabled ?? true;
@@ -104,6 +109,10 @@ export async function PUT(req: NextRequest) {
   const parsed = putSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid preferences payload" }, { status: 400 });
   const { prefs, quietHours } = parsed.data;
+  const allowedEvents = new Set<string>(getEventsForRole((session.user.role ?? "CLIENT") as UserRole).map((item) => item.event));
+  if (prefs.some((pref) => !allowedEvents.has(pref.event))) {
+    return NextResponse.json({ error: "Notification event is not available for this account" }, { status: 403 });
+  }
 
   const writes: Array<ReturnType<typeof db.notificationPreference.upsert>> = prefs.map(p =>
       db.notificationPreference.upsert({

@@ -4,7 +4,7 @@
  * Вызывается один раз при деплое или вручную для настройки бота.
  */
 import { NextResponse } from "next/server";
-import { setTelegramWebhook } from "@/lib/telegram";
+import { configureTelegramBot, setTelegramWebhook } from "@/lib/telegram";
 import { APP_URL } from "@/lib/env";
 
 export async function POST(req: Request) {
@@ -18,11 +18,22 @@ export async function POST(req: Request) {
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL
     || `${APP_URL}/api/telegram/webhook`;
 
-  const ok = await setTelegramWebhook(webhookUrl);
+  const miniAppUrl = process.env.TELEGRAM_MINIAPP_URL
+    || new URL("/miniapp?miniapp=telegram", APP_URL).toString();
+  const [webhookOk, branding] = await Promise.all([
+    setTelegramWebhook(webhookUrl),
+    configureTelegramBot({
+      miniAppUrl,
+      staging: APP_URL.includes("staging") || (process.env.TELEGRAM_BOT_USERNAME ?? "").includes("staging"),
+    }),
+  ]);
+  const ok = webhookOk && branding.ok;
   
   return NextResponse.json({ 
     ok, 
     webhookUrl,
+    miniAppUrl,
+    branding,
     usingRelay: Boolean(process.env.TELEGRAM_API_BASE),
     botTokenConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN)
   });

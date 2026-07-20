@@ -28,7 +28,7 @@ export function HomeScreen() {
       return;
     }
     window.sessionStorage.setItem("eterapy:miniapp-question", value);
-    router.push("/miniapp/dialogues/new");
+    router.push("/miniapp/checkin?miniappDraft=1");
   };
 
   return (

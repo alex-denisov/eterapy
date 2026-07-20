@@ -6,6 +6,7 @@ describe("B527 — Telegram Web App runtime", () => {
     document.querySelectorAll('script[src="https://telegram.org/js/telegram-web-app.js"]').forEach((script) => script.remove());
     document.documentElement.removeAttribute("style");
     delete document.documentElement.dataset.miniappTheme;
+    delete document.documentElement.dataset.miniappKeyboardOpen;
   });
 
   it("registers BackButton even when the Telegram SDK loads after React mounts", async () => {
@@ -56,5 +57,34 @@ describe("B527 — Telegram Web App runtime", () => {
     expect(offClick).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledTimes(4);
     expect(offEvent).toHaveBeenCalledTimes(4);
+  });
+
+  it("tracks the visual viewport and marks the keyboard-open state", async () => {
+    const originalViewport = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    const visualViewport = new EventTarget() as EventTarget & { height: number };
+    Object.defineProperty(visualViewport, "height", { configurable: true, writable: true, value: 500 });
+    Object.defineProperty(window, "visualViewport", { configurable: true, value: visualViewport });
+    (window as unknown as { Telegram: unknown }).Telegram = {
+      WebApp: {
+        viewportHeight: 812,
+        viewportStableHeight: 812,
+        BackButton: { show: jest.fn(), hide: jest.fn(), onClick: jest.fn(), offClick: jest.fn() },
+        onEvent: jest.fn(),
+        offEvent: jest.fn(),
+      },
+    };
+
+    const runtime = await createTelegramRuntime("/miniapp/checkin");
+    expect(document.documentElement.style.getPropertyValue("--miniapp-viewport-height")).toBe("500px");
+    expect(document.documentElement.dataset.miniappKeyboardOpen).toBe("true");
+
+    visualViewport.height = 780;
+    visualViewport.dispatchEvent(new Event("resize"));
+    expect(document.documentElement.style.getPropertyValue("--miniapp-viewport-height")).toBe("812px");
+    expect(document.documentElement.dataset.miniappKeyboardOpen).toBe("false");
+
+    runtime?.dispose();
+    if (originalViewport) Object.defineProperty(window, "visualViewport", originalViewport);
+    else delete (window as unknown as { visualViewport?: unknown }).visualViewport;
   });
 });

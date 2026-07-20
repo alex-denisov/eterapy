@@ -34,7 +34,17 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
   const authenticated = Boolean(viewer?.id);
   const client = authenticated && (viewer?.role ?? "CLIENT") === "CLIENT";
   return {
-    viewer: { authenticated, client, firstName: viewer?.name?.trim().split(/\s+/)[0] || "Гость", points: 0, plan: "Базовый", planStatus: authenticated ? "Базовый доступ" : "Гостевой режим", email: viewer?.email ?? null },
+    viewer: {
+      authenticated,
+      client,
+      firstName: viewer?.name?.trim().split(/\s+/)[0] || "Гость",
+      points: 0,
+      plan: authenticated ? "Базовый" : "Без тарифа",
+      planStatus: authenticated ? "Базовый доступ" : "Гостевой режим",
+      email: viewer?.email ?? null,
+      hasPassword: false,
+      telegramLinked: false,
+    },
     dialogues: [], diaryItems: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,
     upcomingBookingLabel: null, streak: 0, completedWeekdays: [], loadError: false,
@@ -52,7 +62,15 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
   const fallback = baseData(viewer);
   if (!viewer?.id || !fallback.viewer.client) return fallback;
   try {
-    const [points, subscription, dialogues, diary] = await Promise.all([
+    const [account, telegramIdentity, points, subscription, dialogues, diary] = await Promise.all([
+      db.user.findUnique({
+        where: { id: viewer.id },
+        select: { password: true },
+      }),
+      db.platformIdentity.findUnique({
+        where: { provider_userId: { provider: "telegram", userId: viewer.id } },
+        select: { id: true },
+      }),
       getClarityCreditBalance(viewer.id),
       db.userSubscription.findFirst({
         where: { userId: viewer.id, status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] } },
@@ -106,6 +124,8 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       viewer: {
         ...fallback.viewer,
         points,
+        hasPassword: Boolean(account?.password && !account.password.startsWith("oauth:")),
+        telegramLinked: Boolean(telegramIdentity),
         plan: subscription ? getSubscriptionPlanLabel(subscription.planKey) : "Базовый",
         planStatus: subscription
           ? subscription.cancelAtPeriodEnd ? "До конца периода" : getSubscriptionStatusLabel(subscription.status)

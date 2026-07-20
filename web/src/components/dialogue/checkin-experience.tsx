@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { DialogueThread } from "@/components/dialogue/dialogue-thread";
-import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
+import { AssistantMsgAvatar, UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
 import { useAutoGrowTextarea } from "@/lib/use-autogrow-textarea";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
@@ -147,9 +147,11 @@ function cleanAnswer(text: string) {
 export function CheckinExperience({
   surface = "web",
   surfaceClassName,
+  userName,
 }: {
   surface?: "web" | "miniapp";
   surfaceClassName?: string;
+  userName?: string;
 }) {
   const { status } = useSession();
   const router = useRouter();
@@ -640,7 +642,7 @@ export function CheckinExperience({
         <div className="soft-chat-screen" data-testid="dialogue-clarifying-step">
           <div ref={clarifyThreadRef} className="soft-dialogue-chat soft-chat-thread">
           <div className="soft-msg-row soft-msg-row-user">
-            <UserMsgAvatar />
+            <UserMsgAvatar fallbackName={userName} />
             <div className="soft-msg-bubble soft-msg-bubble-user">
               {question || dialogue.title}
             </div>
@@ -649,7 +651,7 @@ export function CheckinExperience({
           {clarifyingAnswers.map((answer, index) => (
             <div key={`${clarifyingQuestions[index]?.question}-${index}`} className="contents">
               <div className="soft-msg-row soft-msg-row-assistant">
-                <div className="soft-msg-avatar" aria-hidden="true" />
+                <AssistantMsgAvatar />
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
                   <p style={{ whiteSpace: "pre-wrap" }}>
                     {index === 0
@@ -659,7 +661,7 @@ export function CheckinExperience({
                 </div>
               </div>
               <div className="soft-msg-row soft-msg-row-user">
-                <UserMsgAvatar />
+                <UserMsgAvatar fallbackName={userName} />
                 <div className="soft-msg-bubble soft-msg-bubble-user" data-testid="dialogue-clarifying-answer">
                   {answer}
                 </div>
@@ -672,7 +674,7 @@ export function CheckinExperience({
               optimistic bubble has already been rendered above. */}
           {awaitingAssistant && (
             <div className="soft-msg-row soft-msg-row-assistant" data-testid="dialogue-typing-indicator">
-              <div className="soft-msg-avatar" aria-hidden="true" />
+              <AssistantMsgAvatar />
               <div className="soft-msg-bubble soft-msg-bubble-assistant">
                 <div className="soft-typing"><span /><span /><span /></div>
               </div>
@@ -681,7 +683,7 @@ export function CheckinExperience({
 
           {!awaitingAssistant && currentClarifyingQuestion && (
             <div className="soft-msg-row soft-msg-row-assistant">
-              <div className="soft-msg-avatar" aria-hidden="true" />
+              <AssistantMsgAvatar />
               <div>
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
                   <p style={{ whiteSpace: "pre-wrap" }}>
@@ -716,55 +718,35 @@ export function CheckinExperience({
               where their next reply will go. Pinned at the bottom of the frame. */}
           <div className="soft-ask-card soft-dialogue-composer">
             <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
-            <textarea
-              id="dialogue-clarification"
-              ref={clarificationRef}
-              value={clarification}
-              onChange={(event) => setClarification(event.target.value.slice(0, DIALOGUE_INPUT_MAX_CHARS))}
-              placeholder={awaitingAssistant
-                ? "Подождите, платформа сейчас сформулирует следующий вопрос…"
-                : "Ответьте своими словами или выберите вариант выше…"}
-              className="soft-question-input soft-dialogue-composer-input"
-              rows={1}
-              maxLength={DIALOGUE_INPUT_MAX_CHARS}
-              disabled={awaitingAssistant}
-              data-testid="dialogue-clarification-input"
-            />
-            <div className="soft-ask-foot">
-              <button
-                type="button"
-                onClick={() => void sendClarification(true)}
+            <div className="soft-dialogue-composer-row">
+              <textarea
+                id="dialogue-clarification"
+                ref={clarificationRef}
+                value={clarification}
+                onChange={(event) => setClarification(event.target.value.slice(0, DIALOGUE_INPUT_MAX_CHARS))}
+                placeholder={awaitingAssistant ? "Готовим следующий вопрос…" : "Сообщение"}
+                className="soft-question-input soft-dialogue-composer-input"
+                rows={1}
+                maxLength={DIALOGUE_INPUT_MAX_CHARS}
                 disabled={awaitingAssistant}
-                className="soft-button soft-button-soft"
-                data-testid="dialogue-skip-clarification"
-              >
-                Пропустить вопрос
-              </button>
-              {/* B319: char counter — soft-amber from 1000, soft-bordeaux from 1150 */}
-              <span
-                className={`text-xs tabular-nums ${
-                  clarification.length >= DIALOGUE_INPUT_MAX_CHARS - 50
-                    ? "text-[var(--soft-bordeaux)] font-semibold"
-                    : clarification.length >= DIALOGUE_INPUT_MAX_CHARS - 200
-                      ? "text-[var(--soft-terracotta-dark)]"
-                      : "text-[var(--soft-ink-faint)]"
-                }`}
-                data-testid="dialogue-char-counter"
-                aria-live="polite"
-              >
-                {clarification.length}/{DIALOGUE_INPUT_MAX_CHARS}
-              </span>
+                data-testid="dialogue-clarification-input"
+              />
               <button
                 type="button"
                 onClick={() => void sendClarification(false)}
                 disabled={awaitingAssistant || !clarification.trim()}
-                className="soft-button soft-button-primary"
+                className="soft-dialogue-send"
+                aria-label="Отправить"
                 data-testid="dialogue-send-clarification"
               >
-                Отправить
-                <Send className="size-4" aria-hidden="true" />
+                <Send className="size-5" aria-hidden="true" />
               </button>
             </div>
+            {clarification.length >= DIALOGUE_INPUT_MAX_CHARS - 200 ? (
+              <span className="soft-dialogue-counter" data-testid="dialogue-char-counter" aria-live="polite">
+                {clarification.length}/{DIALOGUE_INPUT_MAX_CHARS}
+              </span>
+            ) : null}
           </div>
         </div>
       )}
@@ -777,11 +759,11 @@ export function CheckinExperience({
       {phase === "processing" && processingKind === "dialogue" && (
         <div className="soft-dialogue-chat" data-testid="dialogue-starting-step">
           <div className="soft-msg-row soft-msg-row-user">
-            <UserMsgAvatar />
+            <UserMsgAvatar fallbackName={userName} />
             <div className="soft-msg-bubble soft-msg-bubble-user">{question}</div>
           </div>
           <div className="soft-msg-row soft-msg-row-assistant" data-testid="dialogue-typing-indicator">
-            <div className="soft-msg-avatar" aria-hidden="true" />
+            <AssistantMsgAvatar />
             <div className="soft-msg-bubble soft-msg-bubble-assistant">
               <div className="soft-typing"><span /><span /><span /></div>
             </div>
@@ -803,7 +785,7 @@ export function CheckinExperience({
                 <span className="text-xs text-[var(--soft-ink-faint)]">показать диалог</span>
               </summary>
               <div className="mt-3">
-                <DialogueThread messages={dialogue?.messages ?? []} />
+                <DialogueThread messages={dialogue?.messages ?? []} userName={userName} />
               </div>
             </details>
           )}
@@ -822,7 +804,6 @@ export function CheckinExperience({
           </article>
           {error && (
             <div className="mt-5">
-              <p className="text-sm text-destructive">{error}</p>
               {retrying && dialogue && (
                 <Button className="soft-button soft-button-soft mt-3" variant="outline" onClick={() => generateAnswer(dialogue.id)} data-testid="dialogue-retry-answer">
                   Попробовать еще раз
@@ -907,7 +888,7 @@ export function CheckinExperience({
                   <span className="text-xs text-[var(--soft-ink-faint)]">{historyOpen ? "скрыть диалог" : "показать диалог"}</span>
                 </summary>
                 <div className="mt-3">
-                  <DialogueThread messages={thread} />
+                  <DialogueThread messages={thread} userName={userName} />
                 </div>
               </details>
             );
@@ -915,7 +896,7 @@ export function CheckinExperience({
 
           {/* B411: «что я слышу в вашем вопросе» — horizontal band, full width. */}
           <article
-            className="relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-5 md:p-7"
+            className="soft-primary-answer-card relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-4 md:p-5"
             style={{ background: "linear-gradient(160deg, #FFFCF5 0%, #F8E6D1 100%)" }}
           >
             <span aria-hidden="true" className="absolute left-0 top-0 h-full w-1.5" style={{ background: "var(--soft-terracotta-dark)" }} />
@@ -926,7 +907,7 @@ export function CheckinExperience({
             <div data-testid="dialogue-primary-answer">
               <SoftMarkdown
                 content={displayAnswer}
-                className="mt-3 font-heading text-[19px] text-[var(--soft-ink)] [&_p]:leading-relaxed"
+                className="mt-3 font-heading text-[15px] text-[var(--soft-ink)] [&_p]:leading-[1.5]"
               />
             </div>
           </article>

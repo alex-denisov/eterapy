@@ -21,6 +21,33 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
   || `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+type TelegramInlineKeyboard = {
+  inline_keyboard: Array<Array<{
+    text: string;
+    url?: string;
+    web_app?: { url: string };
+  }>>;
+};
+
+type TelegramApiResponse = { ok?: boolean; description?: string };
+
+async function telegramApi(method: string, body: Record<string, unknown>): Promise<TelegramApiResponse> {
+  if (!BOT_TOKEN) return { ok: false, description: "TELEGRAM_BOT_TOKEN not set" };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`${API_BASE}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return await response.json().catch(() => ({ ok: false, description: `HTTP ${response.status}` })) as TelegramApiResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function getTelegramRuntimeConfig() {
   let apiBaseHost = "invalid";
   try {
@@ -37,27 +64,47 @@ export function getTelegramRuntimeConfig() {
 }
 
 /** Отправляет сообщение в Telegram-чат. chatId — строка (telegramId пользователя) */
-export async function sendTelegram(chatId: string, text: string): Promise<void> {
+export async function sendTelegram(
+  chatId: string,
+  text: string,
+  options?: { replyMarkup?: TelegramInlineKeyboard },
+): Promise<void> {
   if (!BOT_TOKEN) {
     log.warn("telegram.bot_token_missing");
     return;
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-  try {
-    const res = await fetch(`${API_BASE}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Telegram API error: ${err}`);
-    }
-  } finally {
-    clearTimeout(timeout);
+  const result = await telegramApi("sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...(options?.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+  });
+  if (!result.ok) throw new Error(`Telegram API error: ${result.description ?? "unknown error"}`);
+}
+
+/** Configures product-facing bot copy, commands and the persistent Mini App menu button. */
+export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl: string; staging: boolean }) {
+  const name = staging ? "ETerapy · Staging" : "ETerapy";
+  const suffix = staging ? " Тестовая версия." : "";
+  const requests: Array<[string, Record<string, unknown>]> = [
+    ["setMyName", { name }],
+    ["setMyDescription", { description: `ETerapy помогает прояснить личный вопрос: бесплатный первый разбор, углубления и проверенные специалисты в одном приложении.${suffix}` }],
+    ["setMyShortDescription", { short_description: `Разберите свой вопрос и выберите следующий шаг.${suffix}` }],
+    ["setMyCommands", { commands: [
+      { command: "start", description: "Открыть ETerapy" },
+      { command: "status", description: "Проверить связь с аккаунтом" },
+      { command: "stop", description: "Отключить уведомления Telegram" },
+    ] }],
+    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Открыть ETerapy", web_app: { url: miniAppUrl } } }],
+  ];
+  const results = [];
+  for (const [method, body] of requests) {
+    const result = await telegramApi(method, body);
+    results.push({ method, ok: Boolean(result.ok), error: result.ok ? undefined : result.description });
+    if (!result.ok) log.error("telegram.configure_failed", { method, error: result.description });
   }
+  return { ok: results.every((result) => result.ok), results };
 }
 
 /** Генерирует одноразовый токен для привязки аккаунта */

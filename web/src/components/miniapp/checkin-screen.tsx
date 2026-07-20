@@ -5,10 +5,10 @@ import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell
 import { styles } from "@/components/miniapp/styles";
 
 export function MiniAppCheckinScreen() {
-  const { data } = useMiniAppV21();
+  const { data, viewerName } = useMiniAppV21();
   return (
     <MiniAppChrome data={data}>
-      <CheckinExperience surface="miniapp" surfaceClassName={styles["dialogue-surface"]} />
+      <CheckinExperience surface="miniapp" surfaceClassName={styles["dialogue-surface"]} userName={viewerName} />
     </MiniAppChrome>
   );
 }

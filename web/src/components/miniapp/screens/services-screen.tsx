@@ -63,7 +63,7 @@ function CatalogCard({ service, layout }: { service: MiniAppService; layout: Ser
   const ServiceIcon = SERVICE_ICONS[service.id] ?? StarFour;
   const wide = layout === "wide";
   return (
-    <article className={c("catalog-card", wide && "is-wide")}>
+    <article className={c("catalog-card", wide && "is-wide", service.shareable && "has-share")}>
       <button className={styles["catalog-card-main"]} type="button" onClick={() => openService(service)}>
         <span className={styles["catalog-icon"]}><ServiceIcon size={wide ? 22 : 20} /></span>
         <span className={styles["catalog-copy"]}>
@@ -73,7 +73,7 @@ function CatalogCard({ service, layout }: { service: MiniAppService; layout: Ser
         </span>
         <ArrowRight className={styles["catalog-arrow"]} size={18} />
       </button>
-      {service.shareable ? <button className={styles["catalog-share"]} type="button" aria-label={`Поделиться: ${service.title}`} onClick={() => share(service.title, `/miniapp/services/${service.id}`)}><ShareNetwork size={17} /></button> : null}
+      {service.shareable ? <button className={styles["catalog-share"]} type="button" aria-label={`Поделиться: ${service.title}`} onClick={() => share(service.title, service.href)}><ShareNetwork size={17} /></button> : null}
     </article>
   );
 }

@@ -173,11 +173,11 @@ export function ProductPurchaseControls({
 
   const creditsLabel = hasCredits ? `${label} · ${creditCost} ${pointsWord(creditCost as number)}` : label;
   const messageBlock = message && (
-    <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
+    <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role={message.includes("Недостаточно") || message.includes("Не удалось") ? "alert" : "status"}>
       {message}{" "}
       {message.includes("балл") && (
         <Link href={inMiniApp ? toMiniAppPath(appUrl("/wallet")) : appUrl("/wallet")} prefetch={false} className="font-semibold underline">
-          Баллы
+          Пополнить баллы
         </Link>
       )}
     </p>

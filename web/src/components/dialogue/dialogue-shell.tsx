@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SoftHaloMark } from "@/components/brand/brand-mark";
 
@@ -54,10 +54,12 @@ export function DialogueShell({
         {/* v4 compact header: brand mark + eyebrow + subtitle | quiet privacy line.
             Suppressed on the result phase, which renders its own iOS header. */}
         {!hideHeader && (
-          <header className={surface === "miniapp" ? "mb-5" : "mb-8"}>
+          <header className={surface === "miniapp" ? "miniapp-dialogue-header mb-3" : "mb-8"}>
             <div className="flex items-center justify-between gap-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] pb-4">
               <div className="flex items-center gap-3">
-                <SoftHaloMark size={28} />
+                {surface === "miniapp" ? (
+                  <span className="miniapp-dialogue-mark" aria-hidden="true"><Sparkles size={17} /></span>
+                ) : <SoftHaloMark size={28} />}
                 <div>
                   <div className="soft-eyebrow">{kicker}</div>
                   <div
@@ -69,7 +71,7 @@ export function DialogueShell({
                       fontWeight: 500,
                     }}
                   >
-                    Разговор приватный
+                    {surface === "miniapp" ? "Личный диалог" : "Разговор приватный"}
                   </div>
                 </div>
               </div>
@@ -77,7 +79,7 @@ export function DialogueShell({
                   the redesigned product hero privacy treatment. */}
               <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
                 <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
-                Зашифровано
+                Приватно
               </span>
             </div>
 
