@@ -1,47 +1,24 @@
 /**
  * POST /api/billing/create-payment
- * Создаёт платёж в ЮKassa и возвращает confirmation URL для редиректа.
+ * Создаёт платёж у активного провайдера и возвращает ссылку для редиректа.
  * Body:
  * - product unlock: { productKey: string }
  * - subscription start: { planKey: string }
  * - clarity-credit pack: { creditPackKey: "pack-5" | "pack-10" | "pack-25" }
+ *
+ * Провайдер выбирается флагом `PAYMENT_PROVIDER` — см. `lib/payments/checkout.ts`.
  */
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { yukassaFetch } from "@/lib/yukassa";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchaseWithSettings, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { trackServerEvent } from "@/lib/analytics";
-import { APP_URL } from "@/lib/env";
-import {
-  assertRubPaymentAmount,
-  paymentDeclineUserMessage,
-  paymentDocumentVersionData,
-  withPaymentPolicyMetadata,
-} from "@/lib/billing-policy";
-
-function buildBillingReturnUrl(baseUrl: string, purchase: ResolvedBillingPurchase) {
-  const fallbackPath = "/cabinet/billing";
-  const rawPath = purchase.metadata.returnPath;
-  const safePath = rawPath && rawPath.startsWith("/") && !rawPath.startsWith("//")
-    ? rawPath
-    : fallbackPath;
-  const url = new URL(safePath, baseUrl);
-  url.searchParams.set("payment", "success");
-  if (purchase.kind === "product") {
-    url.searchParams.set("productKey", purchase.metadata.productKey);
-  }
-  if (purchase.kind === "subscription") {
-    url.searchParams.set("planKey", purchase.metadata.planKey);
-  }
-  if (purchase.kind === "credits") {
-    url.searchParams.set("creditPackKey", purchase.metadata.creditPackKey);
-  }
-  return url.toString();
-}
+import { paymentDeclineUserMessage } from "@/lib/billing-policy";
+import { createCheckout } from "@/lib/payments/checkout";
+import { activePaymentProvider } from "@/lib/payments/config";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -82,78 +59,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Valid return URL — always a full absolute URL
-  const baseUrl = APP_URL;
-  const returnUrl = buildBillingReturnUrl(baseUrl, purchase);
-  const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
-  const documentVersions = paymentDocumentVersionData();
-  const policyMetadata = withPaymentPolicyMetadata(purchase.metadata);
+  const provider = activePaymentProvider();
 
   try {
-    // Создаём платёж в ЮKassa напрямую через yukassaFetch
-    const payment = await yukassaFetch<{
-      id: string;
-      status: string;
-      paid: boolean;
-      amount: { value: string; currency: string };
-      confirmation?: { confirmation_url?: string };
-    }>("/payments", {
-      method: "POST",
-      body: {
-        amount: { value: (purchase.amountKopecks / 100).toFixed(2), currency: "RUB" },
-        confirmation: {
-          type: "redirect",
-          return_url: returnUrl,
-        },
-        notification_url: notificationUrl,
-        capture: true,
-        description: purchase.description,
-        metadata: {
-          userId: session.user.id,
-          amountKopecks: String(purchase.amountKopecks),
-          purchaseKind: purchase.metadata.purchaseKind,
-          productKey: policyMetadata.productKey,
-          planKey: policyMetadata.planKey,
-          creditPackKey: policyMetadata.creditPackKey,
-          creditsAmount: policyMetadata.creditsAmount ? String(policyMetadata.creditsAmount) : undefined,
-          checkoutSource: policyMetadata.checkoutSource,
-          returnPath: policyMetadata.returnPath,
-          currency: policyMetadata.currency,
-          ruOnlyPaymentPolicy: String(policyMetadata.ruOnlyPaymentPolicy),
-          offerVersion: policyMetadata.offerVersion,
-          termsVersion: policyMetadata.termsVersion,
-          consentVersion: policyMetadata.consentVersion,
-        },
-      },
-    });
-    assertRubPaymentAmount(payment);
-
-    if (!payment.confirmation?.confirmation_url) {
-      throw new Error("ЮKassa не вернула confirmation_url");
-    }
-
-    // Сохраняем транзакцию в БД
-    await db.transaction.create({
-      data: {
-        userId: session.user.id,
-        amount: purchase.amountKopecks,
-        currency: "RUB",
-        status: "PENDING",
-        provider: "yookassa",
-        providerPaymentId: payment.id,
-        description: purchase.description,
-        offerVersion: documentVersions.offerVersion,
-        termsVersion: documentVersions.termsVersion,
-        consentVersion: documentVersions.consentVersion,
-        metadata: policyMetadata,
-      },
+    const checkout = await createCheckout({
+      userId: session.user.id,
+      userEmail: session.user.email,
+      purchase,
     });
 
     log.info("billing-payment-created", {
       requestId: context.requestId,
       userId: session.user.id,
-      provider: "yookassa",
-      providerPaymentId: payment.id,
+      provider,
+      providerPaymentId: checkout.providerPaymentId,
       amountKopecks: purchase.amountKopecks,
       purchaseKind: purchase.kind,
     });
@@ -171,14 +90,14 @@ export async function POST(req: NextRequest) {
 
     return jsonWithRequestContext({
       ok: true,
-      paymentId: payment.id,
-      confirmationUrl: payment.confirmation.confirmation_url,
+      paymentId: checkout.providerPaymentId,
+      confirmationUrl: checkout.confirmationUrl,
     }, undefined, context);
   } catch (err: unknown) {
     log.error("billing-payment-create-failed", {
       requestId: context.requestId,
       userId: session.user.id,
-      provider: "yookassa",
+      provider,
       amountKopecks: purchase?.amountKopecks,
       error: serializeError(err),
     });
