@@ -69,6 +69,13 @@ function GateLink({ href, children }: { href: string; children: React.ReactNode 
   return <Link className={styles["journey-primary"]} href={target}>{children}<ArrowRight size={18} /></Link>;
 }
 
+function counted(value: number, one: string, few: string, many: string) {
+  const mod100 = value % 100;
+  const mod10 = value % 10;
+  const word = mod100 >= 11 && mod100 <= 14 ? many : mod10 === 1 ? one : mod10 >= 2 && mod10 <= 4 ? few : many;
+  return `${value} ${word}`;
+}
+
 function PractitionerAvatar({ practitioner, size = 56 }: { practitioner: MiniAppPractitionerCard; size?: number }) {
   return practitioner.avatar
     ? <Image className={styles["practitioner-avatar"]} src={practitioner.avatar} alt="" width={size} height={size} />
@@ -344,8 +351,8 @@ export function LibraryScreen({ entries }: { entries: AnonymousLibraryEntry[] })
         <div className={styles["library-topics"]} role="group" aria-label="Категория вопроса">
           {topics.map((item) => <button key={item} type="button" aria-pressed={topic === item} onClick={() => { setTopic(item); setLimit(8); }}>{item}</button>)}
         </div>
-        <p className={styles["library-count"]}>{filtered.length} {filtered.length === 1 ? "история" : "историй"}</p>
-        {visible.length ? <div className={styles["library-list"]}>{visible.map((entry) => <Link href={`/miniapp/library/${entry.slug}`} key={entry.slug}><small>{entry.topic}</small><strong>{entry.question}</strong><span>{entry.reactions} откликов <ArrowRight size={16} /></span></Link>)}</div> : <section className={styles["empty-detail"]}><MagnifyingGlass size={28} /><strong>Ничего похожего не найдено</strong><p>Попробуйте другие слова или задайте свой вопрос.</p></section>}
+        <p className={styles["library-count"]}>{counted(filtered.length, "история", "истории", "историй")}</p>
+        {visible.length ? <div className={styles["library-list"]}>{visible.map((entry) => <Link href={`/miniapp/library/${entry.slug}`} key={entry.slug}><small>{entry.topic}</small><strong>{entry.question}</strong><span>{counted(entry.reactions, "отклик", "отклика", "откликов")} <ArrowRight size={16} /></span></Link>)}</div> : <section className={styles["empty-detail"]}><MagnifyingGlass size={28} /><strong>Ничего похожего не найдено</strong><p>Попробуйте другие слова или задайте свой вопрос.</p></section>}
         {visible.length < filtered.length ? <button className={styles["library-more"]} type="button" onClick={() => setLimit((current) => current + 8)}>Показать ещё <CaretDown size={17} /></button> : null}
         <Link className={styles["journey-primary"]} href="/miniapp/checkin">Задать свой вопрос<ArrowRight size={18} /></Link>
       </div>

@@ -161,18 +161,10 @@ export function CheckinExperience({
     if (inMiniApp) router.push(toMiniAppPath(href));
     else window.location.href = href;
   };
-  const [question, setQuestion] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const params = new URLSearchParams(window.location.search);
-    const queryQuestion = params.get("question")?.slice(0, 4000);
-    if (queryQuestion) return queryQuestion;
-    if (params.get("miniappDraft") !== "1") return "";
-    try {
-      return window.sessionStorage.getItem("eterapy:miniapp-question")?.slice(0, 4000) ?? "";
-    } catch {
-      return "";
-    }
-  });
+  // Keep the server and first client render identical. Query/sessionStorage are
+  // read after hydration; otherwise React keeps the server's empty state and a
+  // Mini App draft can disappear during navigation from Home.
+  const [question, setQuestion] = useState("");
   const [clarification, setClarification] = useState("");
   const [clarifyingAnswers, setClarifyingAnswers] = useState<string[]>([]);
   // B318: inline typing indicator + sending lock without leaving the
@@ -218,6 +210,22 @@ export function CheckinExperience({
   const clarifyThreadRef = useRef<HTMLDivElement>(null);
   // Telegram-like composer: 1 line → grows to 4 → scrolls.
   const { ref: clarificationRef } = useAutoGrowTextarea(clarification);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryQuestion = params.get("question")?.slice(0, 4000);
+    let draft = queryQuestion ?? "";
+    if (!draft && params.get("miniappDraft") === "1") {
+      try {
+        draft = window.sessionStorage.getItem("eterapy:miniapp-question")?.slice(0, 4000) ?? "";
+      } catch {
+        // Storage can be unavailable in restrictive embedded browser modes.
+      }
+    }
+    if (!draft) return;
+    const timer = window.setTimeout(() => setQuestion(draft), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
