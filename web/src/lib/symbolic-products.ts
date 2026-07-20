@@ -648,6 +648,25 @@ function headingKey(value: string) {
     .toLocaleLowerCase("ru");
 }
 
+// Служебные строки пользовательского контекста промта. Если модель приняла их за
+// содержимое раздела, такой «ответ» нельзя показывать клиенту: раздел роняется,
+// и его добирает обычный ремонт сегмента.
+const PROMPT_CONTEXT_MARKERS = [
+  /^Услуга:\s/m,
+  /^Расклад:\s/m,
+  /^Тематический фокус:\s/m,
+  /^Выпавшие карты:/m,
+  /^Данные для разбора:/m,
+];
+
+function isPromptContextEcho(body: string) {
+  const matched = PROMPT_CONTEXT_MARKERS.filter((marker) => marker.test(body)).length;
+  if (matched === 0) return false;
+  // Один маркер может законно встретиться в связном тексте; эхо контекста — это
+  // всегда несколько служебных строк подряд в самом начале раздела.
+  return matched >= 2 || /^\s*Услуга:\s/.test(body);
+}
+
 function mergeSymbolicSections(productKey: string, headings: string[], texts: string[]) {
   const wanted = new Map(headings.map((heading) => [headingKey(heading), heading]));
   const tarotPositionHeadings = productKey === "tarot"
@@ -673,7 +692,7 @@ function mergeSymbolicSections(productKey: string, headings: string[], texts: st
         || sectionKey.startsWith(`${position}:`)
         || sectionKey.startsWith(`${position} —`)
       ))?.heading;
-      if (!canonical || !section.body.trim()) continue;
+      if (!canonical || !section.body.trim() || isPromptContextEcho(section.body)) continue;
       const existing = bodies.get(canonical) ?? "";
       if (section.body.trim().length > existing.length) bodies.set(canonical, section.body.trim());
     }
@@ -1039,8 +1058,12 @@ export async function generateSymbolicProductResult(input: {
               input.productKey === "natal-chart" && group.some((heading) => heading.startsWith("Аспекты:"))
                 ? `В главах аспектов дословно назови и истолкуй минимум две рассчитанные пары: ${natalAspectPairs.join("; ")}.`
                 : "",
-              ...group.map((heading) => `## ${heading}`),
+              // Контекст идёт ДО списка заголовков: если он стоит последним,
+              // модель иногда принимает его за содержимое последнего раздела и
+              // служебные строки уезжают в платный результат (B554).
               userContext,
+              "Ниже — обязательные заголовки этой части. Пиши только их содержимое:",
+              ...group.map((heading) => `## ${heading}`),
             ].join("\n"),
           },
         ],
