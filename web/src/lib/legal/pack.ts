@@ -35,9 +35,11 @@ const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
   ["[Ссылка на личный кабинет]", "app.eterapy.com"],
   ["[Ссылка на сайт]", "eterapy.com"],
   ["[указать срок]", "10"],
-  // Payment provider is intentionally NOT named: the YooKassa → new-provider
-  // migration is deferred (B423), so legal text stays provider-neutral.
-  ["«Твои платежи»", "«[платёжный сервис]»"],
+  // B423: the payment provider is deliberately never named in the legal texts —
+  // the documents say "провайдер, указанный в интерфейсе при оплате" instead.
+  // This used to be a substitution rewriting «Твои платежи» → «[платёжный
+  // сервис]», which rendered on the live offer and privacy pages as what read
+  // like an unfilled placeholder. The source text is neutral now.
 ];
 
 function applySubstitutions(text: string): string {
