@@ -64,9 +64,20 @@ describe("B431 — legal pack content pipeline", () => {
   it("leaves no square-bracket placeholder in any published document", () => {
     for (const slug of allLegalDocSlugs()) {
       const md = legalDocMarkdown(slug);
-      const leftovers = md.match(/\[[А-ЯЁ][^\]]*\]/g) ?? [];
+      // Lower-case too: «[платёжный сервис]» reached production because the
+      // first version of this guard only matched a leading capital (B423).
+      // Markdown links [text](url) are legitimate, so exclude a following "(".
+      const leftovers = md.match(/\[[А-Яа-яЁё][^\]]*\](?!\()/g) ?? [];
       expect(leftovers).toEqual([]);
     }
+  });
+
+  it("never names the payment provider in any published document (B423)", () => {
+    const all = allLegalDocSlugs().map((s) => legalDocMarkdown(s)).join("\n");
+    for (const name of ["Твои платежи", "Robokassa", "Робокасса", "ЮKassa", "ЮКасса", "YooKassa"]) {
+      expect(all).not.toContain(name);
+    }
+    expect(legalDocMarkdown("privacy")).toContain("указанного в интерфейсе при оплате");
   });
 });
 
