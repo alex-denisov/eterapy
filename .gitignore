@@ -107,3 +107,7 @@ DESIGN.md
 DESIGN.json
 BACKLOG.md
 DEPLOY.md
+
+# QA/design artifacts (local-only, same rule as docs/ — B340)
+output/
+design-qa.md

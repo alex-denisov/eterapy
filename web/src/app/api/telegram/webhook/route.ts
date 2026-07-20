@@ -21,7 +21,7 @@ import { APP_URL } from "@/lib/env";
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
   ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString();
-const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Открыть ETerapy", web_app: { url: MINI_APP_URL } }]] };
+const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Разобрать ситуацию", web_app: { url: MINI_APP_URL } }]] };
 
 async function safeSend(chatId: string, text: string, withAppButton = false) {
   try {
@@ -94,8 +94,14 @@ export async function POST(req: NextRequest) {
       const token = text.split(" ")[1]?.trim();
 
       if (!token) {
+        // B554 (owner): прежний текст обещал «прояснить вопрос» и треть письма
+        // отводил под уведомления — человек не понимал, что именно получит.
+        // Теперь сразу назван результат, его цена и время.
         await safeSend(chatId,
-          "<b>ETerapy — когда нужно прояснить вопрос</b>\n\nНачните с бесплатного разбора, выберите углубление или найдите специалиста — всё внутри приложения.\n\nЗдесь же будут приходить уведомления о готовых результатах, записях и важных изменениях.",
+          "<b>ETerapy — разбор вашей ситуации в тексте</b>\n\n"
+          + "Опишите, что происходит. Мы зададим 2–3 уточняющих вопроса и вернём разбор: "
+          + "что происходит, что на это влияет и с чего начать.\n\n"
+          + "Первый разбор — бесплатно, без карты. Занимает около трёх минут.",
           true,
         );
         await completeWebhookEvent(claim.event.id, { result: "start-help" });
@@ -173,7 +179,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Unknown command
-    await safeSend(chatId, "Откройте приложение кнопкой ниже.\n\n/status — проверить уведомления\n/stop — отключить уведомления", true);
+    await safeSend(chatId, "Опишите ситуацию в приложении — вернём разбор и первый шаг.\n\n/status — проверить уведомления\n/stop — отключить уведомления", true);
     await completeWebhookEvent(claim.event.id, { result: "unknown-command" });
     return NextResponse.json({ ok: true });
   } catch (err) {

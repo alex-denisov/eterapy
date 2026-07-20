@@ -10,6 +10,21 @@ import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
+// B554: числа в полосе недели были захардкожены (14…20) и совпадали с реальным
+// календарём одну неделю в месяц. Дневник — это личная запись пользователя;
+// выдуманные даты в ней подрывают доверие ко всему продукту.
+function currentWeekDates(): number[] {
+  const today = new Date();
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + index);
+    return day.getDate();
+  });
+}
+
 export function DiaryScreen() {
   const { data, share, notify, openService } = useMiniAppV21();
   const router = useRouter();
@@ -20,6 +35,7 @@ export function DiaryScreen() {
   const [perspective, setPerspective] = useState("");
   const [topic, setTopic] = useState("Все");
   const [activeItem, setActiveItem] = useState(data.diaryItems[0]?.id ?? "");
+  const weekDates = useMemo(() => currentWeekDates(), []);
   const topics = useMemo(() => ["Все", ...Array.from(new Set(data.diaryItems.map((item) => item.topic))).slice(0, 4)], [data.diaryItems]);
   const filtered = useMemo(() => topic === "Все" ? data.diaryItems : data.diaryItems.filter((item) => item.topic === topic), [data.diaryItems, topic]);
   const selected = data.diaryItems.find((item) => item.id === activeItem) ?? data.diaryItems[0];
@@ -81,7 +97,7 @@ export function DiaryScreen() {
             {WEEKDAYS.map((day, index) => {
               const weekday = (index + 1) % 7;
               const done = data.completedWeekdays.includes(weekday);
-              return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b>{done ? <Check size={14} weight="bold" /> : index + 14}</b></span>;
+              return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b>{done ? <Check size={14} weight="bold" /> : weekDates[index]}</b></span>;
             })}
           </div>
           <p className={styles["practice-footnote"]}>На 7-й день серии появится итог недели. Можно пропускать, без давления.</p>
@@ -90,7 +106,7 @@ export function DiaryScreen() {
         {selected ? (
           <section className={styles["journal-history"]}>
             <div className={styles["section-title-row"]}><span><small>ВАШИ ЗАПИСИ</small><strong>Последние дни</strong></span></div>
-            <div className={styles["journal-day-buttons"]}>{data.diaryItems.slice(0, 5).map((item, index) => <button key={item.id} type="button" className={activeItem === item.id ? styles["is-active"] : undefined} onClick={() => setActiveItem(item.id)}><small>{14 + index}</small><span>{item.topic}</span></button>)}</div>
+            <div className={styles["journal-day-buttons"]}>{data.diaryItems.slice(0, 5).map((item) => <button key={item.id} type="button" className={activeItem === item.id ? styles["is-active"] : undefined} onClick={() => setActiveItem(item.id)}><small>{item.dayLabel}</small><span>{item.topic}</span></button>)}</div>
             <article className={styles["journal-expanded"]}><p>{selected.insight}</p><button type="button" onClick={() => share(selected.title, `/miniapp/diary/${encodeURIComponent(selected.id)}`)}><ShareNetwork size={16} /> Поделиться анонимным инсайтом</button></article>
           </section>
         ) : null}

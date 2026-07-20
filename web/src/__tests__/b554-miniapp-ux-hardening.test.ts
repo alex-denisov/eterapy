@@ -85,7 +85,27 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(telegram).toContain('{ command: "status"');
     expect(telegram).toContain('{ command: "stop"');
     expect(webhook).toContain("OPEN_APP_KEYBOARD");
-    expect(webhook).toContain("ETerapy — когда нужно прояснить вопрос");
+    expect(webhook).toContain("ETerapy — разбор вашей ситуации в тексте");
     expect(setup).toContain("configureTelegramBot");
+  });
+
+  // Owner 2026-07-21: «клиент явно не понимает что его ждет. CTA должен быть
+  // прямее и понятнее, без бережливой бережливости».
+  it("names the deliverable instead of the platform's intention", () => {
+    const telegram = source("src/lib/telegram.ts");
+    const webhook = source("src/app/api/telegram/webhook/route.ts");
+
+    // Абстрактная формулировка цели платформы больше не используется как оффер.
+    expect(telegram).not.toContain("помогает прояснить личный вопрос");
+    expect(webhook).not.toContain("когда нужно прояснить вопрос");
+
+    // Приветствие называет результат, его цену и время.
+    expect(webhook).toContain("что происходит, что на это влияет и с чего начать");
+    expect(webhook).toContain("бесплатно");
+    expect(webhook).toContain("около трёх минут");
+
+    // CTA — действие, а не «открыть приложение».
+    expect(webhook).toContain('text: "Разобрать ситуацию"');
+    expect(telegram).toContain('{ command: "start", description: "Разобрать ситуацию" }');
   });
 });

@@ -235,6 +235,7 @@ export function MiniAppShell({ data, children }: { data: MiniAppInitialData; chi
   const [notice, setNotice] = useState("");
   const [telegramName, setTelegramName] = useState("");
   const pathname = usePathname();
+  const inLiveSession = pathname.startsWith("/miniapp/session/");
 
   useEffect(() => {
     track({ event: "miniapp_view", surface: "miniapp", properties: { view: miniAppFeatureForPath(pathname).id } });
@@ -275,7 +276,10 @@ export function MiniAppShell({ data, children }: { data: MiniAppInitialData; chi
         <section className={styles.app} aria-label="ETerapy Mini App">
           {data.loadError ? <div className={styles["inline-error"]} role="status">Личные данные временно не загрузились. Основные разделы доступны.</div> : null}
           {children}
-          <BottomNav />
+          {/* B554: во время живой видеосессии таббар висел поверх нижней части
+              звонка — один промах по «Дневнику» молча выкидывал клиента из
+              сессии. На этом маршруте навигация скрыта. */}
+          {inLiveSession ? null : <BottomNav />}
           <div className={c("toast", notice && "is-visible")} role="status" aria-live="polite">{notice}</div>
         </section>
       </main>

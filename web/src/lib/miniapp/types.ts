@@ -50,6 +50,8 @@ export type MiniAppDiaryItem = {
   type: string;
   topic: string;
   date: string;
+  /** Число месяца записи — для компактных чипов «последние дни». */
+  dayLabel: string;
   insight: string;
   href: string;
 };

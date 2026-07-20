@@ -260,7 +260,10 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-ai",
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
-    expect(request?.messages[0]?.content).toContain("короткая живая реплика");
+    // B554: отражение и вопрос разведены по разным полям, чтобы наличие
+    // отражения можно было проверить, а не только попросить.
+    expect(request?.messages[0]?.content).toContain('"m":"отражение последней реплики пользователя"');
+    expect(request?.messages[0]?.content).toContain("Ты практик, который ВЕДЁТ разбор");
   });
 
   it("heuristic returns fallback questions for any topic", () => {
