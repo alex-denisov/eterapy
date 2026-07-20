@@ -14,13 +14,17 @@ function readPack(): string {
   return cachedPack;
 }
 
-// Fillable placeholders. Company requisites (ИП / ИНН / ОГРНИП / адрес / телефон)
-// are deliberately LEFT as visible "[...]" placeholders: the legal entity is not
-// registered yet, so they must remain blank until the owner provides them.
+// Fillable placeholders. B452: ИП зарегистрировано 2026-07-20, реквизиты
+// подставляются здесь. Адрес оператора в публичных документах НЕ печатается
+// (owner-решение 2026-07-20): для ИП ЗоЗПП ст. 9 требует сведения о госрегистрации,
+// а не адрес; адрес регистрации подаётся только в уведомление РКН.
 const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
   // Owner-решение 2026-07-17: остаёмся на редакции 1.0 — сервис не запущен,
   // оферту никто не акцептовал, переиздавать нечего (см. registry.ts).
   ["[Версия документа]", "1.0"],
+  ["[ИП Денисов Алексей]", "Индивидуальный предприниматель Денисов Алексей Сергеевич"],
+  ["[ИНН]", "774315089677"],
+  ["[ОГРНИП]", "326508100422433"],
   ["[Дата публикации]", "18 июня 2026 г."],
   ["[Email поддержки]", "support@eterapy.com"],
   ["[Email для ПДн]", "privacy@eterapy.com"],

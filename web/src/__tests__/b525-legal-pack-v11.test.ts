@@ -217,9 +217,14 @@ describe("B525 — ограничения владельца соблюдены"
     expect(legalDocMarkdown("uploads")).toContain("не собирает и не запрашивает согласия третьих лиц");
   });
 
-  it("сохраняет плейсхолдеры реквизитов и безымянный платёжный сервис", () => {
-    expect(legalDocMarkdown("offer")).toContain("[ИНН]");
-    expect(legalDocMarkdown("offer")).toContain("[ОГРНИП]");
+  it("печатает реальные реквизиты ИП и безымянный платёжный сервис", () => {
+    expect(legalDocMarkdown("offer")).toContain("774315089677");
+    expect(legalDocMarkdown("offer")).toContain("326508100422433");
     expect(all).not.toContain("Твои платежи");
+  });
+
+  it("не печатает адрес оператора в публичных документах (owner 2026-07-20)", () => {
+    expect(all).not.toContain("[Адрес]");
+    expect(all).not.toContain("Адрес: ");
   });
 });
