@@ -157,7 +157,7 @@ export function useSymbolicService(
         setHasEntitlement(false);
         setMessage("Откройте разбор баллами или картой — результат появится здесь же.");
       } else if (typed.status === 503) {
-        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.");
+        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Доступ сохранён, повторно платить не нужно.");
       } else {
         setMessage(typed.message || "Не удалось собрать разбор");
       }

@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
   if ((full.metadata as { source?: string }).source !== "ai") {
     return errorWithRequestContext(
       "AI_UNAVAILABLE",
-      "Не получилось собрать полный подробный разбор — попробуйте ещё раз. Баллы не списаны.",
+      "Не получилось собрать полный подробный разбор — попробуйте ещё раз. Доступ сохранён, повторно платить не нужно.",
       503,
       context,
     );

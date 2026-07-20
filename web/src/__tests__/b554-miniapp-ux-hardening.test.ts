@@ -8,12 +8,33 @@ function source(pathname: string): string {
 describe("B554 — Telegram Mini App UX hardening", () => {
   it("starts the home question directly and retires duplicate funnel pages", () => {
     const home = source("src/components/miniapp/screens/home-screen.tsx");
+    const experience = source("src/components/dialogue/checkin-experience.tsx");
     const dialogueNew = source("src/app/miniapp/dialogues/new/page.tsx");
     const serviceDetail = source("src/app/miniapp/services/[slug]/page.tsx");
 
     expect(home).toContain('router.push("/miniapp/checkin?miniappDraft=1")');
+    expect(experience).toContain('sessionStorage.getItem("eterapy:miniapp-question")');
+    expect(experience).toContain("window.setTimeout(() => setQuestion(draft), 0)");
     expect(dialogueNew).toContain('redirect("/miniapp/checkin")');
     expect(serviceDetail).toContain("redirect(service.href)");
+  });
+
+  it("keeps completed answers in the Diary instead of duplicating them in Dialogues", () => {
+    const serverData = source("src/lib/miniapp/server-data.ts");
+    const dialogues = source("src/components/miniapp/screens/dialogues-screen.tsx");
+
+    expect(serverData).toContain('status: { in: ["OPEN", "AWAITING_USER", "PROCESSING"] }');
+    expect(dialogues).toContain("messagesLabel(dialogue.messageCount)");
+  });
+
+  it("explains a generation retry without falsely promising that credits were not spent", () => {
+    const route = source("src/app/api/products/symbolic/route.ts");
+    const service = source("src/components/products/use-symbolic-service.ts");
+
+    expect(route).toContain("Доступ сохранён, повторно платить не нужно");
+    expect(service).toContain("Доступ сохранён, повторно платить не нужно");
+    expect(route).not.toContain("Баллы не списаны");
+    expect(service).not.toContain("Баллы не списаны");
   });
 
   it("renders a compact Telegram-style composer without a skip action", () => {
