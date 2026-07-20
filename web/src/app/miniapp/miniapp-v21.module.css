@@ -1422,7 +1422,7 @@
   isolation: isolate;
   background: transparent;
   color: #727f91;
-  font-size: 7.5px;
+  font-size: 11px;
   line-height: 1.1;
   font-weight: 700;
   cursor: pointer;
@@ -2386,7 +2386,7 @@
 .plan-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 7.5px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -2399,7 +2399,7 @@
   gap: 3px;
   background: transparent;
   color: var(--coral);
-  font-size: 7.5px;
+  font-size: 11px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -3850,7 +3850,7 @@
 .event-settings > div { max-height: min(360px, 48dvh); padding: 0 8px 8px; display: grid; gap: 1px; overflow-y: auto; }
 .event-settings > div > button { min-height: 52px; padding: 7px 3px 7px 5px; border: 0; border-top: 1px solid rgba(211, 226, 239, .07); display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; gap: 8px; color: var(--text); background: transparent; text-align: left; }
 .event-settings > div > button > span { display: grid; gap: 3px; }
-.event-settings strong { font-size: 9.5px; }
+.event-settings strong { font-size: 12px; }
 .event-settings small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .event-settings i { width: 34px; height: 20px; position: relative; border-radius: 999px; background: #253346; }
 .event-settings i::after { content: ""; width: 16px; height: 16px; position: absolute; left: 2px; top: 2px; border-radius: 50%; background: #8e99a8; transition: transform .18s ease, background .18s ease; }
@@ -4520,7 +4520,7 @@
 .subpage-head > p:last-child:not(.eyebrow) {
   max-width: 330px;
   margin-left: 41px;
-  font-size: 10.5px;
+  font-size: 13px;
   line-height: 1.42;
 }
 
@@ -4731,8 +4731,28 @@
   border-radius: 16px;
 }
 
+/* B554 (owner 4.1): «фрейм окна диалога уходит за границу экрана».
+   Высота считалась константой `viewport − 8px`, которая ничего не знает о
+   шапке разбора над тредом: экран получался 412px, начинался на 63px и
+   заканчивался на 55px ниже сгиба вместе с композером. Константу считать
+   нечем — вместо неё колонка на flex, где тред забирает ровно остаток. */
+:global(html[data-miniapp-keyboard-open="true"]) .screen-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface,
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface :global(.soft-chat-screen) {
-  height: calc(var(--miniapp-viewport-height, 100dvh) - 8px);
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dialogue-surface :global(.soft-chat-thread) {
