@@ -16,9 +16,34 @@ function approachFor(slug: V5ProductSlug): MiniAppServiceApproach {
   return PSYCHOLOGY_PRODUCTS.has(slug) ? "psychology" : "symbolic";
 }
 
-function compactSummary(summary: string): string {
+/**
+ * B554 п.22: на карточке мини-аппа помещается примерно две строки, а сюда
+ * приходило первое предложение веб-описания — до 148 символов. Подписи
+ * обрезались многоточием у 24 элементов сразу, и карточки распухали. Это не
+ * задача «поджать шрифт»: тексты переписаны короче, под мобильную карточку.
+ * Веб-описания остаются в `v5Products` без изменений.
+ */
+const MINIAPP_SUMMARY: Partial<Record<V5ProductSlug, string>> = {
+  "reframe": "Ситуация под четырьмя углами",
+  "deep-report": "Разбор-документ с выводами и шагами",
+  "chat-analysis": "Переписка: тон и что стоит за словами",
+  "pair": "Один вопрос — несколько взглядов",
+  "tarot": "Чтение расклада: позиции и вывод",
+  "natal-chart": "Карта неба как язык ваших тем",
+  "synastry": "Две карты рядом: сходства и споры",
+  "horary": "Точный вопрос — прямой ответ",
+  "tarot-numerology": "Арканы вашей даты рождения",
+  "numerology": "Матрица 22 энергий по дате рождения",
+  "family-scenarios": "Что повторяется в роду",
+  "human-design": "Ваш тип и стратегия решений",
+  "surname-story": "След рода в вашей фамилии",
+};
+
+function compactSummary(slug: V5ProductSlug, summary: string): string {
+  const short = MINIAPP_SUMMARY[slug];
+  if (short) return short;
   const first = summary.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() ?? summary;
-  return first.length > 148 ? `${first.slice(0, 145).trim()}…` : first;
+  return first.length > 96 ? `${first.slice(0, 93).trim()}…` : first;
 }
 
 const digitalServices: MiniAppService[] = v5Products.map((product) => ({
@@ -26,7 +51,7 @@ const digitalServices: MiniAppService[] = v5Products.map((product) => ({
   slug: product.slug,
   title: product.name,
   eyebrow: product.eyebrow,
-  description: compactSummary(product.summary),
+  description: compactSummary(product.slug, product.summary),
   price: product.price,
   priceMeta: product.priceMeta,
   creditCost: product.creditCost,
@@ -47,7 +72,7 @@ const primaryService: MiniAppService = {
   slug: "primary",
   title: "Первичный разбор",
   eyebrow: "диалог ясности",
-  description: "Начните с вопроса и получите первый взгляд на ситуацию бесплатно.",
+  description: "Первый взгляд на ситуацию — бесплатно",
   price: "Бесплатно",
   priceMeta: "без карты и подписки",
   creditCost: null,

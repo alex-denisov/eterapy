@@ -145,6 +145,50 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     expect(pin).toContain("hashDiaryPin");
   });
 
+  it("п.21 — сегменты фильтра не переносятся на две строки", () => {
+    const css = source("src/app/miniapp/miniapp-v21.module.css");
+    const segment = css.slice(css.indexOf(".minimal-segment > div {"), css.indexOf(".minimal-segment button::before"));
+
+    // Строго равные колонки не вмещали «Со специалистом».
+    expect(segment).not.toContain("grid-auto-columns: 1fr");
+    expect(segment).toContain("white-space: nowrap");
+    expect(segment).toContain("overflow-x: auto");
+  });
+
+  it("п.22 — у карточек услуг свои короткие подписи, а не первое предложение веба", () => {
+    const catalog = source("src/lib/miniapp/catalog.ts");
+
+    expect(catalog).toContain("MINIAPP_SUMMARY");
+    expect(catalog).toContain("compactSummary(product.slug, product.summary)");
+    // В карточке шириной 150px помещается около 45 символов на три строки.
+    const block = catalog.slice(catalog.indexOf("const MINIAPP_SUMMARY"), catalog.indexOf("function compactSummary"));
+    const summaries = [...block.matchAll(/"([^"]{10,})",?\s*$/gm)].map((match) => match[1]);
+    expect(summaries.length).toBeGreaterThanOrEqual(13);
+    for (const summary of summaries) expect(summary.length).toBeLessThanOrEqual(45);
+  });
+
+  it("п.25 — обязательные поля проверяются ДО списания баллов", () => {
+    const controls = source("src/components/products/product-purchase-controls.tsx");
+    const numerology = source("src/components/products/numerology-actions.tsx");
+    const natal = source("src/components/products/natal-chart-actions.tsx");
+    const family = source("src/components/products/family-scenarios-actions.tsx");
+
+    expect(controls).toContain("beforePay?: () => string | null");
+    expect(controls).toContain("if (blockedByInput()) return;");
+    // «Можно оплатить картой» приклеивалось к любому отказу, включая пустой ответ.
+    expect(controls).not.toContain("setMessage(`${text}. Можно оплатить картой.`)");
+
+    for (const service of [numerology, natal, family]) {
+      expect(service).toContain("beforePay={missingInput}");
+      expect(service).toContain("function missingInput(): string | null");
+      // «Доступ открыт, а теперь заполните поля» — это уже после списания.
+      expect(service).not.toContain("Доступ открыт. Добавьте");
+    }
+    // Предупреждение гаснет, как только человек пишет в это поле.
+    expect(numerology).toContain('if (fieldWarnings.name) setFieldWarnings((current) => ({ ...current, name: false }))');
+    expect(numerology).toContain('if (fieldWarnings.birth) setFieldWarnings((current) => ({ ...current, birth: false }))');
+  });
+
   it("п.14 — смена пароля без пароля у аккаунта отвечает понятной ошибкой, а не 500", () => {
     const route = source("src/app/api/auth/change-password/route.ts");
     const guard = route.indexOf("if (!user.password)");

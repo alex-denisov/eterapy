@@ -232,6 +232,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+  const [fieldWarnings, setFieldWarnings] = useState<{ name: boolean; birth: boolean }>({ name: false, birth: false });
   const namePlaceholder = useRotatingPlaceholder(NUMEROLOGY_NAME_EXAMPLES, topic ?? "all");
   const birthPlaceholder = useRotatingPlaceholder(NUMEROLOGY_BIRTH_EXAMPLES, topic ?? "all");
 
@@ -255,9 +256,22 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
     { active: !result },
   );
 
+  // B554 п.25: обязательные поля проверяются ДО оплаты, а не после списания.
+  // Предупреждение подсвечивает конкретное поле и гаснет, как только человек
+  // начинает в него писать.
+  function missingInput(): string | null {
+    const noName = name.trim().length < 2;
+    const noBirth = birth.trim().length < 4;
+    setFieldWarnings({ name: noName, birth: noBirth });
+    if (!noName && !noBirth) return null;
+    if (noName && noBirth) return "Укажите имя и дату рождения — по ним считаются ваши числа.";
+    return noName ? "Укажите полное имя — по нему считаются ваши числа." : "Укажите дату рождения — по ней считаются ваши числа.";
+  }
+
   function handleGenerate() {
-    if (name.trim().length < 2 || birth.trim().length < 4) {
-      setMessage("Укажите имя и дату рождения — по ним считаются ваши числа.");
+    const warning = missingInput();
+    if (warning) {
+      setMessage(warning);
       return;
     }
     void generate(composeUserInput(name, birth, topic));
@@ -304,10 +318,12 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
         <input
           id="numerology-name-input"
           value={name}
-          onChange={(e) => setName(e.target.value.slice(0, 120))}
+          onChange={(e) => { setName(e.target.value.slice(0, 120)); if (fieldWarnings.name) setFieldWarnings((current) => ({ ...current, name: false })); }}
           placeholder={namePlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
+          aria-invalid={fieldWarnings.name || undefined}
+          data-field-warning={fieldWarnings.name ? "1" : undefined}
           data-testid="numerology-name-input"
         />
 
@@ -315,10 +331,12 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
         <input
           id="numerology-birth-input"
           value={birth}
-          onChange={(e) => setBirth(e.target.value.slice(0, 60))}
+          onChange={(e) => { setBirth(e.target.value.slice(0, 60)); if (fieldWarnings.birth) setFieldWarnings((current) => ({ ...current, birth: false })); }}
           placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
+          aria-invalid={fieldWarnings.birth || undefined}
+          data-field-warning={fieldWarnings.birth ? "1" : undefined}
           data-testid="numerology-birth-input"
         />
 
@@ -338,13 +356,10 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
               label="Открыть Матрицу судьбы"
               checkoutSource="numerology-direct"
               creditCost={creditCost}
+              beforePay={missingInput}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                if (name.trim() && birth.trim()) {
-                  handleGenerate();
-                } else {
-                  setMessage("Доступ открыт. Добавьте имя и дату рождения — и Матрица судьбы появится здесь же.");
-                }
+                handleGenerate();
               }}
             />
           )}

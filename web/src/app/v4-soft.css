@@ -948,6 +948,13 @@
     line-height: 1.2;
   }
 
+  /* B554 п.25: незаполненное обязательное поле подсвечивается до оплаты и
+     гаснет, как только человек начинает в него писать. */
+  .soft-question-input[data-field-warning="1"] {
+    border-color: var(--soft-bordeaux) !important;
+    background: color-mix(in srgb, var(--soft-bordeaux) 6%, transparent) !important;
+  }
+
   .soft-question-input.product-compact-input {
     min-height: 3.25rem;
     font-family: var(--font-sans);

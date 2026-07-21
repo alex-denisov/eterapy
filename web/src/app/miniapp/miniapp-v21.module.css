@@ -1542,17 +1542,28 @@
   font-weight: 750;
 }
 
+/* B554 п.21: колонки были строго равными (1fr), поэтому «Со специалистом»
+   не помещалось в свою треть, переносилось на две строки и вылезало за
+   пилюлю фиксированной высоты, а «Самостоятельно» упиралось в её край
+   (видимого отступа оставалось 3px). Ширину задаёт текст; если ряд не
+   влезает — он прокручивается. */
 .minimal-segment > div {
   min-width: 0;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.minimal-segment > div::-webkit-scrollbar {
+  display: none;
 }
 
 .minimal-segment button {
+  flex: 0 1 auto;
   min-width: 0;
   height: 44px;
-  padding: 0 5px;
+  padding: 0 11px;
+  white-space: nowrap;
   border: 0;
   position: relative;
   isolation: isolate;
@@ -1759,8 +1770,12 @@
 
 .catalog-copy > strong {
   margin-top: 8px;
-  font-size: 15px;
+  /* B554 п.22: в узкой карточке под текст остаётся 128px, и длинные однословные
+     названия («Переосмысление») обрезались по краю. 14px хватает им целиком;
+     overflow-wrap остаётся страховкой для будущих названий подлиннее. */
+  font-size: 14px;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .catalog-card.is-wide .catalog-copy > strong {
