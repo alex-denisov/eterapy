@@ -161,7 +161,11 @@
 }
 
 .points-face {
-  width: 55px;
+  /* Ширина была зафиксирована на 55px, а содержимое при четырёхзначном балансе
+     занимает ~79px (иконка 14 + число + бейдж «+» 16 + отступы) — плюс
+     вылезал за границу кнопки (owner п.8). Ширину задаёт содержимое. */
+  width: auto;
+  min-width: 55px;
   padding: 0 4px 0 7px;
   gap: 4px;
   justify-content: flex-start;
@@ -2334,11 +2338,17 @@
   min-height: 44px;
   padding: 0 8px;
   border: 0;
+  /* Инлайновая ссылка вставала по базовой линии текста и визуально уезжала
+     вверх относительно двухстрочного блока слева (owner п.4). */
+  display: grid;
+  place-items: center;
+  align-self: center;
   background: transparent;
   color: var(--coral);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 750;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .plan-card {
@@ -4305,8 +4315,10 @@
 }
 
 .dialogue-surface :global(.soft-chat-screen) {
+  /* Базовая высота — только запасной вариант: реальную задаёт flex-контракт
+     ниже. `min-height: 430px` здесь распирал кадр на низких вьюпортах. */
   height: min(590px, calc(var(--miniapp-viewport-height, 100dvh) - 198px));
-  min-height: 430px;
+  min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
@@ -4725,9 +4737,31 @@
   background: var(--coral-soft);
 }
 
-.dialogue-surface :global(.soft-chat-screen) {
-  height: calc(var(--miniapp-viewport-height, 100dvh) - 92px);
+/* B554 (owner 2026-07-21 п.2): «интерфейс диалога больше чем экран телефона и
+   строка ввода находится ниже экрана». Высота считалась константами
+   (`− 198px`, затем `− 92px`), которые не знают ни про шапку разбора (63px),
+   ни про таббар (88px + safe-area) — композер уезжал под нижнюю кромку и без
+   клавиатуры. Тот же flex-контракт, что и для открытой клавиатуры, только
+   теперь он действует всегда: тред забирает ровно остаток между шапкой и
+   навигацией. */
+.screen-scroll:has(.dialogue-surface) {
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+}
+
+.screen-scroll:has(.dialogue-surface) .dialogue-surface,
+.screen-scroll:has(.dialogue-surface) .dialogue-surface > div {
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogue-surface :global(.soft-chat-screen) {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
   border-radius: 16px;
 }
 
@@ -4985,4 +5019,12 @@
    разметки здесь сознательно перекрывается. */
 .dialogue-surface :global([data-testid="dialogue-clarifying-chips"]) {
   display: none !important;
+}
+
+/* B554 (owner п.8): активная подписка должна читаться со шапки, а не только
+   из карточки тарифа. */
+.subscription-button.is-subscribed .utility-face {
+  color: #ffd76a;
+  background: rgba(255, 199, 88, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 199, 88, .34);
 }

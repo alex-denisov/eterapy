@@ -71,8 +71,11 @@ function TopBar({ data, onUtility }: {
             <span className={styles["utility-plus"]}><Plus size={9} weight="bold" /></span>
           </span>
         </button>
-        <button className={c("utility-button", "subscription-button")} type="button" aria-label={`Подписка: ${data.viewer.plan}`} onClick={() => onUtility("subscription")}>
-          <span className={styles["utility-face"]}><CrownSimple size={17} weight="duotone" /></span>
+        {/* B554 (owner п.8): корона выглядела одинаково с подпиской и без.
+            Активная подписка теперь заливает знак фирменным цветом, а точка
+            остаётся индикатором «подписки нет». */}
+        <button className={c("utility-button", "subscription-button", data.viewer.plan !== "Базовый" && "is-subscribed")} type="button" aria-label={`Подписка: ${data.viewer.plan}`} onClick={() => onUtility("subscription")}>
+          <span className={styles["utility-face"]}><CrownSimple size={17} weight={data.viewer.plan === "Базовый" ? "duotone" : "fill"} /></span>
           {data.viewer.plan === "Базовый" ? <span className={styles["utility-status-dot"]} aria-hidden="true" /> : null}
         </button>
         <button className={styles["utility-button"]} type="button" aria-label="Помощь" onClick={() => onUtility("help")}>

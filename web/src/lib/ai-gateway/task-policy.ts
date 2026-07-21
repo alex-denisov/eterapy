@@ -74,15 +74,22 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
   {
     feature: "dialogue-clarifier",
     enabled: true,
-    tier: "cheap",
+    // B554 (owner 2026-07-21): «диалог всё время спрашивает "почему" на любое
+    // моё сообщение… мне неприятно общаться с таким искусственным
+    // собеседником». Уточнение — самая разговорно-сложная задача продукта
+    // (услышать полутон, отразить своими словами, не скатиться в опросник), а
+    // выполняла её самая слабая модель во флоте. Lite → Pro.
+    tier: "premium",
     title: "Уточняющие вопросы",
     purpose: "Персональные уточнения перед первичным ответом — один вопрос за ход.",
-    providerOrder: [...cheapStructuredOrder],
-    maxTokens: 400,
-    temperature: 0.6,
+    providerOrder: [...directPremiumOrder],
+    // Отражение + вопрос длиннее одного вопроса, 400 токенов резали реплику.
+    maxTokens: 700,
+    // Ниже температура — меньше вычурности, стабильнее следование контракту.
+    temperature: 0.45,
     timeoutMs: 25_000,
     // Issue #3: no per-user token cap — clarifying questions are always LLM.
-    fallbackNotes: "YandexGPT Lite для дешевого JSON; всегда LLM, без per-user token cap.",
+    fallbackNotes: "YandexGPT Pro: качество живого диалога важнее цены хода; всегда LLM, без per-user token cap.",
   },
   {
     feature: "daily-practice",
