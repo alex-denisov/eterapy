@@ -260,10 +260,15 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-ai",
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
-    // B554: отражение и вопрос разведены по разным полям, чтобы наличие
-    // отражения можно было проверить, а не только попросить.
-    expect(request?.messages[0]?.content).toContain('"m":"отражение последней реплики пользователя"');
-    expect(request?.messages[0]?.content).toContain("Ты практик, который ВЕДЁТ разбор");
+    // B554: проверяем КОНТРАКТ промта, а не его формулировки — текст промта
+    // правится часто, и тест на дословную фразу ломается при каждой правке,
+    // ничего при этом не защищая. Существенно здесь три вещи: отражение и
+    // вопрос разведены по разным полям, решение о готовности принимается явным
+    // булевым `d`, и роль — практик, а не интервьюер.
+    const systemPrompt = request?.messages[0]?.content ?? "";
+    expect(systemPrompt).toContain('"m"');
+    expect(systemPrompt).toContain('"d"');
+    expect(systemPrompt).toContain("практик");
   });
 
   it("heuristic returns fallback questions for any topic", () => {

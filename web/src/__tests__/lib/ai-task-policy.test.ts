@@ -69,8 +69,12 @@ describe("AI task taxonomy and default routing policy", () => {
       expect(policy.providerOrder).toEqual([AIProvider.YANDEX]);
       expect(Object.keys(policy.modelPreferences ?? {})).toEqual([AIProvider.YANDEX]);
     }
+    // B554: бесплатный разбор — это текст, который клиент реально читает и по
+    // которому решает, возвращаться ли. Он ушёл с Lite на Pro; «free» в тарифе
+    // означало модель, а не цену для клиента (бесплатность держит лимит
+    // 3 разбора/сутки).
     expect(getDefaultAIRoutingPolicy("dialogue-primary-answer")?.modelPreferences).toEqual({
-      [AIProvider.YANDEX]: "yandexgpt-lite/latest",
+      [AIProvider.YANDEX]: "yandexgpt/latest",
     });
     expect(getDefaultAIRoutingPolicy("product-deep-report")?.modelPreferences).toEqual({
       [AIProvider.YANDEX]: "yandexgpt/latest",
