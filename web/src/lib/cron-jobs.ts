@@ -17,6 +17,7 @@ import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
 import { cancelSessionHold, captureGraceExpiredSessions } from "@/lib/session-payment";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
+import { cleanupExpiredMiniAppAuthGrants } from "@/lib/miniapp/telegram/auth";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -47,6 +48,7 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
   const now = jobNow(job);
   const sessionAiCleanup = await cleanupExpiredSessionAiData({ now });
   const retentionCleanup = await cleanupRetentionData({ now });
+  const miniAppGrantCleanup = await cleanupExpiredMiniAppAuthGrants(now);
 
   log.info("cron-cleanup-users-completed", {
     jobId: job.id,
@@ -55,6 +57,7 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
     securityAuditLogsDeleted: retentionCleanup.securityAuditLogsDeleted,
     sessionAiCleanup,
     retentionCleanup,
+    miniAppAuthGrantsDeleted: miniAppGrantCleanup.count,
   });
 
   return {
@@ -63,6 +66,7 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
     usersAnonymized: retentionCleanup.usersAnonymized,
     sessionAiCleanup,
     retentionCleanup,
+    miniAppAuthGrantsDeleted: miniAppGrantCleanup.count,
     timestamp: now.toISOString(),
   };
 }

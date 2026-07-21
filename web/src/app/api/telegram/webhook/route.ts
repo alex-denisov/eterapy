@@ -19,9 +19,13 @@ import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib
 import { APP_URL } from "@/lib/env";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
-async function safeSend(chatId: string, text: string) {
+const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
+  ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString();
+const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Разобрать ситуацию", web_app: { url: MINI_APP_URL } }]] };
+
+async function safeSend(chatId: string, text: string, withAppButton = false) {
   try {
-    await sendTelegram(chatId, text);
+    await sendTelegram(chatId, text, withAppButton ? { replyMarkup: OPEN_APP_KEYBOARD } : undefined);
   } catch (err) {
     log.error("telegram-webhook-send-failed", { error: serializeError(err) });
   }
@@ -90,9 +94,15 @@ export async function POST(req: NextRequest) {
       const token = text.split(" ")[1]?.trim();
 
       if (!token) {
-        const baseUrl = APP_URL;
+        // B554 (owner): прежний текст обещал «прояснить вопрос» и треть письма
+        // отводил под уведомления — человек не понимал, что именно получит.
+        // Теперь сразу назван результат, его цена и время.
         await safeSend(chatId,
-          `👋 Добро пожаловать в ETerapy!\n\nЧтобы получать уведомления, привяжите Telegram к своему аккаунту:\n\n1. Войдите на <a href="${baseUrl}">ETerapy</a>\n2. Перейдите в Настройки → Уведомления\n3. Нажмите Привязать Telegram`
+          "<b>ETerapy — разбор вашей ситуации в тексте</b>\n\n"
+          + "Опишите, что происходит. Мы зададим 2–3 уточняющих вопроса и вернём разбор: "
+          + "что происходит, что на это влияет и с чего начать.\n\n"
+          + "Первый разбор — бесплатно, без карты. Занимает около трёх минут.",
+          true,
         );
         await completeWebhookEvent(claim.event.id, { result: "start-help" });
         return NextResponse.json({ ok: true });
@@ -137,7 +147,8 @@ export async function POST(req: NextRequest) {
       const user = await db.user.findUnique({ where: { id: link.userId }, select: { name: true } });
       log.info("telegram-webhook-linked", { userId: link.userId });
       await safeSend(chatId,
-        `✅ Telegram привязан!\nПривет, ${user?.name ?? ""}! Теперь вы будете получать уведомления ETerapy через Telegram.`
+        `✅ Telegram подключён${user?.name ? `, ${user.name}` : ""}.\n\nТеперь сюда будут приходить выбранные уведомления ETerapy. Приложение открывается без повторного ввода пароля.`,
+        true,
       );
       await completeWebhookEvent(claim.event.id, { result: "linked" });
       return NextResponse.json({ ok: true });
@@ -157,18 +168,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === "/status") {
-      const user = await db.user.findFirst({ where: { telegramId: chatId }, select: { name: true, email: true } });
+      const user = await db.user.findFirst({ where: { telegramId: chatId }, select: { name: true } });
       if (!user) {
-        await safeSend(chatId, "❌ Telegram не привязан к аккаунту ETerapy.");
+        await safeSend(chatId, "Уведомления Telegram пока не подключены. Само приложение уже можно открыть.", true);
       } else {
-        await safeSend(chatId, `✅ Привязан к аккаунту: ${user.name} (${user.email})`);
+        await safeSend(chatId, `✅ Уведомления подключены${user.name ? ` для ${user.name}` : ""}.`, true);
       }
       await completeWebhookEvent(claim.event.id, { result: "status" });
       return NextResponse.json({ ok: true });
     }
 
     // Unknown command
-    await safeSend(chatId, "Доступные команды:\n/start — начало работы\n/status — статус привязки\n/stop — отвязать аккаунт");
+    await safeSend(chatId, "Опишите ситуацию в приложении — вернём разбор и первый шаг.\n\n/status — проверить уведомления\n/stop — отключить уведомления", true);
     await completeWebhookEvent(claim.event.id, { result: "unknown-command" });
     return NextResponse.json({ ok: true });
   } catch (err) {

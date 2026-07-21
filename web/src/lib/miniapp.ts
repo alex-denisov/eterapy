@@ -119,6 +119,7 @@ export function deepLinkToPath(link: MiniAppDeepLink): string | null {
 }
 
 const BACK_BUTTON_ROOT_PATHS: readonly string[] = [
+  "/miniapp",
   "/",
   "/cabinet",
   "/cabinet/",

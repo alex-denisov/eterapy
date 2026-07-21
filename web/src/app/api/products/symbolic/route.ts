@@ -232,13 +232,13 @@ export async function POST(request: NextRequest) {
   });
   const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });
 
-  // B450: для услуг с обязательным LLM-результатом (нет осмысленного
-  // детерминированного фолбэка) не сохраняем и не списываем эвристику —
-  // просим повторить, баллы не списаны.
+  // B450/B554: для услуг с обязательным LLM-результатом (нет осмысленного
+  // детерминированного фолбэка) не сохраняем эвристику. К этому моменту доступ
+  // уже открыт отдельной покупкой, поэтому он остаётся активным для повтора.
   if (MANDATORY_LLM_PRODUCTS.has(productKey) && (generated.metadata as { source?: string }).source !== "ai") {
     return errorWithRequestContext(
       "AI_UNAVAILABLE",
-      "Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.",
+      "Не получилось собрать разбор — попробуйте ещё раз. Доступ сохранён, повторно платить не нужно.",
       503,
       context,
     );

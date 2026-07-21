@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { loginUrl } from "@/lib/subdomain";
 import type { SymbolicProductKey } from "@/lib/symbolic-products";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 // B450/B451: общий клиентский хук для символических услуг на паттерне Таро/reframe.
 // Один платный шаг → полный результат; нет бесплатного фрагмента (route отдаёт 402);
@@ -48,8 +49,8 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 
 export function redirectToLogin() {
   if (typeof window === "undefined") return;
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.href = `${loginUrl()}?next=${next}`;
+  const next = window.location.pathname + window.location.search;
+  window.location.href = miniAppLoginPath(next) ?? `${loginUrl()}?next=${encodeURIComponent(next)}`;
 }
 
 export function readingIdFromUrl(): string | null {
@@ -156,7 +157,7 @@ export function useSymbolicService(
         setHasEntitlement(false);
         setMessage("Откройте разбор баллами или картой — результат появится здесь же.");
       } else if (typed.status === 503) {
-        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.");
+        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Доступ сохранён, повторно платить не нужно.");
       } else {
         setMessage(typed.message || "Не удалось собрать разбор");
       }

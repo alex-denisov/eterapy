@@ -1,16 +1,17 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { Sparkles } from "lucide-react";
 
 // Issue #9: the user-side message avatar (soft-msg-avatar-user) in both the
 // /checkin clarifying chat and the /products/chat companion chat is tied to the
 // user's avatar from their cabinet (session.user.image — the same source the
 // header pill and Settings use). Falls back to the name initial, then «В», so
 // guests on /checkin keep the existing lettered avatar.
-export function UserMsgAvatar() {
+export function UserMsgAvatar({ fallbackName = "" }: { fallbackName?: string }) {
   const { data } = useSession();
   const image = data?.user?.image ?? null;
-  const name = data?.user?.name ?? "";
+  const name = data?.user?.name ?? fallbackName;
   const initial = name.trim()[0]?.toUpperCase() ?? "В";
 
   if (image) {
@@ -25,6 +26,14 @@ export function UserMsgAvatar() {
   return (
     <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">
       {initial}
+    </div>
+  );
+}
+
+export function AssistantMsgAvatar() {
+  return (
+    <div className="soft-msg-avatar soft-msg-avatar-assistant" aria-hidden="true">
+      <Sparkles size={16} strokeWidth={2.1} />
     </div>
   );
 }

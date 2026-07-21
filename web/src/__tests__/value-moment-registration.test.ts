@@ -9,14 +9,14 @@ function source(relativePath: string) {
 
 describe("B051 value-moment registration", () => {
   it("offers save/register only after a check-in result exists", () => {
-    const page = source("src/app/checkin/page.tsx");
+    const page = source("src/components/dialogue/checkin-experience.tsx");
 
     expect(page).toContain("saveGuestResultDraft");
     expect(page).toContain("primaryAnswer");
     // B414: guests save via the full /login page (AuthModal/register-inline retired);
     // authed users see the auto-saved note instead of a button.
     expect(page).toContain("save-result-login");
-    expect(page).toContain('href="/login?intent=save-result"');
+    expect(page).toContain('href={accountPath("login", "save-result")}');
     // #10: authed users see the shared auto-saved note (same element as tarot).
     expect(page).toContain('testId="result-autosaved-note"');
   });

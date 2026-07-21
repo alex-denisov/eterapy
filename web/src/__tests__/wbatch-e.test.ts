@@ -10,7 +10,7 @@ describe("W16 — dialogue result actions: rename + calmer hierarchy", () => {
     expect(share).toContain("поделиться разбором");
   });
   it("the result cluster has one primary (save) and drops the duplicated upsells", () => {
-    const page = read("src/app/checkin/page.tsx");
+    const page = read("src/components/dialogue/checkin-experience.tsx");
     // B414/#10: authed users auto-save (no button) — the cluster shows the shared note
     expect(page).toContain('testId="result-autosaved-note"');
     // circle/pair upsells removed from the action cluster (they live in the rail)

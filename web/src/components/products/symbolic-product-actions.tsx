@@ -18,6 +18,7 @@ import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
 import { loginUrl } from "@/lib/subdomain";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 type SymbolicResult = {
   id: string;
@@ -319,8 +320,8 @@ export function SymbolicProductActions({
     const readingId = new URLSearchParams(window.location.search).get("reading");
     if (!readingId) return;
     if (authStatus === "unauthenticated") {
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `${loginUrl()}?next=${next}`;
+      const next = window.location.pathname + window.location.search;
+      window.location.href = miniAppLoginPath(next) ?? `${loginUrl()}?next=${encodeURIComponent(next)}`;
       return;
     }
     if (authStatus !== "authenticated") return;

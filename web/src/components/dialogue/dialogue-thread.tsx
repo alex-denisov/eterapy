@@ -2,6 +2,7 @@
 // (soft-msg rows + avatars + bubbles). Used both in the live clarifying view and
 // inside the collapsed «первичный разбор» on the result, so the disclosure keeps
 // exactly the same look as the live conversation (#9).
+import { AssistantMsgAvatar, UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
 
 type ThreadMessage = {
   id: string;
@@ -9,7 +10,7 @@ type ThreadMessage = {
   content: string;
 };
 
-export function DialogueThread({ messages }: { messages: ThreadMessage[] }) {
+export function DialogueThread({ messages, userName }: { messages: ThreadMessage[]; userName?: string }) {
   const thread = messages.filter((message) => message.role !== "SYSTEM" && message.content.trim());
   return (
     <div className="soft-dialogue-history-thread">
@@ -21,9 +22,9 @@ export function DialogueThread({ messages }: { messages: ThreadMessage[] }) {
             className={`soft-msg-row ${isUser ? "soft-msg-row-user" : "soft-msg-row-assistant"}`}
           >
             {isUser ? (
-              <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+              <UserMsgAvatar fallbackName={userName} />
             ) : (
-              <div className="soft-msg-avatar" aria-hidden="true" />
+              <AssistantMsgAvatar />
             )}
             <div
               className={`soft-msg-bubble ${isUser ? "soft-msg-bubble-user" : "soft-msg-bubble-assistant"}`}

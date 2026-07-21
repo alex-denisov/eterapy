@@ -4,7 +4,7 @@ import { GET, PATCH, PUT } from "@/app/api/notifications/preferences/route";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/platform-settings";
-import { ALL_EVENTS, NOTIFICATION_CATEGORY_META } from "@/lib/notification-events";
+import { getEventsForRole, NOTIFICATION_CATEGORY_META } from "@/lib/notification-events";
 
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
@@ -58,7 +58,7 @@ describe("notification preference center", () => {
     mockSetSetting.mockResolvedValue();
   });
 
-  it("returns full channel matrix with categories and default quiet hours", async () => {
+  it("returns the client channel matrix with labels and default quiet hours", async () => {
     const response = await GET();
     const body = await response.json();
 
@@ -73,6 +73,8 @@ describe("notification preference center", () => {
       expect.objectContaining({
         event: "BOOKING_CONFIRMED",
         category: "booking",
+        label: "Запись подтверждена",
+        description: "Когда практик подтвердил запись",
         channel: "EMAIL",
         enabled: true,
         remindBeforeHours: [],
@@ -84,7 +86,7 @@ describe("notification preference center", () => {
         enabled: false,
       }),
     ]));
-    expect(body.prefs).toHaveLength(ALL_EVENTS.length * 3);
+    expect(body.prefs).toHaveLength(getEventsForRole("CLIENT").length * 3);
   });
 
   it("loads persisted quiet hours from per-user settings", async () => {

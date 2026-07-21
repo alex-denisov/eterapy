@@ -8,6 +8,9 @@ type Bucket = {
 };
 
 const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 20_000;
+const SWEEP_EVERY_CHECKS = 512;
+let checksSinceSweep = 0;
 
 export type AuthRateLimitResult =
   | { allowed: true }
@@ -22,8 +25,16 @@ function hashKey(value: string) {
 }
 
 export function authRateLimitKeyFromRequest(request: NextRequest, scope: string) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwardedFor || request.headers.get("x-real-ip") || "unknown";
+  // nginx overwrites X-Real-IP with $remote_addr, while a client can prepend
+  // arbitrary values to X-Forwarded-For. Prefer the trusted proxy value and,
+  // without it, the last forwarded hop rather than the attacker-controlled first.
+  const forwardedFor = request.headers.get("x-forwarded-for")
+    ?.split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const ip = request.headers.get("x-real-ip")?.trim()
+    || (forwardedFor && forwardedFor.length > 0 ? forwardedFor[forwardedFor.length - 1] : undefined)
+    || "unknown";
   return `auth:${scope}:ip:${hashKey(ip)}`;
 }
 
@@ -42,8 +53,19 @@ export function checkAuthRateLimit(
   cost = 1
 ): AuthRateLimitResult {
   const now = nowMs();
+  checksSinceSweep += 1;
+  if (checksSinceSweep >= SWEEP_EVERY_CHECKS || buckets.size >= MAX_BUCKETS) {
+    for (const [bucketKey, bucket] of buckets) {
+      if (bucket.resetAt <= now) buckets.delete(bucketKey);
+    }
+    checksSinceSweep = 0;
+  }
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
+    // Fail closed instead of allowing unbounded unique keys to exhaust memory.
+    if (!existing && buckets.size >= MAX_BUCKETS) {
+      return { allowed: false, retryAfterSeconds: 60 };
+    }
     buckets.set(key, { count: cost, resetAt: now + windowMs });
     return { allowed: true };
   }
@@ -83,4 +105,5 @@ export function authRateLimitResponse(result: Extract<AuthRateLimitResult, { all
 
 export function resetAuthRateLimitForTests() {
   buckets.clear();
+  checksSinceSweep = 0;
 }

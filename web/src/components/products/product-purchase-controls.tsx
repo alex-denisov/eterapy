@@ -9,6 +9,7 @@ import { appUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 import { pointsWord } from "@/lib/points";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
+import { toMiniAppPath } from "@/lib/miniapp/navigation";
 
 type ProductPurchaseControlsProps = {
   productKey: string;
@@ -18,6 +19,12 @@ type ProductPurchaseControlsProps = {
   className?: string;
   variant?: "default" | "catalog";
   onUnlocked?: () => void;
+  /**
+   * B554 п.25: проверка обязательных полей ДО оплаты. Возвращает текст
+   * предупреждения или null. Без неё «Открыть за баллы» списывало баллы при
+   * пустой форме и только потом просило заполнить поля.
+   */
+  beforePay?: () => string | null;
 };
 
 async function jsonRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
@@ -47,6 +54,7 @@ export function ProductPurchaseControls({
   className,
   variant = "default",
   onUnlocked,
+  beforePay,
 }: ProductPurchaseControlsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -56,6 +64,7 @@ export function ProductPurchaseControls({
   const [message, setMessage] = useState<string | null>(null);
   const search = searchParams.toString();
   const currentUrl = `${pathname}${search ? `?${search}` : ""}`;
+  const inMiniApp = pathname.startsWith("/miniapp");
   const paymentStatus = searchParams.get("payment");
   const returnedProductKey = searchParams.get("productKey");
   const busy = status === "loading" || action !== "idle";
@@ -112,7 +121,18 @@ export function ProductPurchaseControls({
     return () => { cancelled = true; };
   }, [onUnlocked, paymentStatus, productKey, returnedProductKey, status]);
 
+  /** Общий вход в оплату: без заполненных полей платить не за что. */
+  function blockedByInput(): boolean {
+    const warning = beforePay?.();
+    if (warning) {
+      setMessage(warning);
+      return true;
+    }
+    return false;
+  }
+
   async function payWithCredits() {
+    if (blockedByInput()) return;
     setAction("credits");
     setMessage(null);
     try {
@@ -122,14 +142,31 @@ export function ProductPurchaseControls({
       onUnlocked?.();
       setMessage("Доступ открыт за баллы.");
     } catch (error) {
-      const text = error instanceof Error ? error.message : "Не удалось списать баллы";
-      setMessage(`${text}. Можно оплатить картой.`);
+      // B554 п.25: раньше к ЛЮБОМУ отказу приклеивалось «Можно оплатить
+      // картой», и при пустом теле ответа получалось бессодержательное
+      // «Не удалось выполнить действие. Можно оплатить картой.» Карту
+      // предлагаем только там, где она действительно выход — когда не хватило
+      // баллов; остальные отказы называем своим текстом.
+      const typed = error as Error & { status?: number };
+      const text = error instanceof Error && error.message ? error.message : "";
+      if (typed.status === 402) {
+        setMessage(`${text || "Не хватает баллов"}. Можно оплатить картой.`);
+      } else if (typed.status === 401) {
+        setMessage("Сессия истекла. Войдите в аккаунт и попробуйте ещё раз.");
+      } else {
+        setMessage(text || "Не получилось списать баллы. Попробуйте ещё раз через минуту.");
+      }
     } finally {
       setAction("idle");
     }
   }
 
   async function payWithCard() {
+    if (blockedByInput()) return;
+    if (inMiniApp) {
+      window.location.href = `/miniapp/checkout/review?offer=${encodeURIComponent(`service:${productKey}`)}`;
+      return;
+    }
     setAction("card");
     setMessage(null);
     try {
@@ -152,7 +189,9 @@ export function ProductPurchaseControls({
   if (status === "unauthenticated") {
     return (
       <Link
-        href={`/login?next=${encodeURIComponent(currentUrl)}&intent=buy-product&productKey=${encodeURIComponent(productKey)}`}
+        href={inMiniApp
+          ? `/miniapp/account?mode=login&intent=buy-product&productKey=${encodeURIComponent(productKey)}&returnTo=${encodeURIComponent(currentUrl)}`
+          : `/login?next=${encodeURIComponent(currentUrl)}&intent=buy-product&productKey=${encodeURIComponent(productKey)}`}
         className={cn("soft-button soft-button-primary", className)}
         data-analytics-event="direct_product_login_clicked"
         data-analytics-product={productKey}
@@ -165,11 +204,11 @@ export function ProductPurchaseControls({
 
   const creditsLabel = hasCredits ? `${label} · ${creditCost} ${pointsWord(creditCost as number)}` : label;
   const messageBlock = message && (
-    <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
+    <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role={message.includes("Недостаточно") || message.includes("Не удалось") ? "alert" : "status"}>
       {message}{" "}
       {message.includes("балл") && (
-        <Link href={appUrl("/wallet")} prefetch={false} className="font-semibold underline">
-          Баллы
+        <Link href={inMiniApp ? toMiniAppPath(appUrl("/wallet")) : appUrl("/wallet")} prefetch={false} className="font-semibold underline">
+          Пополнить баллы
         </Link>
       )}
     </p>
@@ -267,7 +306,10 @@ export function ProductPurchaseControls({
           data-analytics-checkout-source={checkoutSource}
         >
           {action === "card" ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4 shrink-0" aria-hidden="true" />}
-          {action === "card" ? "Открываем оплату" : hasCredits ? "Картой" : label}
+          {/* B554 п.27: в мини-аппе оплата картой ещё не подключена — экран
+              проверки честно говорит «скоро». Кнопка на самой услуге обещала
+              оплату, уводила с заполненной формы и упиралась в тупик. */}
+          {action === "card" ? "Открываем оплату" : inMiniApp ? "Картой — скоро" : hasCredits ? "Картой" : label}
         </button>
       </div>
       {messageBlock}

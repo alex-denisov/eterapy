@@ -67,7 +67,7 @@ export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: s
   },
   retention: {
     label: "Ежедневная практика",
-    description: "Карта дня, маршруты и бережные напоминания.",
+    description: "Карта дня, маршруты и выбранные напоминания.",
   },
   system: {
     label: "Системные",
@@ -258,14 +258,14 @@ export const ALL_EVENTS: Array<{
     event: "DAILY_CARD",
     category: "retention",
     label: "Карта дня",
-    description: "Один бережный фокус на день",
+    description: "Новый фокус на день",
     roles: ["CLIENT"],
   },
   {
     event: "ABANDONED_CHECKOUT",
     category: "payments",
     label: "Незавершенная оплата",
-    description: "Мягкое возвращение к оплате продукта или подписки",
+    description: "Напоминание о незавершённой оплате продукта или подписки",
     roles: ["CLIENT"],
   },
   {
@@ -293,14 +293,14 @@ export const ALL_EVENTS: Array<{
     event: "ROUTE_REMINDER",
     category: "retention",
     label: "Напоминание по маршруту",
-    description: "Бережное возвращение к маршруту или практике",
+    description: "Когда пора вернуться к маршруту или практике",
     roles: ["CLIENT"],
   },
   {
     event: "WEEKLY_DIGEST",
     category: "retention",
     label: "Недельный дайджест",
-    description: "Недельная сводка вопросов, практик и мягких выводов",
+    description: "Недельная сводка вопросов, практик и выводов",
     roles: ["CLIENT"],
   },
   {
@@ -321,14 +321,14 @@ export const ALL_EVENTS: Array<{
     event: "CREDITS_EXPIRING",
     category: "retention",
     label: "Баллы скоро сгорят",
-    description: "Бережное напоминание за 2-3 дня до сгорания баллов",
+    description: "За 2–3 дня до сгорания баллов",
     roles: ["CLIENT"],
   },
   {
     event: "STREAK_AT_RISK",
     category: "retention",
     label: "Ритм практики",
-    description: "Мягкое возвращение к практике, когда вчера был стрик",
+    description: "Напоминание вернуться к практике после пропущенного дня",
     roles: ["CLIENT"],
   },
   {

@@ -10,6 +10,7 @@ import { OptionScrollStrip, OptionChoice } from "@/components/products/option-sc
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 // B441/B444 (M28): «Переосмысление» — самодостаточная услуга (когнитивный рефрейминг).
 // Контекст собирается ВНУТРИ услуги (textarea + ленты темы/чувства в дизайне Таро),
@@ -138,8 +139,8 @@ function examplesForTopic(topic: string | null): string[] {
 
 function redirectToLogin() {
   if (typeof window === "undefined") return;
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.href = `${loginUrl()}?next=${next}`;
+  const next = window.location.pathname + window.location.search;
+  window.location.href = miniAppLoginPath(next) ?? `${loginUrl()}?next=${encodeURIComponent(next)}`;
 }
 
 // Компактная карточка-кнопка угла: вместо «угол N» — сам заголовок угла; без

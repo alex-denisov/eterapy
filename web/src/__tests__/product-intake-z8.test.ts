@@ -10,7 +10,7 @@ function source(relativePath: string) {
 
 describe("Z8 product-local dialogue intake", () => {
   it("removes the old checkin nextProduct handoff", () => {
-    const checkin = source("src/app/checkin/page.tsx");
+    const checkin = source("src/components/dialogue/checkin-experience.tsx");
     const productPage = source("src/app/products/[slug]/page.tsx");
     const productActions = [
       "src/components/products/deep-report-actions.tsx",

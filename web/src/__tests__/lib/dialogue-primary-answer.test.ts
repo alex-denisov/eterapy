@@ -60,7 +60,7 @@ describe("dialogue-primary-answer", () => {
       feature: "dialogue-primary-answer",
       userId: "user-1",
       requestId: "req-1",
-      maxTokens: 900,
+      maxTokens: 1400,
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
     // Task 6: the разбор must NOT recommend paid products inside the prose — a

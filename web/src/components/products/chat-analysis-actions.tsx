@@ -11,6 +11,7 @@ import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/produ
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { pointsWord } from "@/lib/points";
 import { loginUrl } from "@/lib/subdomain";
+import { miniAppLoginPath } from "@/lib/miniapp/navigation";
 
 // B415: the login modal was retired platform-wide — the guest gate now routes to
 // the full /login page with a return path. The typed source text is stashed so it
@@ -26,8 +27,8 @@ function redirectToLoginWithReturn(resumeText?: string) {
   } catch {
     /* sessionStorage unavailable — proceed without preserving the draft */
   }
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.href = `${loginUrl()}?next=${next}`;
+  const next = window.location.pathname + window.location.search;
+  window.location.href = miniAppLoginPath(next) ?? `${loginUrl()}?next=${encodeURIComponent(next)}`;
 }
 
 type ToneEntry = { label: string; pct: number };

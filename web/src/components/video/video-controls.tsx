@@ -103,7 +103,11 @@ export function VideoControls({
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 px-6 py-3 bg-video-surface border-t border-white/10">
+    // B554: на 390px ряд управления (~482px) не помещался в контент-колонку
+    // (~352px), а родитель обрезан `overflow: hidden` — с краёв срезало
+    // громкость и, что важнее, кнопку «Завершить». Клиент не мог выйти из
+    // звонка. Разрешаем перенос на вторую строку вместо обрезки.
+    <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-3 sm:gap-3 sm:px-6 bg-video-surface border-t border-white/10">
       {/* Громкость */}
       <div className="relative">
         <button
@@ -233,7 +237,7 @@ export function VideoControls({
       <button
         onClick={handleLeave}
         disabled={leaving}
-        className="flex min-h-[44px] items-center gap-2 rounded-full bg-red-500/80 px-5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-red-500/80 px-5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
         aria-label="Завершить сессию"
         title="Завершить сессию"
       >

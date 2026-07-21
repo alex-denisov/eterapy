@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit';
 import db from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { resetAuthRateLimitForTests } from '@/lib/auth-rate-limit';
+import { consumeMiniAppAuthGrant, telegramMiniAppSsoEnabled } from '@/lib/miniapp/telegram/auth';
 
 // Mock dependencies
 jest.mock('@/lib/users-db');
@@ -23,6 +24,10 @@ jest.mock('@/lib/db', () => ({
   },
 }));
 jest.mock('bcryptjs');
+jest.mock('@/lib/miniapp/telegram/auth', () => ({
+  consumeMiniAppAuthGrant: jest.fn(),
+  telegramMiniAppSsoEnabled: jest.fn(),
+}));
 
 // Need to re-import after mocking
 import { handlers, signIn, signOut, auth } from '@/lib/auth';
@@ -33,6 +38,7 @@ describe('Auth Configuration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetAuthRateLimitForTests();
+    (telegramMiniAppSsoEnabled as jest.Mock).mockReturnValue(false);
     delete process.env.ALLOW_PLAINTEXT_PASSWORDS;
   });
 
@@ -246,6 +252,47 @@ describe('Auth Configuration', () => {
         const result = await authorize({ impersonateToken: 'valid-token' });
 
         expect(result).toBeNull();
+      });
+    });
+
+    describe('Telegram Mini App one-time grant', () => {
+      const telegramUser = {
+        id: 'telegram-linked-user',
+        email: 'linked@example.com',
+        name: 'Linked User',
+        role: 'CLIENT',
+        emailVerified: new Date(),
+        blockedAt: null,
+        deletedAt: null,
+      };
+
+      it('rejects the grant when the Mini App feature flag is disabled', async () => {
+        (telegramMiniAppSsoEnabled as jest.Mock).mockReturnValue(false);
+        expect(await authorize({ telegramGrant: 'a'.repeat(43) })).toBeNull();
+        expect(consumeMiniAppAuthGrant).not.toHaveBeenCalled();
+      });
+
+      it('consumes a valid grant and records the platform login channel', async () => {
+        (telegramMiniAppSsoEnabled as jest.Mock).mockReturnValue(true);
+        (consumeMiniAppAuthGrant as jest.Mock).mockResolvedValue(telegramUser);
+
+        const result = await authorize({ telegramGrant: 'b'.repeat(43) });
+
+        expect(result).toMatchObject({ id: telegramUser.id, email: telegramUser.email, role: 'CLIENT' });
+        expect(consumeMiniAppAuthGrant).toHaveBeenCalledWith('b'.repeat(43));
+        expect(logAudit).toHaveBeenCalledWith(
+          telegramUser.id,
+          'LOGIN',
+          undefined,
+          expect.stringContaining('"channel":"telegram-miniapp"'),
+          undefined,
+        );
+      });
+
+      it('rejects an invalid, expired or already-consumed grant', async () => {
+        (telegramMiniAppSsoEnabled as jest.Mock).mockReturnValue(true);
+        (consumeMiniAppAuthGrant as jest.Mock).mockResolvedValue(null);
+        expect(await authorize({ telegramGrant: 'c'.repeat(43) })).toBeNull();
       });
     });
   });

@@ -117,7 +117,7 @@ export default function HowToChoosePage() {
           <h2 className="font-heading text-lg font-semibold mb-3">Сначала разберитесь в вопросе</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Не уверены, нужен ли вам специалист? Начните с бесплатного диалога:
-            ETerapy уточнит контекст и предложит следующий шаг без давления.
+            ETerapy уточнит контекст и предложит следующий шаг.
           </p>
           <Link href="/checkin" className={cn(buttonVariants(), "text-sm")}>
             Начать диалог

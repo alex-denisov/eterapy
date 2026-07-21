@@ -250,7 +250,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
         setHasEntitlement(false);
         setMessage("Откройте совместимость баллами или картой — результат появится здесь же.");
       } else if (typed.status === 503) {
-        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.");
+        setMessage("Не получилось собрать разбор — попробуйте ещё раз. Доступ сохранён, повторно платить не нужно.");
       } else if (typed.status === 400) {
         setMessage("Заполните данные рождения обоих участников: дата, примерное время и город.");
       } else {
