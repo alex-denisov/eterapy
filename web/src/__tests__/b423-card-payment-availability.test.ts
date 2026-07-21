@@ -54,16 +54,15 @@ describe("B423/B554 — доступность оплаты картой", () =>
     expect(cardPaymentAvailable()).toBe(true);
   });
 
-  it("на YooKassa зависит от её собственных кредов", () => {
+  it("НЕ включается от кредов ЮKassa, даже когда они выставлены", () => {
+    // На проде YUKASSA_SHOP_ID/SECRET_KEY стоят, но это тестовый кабинет:
+    // мерчантом ЮKassa официально не подключалась. Считать её живым рельсом —
+    // значит звать людей платить в песочницу; это хуже честного «скоро».
     clearRobokassa();
     process.env.PAYMENT_PROVIDER = "yookassa";
-    delete process.env.YUKASSA_SHOP_ID;
-    delete process.env.YUKASSA_SECRET_KEY;
-    expect(cardPaymentAvailable()).toBe(false);
-
     process.env.YUKASSA_SHOP_ID = "shop";
     process.env.YUKASSA_SECRET_KEY = "secret";
-    expect(cardPaymentAvailable()).toBe(true);
+    expect(cardPaymentAvailable()).toBe(false);
   });
 
   it("никогда не бросает исключение — это опрос, а не требование", () => {

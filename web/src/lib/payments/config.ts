@@ -43,18 +43,23 @@ export function activePaymentProvider(): PaymentProviderName {
 export function cardPaymentAvailable(): boolean {
   const present = (name: string) => Boolean(process.env[name]?.trim());
 
-  if (activePaymentProvider() === "robokassa") {
-    // Test mode signs with a SEPARATE password pair — the production ones fail
-    // there with error 29, so «configured» means the pair for the CURRENT mode.
-    const isTest = process.env.ROBOKASSA_IS_TEST?.trim() === "1";
-    return (
-      present("ROBOKASSA_MERCHANT_LOGIN")
-      && present(isTest ? "ROBOKASSA_TEST_PASSWORD_1" : "ROBOKASSA_PASSWORD_1")
-      && present(isTest ? "ROBOKASSA_TEST_PASSWORD_2" : "ROBOKASSA_PASSWORD_2")
-    );
-  }
+  // ТОЛЬКО Robokassa считается живым рельсом.
+  //
+  // На проде выставлены YUKASSA_SHOP_ID/SECRET_KEY, но это ТЕСТОВЫЙ кабинет:
+  // ЮKassa как мерчант официально не подключалась (см. B423, решение владельца
+  // 2026-07-20 — переходим сразу на Robokassa). Если считать её настроенной,
+  // мини-апп начнёт звать людей платить в песочницу — это хуже честного
+  // «скоро». Веб-путь ЮKassa при этом не тронут: он существует как был.
+  if (activePaymentProvider() !== "robokassa") return false;
 
-  return present("YUKASSA_SHOP_ID") && present("YUKASSA_SECRET_KEY");
+  // В тестовом режиме Robokassa подписывает ОТДЕЛЬНОЙ парой паролей — боевые
+  // там дают ошибку 29, поэтому «настроено» проверяется для текущего режима.
+  const isTest = process.env.ROBOKASSA_IS_TEST?.trim() === "1";
+  return (
+    present("ROBOKASSA_MERCHANT_LOGIN")
+    && present(isTest ? "ROBOKASSA_TEST_PASSWORD_1" : "ROBOKASSA_PASSWORD_1")
+    && present(isTest ? "ROBOKASSA_TEST_PASSWORD_2" : "ROBOKASSA_PASSWORD_2")
+  );
 }
 
 /**

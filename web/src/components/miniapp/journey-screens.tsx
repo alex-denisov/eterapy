@@ -130,15 +130,66 @@ export function PractitionerBookingScreen({ practitioner }: { practitioner: Mini
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // B554 (owner): экран показывал «Свободное время уточняется» ВСЕГДА, и это
+  // читалось как «записаться нельзя». Причина — источник данных: `/api/slots`
+  // отдаёт только разовые записи в `time_slots`, а реальное расписание у всех
+  // специалистов задано НЕДЕЛЬНЫМИ ПРАВИЛАМИ, из которых веб генерирует слоты
+  // на лету (`/api/slots/month` + `/api/slots/available`). Персональных строк
+  // на проде нет ни у кого — отсюда пустой список в мини-аппе при живой записи
+  // в вебе. Берём тот же источник, что и веб.
   useEffect(() => {
-    const until = new Date(Date.now() + 30 * 86_400_000).toISOString();
-    fetch(`/api/slots?practitionerId=${encodeURIComponent(practitioner.id)}&to=${encodeURIComponent(until)}`)
-      .then((response) => response.json())
-      .then((payload) => setSlots(Array.isArray(payload.slots) ? payload.slots : []))
-      .catch(() => setSlots([]))
-      .finally(() => setLoading(false));
-  }, [practitioner.id]);
-  const slot = slots.find((item) => (item.id ?? item.slotId) === selected);
+    let cancelled = false;
+    const id = encodeURIComponent(practitioner.id);
+    const duration = practitioner.durationMin;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        // month — 0-based, как Date.getMonth() (см. /api/slots/month).
+        const months = [
+          { year: now.getFullYear(), month: now.getMonth() },
+          { year: next.getFullYear(), month: next.getMonth() },
+        ];
+
+        // Запросы идут параллельно: последовательно это девять round-trip'ов
+        // подряд, и на мобильной сети экран несколько секунд висит в
+        // «Проверяем расписание…».
+        const monthPayloads = await Promise.all(months.map(async ({ year, month }) => {
+          const response = await fetch(`/api/slots/month?practitionerId=${id}&year=${year}&month=${month}&durationMin=${duration}`);
+          if (!response.ok) return [];
+          const payload = await response.json() as { availableDates?: string[] };
+          return Array.isArray(payload.availableDates) ? payload.availableDates : [];
+        }));
+
+        // Ближайшие дни, а не весь горизонт: список в мини-аппе прокручивается,
+        // и тянуть 90 запросов ради него незачем.
+        const soonest = [...new Set(monthPayloads.flat())].sort().slice(0, 7);
+        const dayPayloads = await Promise.all(soonest.map(async (date) => {
+          const response = await fetch(`/api/slots/available?practitionerId=${id}&date=${date}&durationMin=${duration}`);
+          if (!response.ok) return [];
+          const payload = await response.json() as { slots?: Slot[] };
+          return Array.isArray(payload.slots) ? payload.slots : [];
+        }));
+
+        if (!cancelled) setSlots(dayPayloads.flat());
+      } catch {
+        if (!cancelled) setSlots([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => { cancelled = true; };
+  }, [practitioner.id, practitioner.durationMin]);
+
+  // Сгенерированные по правилу слоты приходят БЕЗ id — ключом служит startAt,
+  // иначе выбор не защёлкивался бы вообще (undefined === selected).
+  const slotKey = (item: Slot) => item.id ?? item.slotId ?? item.startAt;
+  const slot = slots.find((item) => slotKey(item) === selected);
   const review = slot ? `/miniapp/checkout/review?offer=${encodeURIComponent(`practitioner:${practitioner.slug}`)}&slot=${encodeURIComponent(slot.startAt)}` : "#time";
   return (
     <MiniAppChrome data={data}>
@@ -147,7 +198,7 @@ export function PractitionerBookingScreen({ practitioner }: { practitioner: Mini
         <section className={styles["booking-person"]}><PractitionerAvatar practitioner={practitioner} /><div><strong>{practitioner.name}</strong><span>{practitioner.priceRub.toLocaleString("ru-RU")} ₽ за встречу</span></div></section>
         <div id="time" className={styles["slot-list"]}>
           {loading ? <p className={styles["flow-note"]}>Проверяем расписание…</p> : slots.length ? slots.map((item) => {
-            const key = item.id ?? item.slotId ?? item.startAt;
+            const key = slotKey(item);
             const date = new Date(item.startAt);
             return <button key={key} type="button" className={selected === key ? styles["is-selected"] : undefined} onClick={() => setSelected(key)}><CalendarBlank size={18} /><span><strong>{date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })}</strong><small>{date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</small></span><Check size={17} /></button>;
           }) : <section className={styles["empty-detail"]}><Clock size={28} /><strong>Свободное время уточняется</strong><p>Расписание показывает только реальные доступные слоты.</p></section>}

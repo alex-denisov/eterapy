@@ -12,7 +12,9 @@ export default async function MiniAppCheckoutReviewPage({ searchParams }: { sear
     if (service) offer = { key, title: service.title, price: service.price, note: service.priceMeta, kind: "service" };
   } else if (key.startsWith("practitioner:")) {
     const practitioner = await loadMiniAppPractitioner(key.slice("practitioner:".length));
-    if (practitioner) offer = { key, title: `Встреча с ${practitioner.name}`, price: `${practitioner.priceRub.toLocaleString("ru-RU")} ₽`, note: `${practitioner.durationMin} минут`, kind: "practitioner" };
+    // «Встреча с Елена Морозова» — имя не склоняется, а склонять русские имена
+    // кодом надёжно нельзя. Формулировка без падежа читается правильно всегда.
+    if (practitioner) offer = { key, title: `Встреча · ${practitioner.name}`, price: `${practitioner.priceRub.toLocaleString("ru-RU")} ₽`, note: `${practitioner.durationMin} минут`, kind: "practitioner" };
   } else {
     const found = miniAppOffers().find((item) => item.key === key);
     if (found) offer = { key, title: found.title, price: found.price, note: found.note, kind: found.kind };
