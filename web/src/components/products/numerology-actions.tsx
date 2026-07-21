@@ -7,6 +7,7 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { SymbolicResultScaffold } from "@/components/products/symbolic-result-scaffold";
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
+import { maskDateInput } from "@/lib/date-input-mask";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NumerologyPortrait } from "@/lib/numerology";
 import type { DestinyMatrix } from "@/lib/destiny-matrix";
@@ -331,7 +332,10 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
         <input
           id="numerology-birth-input"
           value={birth}
-          onChange={(e) => { setBirth(e.target.value.slice(0, 60)); if (fieldWarnings.birth) setFieldWarnings((current) => ({ ...current, birth: false })); }}
+          inputMode="numeric"
+          // B554 п.23: поле ждёт чистую дату — раскладываем цифры по ДД.ММ.ГГГГ
+          // сами, чтобы человек не расставлял точки вручную.
+          onChange={(e) => { setBirth(maskDateInput(e.target.value.slice(0, 60), birth)); if (fieldWarnings.birth) setFieldWarnings((current) => ({ ...current, birth: false })); }}
           placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
