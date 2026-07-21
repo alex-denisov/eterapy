@@ -927,9 +927,15 @@
 
 /* B554 п.19: PIN Дневника — те же механики, что в вебе, но модальным листом
    поверх экрана, а не уходом на страницу настроек аккаунта. */
+/* B564 (owner 2026-07-21): «модальное окно с кнопками при открытой клавиатуре
+   должно помещаться в этом маленьком окне». `inset: 0` + `88dvh` меряют
+   ЛЭЙАУТНЫЙ вьюпорт, который при открытой клавиатуре не сжимается — лист
+   уезжал под клавиатуру вместе с кнопками. `--miniapp-viewport-height`
+   telegram-рантайм уже сводит к видимой высоте (B527/B554), считаем от неё. */
 .diary-pin-sheet {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto 0;
+  height: var(--miniapp-viewport-height, 100dvh);
   z-index: 60;
   display: flex;
   align-items: flex-end;
@@ -942,7 +948,7 @@
 .diary-pin-panel {
   width: 100%;
   max-width: 420px;
-  max-height: 88dvh;
+  max-height: 100%;
   overflow-y: auto;
   padding: 16px;
   border: 1px solid var(--line-strong);
@@ -950,6 +956,44 @@
   display: grid;
   gap: 10px;
   background: var(--surface);
+}
+
+/* При открытой клавиатуре safe-area снизу уже съедена самой клавиатурой —
+   двойной отступ отнимал у листа ещё 34px видимой высоты. */
+:global(html[data-miniapp-keyboard-open="true"]) .diary-pin-sheet {
+  padding-bottom: 8px;
+}
+
+.diary-pin-actions {
+  display: grid;
+  gap: 8px;
+}
+
+/* «Отключить PIN-код» — отдельной строкой, отбит линией от обычных действий. */
+.diary-pin-danger-row {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: grid;
+}
+
+.diary-pin-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.diary-pin-confirm-remove {
+  min-height: 46px;
+  border: 1px solid rgba(255, 128, 105, .38);
+  border-radius: 14px;
+  background: rgba(255, 128, 105, .12);
+  color: #ff8069;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .diary-pin-panel header {
@@ -5074,6 +5118,24 @@ a.service-row {
   background: #091522 !important;
 }
 
+/* B561 (аудит «продолжить в чате»): у чата стояла веб-константа
+   `calc(100dvh − 224px)` с полом в 360px. Она не знает ни про шапку услуги, ни
+   про строку приватности, ни про таббар Telegram — фрейм получался выше экрана,
+   композер уезжал под сгиб, и внутренний скролл треда конкурировал со скроллом
+   страницы (тот же класс дефекта, что B554 п.2 в живом диалоге). Константу
+   считать нечем, поэтому тред берёт долю реальной высоты вьюпорта мини-аппа, а
+   сам фрейм растёт по содержимому. */
+.product-action-boundary :global(.soft-chat-screen) {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.product-action-boundary :global(.soft-chat-thread) {
+  max-height: calc(var(--miniapp-viewport-height, 100dvh) * .52);
+  min-height: 180px;
+}
+
 .product-action-boundary :global(.miniapp-practice-intro) {
   margin-bottom: 10px;
   padding: 12px 13px;
@@ -5690,14 +5752,21 @@ a.service-row {
    клавиатуры. Тот же flex-контракт, что и для открытой клавиатуры, только
    теперь он действует всегда: тред забирает ровно остаток между шапкой и
    навигацией. */
-.screen-scroll:has(.dialogue-surface) {
+/* B561 (owner 2026-07-21): контракт выше принадлежит ЖИВОМУ диалогу и только
+   ему. Он висел на `.dialogue-surface` целиком, а это обёртка ВСЕХ фаз разбора,
+   включая результат. На результате получалось: скроллер `overflow-y: hidden`,
+   секция-оболочка зажата в остаток высоты (`flex: 1 1 auto`) и обрезает себя
+   своим же `overflow-hidden` — страница выглядела как блок фиксированной высоты
+   и не прокручивалась до рекомендаций и подвала. Фаза приезжает атрибутом
+   `data-phase` из `DialogueShell`. */
+.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) {
   display: flex;
   flex-direction: column;
   overflow-y: hidden;
 }
 
-.screen-scroll:has(.dialogue-surface) .dialogue-surface,
-.screen-scroll:has(.dialogue-surface) .dialogue-surface > div {
+.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) .dialogue-surface,
+.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) .dialogue-surface > div {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -5721,8 +5790,10 @@ a.service-row {
   flex-direction: column;
 }
 
-:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface,
-:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface > div {
+/* B561: те же рамки — только фазы, где есть поле ввода. `:where()` не меняет
+   вес селектора, каскад остаётся прежним. */
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"]),
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"]) > div {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -5973,4 +6044,107 @@ a.service-row {
   color: #ffd76a;
   background: rgba(255, 199, 88, .16);
   box-shadow: inset 0 0 0 1px rgba(255, 199, 88, .34);
+}
+
+/* B565 — «Частые вопросы» и правовые документы в оболочке мини-аппа.
+   Аккордеон один в один повторяет вебовую механику (раскрыт максимум один
+   ответ), но живёт в тёмной палитре Midnight Signal. */
+.faq-list {
+  margin-top: 11px;
+  display: grid;
+  gap: 8px;
+}
+
+.faq-item {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.faq-item.is-open {
+  border-color: rgba(255, 101, 72, .34);
+}
+
+.faq-item > button {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 13px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.faq-item > button > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform .18s ease;
+}
+
+.faq-item.is-open > button > svg {
+  transform: rotate(180deg);
+  color: var(--coral);
+}
+
+.faq-item > p {
+  margin: 0;
+  padding: 0 13px 13px;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.legal-meta {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.legal-intro {
+  margin-top: 12px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 101, 72, .2);
+  border-radius: 18px;
+  display: grid;
+  gap: 7px;
+  background: rgba(255, 101, 72, .06);
+}
+
+.legal-intro strong {
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.legal-intro ul {
+  margin: 0;
+  padding-left: 17px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.legal-body {
+  margin-top: 13px;
+}
+
+/* Юридический текст читают долго — интерлиньяж и размер важнее плотности. */
+.legal-body :global(.soft-markdown) p,
+.legal-body :global(p),
+.legal-body :global(li) {
+  font-size: 13.5px;
+  line-height: 1.6;
 }

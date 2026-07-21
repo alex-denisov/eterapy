@@ -67,7 +67,16 @@ export function toMiniAppPath(href: string): string {
   if (pathname === "/forgot-password" || pathname === "/auth/forgot-password") return withSearchAndHash("/miniapp/account/recover", source);
   if (pathname === "/checkin") return withSearchAndHash("/miniapp/checkin", source);
   if (pathname === "/library" || pathname.startsWith("/library/")) return withSearchAndHash(`/miniapp${pathname}`, source);
-  if (pathname === "/help") return withSearchAndHash("/miniapp/help", source);
+  // B565: `/help` в вебе — публичная база знаний, а Центр поддержки живёт
+  // отдельно (`/support` в кабинете). В мини-аппе теперь так же.
+  //
+  // `/legal/*` сознательно остаётся в `EXPLICIT_EXTERNAL_PREFIXES` и открывается
+  // канонической публичной страницей — это решение принято раньше и не входит в
+  // задачу. Экран `/miniapp/legal/[doc]` (тот же пакет документов) существует и
+  // доступен из шторки «Помощь»; переводить туда ВСЕ правовые ссылки —
+  // отдельное решение владельца.
+  if (pathname === "/help") return withSearchAndHash("/miniapp/faq", source);
+  if (pathname === "/support") return withSearchAndHash("/miniapp/support", source);
   if (["/catalog", "/tools", "/modalities", "/all-modalities"].includes(pathname)) return withSearchAndHash("/miniapp/services", source);
   if (pathname.startsWith("/tools/") || pathname.startsWith("/modalities/") || pathname.startsWith("/all-modalities/")) {
     const sourceSlug = pathname.split("/").filter(Boolean).at(-1) ?? "";
@@ -95,7 +104,7 @@ export function toMiniAppPath(href: string): string {
   if (pathname.startsWith("/cabinet/modalities/")) return withSearchAndHash(pathname.replace("/cabinet/modalities/", "/miniapp/products/"), source);
   if (pathname === "/cabinet/invite") return withSearchAndHash("/miniapp/profile/invites", source);
   if (pathname === "/cabinet/settings") return withSearchAndHash("/miniapp/profile", source);
-  if (pathname === "/cabinet/support") return withSearchAndHash("/miniapp/help#support", source);
+  if (pathname === "/cabinet/support") return withSearchAndHash("/miniapp/support", source);
   if (pathname === "/cabinet/questions") return withSearchAndHash("/miniapp/library", source);
   if (pathname === "/cabinet/practitioners" || pathname.startsWith("/cabinet/practitioners/")) {
     return withSearchAndHash(pathname.replace("/cabinet/practitioners", "/miniapp/practitioners"), source);

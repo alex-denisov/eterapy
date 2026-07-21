@@ -75,7 +75,7 @@ export function HomeScreen() {
             <CaretRight size={24} />
           </Link>
         ) : (
-          <Link href="/miniapp/help#dialogue" className={styles["continue-row"]}>
+          <Link href="/miniapp/faq" className={styles["continue-row"]}>
             <span className={styles["continue-icon"]}><Clock size={23} /></span>
             <span className={styles["continue-copy"]}><small>КАК ЭТО РАБОТАЕТ</small><strong>Один вопрос, короткий диалог</strong></span>
             <CaretRight size={24} />

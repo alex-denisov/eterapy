@@ -13,6 +13,11 @@ interface DialogueShellProps {
   /** Suppress the built-in shell header (used on the result phase, which renders
       its own iOS-style back-arrow header). */
   hideHeader?: boolean;
+  /** Current step of the experience, exposed to CSS as `data-phase`. The mini-app
+      pins the live chat to the viewport (bounded thread + composer at the bottom),
+      and that contract must NOT leak into the phases that are plain long pages —
+      the разбор result above all (B561). */
+  phase?: string;
 }
 
 export function DialogueShell({
@@ -24,6 +29,7 @@ export function DialogueShell({
   className,
   surface = "web",
   hideHeader = false,
+  phase,
 }: DialogueShellProps) {
   // Keep progress.current reference for test detection
   const progressValue = progress
@@ -34,6 +40,7 @@ export function DialogueShell({
     <section
       data-testid="dialogue-shell"
       data-surface={surface}
+      data-phase={phase}
       className={cn(
         "relative overflow-hidden",
         surface === "miniapp" ? "min-h-0 px-0 pb-5 pt-2" : "min-h-[calc(100vh-4rem)] px-4 py-8 md:py-10",
