@@ -63,9 +63,11 @@ export async function POST(request: NextRequest) {
     if (!subjectLimit.allowed) return noStore(authRateLimitResponse(subjectLimit));
 
     // B554 (owner: «скрой stage-бота из поиска»). Из поиска Telegram бота убрать
-    // нельзя — такой настройки не существует. Закрываем вход: на стенде, где
-    // задан список, посторонний не попадает в базу, почасово скопированную с
-    // прода. На проде переменная не задана и проверка не действует.
+    // нельзя — такой настройки не существует. Закрываем вход: посторонний не
+    // попадает в базу, почасово скопированную с прода.
+    // B566: НЕбоевой контур без списка теперь закрыт целиком — список так и не
+    // доехал до стейджа, потому что его надо было вписать на хосте руками.
+    // На проде `ETERAPY_CONTOUR` не задан и проверка по-прежнему не действует.
     if (stagingTelegramAccessDenied(launch.subjectId, launch.username)) {
       log.warn("miniapp.telegram_auth_not_allowlisted", { subjectId: launch.subjectId });
       return noStore(NextResponse.json({

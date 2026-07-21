@@ -8,9 +8,23 @@ import { useEffect, useState } from "react";
 import Script from "next/script";
 import { getCookieConsent } from "./cookie-banner";
 import { track } from "@/lib/analytics";
+import { ADMIN_DOMAIN } from "@/lib/env";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
+/**
+ * Админская поверхность — отдельный поддомен в проде и путь `/admin` там, где
+ * поддомены выключены (локальная разработка). Проверка клиентская: читать
+ * заголовки в корневом layout нельзя, это сделало бы динамическими все 340+
+ * пререндеренных страниц.
+ */
+function isAdminSurface(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname === ADMIN_DOMAIN
+    || window.location.pathname === "/admin"
+    || window.location.pathname.startsWith("/admin/");
+}
 
 export function Analytics() {
   // Defer reading the persisted consent until after hydration so the
@@ -19,6 +33,16 @@ export function Analytics() {
   // sessions that have already accepted analytics cookies.
   const [consented, setConsented] = useState(false);
   useEffect(() => {
+    // B523: в админке внешнюю аналитику не поднимаем вовсе.
+    //
+    // Найдено по телеметрии CSP: на admin.eterapy.com действует nonce-политика
+    // БЕЗ 'unsafe-inline', и эти два инлайновых сниппета там реально
+    // блокировались (`script-src-elem`, `disposition: enforce`) — то есть
+    // аналитика всё равно не работала, а браузер писал нарушение на каждой
+    // загрузке. Убирать её здесь правильно и по существу: админские URL несут
+    // идентификаторы пользователей, и отправлять их в Метрику и GA не нужно,
+    // а сессии администраторов искажают продуктовые воронки.
+    if (isAdminSurface()) return;
     // Intentional post-mount sync — keeps SSR and the first client
     // render at consented=false (null tree) and only flips after
     // hydration. Prevents the React #418 mismatch on sessions that

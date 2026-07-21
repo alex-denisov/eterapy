@@ -85,20 +85,27 @@ export async function sendTelegram(
 
 /** Configures product-facing bot copy, commands and the persistent Mini App menu button. */
 export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl: string; staging: boolean }) {
-  const name = staging ? "ETerapy · Staging" : "ETerapy";
+  // B533 (owner 2026-07-22: «оставляем твою рекомендацию как за мой выбор»).
+  // Имя обязано называть ПОЛКУ: в каталоге Telegram его читают вместе с одной
+  // строкой описания, и «ETerapy — Что дальше?» там не отвечает «что это».
+  // «Разбор» — уже собственное слово продукта (первичный разбор, подробный
+  // разбор, разбор переписки), различительность несёт ETerapy.
+  const name = staging ? "ETerapy · Разбор (Stage)" : "ETerapy · Разбор";
   const suffix = staging ? " Тестовая версия." : "";
   const requests: Array<[string, Record<string, unknown>]> = [
     ["setMyName", { name }],
     // B554 (owner): описание обязано называть результат, а не цель платформы.
-    // «Помогает прояснить вопрос» не говорит клиенту, что он получит.
-    ["setMyDescription", { description: `Опишите ситуацию — ETerapy задаст 2–3 уточняющих вопроса и вернёт разбор: что происходит, что на это влияет и с чего начать. Первый разбор бесплатно, без карты. Дальше — подробные разборы и запись к специалистам.${suffix}` }],
-    ["setMyShortDescription", { short_description: `Опишите ситуацию — получите разбор и первый шаг. Первый разбор бесплатно.${suffix}` }],
+    // B533: текст утверждён владельцем. Последнее предложение — про запись к
+    // специалистам — сохранено из редакции B554: это отдельная продуктовая
+    // поверхность, и молча убирать её из каталожного описания неправильно.
+    ["setMyDescription", { description: `Опишите ситуацию своими словами. Несколько уточняющих вопросов — и вы получите разбор: что я слышу в вашем вопросе, главная развилка и следующий безопасный шаг. Первый разбор бесплатный, без регистрации. Дальше — подробные разборы и запись к специалистам.${suffix}` }],
+    ["setMyShortDescription", { short_description: `Вопрос своими словами → короткий диалог → разбор: что происходит и какой шаг безопасен.${suffix}` }],
     ["setMyCommands", { commands: [
-      { command: "start", description: "Разобрать ситуацию" },
+      { command: "start", description: "Разобрать вопрос" },
       { command: "status", description: "Проверить связь с аккаунтом" },
       { command: "stop", description: "Отключить уведомления Telegram" },
     ] }],
-    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Разобрать ситуацию", web_app: { url: miniAppUrl } } }],
+    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Разобрать вопрос", web_app: { url: miniAppUrl } } }],
   ];
   const results = [];
   for (const [method, body] of requests) {

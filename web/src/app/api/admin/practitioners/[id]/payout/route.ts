@@ -11,7 +11,7 @@ import {
   payoutReserveKopecks,
   resolvePractitionerPayoutPlanKey,
 } from "@/lib/payout-runs";
-import { payoutDestinationFromDetails, sendPractitionerPayout } from "@/lib/practitioner-payout";
+import { resolvePayoutProvider } from "@/lib/payments/payout-provider";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -58,10 +58,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!details) {
     return NextResponse.json({ error: "У практика не указаны платёжные реквизиты" }, { status: 400 });
   }
-  const destination = payoutDestinationFromDetails(details);
-  if (!destination) {
+  // B562: провайдера выбираем, а не импортируем. Проверка идёт ДО создания
+  // записи Payout: иначе на неподдерживаемых реквизитах в базе оставалась бы
+  // висеть выплата, которую никто не отправлял.
+  const payoutProvider = await resolvePayoutProvider();
+  if (!payoutProvider.supportsAutoPayout(details)) {
     return NextResponse.json(
-      { error: "Авто-выплата поддерживает только банковскую карту. СБП/юр-лицо — вручную." },
+      {
+        error: payoutProvider.name === "robokassa"
+          ? "Выплаты через Robokassa ещё не подключены — проведите выплату вручную."
+          : "Авто-выплата поддерживает только банковскую карту. СБП/юр-лицо — вручную.",
+      },
       { status: 400 },
     );
   }
@@ -87,14 +94,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, amountKopecks: true, status: true, createdAt: true },
   });
 
-  // Отправляем выплату в ЮKassa (тест-кабинет). Никогда не бросает — при ошибке
+  // Отправляем выплату активным провайдером. Никогда не бросает — при ошибке
   // помечает payout FAILED (баланс практика восстанавливается).
-  const sent = await sendPractitionerPayout(
-    payout.id,
-    destination,
+  const sent = await payoutProvider.send({
+    payoutId: payout.id,
+    details,
     amountKopecks,
-    `Выплата практику ${balance.currentBalance.toLocaleString("ru")} ₽`,
-  );
+    description: `Выплата практику ${balance.currentBalance.toLocaleString("ru")} ₽`,
+  });
 
   await logAudit(
     adminId,

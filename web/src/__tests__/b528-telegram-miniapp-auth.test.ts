@@ -73,11 +73,16 @@ describe("B528 — bounded Telegram Mini App identity", () => {
     expect(() => verifyTelegramInitData("x".repeat(16_385), NOW)).toThrow(TelegramLaunchError);
   });
 
-  it("uses an explicit default-off feature flag", () => {
+  // B566: флаг был default-off на время сборки мини-аппа. Мини-апп в проде,
+  // вход через Telegram — штатный путь, а host-state владелец руками не правит.
+  // Значение по умолчанию едет образом, переменная осталась рубильником.
+  it("ships enabled by default and keeps an explicit kill switch", () => {
     delete process.env.TELEGRAM_MINIAPP_SSO_ENABLED;
-    expect(telegramMiniAppSsoEnabled()).toBe(false);
+    expect(telegramMiniAppSsoEnabled()).toBe(true);
     process.env.TELEGRAM_MINIAPP_SSO_ENABLED = "TRUE";
     expect(telegramMiniAppSsoEnabled()).toBe(true);
+    process.env.TELEGRAM_MINIAPP_SSO_ENABLED = "FALSE";
+    expect(telegramMiniAppSsoEnabled()).toBe(false);
   });
 
   it("keeps identity linking explicit and cleans one-time grants through the daily job", () => {
