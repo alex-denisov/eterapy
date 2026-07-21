@@ -72,7 +72,10 @@ export function ProfileScreen() {
 
         <section className={styles["profile-card"]}>
           <span className={styles["profile-avatar"]}><User size={29} weight="fill" /></span>
-          <span><strong>{viewer.authenticated ? viewerName : `${viewerName}, пока без аккаунта`}</strong><small>{viewer.email ?? "Telegram запомнит гостевой вход"} · {viewer.plan.toLocaleLowerCase("ru")}</small></span>
+          {/* B554 (owner п.4/п.7): имя + «, пока без аккаунта» не помещалось в
+              строку, а подпись обрезалась многоточием. Тариф из подписи убран —
+              он и так стоит отдельной карточкой прямо под этим блоком. */}
+          <span><strong>{viewerName}</strong><small>{viewer.authenticated ? (viewer.email ?? "Аккаунт подключён") : "Пока без аккаунта"}</small></span>
           <Link href={viewer.authenticated ? "/miniapp/profile/about" : "/miniapp/account?intent=profile"}>{viewer.authenticated ? "Изменить" : "Сохранить"}</Link>
         </section>
 

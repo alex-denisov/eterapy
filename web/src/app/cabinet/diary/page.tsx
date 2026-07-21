@@ -322,7 +322,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-center text-[11px]" style={{ color: "var(--soft-ink-faint)" }}>мягкий ритм — без давления, можно пропускать</p>
+            <p className="mt-3 text-center text-[11px]" style={{ color: "var(--soft-ink-faint)" }}>мягкий ритм — в удобном для вас темпе</p>
           </aside>
         </div>
       </section>

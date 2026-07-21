@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Eye, Lock, ShareNetwork, StarFour } from "@phosphor-icons/react";
 import { MINIAPP_DIARY_SERVICE } from "@/lib/miniapp/catalog";
+import { pluralRu } from "@/lib/streak-display";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
@@ -86,7 +87,7 @@ export function DiaryScreen() {
         <section className={styles["diary-practice"]}>
           <div className={styles["practice-head"]}>
             <span><small>ВОПРОС ДНЯ · ДЛЯ ВАС</small><strong>Что сегодня помогло вам не торопиться с решением?</strong></span>
-            <span className={styles["streak-ring"]}><b>{data.streak}</b><small>дня</small></span>
+            <span className={styles["streak-ring"]}><b>{data.streak}</b><small>{pluralRu(data.streak, ["день", "дня", "дней"])}</small></span>
           </div>
           {dailyDone ? (
             <div className={styles["practice-answer"]}><span><Check size={20} weight="bold" /></span><div><small>ВАШ ВЗГЛЯД</small><p>{reflection || "Сегодняшняя запись уже сохранена."}</p><small>МАЛЕНЬКИЙ ШАГ</small><p>{perspective || "Можно вернуться к мысли позже, без требования решить всё сегодня."}</p></div></div>
@@ -102,7 +103,7 @@ export function DiaryScreen() {
               return <span key={day} className={c(done && "is-done", weekday === new Date().getDay() && "is-today")}><small>{day}</small><b suppressHydrationWarning>{done ? <Check size={14} weight="bold" /> : weekDates[index]}</b></span>;
             })}
           </div>
-          <p className={styles["practice-footnote"]}>На 7-й день серии появится итог недели. Можно пропускать, без давления.</p>
+          <p className={styles["practice-footnote"]}>На 7-й день серии соберём итог недели: что повторялось и что менялось.</p>
         </section>
 
         {selected ? (
