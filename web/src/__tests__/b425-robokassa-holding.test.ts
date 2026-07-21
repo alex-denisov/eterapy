@@ -45,8 +45,8 @@ describe("B425 — подпись холда", () => {
   });
 
   it("с чеком порядок сегментов: Receipt, потом true", () => {
-    expect(buildPaymentSignature({ config, outSum: "1500.00", invId: 42, receiptEncoded: "ENC", stepByStep: true }))
-      .toBe(sha256("eterapy:1500.00:42:ENC:true:pass1"));
+    expect(buildPaymentSignature({ config, outSum: "1500.00", invId: 42, receiptJson: "RAW", stepByStep: true }))
+      .toBe(sha256("eterapy:1500.00:42:RAW:true:pass1"));
   });
 
   it("ссылка на оплату несёт StepByStep=true", () => {
@@ -67,8 +67,8 @@ describe("B425 — подписи подтверждения и отмены", (
   });
 
   it("частичное списание включает урезанный чек в подпись", () => {
-    expect(buildConfirmSignature({ config, outSum: "750.00", invId: 42, receiptEncoded: "ENC" }))
-      .toBe(sha256("eterapy:750.00:42:ENC:pass1"));
+    expect(buildConfirmSignature({ config, outSum: "750.00", invId: 42, receiptJson: "RAW" }))
+      .toBe(sha256("eterapy:750.00:42:RAW:pass1"));
   });
 
   it("отмена оставляет сегмент суммы пустым", () => {
