@@ -5,6 +5,7 @@ import {
 } from "@/lib/chat-session";
 import { formatSessionFloor } from "@/lib/session-pricing";
 import { v5Products, type V5ProductSlug } from "@/lib/v5-products";
+import { pointsWord } from "@/lib/points";
 import type { MiniAppService, MiniAppServiceApproach } from "@/lib/miniapp/types";
 import { miniAppProductPath } from "@/lib/miniapp/navigation";
 
@@ -46,6 +47,29 @@ function compactSummary(slug: V5ProductSlug, summary: string): string {
   return first.length > 96 ? `${first.slice(0, 93).trim()}…` : first;
 }
 
+/**
+ * B556: `priceMeta` из `v5Products` — строка ВЕБ-страницы, и она делает сразу
+ * три работы: альтернатива в баллах, оговорка тарифа и кросс-продажа соседнего
+ * продукта. В шторке мини-аппа последнее читается как описание ОТКРЫТОЙ услуги:
+ * у «Натальной карты» владелец увидел «с картой партнёра — совместимость по
+ * звёздам 890 ₽» и справедливо решил, что текст не про эту услугу.
+ *
+ * Поэтому строку собираем заново: цена в баллах считается из `creditCost`
+ * (одна формула на весь каталог), а «что доступно бесплатно» живёт отдельным
+ * полем и отдельной строкой — иначе получается обрывок вида
+ * «тип бесплатно · полный разбор −2 балла», на который владелец тоже указал.
+ */
+const MINIAPP_FREE_NOTE: Partial<Record<V5ProductSlug, string>> = {
+  "human-design": "Тип, стратегия и бодиграф — бесплатно",
+  "surname-story": "Формула фамилии и Аркан — сразу, без оплаты",
+  "pair": "Начало разбора — бесплатно",
+  "deep-report": "Входит в подписку Premium",
+};
+
+function creditNote(creditCost: number | null | undefined): string {
+  return creditCost ? `или −${creditCost} ${pointsWord(creditCost)}` : "";
+}
+
 const digitalServices: MiniAppService[] = v5Products.map((product) => ({
   id: product.slug,
   slug: product.slug,
@@ -53,7 +77,8 @@ const digitalServices: MiniAppService[] = v5Products.map((product) => ({
   eyebrow: product.eyebrow,
   description: compactSummary(product.slug, product.summary),
   price: product.price,
-  priceMeta: product.priceMeta,
+  priceMeta: creditNote(product.creditCost) || product.priceMeta,
+  freeNote: MINIAPP_FREE_NOTE[product.slug],
   creditCost: product.creditCost,
   href: miniAppProductPath(product.slug),
   cta: product.directCta ?? product.cta,
@@ -90,7 +115,8 @@ const chatService: MiniAppService = {
   eyebrow: "живой диалог в своём темпе",
   description: `Диалог вокруг одного вопроса в течение ${CHAT_SESSION_MINUTES} минут.`,
   price: `${(CHAT_SESSION_PRICE_KOPECKS / 100).toLocaleString("ru-RU")} ₽`,
-  priceMeta: `или −${CHAT_SESSION_COST_CREDITS} балла`, creditCost: CHAT_SESSION_COST_CREDITS,
+  priceMeta: creditNote(CHAT_SESSION_COST_CREDITS), creditCost: CHAT_SESSION_COST_CREDITS,
+  freeNote: "Короткое начало разговора — бесплатно",
   href: "/miniapp/products/chat", cta: "Начать чат",
   mechanics: ["короткое бесплатное начало", "45 минут разговора", "уточнения в своём темпе", "итог в Дневнике"],
   privacy: "Диалог остаётся в вашем аккаунте.",

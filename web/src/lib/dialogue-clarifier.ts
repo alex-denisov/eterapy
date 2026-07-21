@@ -228,6 +228,44 @@ export function echoRatio(assistantTurn: string, userAnswer: string): number {
 
 const ECHO_REJECT_RATIO = 0.7;
 
+/**
+ * B560: зачины-зеркала, которыми модель открывает ответ вместо мысли.
+ * Живой прогон против YandexGPT Lite показал, что запрет в промте держится не
+ * всегда: «Вы упомянули, что денег хватает…» пролезал и после явного «никогда
+ * не пересказывай». Дешёвая модель плохо исполняет отрицания, поэтому рядом с
+ * инструкцией стоит детерминированная подчистка.
+ */
+const ECHO_OPENERS = /^(вы\s+(говорите|упомянули|пишете|сказали|отметили|описываете|рассказали)|как\s+вы\s+(говорите|отметили|пишете)|если\s+я\s+правильно\s+понимаю|то\s+есть|похоже[,\s]|звучит\s+так[,\s]|итак[,\s])/i;
+
+/** Доля слов первого предложения, взятых из реплики пользователя. */
+function openingEchoRatio(sentence: string, userAnswer: string): number {
+  const words = (value: string) => comparableTurn(value).split(" ").filter((word) => word.length > 3);
+  const sentenceWords = words(sentence);
+  if (sentenceWords.length === 0) return 0;
+  const userWords = new Set(words(userAnswer));
+  return sentenceWords.filter((word) => userWords.has(word)).length / sentenceWords.length;
+}
+
+/**
+ * B560: срезает вступление-пересказ, если после него остаётся содержательный
+ * вопрос. Владелец описал ровно этот дефект: «каждая моя реплика в ответ
+ * сопровождается почти полным повтором моей реплики, а затем уже интересной
+ * мыслью» — интересную мысль и оставляем.
+ */
+export function stripEchoOpening(question: string, userAnswer: string): string {
+  const trimmed = question.trim();
+  const sentences = trimmed.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length < 2) return trimmed;
+
+  const [first, ...rest] = sentences;
+  const remainder = rest.join(" ").trim();
+  // Хвост без вопроса — не подчищаем: лучше эхо, чем реплика без вопроса.
+  if (!remainder.includes("?")) return trimmed;
+
+  const mirrors = ECHO_OPENERS.test(first.trim()) || openingEchoRatio(first, userAnswer) >= 0.5;
+  return mirrors ? remainder : trimmed;
+}
+
 function isDuplicateAssistantTurn(
   candidate: string,
   previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
@@ -410,6 +448,10 @@ async function attemptLlmTurn(input: {
 
   if (parsed.type === "question" && parsed.question) {
     const lastAnswer = input.previousPairs.at(-1)?.answer ?? input.originalQuestion;
+    // B560: сначала снимаем вступление-зеркало, потом уже оцениваем качество —
+    // иначе ответ с хорошей мыслью отвергался (или принимался «как есть») из-за
+    // одного лишнего первого предложения.
+    parsed.question = stripEchoOpening(parsed.question, lastAnswer);
     const echoed = echoRatio(parsed.question, lastAnswer) >= ECHO_REJECT_RATIO;
     const interrogation = isInterrogationQuestion(parsed.question);
     if (echoed || interrogation) {

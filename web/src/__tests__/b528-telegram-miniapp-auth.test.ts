@@ -90,7 +90,11 @@ describe("B528 — bounded Telegram Mini App identity", () => {
     const cronJobs = fs.readFileSync(path.join(root, "src/lib/cron-jobs.ts"), "utf8");
 
     expect(bootstrap).not.toContain("/api/miniapp/auth/telegram/link");
-    expect(account).toContain("Подключить Telegram");
+    // B555: требование «на экране всегда есть кнопка привязки» отменено —
+    // именно оно и давало мёртвый CTA там, где вход через Telegram выключен.
+    // Проверяем то, что осталось важным: привязка — явное действие клиента.
+    expect(account).toContain("Связать с Telegram");
+    expect(account).toContain("telegramLinkAvailable");
     expect(home).toContain("/miniapp/checkin?miniappDraft=1");
     expect(checkinPage).toContain("CheckinExperience");
     expect(checkin).toContain('sessionStorage.getItem("eterapy:miniapp-question")');
