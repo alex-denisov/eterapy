@@ -30,6 +30,26 @@ export function maskDateInput(raw: string, previous = ""): string {
   return needsTrailingDot ? `${joined}.` : joined;
 }
 
+/**
+ * Маска для СОСТАВНОГО поля вида «12.04.1992, 14:35, Москва» (натальная карта,
+ * синастрия). Форматирует только ведущую дату и молчит, как только она набрана:
+ * иначе `maskDateInput` утянул бы минуты и цифры в названии города внутрь даты.
+ */
+export function maskLeadingDateInput(raw: string, previous = ""): string {
+  const separator = raw.search(/[,;]/);
+  const head = separator === -1 ? raw : raw.slice(0, separator);
+  const tail = separator === -1 ? "" : raw.slice(separator);
+
+  // Голова уже не похожа на дату (человек начал с города) — не вмешиваемся.
+  if (!/^[\d.\s]*$/.test(head)) return raw;
+  // Дата набрана и разложена по блокам: дальше идут время и город — молчим.
+  if (/^\d{2}\.\d{2}\.\d{4}/.test(head.trim())) return raw;
+
+  const previousSeparator = previous.search(/[,;]/);
+  const previousHead = previousSeparator === -1 ? previous : previous.slice(0, previousSeparator);
+  return `${maskDateInput(head, previousHead)}${tail}`;
+}
+
 /** Похоже ли значение на полную дату ДД.ММ.ГГГГ с валидными днём и месяцем. */
 export function isCompleteDate(value: string): boolean {
   const match = value.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);

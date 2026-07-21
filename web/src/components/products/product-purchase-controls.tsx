@@ -267,9 +267,12 @@ export function ProductPurchaseControls({
     );
   }
 
-  // Round-5 #4: «Открыть …» и «Картой» always share ONE row; on phones the
-  // primary label collapses to «Открыть за N баллов» so the pair fits without
-  // wrapping or an oversized button.
+  // Round-5 #4: на телефоне подпись основной кнопки схлопывается до
+  // «Открыть за N баллов», чтобы пара кнопок была компактнее.
+  // B554 (owner): держать пару в одной строке ЛЮБОЙ ценой было ошибкой — на
+  // 344px «Открыть за 3 балла» обрезалось на 57px. Базис ниже — это ширина, при
+  // которой подпись ещё помещается целиком; если вторая кнопка в остаток не
+  // влезает, она переносится на свою строку (см. .soft-purchase-row).
   const mobileCreditsLabel = hasCredits
     ? `Открыть за ${creditCost} ${pointsWord(creditCost as number)}`
     : label;
@@ -280,7 +283,7 @@ export function ProductPurchaseControls({
         {hasCredits && (
           <button
             type="button"
-            className={cn("soft-button soft-button-primary min-w-0 flex-1 justify-center", className)}
+            className={cn("soft-button soft-button-primary basis-[13.5rem] justify-center", className)}
             disabled={busy}
             onClick={payWithCredits}
             data-analytics-event="credits_spend_clicked"
@@ -298,7 +301,7 @@ export function ProductPurchaseControls({
         )}
         <button
           type="button"
-          className={cn(hasCredits ? "soft-button soft-button-ghost shrink-0" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
+          className={cn(hasCredits ? "soft-button soft-button-ghost" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
           disabled={busy}
           onClick={payWithCard}
           data-analytics-event="direct_product_checkout_clicked"

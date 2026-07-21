@@ -11,6 +11,7 @@ import { useSymbolicService, type SymbolicResult } from "@/components/products/u
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+import { maskLeadingDateInput } from "@/lib/date-input-mask";
 
 // B450: «Натальная карта» — самодостаточная услуга по паттерну Таро/reframe.
 // Контекст (данные рождения + сфера) собирается ВНУТРИ услуги; бесплатного
@@ -213,7 +214,10 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
         <input
           id="natal-birth-input"
           value={birth}
-          onChange={(e) => setBirth(e.target.value.slice(0, 400))}
+          // B554 п.23: поле составное («12.04.1992, 14:35, Москва»), поэтому
+          // автоформат применяется только к ведущей дате — время и город маска
+          // не трогает.
+          onChange={(e) => setBirth(maskLeadingDateInput(e.target.value.slice(0, 400), birth))}
           placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}

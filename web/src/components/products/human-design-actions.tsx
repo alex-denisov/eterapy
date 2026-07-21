@@ -11,6 +11,7 @@ import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { personalizeHumanDesignResultHeadings } from "@/lib/human-design-result";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+import { maskLeadingDateInput } from "@/lib/date-input-mask";
 
 const HUMAN_DESIGN_BIRTH_EXAMPLES = [
   "15.05.1990, 10:30, Москва",
@@ -186,7 +187,8 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
         <input
           id="hd-birth-input"
           value={birth}
-          onChange={(e) => setBirth(e.target.value.slice(0, 400))}
+          // B554 п.23: составное поле — маска только на ведущую дату.
+          onChange={(e) => setBirth(maskLeadingDateInput(e.target.value.slice(0, 400), birth))}
           placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
