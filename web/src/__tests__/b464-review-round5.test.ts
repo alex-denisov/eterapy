@@ -51,16 +51,28 @@ describe("R13 item 3 — catalog chip strip auto-scrolls to the active chip", ()
   });
 });
 
-// ── #4 · «Открыть …» + «Картой» in one compact row ───────────────────────────
-describe("R13 item 4 — purchase controls one-row layout", () => {
-  it("uses the nowrap purchase row with a compact mobile label", () => {
+// ── #4 · «Открыть …» + «Картой» ──────────────────────────────────────────────
+// ⚠ ПЕРЕСМОТРЕНО в B554 (owner 2026-07-21). Раньше здесь фиксировалось
+// `flex-wrap: nowrap` + `min-w-0 flex-1` — «пара кнопок всегда в одной строке».
+// На вьюпорте 344px это давало ровно тот дефект, на который пожаловался
+// владелец: замер показал обрезку подписи «Открыть за 3 балла» на 57px.
+// Требование заменено: компактная подпись остаётся, но ширину строки текст
+// больше не оплачивает — если пара не помещается, «Картой» переносится вниз.
+describe("R13 item 4 → B554 — purchase controls never clip their label", () => {
+  it("keeps the compact mobile label and lets the pair wrap instead of truncating", () => {
     const controls = read("components/products/product-purchase-controls.tsx");
     expect(controls).toContain("soft-purchase-row");
     expect(controls).toContain("Открыть за ${creditCost}");
-    expect(controls).toContain("min-w-0 flex-1 justify-center");
+    // Базис вместо min-w-0: кнопка не сжимается ниже ширины своей подписи.
+    expect(controls).toContain("basis-[13.5rem]");
+    expect(controls).not.toContain("min-w-0 flex-1 justify-center");
+    // Проверяем ИМЕННО блок .soft-purchase-row: `nowrap` в файле встречается и
+    // в других правилах, к покупке отношения не имеющих.
     const css = read("app/v4-soft.css");
-    expect(css).toContain(".soft-purchase-row");
-    expect(css).toContain("flex-wrap: nowrap");
+    const rule = css.slice(css.indexOf(".soft-purchase-row {"));
+    const purchaseRowBlock = rule.slice(0, rule.indexOf("}") + 1);
+    expect(purchaseRowBlock).toContain("flex-wrap: wrap");
+    expect(purchaseRowBlock).not.toContain("flex-wrap: nowrap");
   });
 });
 

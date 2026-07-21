@@ -87,6 +87,16 @@ function request(body: unknown) {
 }
 
 describe("B424 payment policy", () => {
+  // These cases assert the legacy YooKassa rail specifically, so they pin the
+  // provider flag rather than following the deployment default (B423).
+  const previousProvider = process.env.PAYMENT_PROVIDER;
+  beforeAll(() => {
+    process.env.PAYMENT_PROVIDER = "yookassa";
+  });
+  afterAll(() => {
+    process.env.PAYMENT_PROVIDER = previousProvider;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth.mockResolvedValue({

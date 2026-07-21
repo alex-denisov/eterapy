@@ -171,10 +171,21 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
     return parts.length ? parts.join("\n") : undefined;
   }
 
+  // B554 п.25: описание ситуации проверяется ДО оплаты. Раньше проверка жила
+  // только внутри generateReport(), т.е. срабатывала уже ПОСЛЕ списания баллов —
+  // человек платил за пустую форму и лишь потом читал «опишите подробнее».
+  function missingInput(): string | null {
+    if (sourceText.trim().length < 10) {
+      return "Опишите ситуацию подробнее — для глубокого разбора важны детали.";
+    }
+    return null;
+  }
+
   async function generateReport() {
     if (!isAuthenticated) return redirectToLogin();
-    if (sourceText.trim().length < 10) {
-      setMessage("Опишите ситуацию подробнее — для глубокого разбора важны детали.");
+    const warning = missingInput();
+    if (warning) {
+      setMessage(warning);
       setStatus("error");
       return;
     }
@@ -379,6 +390,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
               label="Открыть подробный разбор"
               checkoutSource="deep-report-generate"
               creditCost={3}
+              beforePay={missingInput}
               onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
             />
           )}

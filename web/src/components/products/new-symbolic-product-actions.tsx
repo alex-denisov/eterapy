@@ -14,6 +14,7 @@ import type { TarotCard } from "@/lib/tarot-deck";
 import type { TarotBirthCode } from "@/lib/tarot-birth-code";
 import type { RussianLocality } from "@/lib/russian-localities";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+import { maskDateInput } from "@/lib/date-input-mask";
 
 function metadataValue<T>(result: SymbolicResult | null, key: string): T | null {
   const metadata = result?.metadata;
@@ -177,7 +178,7 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
       <div className="product-controls">
         <OptionScrollStrip ariaLabel="Фокус Арканов рождения" label="что раскрыть подробнее" hint="Фокус меняет интерпретацию, но не расчёт арканов.">{TAROT_NUM_FOCUS.map((item) => <OptionChoice key={item} active={focus === item} disabled={status === "loading"} onClick={() => setFocus(item)}>{item}</OptionChoice>)}</OptionScrollStrip>
         <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-name">имя</label><input id="tarot-num-name" value={name} onChange={(event) => setName(event.target.value.slice(0, 120))} placeholder={namePlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} />
-        <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-birth">дата рождения</label><input id="tarot-num-birth" value={birth} onChange={(event) => setBirth(event.target.value.slice(0, 10))} placeholder={birthPlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} />
+        <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-birth">дата рождения</label><input id="tarot-num-birth" value={birth} inputMode="numeric" onChange={(event) => setBirth(maskDateInput(event.target.value.slice(0, 10), birth))} placeholder={birthPlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} />
         <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-question">ваш вопрос, необязательно</label><textarea id="tarot-num-question" value={question} onChange={(event) => setQuestion(event.target.value.slice(0, 600))} placeholder={questionPlaceholder} className="soft-question-input product-question-input min-h-24" disabled={status === "loading"} />
         <div className="product-action-row">{hasEntitlement ? <Button onClick={submit} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="tarot-numerology-start">{status === "loading" ? "Рассчитываем карты…" : "Узнать свои арканы"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="tarot-numerology" label="Узнать свои арканы" checkoutSource="tarot-numerology-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (name.trim() && birth.trim()) submit(); }} />}</div>
       </div>

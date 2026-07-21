@@ -32,7 +32,9 @@ const HUB_ROWS: Array<{ href: string; Icon: Icon; title: string; subtitle: strin
 
 const SETTINGS_ROWS: Array<{ href: string; Icon: Icon; title: string; subtitle: string }> = [
   { href: "/miniapp/profile/about", Icon: IdentificationCard, title: "О себе", subtitle: "Дата рождения, цели и темы" },
-  { href: "/miniapp/profile/security", Icon: Lock, title: "Безопасность", subtitle: "Email, пароль и связанные приложения" },
+  // owner B554: «Email, пароль и связанные приложения» не помещалось в строку
+  // (обрезка 8px). Подпись наша, поэтому короче — смысл тот же.
+  { href: "/miniapp/profile/security", Icon: Lock, title: "Безопасность", subtitle: "Email, пароль и вход" },
   { href: "/miniapp/profile/notifications", Icon: Bell, title: "Уведомления", subtitle: "Telegram и напоминания" },
   { href: "/miniapp/profile/data", Icon: ShieldCheck, title: "Данные и удаление", subtitle: "Экспорт и управление аккаунтом" },
 ];

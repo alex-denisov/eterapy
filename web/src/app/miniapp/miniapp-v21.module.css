@@ -127,13 +127,20 @@
 .topbar-utilities {
   display: flex;
   align-items: center;
-  gap: 1px;
+  /* Зазор задаётся ТОЛЬКО горизонтальным padding кнопок (см. ниже), иначе
+     разная ширина кнопок даёт разное визуальное расстояние между чипами. */
+  gap: 0;
 }
 
 .points-button,
 .utility-button {
   height: 44px;
-  padding: 0;
+  /* owner: «кнопки баланса, подписки и помощи на разном удалении друг от друга
+     и очень далеко». Ширины были фиксированные и РАЗНЫЕ (61px под чип 55px и
+     44px под чип 31px), поэтому центрирование давало зазоры 11.5px и 16px.
+     Ширину задаёт содержимое, зазор — одинаковый padding: везде ровно 8px. */
+  width: auto;
+  padding: 0 4px;
   border: 0;
   background: transparent;
   color: var(--muted-strong);
@@ -144,7 +151,6 @@
 }
 
 .points-button {
-  width: 61px;
   color: #ffab96;
 }
 
@@ -178,19 +184,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* owner: «когда не залогинен — иконка есть, когда залогинен — иконки нет».
+   Монета и бейдж «+» — обычные flex-элементы, и при четырёхзначном балансе
+   (6994) флекс отжимал их до нуля: замер показал ширину иконки 0px, а «+»
+   вылезал за чип на 2.2px. Оба не сжимаются. */
+.points-face > svg,
+.points-face .utility-plus {
+  flex: 0 0 auto;
+}
+
 .utility-plus {
   width: 16px;
   height: 16px;
-  margin-left: auto;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: rgba(255, 101, 72, 0.16);
   color: var(--coral);
-}
-
-.utility-button {
-  width: 44px;
 }
 
 .subscription-button {
@@ -1323,8 +1333,78 @@
 .dialogue-row {
   border-radius: 16px;
   overflow: hidden;
+  /* B554 п.26: якорь для кнопки удаления, лежащей поверх строки. */
+  position: relative;
   background: var(--surface);
   box-shadow: inset 0 1px 0 rgba(247, 244, 237, 0.045), 0 20px 45px rgba(1, 5, 10, 0.16);
+}
+
+/* B554 п.26: удаление вопроса. Стрелка «открыть» стоит в правом ВЕРХНЕМ углу
+   (`align-items: start`), поэтому корзина живёт в правом нижнем — они не
+   пересекаются. Место под неё резервирует отступ у строки-меты, иначе длинный
+   заголовок заезжал бы под кнопку (тот же дефект, что чинили в Дневнике). */
+.dialogue-delete {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(247, 244, 237, 0.05);
+  color: #8995a7;
+  cursor: pointer;
+}
+
+.dialogue-copy small {
+  padding-right: 46px;
+}
+
+.dialogue-confirm {
+  padding: 11px 12px;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  background: rgba(8, 17, 28, 0.96);
+}
+
+.dialogue-confirm > span {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.dialogue-confirm > div {
+  display: flex;
+  gap: 8px;
+}
+
+.dialogue-confirm button {
+  min-height: 38px;
+  flex: 1 1 auto;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dialogue-confirm button.is-danger {
+  border-color: rgba(255, 101, 72, 0.4);
+  color: #ffc6ba;
+  background: rgba(255, 101, 72, 0.14);
+}
+
+.dialogue-confirm button[disabled] {
+  opacity: 0.6;
 }
 
 .dialogue-main {
@@ -2061,9 +2141,15 @@
 }
 
 .streak-ring small {
-  margin-top: 3px;
+  /* owner: «расстояние между "1" и "дней" можно сократить, сделать ближе к
+     центру». Разводил не только margin: у `small` оставалась унаследованная
+     line-height ~1.45, т.е. ещё ~3px пустоты сверху и снизу самой подписи.
+     Кегль трогать НЕЛЬЗЯ — 10px запрещены отдельной проверкой из round 2
+     («нечитаемый низ шкалы»), поэтому сжимаем только интерлиньяж и отступ. */
+  margin-top: 1px;
   color: var(--lime);
   font-size: 11px;
+  line-height: 1;
 }
 
 .practice-form {
@@ -2533,10 +2619,15 @@
 }
 
 .diary-item-main strong {
+  /* owner B554: «Символический расклад Таро» обрезалось на 46px. Заголовок —
+     это название услуги, т.е. данные: подогнать копирайтом нельзя. Две строки
+     вместо многоточия. */
+  display: -webkit-box;
   overflow: hidden;
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .diary-item-main > svg {
@@ -3823,7 +3914,10 @@
 
 .practitioner-card small { color: var(--coral); font-size: 11px; font-weight: 800; letter-spacing: .09em; }
 .practitioner-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-.practitioner-card em { overflow: hidden; color: var(--muted-strong); font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+/* owner B554: «Клинический психолог, КПТ-терапевт» обрезалось на 12px.
+   Специализация приходит из профиля специалиста и нужна ДО записи — две
+   строки вместо многоточия. */
+.practitioner-card em { display: -webkit-box; overflow: hidden; color: var(--muted-strong); font-size: 12px; font-style: normal; line-height: 1.3; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .practitioner-card span span { margin-top: 3px; color: var(--muted); font-size: 12px; }
 .practitioner-card > svg { color: #718097; }
 
@@ -4257,9 +4351,14 @@
 .product-native-head {
   min-height: 62px;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  /* owner B554: стоимость больше НЕ третья колонка рядом с заголовком. В виде
+     вертикальной плашки она либо съедала ширину заголовка, либо (на узком
+     экране) уезжала на свою строку как блок 94×56px с 172px пустоты справа.
+     Теперь это компактная строка во всю ширину под заголовком — ниже по высоте
+     и, главное, без обрезки подписи «· в Premium входит» (резалось 89px). */
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
 .product-native-head > a {
@@ -4300,19 +4399,23 @@
   white-space: nowrap;
 }
 
+/* Рамка и подложка убраны намеренно: именно они делали стоимость «плашкой».
+   Строка без короба занимает ~17px вместо 56px, и цена всё равно читается —
+   она выделена цветом и весом, а также продублирована на кнопке действия. */
 .product-native-price {
-  max-width: 94px;
-  padding: 8px 9px;
-  display: grid;
-  justify-items: end;
-  gap: 2px;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: rgba(12, 25, 41, .74);
+  grid-column: 2;
+  justify-self: stretch;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 0;
+  background: none;
+  line-height: 1.25;
 }
 
-.product-native-price strong { color: #ffd0c5; font-size: 13px; white-space: nowrap; }
-.product-native-price span { overflow: hidden; max-width: 76px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.product-native-price strong { color: #ffd0c5; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }
+.product-native-price span { min-width: 0; color: var(--muted); font-size: 11px; }
 
 .product-native-trust,
 .product-native-footnote {
@@ -4490,7 +4593,6 @@
 
 @media (max-width: 350px) {
   .product-native-head { grid-template-columns: 34px minmax(0, 1fr); }
-  .product-native-price { grid-column: 2; justify-self: start; margin-top: -6px; }
 }
 
 /* B545 — the production dialogue state machine rendered as a first-class
@@ -4774,7 +4876,14 @@
 }
 
 .points-face {
-  width: 53px;
+  /* Здесь стояло `width: 53px` и оно ОТМЕНЯЛО базовое `width: auto` ровно на
+     тех вьюпортах, где чип и так теснее всего — из-за этого «+» снова вылезал
+     за границу. Узкий экран задаёт только нижнюю границу ширины.
+     `width: auto` повторяем ЗДЕСЬ намеренно: у чипа два класса, и соседнее
+     правило `.utility-face { width: 29px }` в этом же медиа-блоке стоит выше
+     по исходнику, поэтому перебивает базовое `.points-face { width: auto }`. */
+  width: auto;
+  min-width: 53px;
 }
 
 .bottom-nav {

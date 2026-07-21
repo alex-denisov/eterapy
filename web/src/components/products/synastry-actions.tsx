@@ -12,6 +12,7 @@ import { redirectToLogin, readingIdFromUrl, type SymbolicResult } from "@/compon
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+import { maskLeadingDateInput } from "@/lib/date-input-mask";
 
 // B451: «Совместимость по звёздам» — самодостаточная парная услуга по паттерну
 // Таро/reframe (свой роут /api/products/synastry, двое участников). Колесо пары
@@ -320,7 +321,8 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
             <input
               id="synastry-user-birth"
               value={userBirth}
-              onChange={(e) => setUserBirth(e.target.value.slice(0, 400))}
+              // B554 п.23: составное поле — маска только на ведущую дату.
+              onChange={(e) => setUserBirth(maskLeadingDateInput(e.target.value.slice(0, 400), userBirth))}
               placeholder={userBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
@@ -332,7 +334,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
             <input
               id="synastry-partner-birth"
               value={partnerBirth}
-              onChange={(e) => setPartnerBirth(e.target.value.slice(0, 400))}
+              onChange={(e) => setPartnerBirth(maskLeadingDateInput(e.target.value.slice(0, 400), partnerBirth))}
               placeholder={partnerBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}

@@ -451,6 +451,11 @@ export function CompatibilityActions({
                   label="Открыть полную карту"
                   checkoutSource="compatibility-generate"
                   creditCost={3}
+                  // B554 п.25: у совместимости «пустой формы» быть не может —
+                  // кнопка живёт только в ветке PARTNER_COMPLETED, где ответы
+                  // обеих сторон уже есть. Guard страхует от оплаты сессии,
+                  // которая успела пропасть между рендером и нажатием.
+                  beforePay={() => (result?.id ? null : "Сессия разбора не найдена. Обновите страницу и попробуйте ещё раз.")}
                   onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
                 />
               </div>
