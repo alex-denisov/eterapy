@@ -16,18 +16,26 @@ describe("B562 — провайдер выплат выбирается, а не
     else process.env.PAYMENT_PROVIDER = saved;
   });
 
-  it("по умолчанию — прежний ЮKassa-путь, поведение не изменилось", async () => {
+  // ТРЕБОВАНИЕ ИЗМЕНЕНО 2026-07-22 (B570): владелец отключил ЮKassu навсегда,
+  // и `activePaymentProvider()` теперь всегда `robokassa`. Значит выплата
+  // по умолчанию выбирает Robokassa — то есть падает ЗАКРЫТО.
+  //
+  // ⚠ СЛЕДСТВИЕ ДЛЯ ЭКСПЛУАТАЦИИ: авто-выплат специалистам больше нет, админ
+  // проводит их вручную, пока не подключён API выплат Robokassa (B562 шаг 2).
+  // Потери функции при этом нет: ЮKassa мерчантом не подключалась, её выплаты
+  // на проде тоже никогда не проходили.
+  it("по умолчанию выбирается Robokassa — то есть авто-выплата закрыта", async () => {
     delete process.env.PAYMENT_PROVIDER;
     const provider = await resolvePayoutProvider();
+    expect(provider.name).toBe("robokassa");
+    expect(provider.supportsAutoPayout({ type: "CARD", accountNumber: "5555444433332222" })).toBe(false);
+  });
+
+  it("ЮKassa-путь достижим только явным аргументом — на случай разбора старых выплат", async () => {
+    const provider = await resolvePayoutProvider("yookassa");
     expect(provider.name).toBe("yookassa");
     expect(provider.supportsAutoPayout({ type: "CARD", accountNumber: "5555444433332222" })).toBe(true);
     expect(provider.supportsAutoPayout({ type: "SBP", accountNumber: "+79990001122" })).toBe(false);
-    expect(provider.supportsAutoPayout({ type: "ENTITY", accountNumber: "40702810" })).toBe(false);
-  });
-
-  it("при PAYMENT_PROVIDER=robokassa выбирается Robokassa", async () => {
-    process.env.PAYMENT_PROVIDER = "robokassa";
-    expect((await resolvePayoutProvider()).name).toBe("robokassa");
   });
 
   it("Robokassa не берётся за авто-выплату ни по каким реквизитам", () => {

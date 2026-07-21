@@ -51,4 +51,47 @@ describe("B541 · инвентарь флота ↔ deploy.yml", () => {
     );
     expect(nodes.map((n) => n.name)).toEqual(matrix.map((vm) => vm.slug));
   });
+
+  // B569: панель мониторинга на проде была пуста, потому что FLEET_NODES никто
+  // не выставил — значение полагалось вписать в /opt/eterapy/.env руками, а
+  // владелец .env руками не правит. Роль и контур переезжают в матрицу, чтобы
+  // инвентарь имел ОДИН источник истины и уезжал на ноды выкаткой.
+  it("каждая нода объявляет роль и контур", () => {
+    for (const vm of matrix) {
+      expect(["primary", "standby", "edge"]).toContain(vm.role);
+      expect(["ru", "foreign"]).toContain(vm.contour);
+    }
+  });
+
+  it("ровно одна нода — primary", () => {
+    expect(matrix.filter((vm) => vm.role === "primary")).toHaveLength(1);
+  });
+
+  // Ровно та проекция, которую deploy.yml кладёт в FLEET_NODES. `name` — это
+  // slug, а не человекочитаемое имя матрицы: панель редеплоя ходит по слагам.
+  it("проекция матрицы в FLEET_NODES разбирается панелью без потерь", () => {
+    const nodes = parseFleetNodes(
+      JSON.stringify(
+        matrix.map((vm) => ({
+          name: vm.slug,
+          host: vm.host,
+          role: vm.role,
+          contour: vm.contour,
+        })),
+      ),
+    );
+    expect(nodes).toHaveLength(matrix.length);
+    expect(nodes.map((n) => n.name)).toEqual(matrix.map((vm) => vm.slug));
+    expect(nodes.map((n) => n.role)).toEqual(matrix.map((vm) => vm.role));
+    expect(nodes.map((n) => n.contour)).toEqual(matrix.map((vm) => vm.contour));
+  });
+
+  it("deploy.yml собирает FLEET_NODES из матрицы и доставляет ключи Cloudflare", () => {
+    expect(workflow).toContain("FLEET_NODES");
+    expect(workflow).toContain("CLOUDFLARE_ACCOUNT_ID");
+    expect(workflow).toContain("CLOUDFLARE_API_TOKEN");
+    // Инвентарь строится из файла, а не из выборки нод: панель показывает весь
+    // флот, даже когда выкатывают одну ноду.
+    expect(workflow).toMatch(/FLEET_NODES=\$\(jq -c[\s\S]*?deploy\/fleet-matrix\.json\)/);
+  });
 });

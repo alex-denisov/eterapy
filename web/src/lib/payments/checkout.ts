@@ -71,7 +71,9 @@ export async function createCheckout({
   const policyMetadata = withPaymentPolicyMetadata(purchase.metadata);
 
   if (provider === "robokassa") {
-    const config = robokassaConfig();
+    // Почта решает, боевая касса или тестовая (B570). Берётся из сессии
+    // вызывающим кодом, а не из формы, — подставить чужую нельзя.
+    const config = robokassaConfig({ payerEmail: userEmail });
 
     const transaction = await db.transaction.create({
       data: {

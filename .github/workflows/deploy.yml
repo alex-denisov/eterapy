@@ -179,6 +179,9 @@ jobs:
           ROBOKASSA_HASH_ALGORITHM: ${{ secrets.ROBOKASSA_HASH_ALGORITHM }}
           ROBOKASSA_IS_TEST: ${{ secrets.ROBOKASSA_IS_TEST }}
           PAYMENT_PROVIDER: ${{ secrets.PAYMENT_PROVIDER }}
+          # B569: ключи Cloudflare для панели мониторинга флота.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -244,7 +247,8 @@ jobs:
           # символы, которые shell и sed истолкуют по-своему.
           for key in ROBOKASSA_MERCHANT_LOGIN ROBOKASSA_PASSWORD_1 ROBOKASSA_PASSWORD_2 \
                      ROBOKASSA_TEST_PASSWORD_1 ROBOKASSA_TEST_PASSWORD_2 \
-                     ROBOKASSA_HASH_ALGORITHM ROBOKASSA_IS_TEST PAYMENT_PROVIDER; do
+                     ROBOKASSA_HASH_ALGORITHM ROBOKASSA_IS_TEST PAYMENT_PROVIDER \
+                     CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue
             printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \
@@ -252,6 +256,18 @@ jobs:
               && printf '$key=%s\n' \"\$v\" | sudo tee -a /opt/eterapy/.env >/dev/null"
             echo "▶ $key доставлен"
           done
+
+          # B569: инвентарь для панели мониторинга флота. Источник истины —
+          # deploy/fleet-matrix.json, тот же файл, из которого job `plan`
+          # набирает ноды для выкатки; расходиться им теперь нечем. Берём файл
+          # ЦЕЛИКОМ, а не выборку нод: панель показывает весь флот, даже когда
+          # катят одну ноду. `name` — это slug, потому что кнопка редеплоя в
+          # админке ходит по слагам.
+          FLEET_NODES=$(jq -c '[.[] | {name: .slug, host, role, contour}]' deploy/fleet-matrix.json)
+          printf '%s\n' "$FLEET_NODES" | $SSH "sudo sed -i '/^FLEET_NODES=/d' /opt/eterapy/.env \
+            && read -r v \
+            && printf 'FLEET_NODES=%s\n' \"\$v\" | sudo tee -a /opt/eterapy/.env >/dev/null"
+          echo "▶ FLEET_NODES доставлен ($(printf '%s' "$FLEET_NODES" | jq 'length') нод)"
 
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && { sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans; }; } \
