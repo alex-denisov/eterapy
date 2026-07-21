@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ChatCircleDots, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowRight, ChatCircleDots, MagnifyingGlass, Plus, Trash } from "@phosphor-icons/react";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { styles } from "@/components/miniapp/styles";
 
@@ -16,10 +16,39 @@ function messagesLabel(value: number) {
 export function DialoguesScreen() {
   const { data } = useMiniAppV21();
   const [query, setQuery] = useState("");
+  // B554 п.26: в вебе вопрос можно удалить (/cabinet/questions), в мини-аппе
+  // удаления не было нигде. Эндпоинт уже есть — DELETE /api/dialogues/[id],
+  // тот же мягкий delete (status DELETED + deletedAt), что и у веба.
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function remove(id: string) {
+    setDeleting(id);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/dialogues/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) {
+        setDeleteError(response.status === 401
+          ? "Сессия истекла. Войдите в аккаунт и попробуйте ещё раз."
+          : "Не удалось удалить вопрос. Попробуйте ещё раз.");
+        return;
+      }
+      setRemoved((current) => [...current, id]);
+      setConfirming(null);
+    } catch {
+      setDeleteError("Нет связи с сервером. Попробуйте ещё раз.");
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   const visible = useMemo(() => {
     const value = query.trim().toLocaleLowerCase("ru");
-    return value ? data.dialogues.filter((item) => item.title.toLocaleLowerCase("ru").includes(value)) : data.dialogues;
-  }, [data.dialogues, query]);
+    const list = data.dialogues.filter((item) => !removed.includes(item.id));
+    return value ? list.filter((item) => item.title.toLocaleLowerCase("ru").includes(value)) : list;
+  }, [data.dialogues, query, removed]);
   const focus = visible[0];
 
   return (
@@ -61,9 +90,32 @@ export function DialoguesScreen() {
                     </span>
                     <ArrowRight size={18} />
                   </Link>
+                  {/* Удаление — в два шага: случайное касание не должно стирать
+                      переписку, которую человек вёл несколько дней. */}
+                  {confirming === dialogue.id ? (
+                    <div className={styles["dialogue-confirm"]}>
+                      <span>Удалить вопрос? Восстановить не получится.</span>
+                      <div>
+                        <button type="button" onClick={() => setConfirming(null)} disabled={deleting === dialogue.id}>Отмена</button>
+                        <button type="button" className={styles["is-danger"]} onClick={() => void remove(dialogue.id)} disabled={deleting === dialogue.id}>
+                          {deleting === dialogue.id ? "Удаляем…" : "Удалить"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles["dialogue-delete"]}
+                      aria-label={`Удалить вопрос: ${dialogue.title}`}
+                      onClick={() => { setConfirming(dialogue.id); setDeleteError(null); }}
+                    >
+                      <Trash size={17} />
+                    </button>
+                  )}
                 </article>
               ))}
             </div>
+            {deleteError ? <p className={styles["form-error"]} role="alert">{deleteError}</p> : null}
             {visible.length === 0 ? <section className={styles["empty-state"]}><MagnifyingGlass size={30} /><h2>Ничего не найдено</h2><p>Попробуйте другой запрос.</p><button type="button" onClick={() => setQuery("")}>Сбросить поиск</button></section> : null}
           </>
         ) : (

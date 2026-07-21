@@ -9,13 +9,15 @@ function source(filePath: string) {
 
 describe("Z10 — credit wallet and credit packs", () => {
   it("creates credit-pack payments through the existing billing rail", () => {
-    const createPayment = source("src/app/api/billing/create-payment/route.ts");
+    // Checkout construction moved into the provider-agnostic layer (B423);
+    // the route now only orchestrates auth, velocity limits and telemetry.
+    const checkout = source("src/lib/payments/checkout.ts");
     const savedCard = source("src/app/api/billing/pay-with-saved-card/route.ts");
 
-    expect(createPayment).toContain("creditPackKey");
-    expect(createPayment).toContain("creditsAmount");
-    expect(createPayment).toContain('purchaseKind: purchase.metadata.purchaseKind');
-    expect(createPayment).toContain("buildBillingReturnUrl");
+    expect(checkout).toContain("creditPackKey");
+    expect(checkout).toContain("creditsAmount");
+    expect(checkout).toContain('purchaseKind: purchase.metadata.purchaseKind');
+    expect(checkout).toContain("buildBillingReturnUrl");
     expect(savedCard).toContain("creditPackKey");
     expect(savedCard).toContain("creditsAmount");
   });

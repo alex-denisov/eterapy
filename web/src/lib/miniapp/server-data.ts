@@ -14,6 +14,7 @@ import { canJoinBooking } from "@/lib/booking-actions";
 import { getBookingStatus } from "@/lib/booking-status";
 import type { MiniAppInitialData } from "@/lib/miniapp/types";
 import { toMiniAppPath } from "@/lib/miniapp/navigation";
+import { cardPaymentAvailable } from "@/lib/payments/config";
 
 type MiniAppViewer = {
   id?: string | null;
@@ -50,7 +51,8 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
     },
     dialogues: [], diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,
-    upcomingBookingLabel: null, streak: 0, completedWeekdays: [], loadError: false,
+    upcomingBookingLabel: null, streak: 0, completedWeekdays: [],
+    cardPaymentEnabled: cardPaymentAvailable(), loadError: false,
   };
 }
 

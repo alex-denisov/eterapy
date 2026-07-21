@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { pointsWord } from "@/lib/points";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
 import { toMiniAppPath } from "@/lib/miniapp/navigation";
+// Именно из `miniapp-context`, а не из шелла: шелл тянет CSS-модуль, который
+// ломает jest-прогон соседних продуктовых тестов.
+import { useMiniAppV21Optional } from "@/components/miniapp/miniapp-context";
 
 type ProductPurchaseControlsProps = {
   productKey: string;
@@ -65,6 +68,11 @@ export function ProductPurchaseControls({
   const search = searchParams.toString();
   const currentUrl = `${pathname}${search ? `?${search}` : ""}`;
   const inMiniApp = pathname.startsWith("/miniapp");
+  // B554 п.27 + B423: в мини-аппе кнопка не должна обещать оплату, которой ещё
+  // нет — иначе она уводит с заполненной формы в тупик «скоро». Флаг приходит с
+  // сервера вместе с остальными данными мини-аппа; в вебе контекста нет и
+  // карточный путь работает как раньше.
+  const miniAppCardReady = useMiniAppV21Optional()?.data.cardPaymentEnabled ?? false;
   const paymentStatus = searchParams.get("payment");
   const returnedProductKey = searchParams.get("productKey");
   const busy = status === "loading" || action !== "idle";
@@ -267,9 +275,12 @@ export function ProductPurchaseControls({
     );
   }
 
-  // Round-5 #4: «Открыть …» и «Картой» always share ONE row; on phones the
-  // primary label collapses to «Открыть за N баллов» so the pair fits without
-  // wrapping or an oversized button.
+  // Round-5 #4: на телефоне подпись основной кнопки схлопывается до
+  // «Открыть за N баллов», чтобы пара кнопок была компактнее.
+  // B554 (owner): держать пару в одной строке ЛЮБОЙ ценой было ошибкой — на
+  // 344px «Открыть за 3 балла» обрезалось на 57px. Базис ниже — это ширина, при
+  // которой подпись ещё помещается целиком; если вторая кнопка в остаток не
+  // влезает, она переносится на свою строку (см. .soft-purchase-row).
   const mobileCreditsLabel = hasCredits
     ? `Открыть за ${creditCost} ${pointsWord(creditCost as number)}`
     : label;
@@ -280,7 +291,7 @@ export function ProductPurchaseControls({
         {hasCredits && (
           <button
             type="button"
-            className={cn("soft-button soft-button-primary min-w-0 flex-1 justify-center", className)}
+            className={cn("soft-button soft-button-primary basis-[13.5rem] justify-center", className)}
             disabled={busy}
             onClick={payWithCredits}
             data-analytics-event="credits_spend_clicked"
@@ -298,7 +309,7 @@ export function ProductPurchaseControls({
         )}
         <button
           type="button"
-          className={cn(hasCredits ? "soft-button soft-button-ghost shrink-0" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
+          className={cn(hasCredits ? "soft-button soft-button-ghost" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
           disabled={busy}
           onClick={payWithCard}
           data-analytics-event="direct_product_checkout_clicked"
@@ -309,7 +320,7 @@ export function ProductPurchaseControls({
           {/* B554 п.27: в мини-аппе оплата картой ещё не подключена — экран
               проверки честно говорит «скоро». Кнопка на самой услуге обещала
               оплату, уводила с заполненной формы и упиралась в тупик. */}
-          {action === "card" ? "Открываем оплату" : inMiniApp ? "Картой — скоро" : hasCredits ? "Картой" : label}
+          {action === "card" ? "Открываем оплату" : inMiniApp && !miniAppCardReady ? "Картой — скоро" : hasCredits ? "Картой" : label}
         </button>
       </div>
       {messageBlock}

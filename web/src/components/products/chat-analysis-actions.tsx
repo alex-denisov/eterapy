@@ -1543,6 +1543,10 @@ export function ChatAnalysisActions() {
                   label="Открыть полный разбор"
                   checkoutSource="chat-analysis-generate"
                   creditCost={2}
+                  // B554 п.25: generateReport() молча выходит при отсутствии
+                  // result.id — без этого guard'а баллы списались бы, а разбор
+                  // не запустился бы вообще, без единого сообщения.
+                  beforePay={() => (result?.id ? null : "Сначала загрузите переписку — по ней собирается разбор.")}
                   onUnlocked={() => {
                     setHasEntitlement(true);
                     void generateReport();

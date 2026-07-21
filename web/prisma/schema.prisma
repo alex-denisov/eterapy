@@ -1833,8 +1833,12 @@ model Transaction {
   amount               Int // positive = top-up, negative = charge
   currency             String            @default("RUB")
   status               TransactionStatus @default(PENDING)
-  provider             String            @default("yookassa") // "yookassa", "internal", "manual"
-  providerPaymentId    String? // YooKassa payment ID
+  provider             String            @default("yookassa") // "robokassa", "yookassa", "internal", "manual"
+  providerPaymentId    String? // provider-side payment id (Robokassa: the InvId as text)
+  /// Robokassa `InvId`: a positive integer unique per shop. Allocated when the
+  /// transaction row is created, BEFORE the payment link is signed, so a retry
+  /// of the same checkout reuses it and Robokassa collapses the duplicate.
+  invoiceId            Int               @unique @default(autoincrement()) @map("invoice_id")
   description          String?
   paymentDeclineReason String?           @map("payment_decline_reason")
   offerVersion         String?           @map("offer_version")

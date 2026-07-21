@@ -158,7 +158,9 @@ export function ServicesScreen() {
 
         <div className={styles["service-shortcuts"]} aria-label="Быстрые входы платформы">
           <Link href="/miniapp/practitioners"><User size={17} /><span><strong>Специалисты</strong><small>Выбрать время</small></span><ArrowRight size={15} /></Link>
-          <Link href="/miniapp/library"><BookOpen size={17} /><span><strong>Библиотека</strong><small>Похожие вопросы</small></span><ArrowRight size={15} /></Link>
+          {/* owner B554: «Похожие вопросы» не помещалось в узкую карточку 2-в-ряд
+              (обрезка 7px). Подпись наша — короче на одно слово. */}
+          <Link href="/miniapp/library"><BookOpen size={17} /><span><strong>Библиотека</strong><small>Похожие темы</small></span><ArrowRight size={15} /></Link>
         </div>
 
         <div className={styles["catalog-groups"]}>

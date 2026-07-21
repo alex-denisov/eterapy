@@ -16,6 +16,7 @@ import {
   MINIAPP_LAUNCH_TTL_SECONDS,
 } from "@/lib/miniapp/telegram/launch-session";
 import { isSameOriginMiniAppRequest, readMiniAppInitData } from "@/lib/miniapp/telegram/request";
+import { stagingTelegramAccessDenied } from "@/lib/miniapp/staging-allowlist";
 import type { VerifiedTelegramLaunch } from "@/lib/miniapp/telegram/auth";
 
 function noStore(response: NextResponse) {
@@ -60,6 +61,18 @@ export async function POST(request: NextRequest) {
     const launch = verifyTelegramInitData(body.initData);
     const subjectLimit = checkAuthRateLimit(authRateLimitKey("miniapp:telegram:subject", launch.subjectId), 8, 5 * 60_000);
     if (!subjectLimit.allowed) return noStore(authRateLimitResponse(subjectLimit));
+
+    // B554 (owner: «скрой stage-бота из поиска»). Из поиска Telegram бота убрать
+    // нельзя — такой настройки не существует. Закрываем вход: на стенде, где
+    // задан список, посторонний не попадает в базу, почасово скопированную с
+    // прода. На проде переменная не задана и проверка не действует.
+    if (stagingTelegramAccessDenied(launch.subjectId)) {
+      log.warn("miniapp.telegram_auth_not_allowlisted", { subjectId: launch.subjectId });
+      return noStore(NextResponse.json({
+        error: "Это тестовый стенд ETerapy, вход только для команды. Рабочий бот — @eterapy_bot",
+        code: "NOT_ALLOWLISTED",
+      }, { status: 403 }));
+    }
 
     const linked = await findLinkedTelegramUser(launch);
     if (linked && (linked.user.blockedAt || linked.user.deletedAt || linked.user.role !== "CLIENT")) {
