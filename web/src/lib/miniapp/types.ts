@@ -21,6 +21,8 @@ export type MiniAppService = {
   description: string;
   price: string;
   priceMeta: string;
+  /** B556: что у услуги доступно до оплаты. Отдельной строкой, а не хвостом цены. */
+  freeNote?: string;
   creditCost: number | null;
   href: string;
   cta: string;
@@ -120,6 +122,12 @@ export type MiniAppInitialData = {
     email: string | null;
     hasPassword: boolean;
     telegramLinked: boolean;
+    /**
+     * B555: включён ли вообще вход через Telegram на этом стенде. Без этого
+     * признака экран предлагал привязку там, где сервер отвечает 404, и
+     * показывал отказ как ошибку клиента.
+     */
+    telegramLinkAvailable: boolean;
   };
   dialogues: MiniAppDialogue[];
   diaryItems: MiniAppDiaryItem[];

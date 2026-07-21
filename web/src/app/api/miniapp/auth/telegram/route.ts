@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     // нельзя — такой настройки не существует. Закрываем вход: на стенде, где
     // задан список, посторонний не попадает в базу, почасово скопированную с
     // прода. На проде переменная не задана и проверка не действует.
-    if (stagingTelegramAccessDenied(launch.subjectId)) {
+    if (stagingTelegramAccessDenied(launch.subjectId, launch.username)) {
       log.warn("miniapp.telegram_auth_not_allowlisted", { subjectId: launch.subjectId });
       return noStore(NextResponse.json({
         error: "Это тестовый стенд ETerapy, вход только для команды. Рабочий бот — @eterapy_bot",
