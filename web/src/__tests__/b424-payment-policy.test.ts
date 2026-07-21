@@ -72,6 +72,7 @@ import { POST as createPayment } from "@/app/api/billing/create-payment/route";
 import { applyPaymentResult } from "@/lib/billing-credit";
 import {
   RU_ONLY_PAYMENT_DECLINE_MESSAGE,
+  assertRubPaymentAmount,
   normalizePaymentDeclineReason,
   sanitizePaymentProviderPayload,
 } from "@/lib/billing-policy";
@@ -87,11 +88,28 @@ function request(body: unknown) {
 }
 
 describe("B424 payment policy", () => {
-  // These cases assert the legacy YooKassa rail specifically, so they pin the
-  // provider flag rather than following the deployment default (B423).
+  // B570: рельс один — Robokassa, и ей нужны креды, иначе checkout бросит.
+  // Пароли здесь БОЕВЫЕ по смыслу теста: почта пользователя не входит в
+  // ROBOKASSA_TEST_EMAILS, значит подписывать должно боевой парой.
   const previousProvider = process.env.PAYMENT_PROVIDER;
+  const previousRobokassa = {
+    login: process.env.ROBOKASSA_MERCHANT_LOGIN,
+    p1: process.env.ROBOKASSA_PASSWORD_1,
+    p2: process.env.ROBOKASSA_PASSWORD_2,
+    testEmails: process.env.ROBOKASSA_TEST_EMAILS,
+  };
   beforeAll(() => {
-    process.env.PAYMENT_PROVIDER = "yookassa";
+    process.env.ROBOKASSA_MERCHANT_LOGIN = "eterapy";
+    process.env.ROBOKASSA_PASSWORD_1 = "p1";
+    process.env.ROBOKASSA_PASSWORD_2 = "p2";
+    delete process.env.ROBOKASSA_TEST_EMAILS;
+    delete process.env.ROBOKASSA_IS_TEST;
+  });
+  afterAll(() => {
+    process.env.ROBOKASSA_MERCHANT_LOGIN = previousRobokassa.login;
+    process.env.ROBOKASSA_PASSWORD_1 = previousRobokassa.p1;
+    process.env.ROBOKASSA_PASSWORD_2 = previousRobokassa.p2;
+    process.env.ROBOKASSA_TEST_EMAILS = previousRobokassa.testEmails;
   });
   afterAll(() => {
     process.env.PAYMENT_PROVIDER = previousProvider;
@@ -110,35 +128,21 @@ describe("B424 payment policy", () => {
     mockDb.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(mockDb));
   });
 
+  // B570: рельс переведён на Robokassa целиком, ветки ЮKassa в checkout больше
+  // нет. Сама политика (рубли + версии документов на транзакции) никуда не
+  // делась, поэтому проверки переехали на живой путь, а не удалены.
   it("binds checkout transactions to document versions and RUB-only provider metadata", async () => {
-    yk.yukassaFetch.mockResolvedValueOnce({
-      id: "pay-1",
-      status: "pending",
-      paid: false,
-      amount: { value: "299.00", currency: "RUB" },
-      confirmation: { confirmation_url: "https://yookassa.example/pay-1" },
-    });
+    mockDb.transaction.create.mockResolvedValueOnce({ id: "tx-1", invoiceId: 4242 });
 
     const response = await createPayment(request({ productKey: "reframe", checkoutSource: "test" }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.confirmationUrl).toBe("https://yookassa.example/pay-1");
-    expect(yk.yukassaFetch).toHaveBeenCalledWith("/payments", expect.objectContaining({
-      body: expect.objectContaining({
-        amount: { value: "299.00", currency: "RUB" },
-        metadata: expect.objectContaining({
-          currency: "RUB",
-          ruOnlyPaymentPolicy: "true",
-          offerVersion: docVersions.offerVersion,
-          termsVersion: docVersions.termsVersion,
-          consentVersion: docVersions.consentVersion,
-        }),
-      }),
-    }));
+    expect(body.confirmationUrl).toContain("robokassa");
     expect(mockDb.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         currency: "RUB",
+        provider: "robokassa",
         offerVersion: docVersions.offerVersion,
         termsVersion: docVersions.termsVersion,
         consentVersion: docVersions.consentVersion,
@@ -150,21 +154,15 @@ describe("B424 payment policy", () => {
     }));
   });
 
-  it("rejects non-RUB provider responses before persisting a transaction", async () => {
-    yk.yukassaFetch.mockResolvedValueOnce({
-      id: "pay-usd",
-      status: "pending",
-      paid: false,
-      amount: { value: "3.00", currency: "USD" },
-      confirmation: { confirmation_url: "https://yookassa.example/pay-usd" },
-    });
-
-    const response = await createPayment(request({ productKey: "reframe" }));
-    const body = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(body.error).toBe("Оплата доступна только в рублях.");
-    expect(mockDb.transaction.create).not.toHaveBeenCalled();
+  // На пути Robokassa валидировать «ответ провайдера» нечего: ссылка на оплату
+  // собирается нами, сумма уходит в рублях по построению. Гарантия стала
+  // структурной, но сам страж остаётся живым кодом — его вызывает сверка, — и
+  // проверяется здесь напрямую.
+  it("rejects non-RUB amounts at the policy guard", () => {
+    expect(() => assertRubPaymentAmount({ amount: { value: "3.00", currency: "USD" } })).toThrow(
+      /Unsupported payment currency: USD/,
+    );
+    expect(() => assertRubPaymentAmount({ amount: { value: "299.00", currency: "RUB" } })).not.toThrow();
   });
 
   it("normalizes foreign-card cancellation and stores a durable decline reason", async () => {

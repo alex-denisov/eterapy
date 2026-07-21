@@ -22,19 +22,20 @@ describe("B423 provider flag", () => {
     process.env.PAYMENT_PROVIDER = previous;
   });
 
-  it("stays on the incumbent unless switched explicitly", () => {
-    // A deploy must never move live payments onto a rail whose credentials may
-    // not be on the server yet.
+  // ТРЕБОВАНИЕ ОТМЕНЕНО владельцем 2026-07-22: «отключай Юкассу навсегда»
+  // (B570). Здесь стояло «stays on the incumbent unless switched explicitly» —
+  // страховка на время, пока кредов Robokassa не было на сервере. Креды
+  // приехали выкаткой, и осторожность превратилась в свою противоположность:
+  // пустая переменная возвращала бы платежи в песочницу ЮKassa, мерчантом
+  // которой ETerapy никогда не была.
+  it("рельс — Robokassa при любом значении переменной", () => {
     delete process.env.PAYMENT_PROVIDER;
-    expect(activePaymentProvider()).toBe("yookassa");
+    expect(activePaymentProvider()).toBe("robokassa");
     process.env.PAYMENT_PROVIDER = "";
-    expect(activePaymentProvider()).toBe("yookassa");
+    expect(activePaymentProvider()).toBe("robokassa");
     process.env.PAYMENT_PROVIDER = "nonsense";
-    expect(activePaymentProvider()).toBe("yookassa");
-  });
-
-  it("switches on the documented value, case- and space-insensitively", () => {
-    process.env.PAYMENT_PROVIDER = " Robokassa ";
+    expect(activePaymentProvider()).toBe("robokassa");
+    process.env.PAYMENT_PROVIDER = "yookassa";
     expect(activePaymentProvider()).toBe("robokassa");
   });
 
