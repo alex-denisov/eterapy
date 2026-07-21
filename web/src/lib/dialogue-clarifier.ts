@@ -171,6 +171,41 @@ function comparableTurn(value: string) {
     .trim();
 }
 
+// B554 (owner round 3): даже YandexGPT Pro устойчиво возвращает «отражение»,
+// которое является пересказом реплики пользователя с заменой лица («Я всё время
+// откладываю» → «Вы всё время откладываете»), и вопрос-допрос («Что вас
+// останавливает?»). Промт это запрещает, но соблюдение инструкций у модели
+// нестабильно, поэтому проверяем детерминированно и уходим в существующий
+// retry — так же, как с дубликатами ходов.
+// `\b` в JS опирается на ASCII-класс \w, поэтому после кириллицы границы слова
+// не существует — везде явный просмотр вперёд.
+const INTERROGATION_PATTERNS = [
+  /^\s*почему(?=\s|$)/iu,
+  /^\s*зачем(?=\s|$)/iu,
+  /что\s+вас\s+(останавливает|беспокоит|тревожит|смущает|пугает)/iu,
+  /что\s+именно\s+(вызывает|мешает|останавливает)/iu,
+  /в\s+ч[её]м\s+причина/iu,
+  /почему\s+(вы|это|так)(?=\s|$|[?,.])/iu,
+];
+
+export function isInterrogationQuestion(question: string): boolean {
+  return INTERROGATION_PATTERNS.some((pattern) => pattern.test(question));
+}
+
+/** Доля слов ответа пользователя, дословно перенесённых в реплику ассистента. */
+export function echoRatio(assistantTurn: string, userAnswer: string): number {
+  const words = (value: string) => comparableTurn(value)
+    .split(" ")
+    .filter((word) => word.length > 3);
+  const userWords = words(userAnswer);
+  if (userWords.length < 4) return 0;
+  const assistantWords = new Set(words(assistantTurn));
+  const shared = userWords.filter((word) => assistantWords.has(word)).length;
+  return shared / userWords.length;
+}
+
+const ECHO_REJECT_RATIO = 0.7;
+
 function isDuplicateAssistantTurn(
   candidate: string,
   previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
@@ -270,7 +305,7 @@ function buildSystemPrompt(input: {
     : "Это начало диалога: нужно коротко отозваться на сказанное и задать один уточняющий вопрос. Сигнал ready запрещён.";
 
   const retryHint = input.retry
-    ? "Предыдущий ответ был отвергнут как невалидный или дублирующий. Сформулируй заново, опираясь на конкретные слова из последнего ответа пользователя."
+    ? "Предыдущий ответ отвергнут: он либо пересказывал реплику пользователя своими же словами с заменой лица, либо задавал вопрос-допрос («что вас останавливает», «почему»). Сформулируй заново: в m назови СВОЁ наблюдение о сказанном (что за этим стоит, с чем это связано), в q спроси про конкретное и наблюдаемое."
     : "";
 
   return [
@@ -363,6 +398,23 @@ async function attemptLlmTurn(input: {
       retry: input.retry,
     });
     return null;
+  }
+
+  if (parsed.type === "question" && parsed.question) {
+    const lastAnswer = input.previousPairs.at(-1)?.answer ?? input.originalQuestion;
+    const echoed = echoRatio(parsed.question, lastAnswer) >= ECHO_REJECT_RATIO;
+    const interrogation = isInterrogationQuestion(parsed.question);
+    if (echoed || interrogation) {
+      log.warn("dialogue-clarifier-low-quality-turn", {
+        requestId: input.requestId,
+        reason: echoed ? "echo" : "interrogation",
+        previousPairCount: input.previousPairs.length,
+        provider: response.provider,
+        model: response.model,
+        retry: input.retry,
+      });
+      return null;
+    }
   }
 
   if (parsed.type === "question" && parsed.question && isDuplicateAssistantTurn(parsed.question, input.previousPairs)) {
