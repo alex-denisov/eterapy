@@ -65,12 +65,22 @@ describe("B352 — sendPractitionerPayout", () => {
 });
 
 describe("B352 — wiring", () => {
-  it("the payout route sends a real ЮKassa payout by реквизиты", () => {
+  // B562: требование прежнее — маршрут ДЕЙСТВИТЕЛЬНО отправляет выплату по
+  // реквизитам, а не просто заводит запись. Изменилось только то, что
+  // провайдер выбирается, а не импортируется поимённо.
+  it("the payout route sends a real payout by реквизиты through the provider", () => {
     const route = source("src/app/api/admin/practitioners/[id]/payout/route.ts");
-    expect(route).toContain("payoutDestinationFromDetails");
-    expect(route).toContain("sendPractitionerPayout");
+    expect(route).toContain("resolvePayoutProvider");
+    expect(route).toContain("supportsAutoPayout");
+    expect(route).toContain("payoutProvider.send");
     expect(route).toContain("payoutDetails.findUnique");
     expect(route).toContain("не указаны платёжные реквизиты");
+  });
+
+  it("отказ по реквизитам приходит ДО создания записи Payout", () => {
+    // Иначе в базе оставалась бы висеть выплата, которую никто не отправлял.
+    const route = source("src/app/api/admin/practitioners/[id]/payout/route.ts");
+    expect(route.indexOf("supportsAutoPayout")).toBeLessThan(route.indexOf("db.payout.create"));
   });
 
   it("the admin panel calls the payout endpoint (no placeholder) for single + bulk", () => {

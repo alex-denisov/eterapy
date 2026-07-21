@@ -6,9 +6,11 @@ import { MiniAppShell } from "@/components/miniapp/miniapp-shell";
 
 export const dynamic = "force-dynamic";
 
+// B533: имя утверждено владельцем 2026-07-22. «Mini App» — это название
+// технологии, а не полки: человеку оно не говорит, что внутри.
 export const metadata: Metadata = {
-  title: "ETerapy Mini App",
-  description: "Клиентский Mini App ETerapy",
+  title: "ETerapy · Разбор",
+  description: "Вопрос своими словами → короткий диалог → разбор: что происходит и какой шаг безопасен.",
   robots: noIndexRobots,
 };
 

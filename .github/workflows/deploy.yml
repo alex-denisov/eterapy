@@ -167,6 +167,18 @@ jobs:
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Ship image + converge stack
+        env:
+          # B423: пока эти секреты не заведены, шаг доставки их пропускает и
+          # рельс остаётся выключенным — `cardPaymentAvailable()` = false,
+          # интерфейс честно говорит «скоро». Порядок включения — в тикете B423.
+          ROBOKASSA_MERCHANT_LOGIN: ${{ secrets.ROBOKASSA_MERCHANT_LOGIN }}
+          ROBOKASSA_PASSWORD_1: ${{ secrets.ROBOKASSA_PASSWORD_1 }}
+          ROBOKASSA_PASSWORD_2: ${{ secrets.ROBOKASSA_PASSWORD_2 }}
+          ROBOKASSA_TEST_PASSWORD_1: ${{ secrets.ROBOKASSA_TEST_PASSWORD_1 }}
+          ROBOKASSA_TEST_PASSWORD_2: ${{ secrets.ROBOKASSA_TEST_PASSWORD_2 }}
+          ROBOKASSA_HASH_ALGORITHM: ${{ secrets.ROBOKASSA_HASH_ALGORITHM }}
+          ROBOKASSA_IS_TEST: ${{ secrets.ROBOKASSA_IS_TEST }}
+          PAYMENT_PROVIDER: ${{ secrets.PAYMENT_PROVIDER }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -223,6 +235,24 @@ jobs:
               && sudo sed -i 's#^$key=.*#$kv#' /opt/eterapy/.env \
               || echo '$kv' | sudo tee -a /opt/eterapy/.env >/dev/null"
           done
+          # B423/B566: платёжные креды приезжают выкаткой из секретов репозитория.
+          # Владелец не правит .env на хосте руками — значит значение, которого
+          # нет в git-управляемом пути, до прода не доедет (так уже случилось со
+          # стейджевым allowlist в B554). Секрет пуст → ключ не трогаем вовсе,
+          # поэтому шаг безопасен, пока владелец не завёл секреты.
+          # Значения идут через stdin, а не в строку команды: в паролях бывают
+          # символы, которые shell и sed истолкуют по-своему.
+          for key in ROBOKASSA_MERCHANT_LOGIN ROBOKASSA_PASSWORD_1 ROBOKASSA_PASSWORD_2 \
+                     ROBOKASSA_TEST_PASSWORD_1 ROBOKASSA_TEST_PASSWORD_2 \
+                     ROBOKASSA_HASH_ALGORITHM ROBOKASSA_IS_TEST PAYMENT_PROVIDER; do
+            eval "value=\${$key:-}"
+            [ -n "$value" ] || continue
+            printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \
+              && read -r v \
+              && printf '$key=%s\n' \"\$v\" | sudo tee -a /opt/eterapy/.env >/dev/null"
+            echo "▶ $key доставлен"
+          done
+
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && { sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \

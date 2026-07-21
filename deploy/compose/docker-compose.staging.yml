@@ -25,6 +25,14 @@ services:
     network_mode: host
     restart: always
     env_file: .env
+    # B566: контур сообщает о себе сам. Стейдж ходит в почасовую копию боевой
+    # базы, а его `/api/miniapp/auth/telegram` открыт из интернета в обход Basic
+    # Auth (иначе Telegram WebView не пустили бы). Пока `MINIAPP_TELEGRAM_ALLOWLIST`
+    # пуст, вход через Telegram здесь закрыт для всех. Значение приезжает
+    # оверлеем, поэтому его нельзя забыть проставить на хосте. `environment`
+    # перекрывает `env_file`.
+    environment:
+      ETERAPY_CONTOUR: staging
     # Loopback bind: staging must never be reachable except through the
     # Basic-Auth nginx vhosts. 3201 ≠ 3200 (prod web on the same host).
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3201}", "--hostname", "127.0.0.1"]

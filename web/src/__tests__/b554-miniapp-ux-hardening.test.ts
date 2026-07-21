@@ -104,8 +104,10 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(webhook).toContain("бесплатно");
     expect(webhook).toContain("около трёх минут");
 
-    // CTA — действие, а не «открыть приложение».
-    expect(webhook).toContain('text: "Разобрать ситуацию"');
-    expect(telegram).toContain('{ command: "start", description: "Разобрать ситуацию" }');
+    // CTA — действие, а не «открыть приложение». Формулировку заменил B533
+    // (владелец утвердил «Разобрать вопрос» 2026-07-22): требование прежнее,
+    // слова новые — см. b533-miniapp-naming.test.ts.
+    expect(webhook).toContain('text: "Разобрать вопрос"');
+    expect(telegram).toContain('{ command: "start", description: "Разобрать вопрос" }');
   });
 });

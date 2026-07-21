@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { stagingTelegramAccessDenied } from "@/lib/miniapp/staging-allowlist";
 
 /**
@@ -36,8 +38,10 @@ describe("B554 — вход в стейджевый мини-апп по спи�
     expect(stagingTelegramAccessDenied("333")).toBe(true);
   });
 
-  it("список из одних разделителей не превращается в глухую стену", () => {
-    // Иначе опечатка в .env закрыла бы стейдж вообще для всех, включая владельца.
+  it("на боевом контуре список из одних разделителей не превращается в стену", () => {
+    // B566: это про ПРОД (ETERAPY_CONTOUR не задан). На стенде тот же ввод
+    // теперь закрывает вход — см. блок B566 ниже.
+    delete process.env.ETERAPY_CONTOUR;
     process.env.MINIAPP_TELEGRAM_ALLOWLIST = " , , ";
     expect(stagingTelegramAccessDenied("111")).toBe(false);
   });
@@ -71,5 +75,61 @@ describe("B554 (owner 2026-07-21) — список задаётся по @userna
     expect(stagingTelegramAccessDenied("777", null)).toBe(false);
     expect(stagingTelegramAccessDenied("888", "alexey_denisov")).toBe(false);
     expect(stagingTelegramAccessDenied("888", "stranger")).toBe(true);
+  });
+});
+
+/**
+ * B566 — разворот решения B554 по пустому списку.
+ *
+ * B554 построил механизм, но значение надо было вписать на хост руками, и оно
+ * туда не доехало: на стейдже список пуст, а `/api/miniapp/auth/telegram` открыт
+ * из интернета в обход Basic Auth (иначе Telegram WebView не пустили бы).
+ * То есть любой, кто нашёл стейдж-бота, попадал в почасовую копию боевой базы.
+ *
+ * Поэтому НЕбоевой контур без списка закрыт целиком. Контур объявляет о себе
+ * сам — `ETERAPY_CONTOUR` из `docker-compose.staging.yml`, — так что значение
+ * приезжает выкаткой и его нельзя забыть проставить.
+ */
+describe("B566 — стенд без списка закрыт, прод не тронут", () => {
+  const saved = { ...process.env };
+  afterEach(() => { process.env = { ...saved }; });
+
+  it("стенд без списка не пускает никого", () => {
+    process.env.ETERAPY_CONTOUR = "staging";
+    delete process.env.MINIAPP_TELEGRAM_ALLOWLIST;
+    expect(stagingTelegramAccessDenied("111", "anyone")).toBe(true);
+  });
+
+  it("опечатка вместо списка на стенде тоже закрывает вход", () => {
+    process.env.ETERAPY_CONTOUR = "staging";
+    process.env.MINIAPP_TELEGRAM_ALLOWLIST = " , , ";
+    expect(stagingTelegramAccessDenied("111", "anyone")).toBe(true);
+  });
+
+  it("названные в списке проходят на стенд как раньше", () => {
+    process.env.ETERAPY_CONTOUR = "staging";
+    process.env.MINIAPP_TELEGRAM_ALLOWLIST = "@alexey_denisov";
+    expect(stagingTelegramAccessDenied("55501", "alexey_denisov")).toBe(false);
+    expect(stagingTelegramAccessDenied("55501", "stranger")).toBe(true);
+  });
+
+  it("боевой контур не задаёт ETERAPY_CONTOUR и остаётся открытым", () => {
+    delete process.env.ETERAPY_CONTOUR;
+    delete process.env.MINIAPP_TELEGRAM_ALLOWLIST;
+    expect(stagingTelegramAccessDenied("111", "anyone")).toBe(false);
+  });
+
+  it("явное production читается как боевой контур", () => {
+    process.env.ETERAPY_CONTOUR = "production";
+    delete process.env.MINIAPP_TELEGRAM_ALLOWLIST;
+    expect(stagingTelegramAccessDenied("111", "anyone")).toBe(false);
+  });
+
+  it("контур объявлен в стейджевом оверлее, а не оставлен на host state", () => {
+    const overlay = fs.readFileSync(
+      path.join(process.cwd(), "../deploy/compose/docker-compose.staging.yml"),
+      "utf8",
+    );
+    expect(overlay).toMatch(/ETERAPY_CONTOUR:\s*staging/);
   });
 });
