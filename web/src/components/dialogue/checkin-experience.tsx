@@ -611,6 +611,7 @@ export function CheckinExperience({
     <DialogueShell
       className={`${inMiniApp ? (surfaceClassName ?? "") : "soft-clarity-page"} soft-dialogue-page`}
       surface={surface}
+      phase={phase}
       hideHeader={phase === "result"}
       title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Разбор"}
       description={

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChatCircleDots, MagnifyingGlass, Plus, Trash } from "@phosphor-icons/react";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
+import { MiniAppDiaryPinGate } from "@/components/miniapp/diary-pin";
 import { styles } from "@/components/miniapp/styles";
 
 function messagesLabel(value: number) {
@@ -63,15 +64,25 @@ export function DialoguesScreen() {
           <Link className={styles["round-action"]} href="/miniapp/dialogues/new" aria-label="Новый вопрос"><Plus size={22} /></Link>
         </section>
 
-        {data.viewer.authenticated && focus ? (
-          <section className={styles["dialogue-focus"]}>
-            <div><span>ПРОДОЛЖИТЬ</span><strong>{focus.title}</strong><p>Вернитесь к последнему уточнению и продолжите с того же места.</p></div>
-            <Link href={`/miniapp/dialogues/${encodeURIComponent(focus.id)}`} aria-label={`Продолжить: ${focus.title}`}><ArrowRight size={19} /></Link>
-          </section>
-        ) : null}
-
+        {/* B564 п.2 (owner 2026-07-21): «если дневник закрыт пин-кодом, то в
+            списке диалогов тоже нужно скрывать список предыдущих диалогов и
+            оставлять такой же фрейм для открытия». Это та же приватная
+            переписка — гейт берём тот же, что в Дневнике. Заголовок экрана и
+            кнопка нового вопроса остаются: закрытый Дневник не должен мешать
+            задать вопрос. */}
         {data.viewer.authenticated ? (
-          <>
+          <MiniAppDiaryPinGate
+            title="Диалоги закрыты PIN-кодом"
+            action="Открыть диалоги"
+            testId="miniapp-dialogues-pin-lock"
+          >
+            {focus ? (
+              <section className={styles["dialogue-focus"]}>
+                <div><span>ПРОДОЛЖИТЬ</span><strong>{focus.title}</strong><p>Вернитесь к последнему уточнению и продолжите с того же места.</p></div>
+                <Link href={`/miniapp/dialogues/${encodeURIComponent(focus.id)}`} aria-label={`Продолжить: ${focus.title}`}><ArrowRight size={19} /></Link>
+              </section>
+            ) : null}
+
             <div className={styles["dialogue-tools"]}>
               <label className={styles["search-field"]}>
                 <MagnifyingGlass size={18} />
@@ -117,7 +128,7 @@ export function DialoguesScreen() {
             </div>
             {deleteError ? <p className={styles["form-error"]} role="alert">{deleteError}</p> : null}
             {visible.length === 0 ? <section className={styles["empty-state"]}><MagnifyingGlass size={30} /><h2>Ничего не найдено</h2><p>Попробуйте другой запрос.</p><button type="button" onClick={() => setQuery("")}>Сбросить поиск</button></section> : null}
-          </>
+          </MiniAppDiaryPinGate>
         ) : (
           <section className={styles["empty-state"]}>
             <ChatCircleDots size={30} />
