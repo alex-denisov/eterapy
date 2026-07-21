@@ -32,8 +32,19 @@ export class TelegramLaunchError extends Error {
   }
 }
 
+/**
+ * B566: флаг рождался как default-off, пока мини-апп собирался. Мини-апп на
+ * проде, вход через Telegram — штатный путь, а править `.env` на хосте руками
+ * владелец не будет (и правильно: host state не воспроизводится выкаткой).
+ * Поэтому значение по умолчанию приезжает образом, а переменная остаётся
+ * аварийным рубильником: `TELEGRAM_MINIAPP_SSO_ENABLED=false` гасит вход.
+ *
+ * Контур без `TELEGRAM_BOT_TOKEN` (например Foreign) ничего не открывает:
+ * `verifyTelegramInitData` падает в CONFIG_MISSING → 503, подпись проверить
+ * нечем. Стенд закрыт списком (`stagingTelegramAccessDenied`).
+ */
 export function telegramMiniAppSsoEnabled() {
-  return process.env.TELEGRAM_MINIAPP_SSO_ENABLED?.trim().toLowerCase() === "true";
+  return process.env.TELEGRAM_MINIAPP_SSO_ENABLED?.trim().toLowerCase() !== "false";
 }
 
 function telegramBotToken() {

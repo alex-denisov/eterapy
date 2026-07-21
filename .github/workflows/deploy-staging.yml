@@ -111,6 +111,10 @@ jobs:
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Ship image + converge stack
+        env:
+          # Необязательный. Секрет — не потому что тайна (это @username'ы), а
+          # потому что это единственный путь доставить значение на хост выкаткой.
+          MINIAPP_TELEGRAM_ALLOWLIST: ${{ secrets.MINIAPP_TELEGRAM_ALLOWLIST }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -131,6 +135,20 @@ jobs:
             sudo docker image prune -f >/dev/null 2>&1 || true"
           docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
+          # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
+          # секрета репозитория, а не правится на хосте руками — ровно поэтому он
+          # и не доехал в B554, оставив стенд с копией боевой базы открытым.
+          # Значение идёт через stdin, а не в строку команды: в нём @username'ы
+          # и запятые, и оно не должно попадать в shell. Секрет не задан —
+          # ничего не пишем, стенд остаётся закрытым (fail closed).
+          if [ -n "${MINIAPP_TELEGRAM_ALLOWLIST:-}" ]; then
+            printf '%s\n' "$MINIAPP_TELEGRAM_ALLOWLIST" | $SSH "sudo sed -i '/^MINIAPP_TELEGRAM_ALLOWLIST=/d' $STAGING_DIR/.env \
+              && read -r value \
+              && printf 'MINIAPP_TELEGRAM_ALLOWLIST=%s\n' \"\$value\" | sudo tee -a $STAGING_DIR/.env >/dev/null"
+            echo "▶ стейджевый allowlist обновлён из секрета"
+          else
+            echo "▶ MINIAPP_TELEGRAM_ALLOWLIST не задан — вход через Telegram на стенде закрыт (B566)"
+          fi
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web-staging:${GITHUB_SHA::8}#' $STAGING_DIR/.env \
             && cd $STAGING_DIR && { sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \

@@ -21,7 +21,8 @@ import { APP_URL } from "@/lib/env";
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
   ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString();
-const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Разобрать ситуацию", web_app: { url: MINI_APP_URL } }]] };
+// B533: один глагол во всех точках входа — кнопка бота, меню и /start.
+const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Разобрать вопрос", web_app: { url: MINI_APP_URL } }]] };
 
 async function safeSend(chatId: string, text: string, withAppButton = false) {
   try {

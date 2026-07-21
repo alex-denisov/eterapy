@@ -11,6 +11,7 @@
 import db from "./db";
 import { log } from "./logger";
 import { createPayout, type YukassaPayoutDestination } from "./yukassa";
+import type { PayoutDetailsInput, PayoutProvider, SendPayoutResult } from "./payments/payout-provider";
 
 export function payoutDestinationFromDetails(d: {
   type: string;
@@ -22,9 +23,8 @@ export function payoutDestinationFromDetails(d: {
   return null;
 }
 
-export type SendPayoutResult =
-  | { status: "DONE" | "PROCESSING"; externalId: string }
-  | { status: "FAILED"; externalId?: string; error: string };
+/** Тип переехал в провайдерный слой; реэкспорт — чтобы не трогать вызывающих. */
+export type { SendPayoutResult };
 
 /** Sends a payout for an already-created Payout(PENDING) record and updates its
  *  status from the provider response. Never throws — on any error the payout is
@@ -53,3 +53,26 @@ export async function sendPractitionerPayout(
     return { status: "FAILED", error: e instanceof Error ? e.message : "Ошибка провайдера выплат" };
   }
 }
+
+/**
+ * B562 — тот же код за общим интерфейсом. Поведение ЮKassa-пути не изменилось:
+ * это ровно обёртка над двумя функциями выше, чтобы вызывающий выбирал
+ * провайдера, а не импортировал конкретного.
+ */
+export const yukassaPayoutProvider: PayoutProvider = {
+  name: "yookassa",
+  supportsAutoPayout: (details: PayoutDetailsInput) => payoutDestinationFromDetails(details) !== null,
+  send: async ({ payoutId, details, amountKopecks, description }) => {
+    const destination = payoutDestinationFromDetails(details);
+    if (!destination) {
+      // Досюда доходить не должно — маршрут спрашивает `supportsAutoPayout`
+      // заранее. Но если дошло, лучше честный FAILED, чем брошенное исключение
+      // над уже созданной записью Payout.
+      return {
+        status: "FAILED",
+        error: "Авто-выплата поддерживает только банковскую карту. СБП/юр-лицо — вручную.",
+      };
+    }
+    return sendPractitionerPayout(payoutId, destination, amountKopecks, description);
+  },
+};

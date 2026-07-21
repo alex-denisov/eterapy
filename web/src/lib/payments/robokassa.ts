@@ -95,17 +95,26 @@ export function buildPaymentSignature({
   outSum,
   invId,
   receiptEncoded,
+  stepByStep = false,
   shp = {},
 }: {
   config: RobokassaConfig;
   outSum: string;
   invId: number;
   receiptEncoded?: string;
+  /** B425: холдирование. Добавляет сегмент `true` ПЕРЕД паролем #1. */
+  stepByStep?: boolean;
   shp?: ShpParams;
 }): string {
   const segments = [config.merchantLogin, outSum, String(invId)];
   if (receiptEncoded) {
     segments.push(receiptEncoded);
+  }
+  // Документация: `MerchantLogin:OutSum:InvoiceId:Receipt:true:Пароль#1`.
+  // Сегмент — литерал `true`, а не значение флага: при `StepByStep=false`
+  // параметр вообще не отправляется и в подписи его нет.
+  if (stepByStep) {
+    segments.push("true");
   }
   segments.push(config.password1, ...shpSegments(shp));
   return hash(segments.join(":"), config.hashAlgorithm);
@@ -247,6 +256,19 @@ export interface BuildPaymentUrlOptions {
   expiresAt?: Date;
   shp?: ShpParams;
   culture?: "ru" | "en";
+  /**
+   * B425 — двухстадийная оплата: деньги замораживаются на карте, списываются
+   * отдельным запросом `confirmHold` (или освобождаются `cancelHold`).
+   *
+   * ⚠ Три ограничения провайдера, из-за которых это НЕ универсальная замена
+   * обычной оплате:
+   * 1. только банковские карты — СБП и кошельки холд не поддерживают;
+   * 2. включается по отдельному согласованию с Robokassa (владелец подтвердил
+   *    активацию 2026-07-22);
+   * 3. **максимум 7 календарных дней**, дальше холд снимается автоматически.
+   *    Для брони сессии дальше чем на неделю холд не годится в принципе.
+   */
+  stepByStep?: boolean;
 }
 
 /**
@@ -265,6 +287,7 @@ export function buildPaymentUrl({
   expiresAt,
   shp = {},
   culture = "ru",
+  stepByStep = false,
 }: BuildPaymentUrlOptions): string {
   if (!Number.isInteger(invId) || invId <= 0) {
     throw new Error(`InvId must be a positive integer, got: ${invId}`);
@@ -277,7 +300,7 @@ export function buildPaymentUrl({
 
   const outSum = formatOutSum(amountKopecks);
   const receiptEncoded = receipt ? encodeReceipt(buildReceipt(receipt)) : undefined;
-  const signature = buildPaymentSignature({ config, outSum, invId, receiptEncoded, shp });
+  const signature = buildPaymentSignature({ config, outSum, invId, receiptEncoded, stepByStep, shp });
 
   const params = new URLSearchParams({
     MerchantLogin: config.merchantLogin,
@@ -296,6 +319,9 @@ export function buildPaymentUrl({
     // Moscow time, which would place a UTC-derived timestamp 3 hours in the
     // past and kill the link before the payer ever opens it.
     params.set("ExpirationDate", expiresAt.toISOString().replace(/\.\d{3}Z$/, "+00:00"));
+  }
+  if (stepByStep) {
+    params.set("StepByStep", "true");
   }
   if (config.isTest) {
     params.set("IsTest", "1");
@@ -372,4 +398,125 @@ export function parseCallback(params: URLSearchParams): RobokassaCallback | null
     email: get("EMail"),
     paymentMethod: get("PaymentMethod"),
   };
+}
+
+// ─── B425: холдирование (двухстадийная оплата) ────────────────────────────────
+
+/** Списание ранее захолдированной суммы. Провайдер принимает его ОДИН раз. */
+export const ROBOKASSA_CONFIRM_URL = "https://auth.robokassa.ru/Merchant/Payment/Confirm";
+/** Снятие холда без списания. */
+export const ROBOKASSA_CANCEL_URL = "https://auth.robokassa.ru/Merchant/Payment/Cancel";
+
+/**
+ * Подпись подтверждения списания: `MerchantLogin:OutSum:InvoiceId:Пароль#1`.
+ * При частичном списании в запрос добавляется УРЕЗАННЫЙ `Receipt`, и тогда он
+ * входит в подпись: `MerchantLogin:OutSum:InvoiceId:Receipt:Пароль#1`.
+ */
+export function buildConfirmSignature({
+  config,
+  outSum,
+  invId,
+  receiptEncoded,
+}: {
+  config: RobokassaConfig;
+  outSum: string;
+  invId: number;
+  receiptEncoded?: string;
+}): string {
+  const segments = [config.merchantLogin, outSum, String(invId)];
+  if (receiptEncoded) segments.push(receiptEncoded);
+  segments.push(config.password1);
+  return hash(segments.join(":"), config.hashAlgorithm);
+}
+
+/**
+ * Подпись отмены холда: `MerchantLogin::InvoiceId:Пароль#1`.
+ *
+ * ⚠ Сегмент суммы ПУСТОЙ, а не отсутствует — двоеточия идут подряд. Отмена
+ * всегда снимает холд целиком, поэтому суммы в подписи нет.
+ */
+export function buildCancelSignature({
+  config,
+  invId,
+}: {
+  config: RobokassaConfig;
+  invId: number;
+}): string {
+  return hash([config.merchantLogin, "", String(invId), config.password1].join(":"), config.hashAlgorithm);
+}
+
+export type HoldOperationResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+async function postToRobokassa(url: string, body: URLSearchParams): Promise<HoldOperationResult> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+  } catch (error) {
+    // Сеть отвалилась — состояние холда у провайдера НЕИЗВЕСТНО. Возвращаем
+    // ошибку, чтобы вызывающий не записал деньги списанными.
+    return { ok: false, error: error instanceof Error ? error.message : "network error" };
+  }
+  const text = await response.text().catch(() => "");
+  if (!response.ok) return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+  // Robokassa отвечает по-разному в зависимости от эндпоинта; признаком отказа
+  // считаем явное упоминание ошибки в теле.
+  if (/"?(error|errorCode)"?\s*[:=]/i.test(text) && !/"errorCode"\s*:\s*"?0"?/i.test(text)) {
+    return { ok: false, error: text.slice(0, 200) };
+  }
+  return { ok: true };
+}
+
+/**
+ * Списывает захолдированные средства — полностью или частично.
+ *
+ * Частичное списание: передать `amountKopecks` МЕНЬШЕ захолдированного и
+ * `receipt` с урезанным составом. Без урезанного чека частичное списание
+ * оставит фискальный документ, не совпадающий с суммой.
+ */
+export async function confirmHold({
+  config,
+  invId,
+  amountKopecks,
+  receipt,
+}: {
+  config: RobokassaConfig;
+  invId: number;
+  amountKopecks: number;
+  receipt?: { items: readonly RobokassaReceiptItem[]; taxSystem: RobokassaTaxSystem };
+}): Promise<HoldOperationResult> {
+  const outSum = formatOutSum(amountKopecks);
+  const receiptEncoded = receipt ? encodeReceipt(buildReceipt(receipt)) : undefined;
+  const body = new URLSearchParams({
+    MerchantLogin: config.merchantLogin,
+    InvoiceID: String(invId),
+    OutSum: outSum,
+    SignatureValue: buildConfirmSignature({ config, outSum, invId, receiptEncoded }),
+  });
+  if (receiptEncoded) body.set("Receipt", receiptEncoded);
+  return postToRobokassa(ROBOKASSA_CONFIRM_URL, body);
+}
+
+/** Снимает холд целиком: деньги возвращаются клиенту, списания не было. */
+export async function cancelHold({
+  config,
+  invId,
+  amountKopecks,
+}: {
+  config: RobokassaConfig;
+  invId: number;
+  amountKopecks: number;
+}): Promise<HoldOperationResult> {
+  const body = new URLSearchParams({
+    MerchantLogin: config.merchantLogin,
+    InvoiceID: String(invId),
+    OutSum: formatOutSum(amountKopecks),
+    SignatureValue: buildCancelSignature({ config, invId }),
+  });
+  return postToRobokassa(ROBOKASSA_CANCEL_URL, body);
 }
