@@ -1,4 +1,4 @@
-import { parseConversationalTurnResponse } from "@/lib/dialogue-clarifier";
+import { parseConversationalTurnResponse, isInterrogationQuestion, echoRatio } from "@/lib/dialogue-clarifier";
 
 // B554 (owner review): «в сообщении от платформы вместо подсказок (chips)
 // внутри находятся вопросы» и «в процессе первичного диалога я получил от
@@ -72,5 +72,45 @@ describe("B554 clarifier turn contract", () => {
       const parsed = parseConversationalTurnResponse(JSON.stringify({ m: "", q: "", c: [] }));
       expect(parsed?.type).toBe("ready");
     });
+  });
+});
+
+// Owner round 3: «диалог всё время спрашивает "почему" на любое моё сообщение…
+// мне неприятно общаться с таким искусственным собеседником». Инструкции в
+// промте модель соблюдает нестабильно, поэтому качество хода проверяется
+// детерминированно.
+describe("B554 clarifier turn quality guards", () => {
+  it("recognises interrogation phrasing", () => {
+    for (const bad of [
+      "Почему вы так решили?",
+      "Зачем вам это сейчас?",
+      "Что вас останавливает от этого разговора?",
+      "Что именно вызывает у вас затруднения?",
+      "В чём причина этой паузы?",
+    ]) {
+      expect(isInterrogationQuestion(bad)).toBe(true);
+    }
+  });
+
+  it("passes questions about the observable and concrete", () => {
+    for (const good of [
+      "Когда это заметно сильнее всего — утром или ближе к вечеру?",
+      "Что происходит прямо перед тем, как вы решаете отложить?",
+      "Как выглядел последний раз, когда разговор всё-таки начался?",
+    ]) {
+      expect(isInterrogationQuestion(good)).toBe(false);
+    }
+  });
+
+  it("scores a person-swapped retelling as an echo", () => {
+    const user = "Я всё время откладываю разговор с руководителем о повышении. Каждый раз нахожу причину не начинать.";
+    const echo = "Вы всё время откладываете разговор с руководителем о повышении. Каждый раз находите причину не начинать.";
+    expect(echoRatio(echo, user)).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it("does not treat a genuine reflection as an echo", () => {
+    const user = "Я всё время откладываю разговор с руководителем о повышении. Каждый раз нахожу причину не начинать.";
+    const reflection = "Похоже, дело не в подготовке: причина находится уже после того, как решение принято.";
+    expect(echoRatio(reflection, user)).toBeLessThan(0.7);
   });
 });
