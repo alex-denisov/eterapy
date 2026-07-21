@@ -350,7 +350,7 @@ async function attemptLlmTurn(input: {
   canBeReady: boolean;
   retry: boolean;
   temperature: number;
-}): Promise<{ result: ConversationalTurnResult; provider?: string; model?: string } | null> {
+}): Promise<{ result: ConversationalTurnResult; provider?: string; model?: string; degraded?: boolean } | null> {
   const systemContent = buildSystemPrompt({
     topic: input.topic,
     difficulty: input.difficulty,
@@ -413,7 +413,12 @@ async function attemptLlmTurn(input: {
         model: response.model,
         retry: input.retry,
       });
-      return null;
+      // На первой попытке отвергаем и уходим в retry. Но на повторе принимаем
+      // как есть: пропустить уточнение целиком хуже, чем задать слабый вопрос —
+      // иначе клиент вместо диалога сразу получает разбор (что и случилось на
+      // staging, когда эта проверка возвращала null на обеих попытках).
+      if (!input.retry) return null;
+      return { result: parsed, provider: response.provider, model: response.model, degraded: true };
     }
   }
 
