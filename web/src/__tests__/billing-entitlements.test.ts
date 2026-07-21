@@ -164,7 +164,7 @@ describe("v5 billing entitlements", () => {
   });
 
   it("keeps product card checkout return URL tied to the originating product flow", () => {
-    const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/billing/create-payment/route.ts"), "utf8");
+    const route = fs.readFileSync(path.join(process.cwd(), "src/lib/payments/checkout.ts"), "utf8");
     const controls = fs.readFileSync(path.join(process.cwd(), "src/components/products/product-purchase-controls.tsx"), "utf8");
 
     expect(controls).toContain("returnPath: currentUrl");
