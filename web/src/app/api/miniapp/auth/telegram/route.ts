@@ -10,11 +10,39 @@ import {
   verifyTelegramInitData,
 } from "@/lib/miniapp/telegram/auth";
 import { log } from "@/lib/logger";
+import {
+  createLaunchSessionCookieValue,
+  MINIAPP_LAUNCH_COOKIE,
+  MINIAPP_LAUNCH_TTL_SECONDS,
+} from "@/lib/miniapp/telegram/launch-session";
 import { isSameOriginMiniAppRequest, readMiniAppInitData } from "@/lib/miniapp/telegram/request";
+import type { VerifiedTelegramLaunch } from "@/lib/miniapp/telegram/auth";
 
 function noStore(response: NextResponse) {
   response.headers.set("Cache-Control", "no-store, max-age=0");
   response.headers.set("Pragma", "no-cache");
+  return response;
+}
+
+/**
+ * B554 п.6: подпись `initData` проверена — закрепляем личность запуска в
+ * короткоживущей куке, чтобы поздние действия (связать аккаунт) не
+ * переотправляли просроченный `initData`.
+ */
+function attachLaunchSession(response: NextResponse, launch: VerifiedTelegramLaunch) {
+  response.cookies.set(MINIAPP_LAUNCH_COOKIE, createLaunchSessionCookieValue({
+    provider: "telegram",
+    subjectId: launch.subjectId,
+    username: launch.username,
+    firstName: launch.firstName,
+    lastName: launch.lastName,
+  }), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: MINIAPP_LAUNCH_TTL_SECONDS,
+  });
   return response;
 }
 
@@ -33,19 +61,21 @@ export async function POST(request: NextRequest) {
     const subjectLimit = checkAuthRateLimit(authRateLimitKey("miniapp:telegram:subject", launch.subjectId), 8, 5 * 60_000);
     if (!subjectLimit.allowed) return noStore(authRateLimitResponse(subjectLimit));
 
-    const response = NextResponse.json({ status: "guest", firstName: launch.firstName });
-    ensureGuestSession(request, response);
     const linked = await findLinkedTelegramUser(launch);
-    if (!linked) return noStore(response);
-    if (linked.user.blockedAt || linked.user.deletedAt || linked.user.role !== "CLIENT") {
+    if (linked && (linked.user.blockedAt || linked.user.deletedAt || linked.user.role !== "CLIENT")) {
       return noStore(NextResponse.json({ error: "Аккаунт недоступен", code: "ACCOUNT_UNAVAILABLE" }, { status: 403 }));
     }
 
-    const grant = await issueTelegramAuthGrant(launch, linked.userId);
-    const linkedResponse = NextResponse.json({ status: "linked", grant, firstName: launch.firstName });
-    const guestCookie = response.headers.get("set-cookie");
-    if (guestCookie) linkedResponse.headers.set("set-cookie", guestCookie);
-    return noStore(linkedResponse);
+    // B554: раньше «linked»-ветка строила ВТОРОЙ ответ и переносила куки через
+    // headers.get("set-cookie"), который отдаёт только первую из них. С двумя
+    // куками (гостевая + launch) это молча теряло одну. Ответ теперь один.
+    const grant = linked ? await issueTelegramAuthGrant(launch, linked.userId) : null;
+    const response = grant
+      ? NextResponse.json({ status: "linked", grant, firstName: launch.firstName })
+      : NextResponse.json({ status: "guest", firstName: launch.firstName });
+    ensureGuestSession(request, response);
+    attachLaunchSession(response, launch);
+    return noStore(response);
   } catch (error) {
     if (error instanceof TelegramLaunchError) {
       return noStore(NextResponse.json({ error: error.message, code: error.code }, { status: error.code === "CONFIG_MISSING" ? 503 : 401 }));

@@ -225,7 +225,12 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
   const [acceptPdn, setAcceptPdn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [linkStatus, setLinkStatus] = useState<"idle" | "linking" | "linked">("idle");
+  // B554 п.6: owner видел «Подключить вход через Telegram», уже войдя ЧЕРЕЗ
+  // Telegram, и по нажатии получал ошибку. Состояние связки сервер уже отдаёт —
+  // экран его просто не читал и всегда стартовал с «idle».
+  const [linkStatus, setLinkStatus] = useState<"idle" | "linking" | "linked">(
+    data.viewer.telegramLinked ? "linked" : "idle",
+  );
 
   async function linkAuthenticatedAccount() {
     setError("");
