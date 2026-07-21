@@ -10,8 +10,8 @@ import {
   ChatCircleText,
   CheckCircle,
   Coins,
-  CreditCard,
   CrownSimple,
+  FileText,
   House,
   Lifebuoy,
   Notebook,
@@ -128,14 +128,17 @@ const UTILITY_CONTENT = {
       { href: "/miniapp/profile/subscription", Icon: CheckCircle, title: "Что доступно сейчас", text: "Текущий план и период" },
     ],
   },
+  // B565 (owner 2026-07-21): четыре входа вместо трёх статических строк, которые
+  // вели на экран-заглушку с одним `mailto:`.
   help: {
     label: "Помощь",
     eyebrow: "помощь",
     lead: "Короткие ответы и поддержка, если вопрос требует человека.",
     actions: [
-      { href: "/miniapp/help", Icon: Question, title: "Как всё работает", text: "Разборы, приватность и Дневник" },
-      { href: "/miniapp/help#payments", Icon: CreditCard, title: "Оплата и возвраты", text: "Условия до подтверждения покупки" },
-      { href: "/miniapp/help#support", Icon: Lifebuoy, title: "Написать в поддержку", text: "Диалог с командой ETerapy" },
+      { href: "/miniapp/support", Icon: Lifebuoy, title: "Центр поддержки", text: "Поиск по базе знаний и обращение в поддержку" },
+      { href: "/miniapp/faq", Icon: Question, title: "Частые вопросы", text: "Разборы, приватность, оплата и специалисты" },
+      { href: "/miniapp/legal/privacy", Icon: ShieldCheck, title: "Политика конфиденциальности", text: "Какие данные обрабатываем и зачем" },
+      { href: "/miniapp/legal/terms", Icon: FileText, title: "Условия использования", text: "Правила аккаунта и работы с платформой" },
     ],
   },
 } as const;

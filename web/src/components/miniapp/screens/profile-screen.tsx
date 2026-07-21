@@ -121,7 +121,7 @@ export function ProfileScreen() {
         )}
 
         <section className={styles["profile-support"]}>
-          <Link href="/miniapp/help#support"><Lifebuoy size={20} /><span><strong>Поддержка</strong><small>Вопросы об услугах и оплате</small></span></Link>
+          <Link href="/miniapp/support"><Lifebuoy size={20} /><span><strong>Поддержка</strong><small>Вопросы об услугах и оплате</small></span></Link>
           {/* INC-068: это была `<Link>`, а Next предзагружает цель ссылки, когда
               она попадает во вьюпорт — то есть открытие профиля разлогинивало
               человека молча, без нажатия. Выход — действие, а не переход. */}

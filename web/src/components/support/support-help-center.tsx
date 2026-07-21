@@ -58,7 +58,16 @@ function FaqAccordion({ items, testId }: { items: FaqLike[]; testId: string }) {
   );
 }
 
-export function SupportHelpCenter({ showChat }: { showChat: boolean }) {
+export function SupportHelpCenter({
+  showChat,
+  // B565: мини-апп рисует свою шапку экрана (стрелка «назад» + заголовок), и
+  // второй заголовок внутри блока читался бы как дубль. Механики поиска,
+  // категорий и обращения при этом те же самые — владелец просил именно их.
+  showHeading = true,
+}: {
+  showChat: boolean;
+  showHeading?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(THEME_PAGE);
@@ -82,11 +91,15 @@ export function SupportHelpCenter({ showChat }: { showChat: boolean }) {
     <div>
       {/* Stage 1 — the search gate is the ONLY thing on the page initially. */}
       <div className="soft-card p-6" data-testid="support-search">
-        <p className="soft-eyebrow">поддержка eterapy</p>
-        <h1 className="soft-h1 mt-2" data-testid="support-hero-title">Центр поддержки</h1>
-        <p className="mt-2 max-w-2xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-          Опишите вопрос своими словами — покажем ответ из базы знаний.
-        </p>
+        {showHeading ? (
+          <>
+            <p className="soft-eyebrow">поддержка eterapy</p>
+            <h1 className="soft-h1 mt-2" data-testid="support-hero-title">Центр поддержки</h1>
+            <p className="mt-2 max-w-2xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+              Опишите вопрос своими словами — покажем ответ из базы знаний.
+            </p>
+          </>
+        ) : null}
 
         {/* Calm focus lives on the wrapper (:focus-within), the global
             terracotta :focus-visible outline is suppressed on the input. */}
