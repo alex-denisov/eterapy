@@ -4,6 +4,7 @@ import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/bill
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { dialogueStatusLabelRu, dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { listDiaryItems } from "@/lib/diary";
+import { listJournalEntries } from "@/lib/journal-entries";
 import { log, serializeError } from "@/lib/logger";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { effectivePracticeStreak } from "@/lib/streak-display";
@@ -45,7 +46,7 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
       hasPassword: false,
       telegramLinked: false,
     },
-    dialogues: [], diaryItems: [], libraryItems: libraryItems(), practitioner: null,
+    dialogues: [], diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,
     upcomingBookingLabel: null, streak: 0, completedWeekdays: [], loadError: false,
   };
@@ -85,7 +86,7 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       listDiaryItems(viewer.id),
     ]);
 
-    const [practitioner, bookings, materials, unreadNotifications, streak, weekCards] = await Promise.all([
+    const [practitioner, bookings, materials, unreadNotifications, streak, weekCards, journal] = await Promise.all([
       db.practitioner.findFirst({
         where: { status: "ACTIVE", verified: true },
         orderBy: [{ founding: "desc" }, { reviewCount: "desc" }],
@@ -117,6 +118,8 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         where: { userId: viewer.id, completedAt: { not: null }, cardDate: { gte: startOfPracticeWeek() } },
         select: { cardDate: true },
       }),
+      // B554 п.20: «Ваши записи» — дни практики, а не последние разборы.
+      listJournalEntries(viewer.id, 7),
     ]);
 
     return {
@@ -142,6 +145,16 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         topic: item.topicLabel ?? item.topic ?? "Личное", date: relativeDate(item.updatedAt),
         dayLabel: String(item.updatedAt.getDate()),
         insight: item.description, href: toMiniAppPath(item.href),
+      })),
+      journalEntries: journal.map((entry) => ({
+        id: entry.id,
+        dayLabel: String(entry.date.getDate()),
+        monthLabel: entry.date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", ""),
+        fullDateLabel: entry.date.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }),
+        question: entry.question,
+        own: entry.own,
+        perspective: entry.perspective,
+        step: entry.step,
       })),
       practitioner: practitioner ? {
         name: practitioner.user.name ?? "Специалист", title: practitioner.title,

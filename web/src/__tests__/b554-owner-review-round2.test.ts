@@ -59,7 +59,10 @@ describe("B554 round 2 — owner review", () => {
   it("shows real calendar dates in the Diary instead of hardcoded numbers", () => {
     const diary = source("src/components/miniapp/screens/diary-screen.tsx");
     expect(diary).toContain("currentWeekDates");
-    expect(diary).toContain("{item.dayLabel}");
+    // B554 п.20: полоса «Ваши записи» перешла с последних РАЗБОРОВ на дни
+    // практики, поэтому день берётся из journalEntries — числа по-прежнему
+    // настоящие, а не захардкоженные 14…20.
+    expect(diary).toContain("{entry.dayLabel}");
     expect(diary).not.toContain("index + 14");
     expect(diary).not.toContain("{14 + index}");
   });

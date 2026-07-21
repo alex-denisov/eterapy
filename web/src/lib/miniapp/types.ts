@@ -56,6 +56,26 @@ export type MiniAppDiaryItem = {
   href: string;
 };
 
+/**
+ * B554 п.20: «Ваши записи» — те же карточки дней, что и в вебе
+ * (`JournalCardsStrip`): день практики, вопрос этого дня и то, что человек на
+ * него получил. Раньше мини-апп показывал здесь пять последних РАЗБОРОВ, и в
+ * ряду стояли числа вроде «20, 20, 20, 20, 17».
+ */
+export type MiniAppJournalEntry = {
+  id: string;
+  /** «14» — крупная цифра карточки. */
+  dayLabel: string;
+  /** «июл» — короткий месяц. */
+  monthLabel: string;
+  /** «понедельник, 14 июля» — заголовок панели. */
+  fullDateLabel: string;
+  question: string;
+  own: boolean;
+  perspective: string | null;
+  step: string | null;
+};
+
 export type MiniAppLibraryItem = {
   slug: string;
   topic: string;
@@ -103,6 +123,7 @@ export type MiniAppInitialData = {
   };
   dialogues: MiniAppDialogue[];
   diaryItems: MiniAppDiaryItem[];
+  journalEntries: MiniAppJournalEntry[];
   libraryItems: MiniAppLibraryItem[];
   practitioner: MiniAppPractitioner | null;
   bookings: MiniAppBooking[];

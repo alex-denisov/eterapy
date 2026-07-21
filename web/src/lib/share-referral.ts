@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { creditExpiryFor } from "@/lib/credit-expiry";
+import { APP_URL } from "@/lib/env";
 import { mainUrl } from "@/lib/subdomain";
 import { assessReferralRisk, logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 
@@ -41,7 +42,11 @@ export function normalizeShareText(value: unknown, fallback: string, max = 220) 
 }
 
 export function shareLandingUrl(token: string, sourceType = "share", topic?: string | null) {
-  const url = new URL(mainUrl("/share"));
+  // B554 п.12: `mainUrl` отдаёт ОТНОСИТЕЛЬНЫЙ путь, когда сайт живёт на одном
+  // домене (NEXT_PUBLIC_USE_SUBDOMAINS != "true") — а односоставный `new URL()`
+  // на таком пути кидает TypeError, и создание ссылки падало 500-й. База в
+  // втором аргументе игнорируется, если первый уже абсолютный.
+  const url = new URL(mainUrl("/share"), APP_URL);
   url.searchParams.set("token", token);
   url.searchParams.set("from", sourceType);
   if (topic) url.searchParams.set("topic", topic);

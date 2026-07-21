@@ -144,6 +144,16 @@ function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
 }
 
+// B554 п.17: разбор, открытый из Дневника, восстанавливается по `?dialogueId=`.
+// Любой отказ раньше показывался служебной строкой самого API — включая
+// английское «Dialogue not found». Пользователю нужна причина и следующий шаг,
+// а не текст для разработчика.
+export function restoreErrorMessage(status: number): string {
+  if (status === 401 || status === 403) return "Сессия истекла. Войдите в аккаунт, чтобы открыть этот разбор.";
+  if (status === 404) return "Этот разбор не найден — возможно, он был удалён.";
+  return "Не удалось открыть разбор. Попробуйте ещё раз через минуту.";
+}
+
 export function CheckinExperience({
   surface = "web",
   surfaceClassName,
@@ -321,7 +331,11 @@ export function CheckinExperience({
       try {
         const response = await fetch(`/api/dialogues/${dialogueId}`);
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Диалог не найден");
+        // B554 п.17: сюда прилетала строка ошибки от API как есть — и человек,
+        // открывший свой разбор из Дневника, упирался в английское
+        // «Dialogue not found» поверх пустой формы нового вопроса. Причина
+        // отказа известна по статусу, её и объясняем по-русски.
+        if (!response.ok) throw new Error(restoreErrorMessage(response.status));
         if (cancelled) return;
         const restored = data.dialogue as DialoguePayload;
         setDialogue(restored);
@@ -609,7 +623,21 @@ export function CheckinExperience({
     >
       {!inMiniApp ? <PublicJsonLd route="/checkin" /> : null}
 
-      {phase === "question" && (
+      {/* B554 п.17: пока разбор из Дневника подгружается, показывать пустую форму
+          нового вопроса нечестно — человек шёл смотреть готовый ответ, а видел
+          приглашение начать заново (и на медленной сети сидел так секундами). */}
+      {phase === "question" && restoring && (
+        <div className="soft-dialogue-start" data-testid="dialogue-restore-step">
+          <div className="soft-halo-stage soft-dialogue-halo-stage">
+            <div className="soft-ask-card soft-dialogue-ask-card">
+              <p className="soft-eyebrow">ваш разбор</p>
+              <p className="mt-2 text-sm text-[var(--soft-ink-faint)]">Открываем сохранённый разбор…</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phase === "question" && !restoring && (
         <div className="soft-dialogue-start" data-testid="dialogue-question-step">
           <div className="soft-halo-stage soft-dialogue-halo-stage">
             <div className="soft-ask-card soft-dialogue-ask-card">
