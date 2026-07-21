@@ -15,6 +15,7 @@ import { getBookingStatus } from "@/lib/booking-status";
 import type { MiniAppInitialData } from "@/lib/miniapp/types";
 import { toMiniAppPath } from "@/lib/miniapp/navigation";
 import { cardPaymentAvailable } from "@/lib/payments/config";
+import { telegramMiniAppSsoEnabled } from "@/lib/miniapp/telegram/auth";
 
 type MiniAppViewer = {
   id?: string | null;
@@ -48,6 +49,7 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
       email: viewer?.email ?? null,
       hasPassword: false,
       telegramLinked: false,
+      telegramLinkAvailable: telegramMiniAppSsoEnabled(),
     },
     dialogues: [], diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,

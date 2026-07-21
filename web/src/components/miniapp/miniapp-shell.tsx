@@ -24,6 +24,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { track } from "@/lib/analytics";
+import { formatPoints } from "@/lib/points";
 import { MINIAPP_FEATURES, miniAppFeatureForPath } from "@/lib/miniapp/registry";
 import type { MiniAppInitialData, MiniAppService } from "@/lib/miniapp/types";
 import { MiniAppTelegramBootstrap } from "@/components/miniapp/telegram-bootstrap";
@@ -52,7 +53,9 @@ function TopBar({ data, onUtility }: {
     <header className={styles.topbar}>
       <Link className={styles.wordmark} href="/miniapp" aria-label="ETerapy, на Главную">ETerapy</Link>
       <div className={styles["topbar-utilities"]} aria-label="Баланс, подписка и помощь">
-        <button className={styles["points-button"]} type="button" aria-label={`Баланс: ${data.viewer.points} баллов. Открыть`} onClick={() => onUtility("balance")}>
+        {/* INC-068: «баллов» было зашито строкой — на 9662 выходило
+            «9662 баллов» вместо «9662 балла». Склонение считает `pointsWord`. */}
+        <button className={styles["points-button"]} type="button" aria-label={`Баланс: ${formatPoints(data.viewer.points)}. Открыть`} onClick={() => onUtility("balance")}>
           <span className={c("utility-face", "points-face")}>
             <Coins size={14} weight="duotone" />
             <strong>{data.viewer.points}</strong>
@@ -157,7 +160,7 @@ function Sheet({ open, onOpenChange, title, eyebrow, lead, children, label }: {
               <p className={styles.eyebrow}>{eyebrow}</p>
               <DialogPrimitive.Title className={styles["sheet-title"]}>{title}</DialogPrimitive.Title>
             </div>
-            <DialogPrimitive.Close className={styles["sheet-close"]} aria-label="Закрыть"><X size={20} /></DialogPrimitive.Close>
+            <DialogPrimitive.Close className={styles["sheet-close"]} aria-label="Закрыть"><X size={18} weight="bold" /></DialogPrimitive.Close>
           </header>
           <DialogPrimitive.Description className={styles["sheet-lead"]}>{lead}</DialogPrimitive.Description>
           {children}
@@ -170,7 +173,7 @@ function Sheet({ open, onOpenChange, title, eyebrow, lead, children, label }: {
 function UtilitySheet({ utility, data, onClose }: { utility: Utility; data: MiniAppInitialData; onClose: () => void }) {
   const content = utility ? UTILITY_CONTENT[utility] : null;
   if (!content) return null;
-  const title = utility === "balance" ? `${data.viewer.points} баллов` : utility === "subscription" ? data.viewer.plan : "Чем помочь?";
+  const title = utility === "balance" ? formatPoints(data.viewer.points) : utility === "subscription" ? data.viewer.plan : "Чем помочь?";
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }} title={title} eyebrow={content.eyebrow} lead={content.lead} label={content.label}>
@@ -197,6 +200,7 @@ function ServiceSheet({ service, onClose, onShare }: {
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }} title={service.title} eyebrow={service.eyebrow} lead={service.description} label={service.title}>
       <div className={styles["sheet-price-row"]}><strong>{service.price}</strong><span>{service.priceMeta}</span></div>
+      {service.freeNote ? <p className={styles["sheet-free-note"]}>{service.freeNote}</p> : null}
       <p className={styles["privacy-note"]}><ShieldCheck size={17} /> {service.privacy}</p>
       <div className={styles["sheet-actions"]}>
         <Link href={service.href} onClick={() => { onClose(); track({ event: "miniapp_service_cta", surface: "miniapp", properties: { service: service.id } }); }} className={c("primary-action", "compact")}>

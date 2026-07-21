@@ -1602,6 +1602,82 @@
 .service-filter-panel {
   margin: 8px 0 0;
   padding: 2px 0;
+  display: grid;
+  gap: 8px;
+}
+
+/* B558 — «жидкое стекло».
+   Материал, а не цвет: дорожка размывает фон (`backdrop-filter`), сверху идёт
+   световая кромка, выбранный сегмент — отдельная «линза» с собственным бликом
+   и тенью, которая едет по дорожке. Ширина сегментов равная (`1fr` на
+   сегмент), контрол занимает всю строку — владелец просил не оставлять
+   пустоту справа. Скругление капсульное, как в iOS. */
+.glass-segmented {
+  position: relative;
+  width: 100%;
+  padding: 3px;
+  display: grid;
+  grid-template-columns: repeat(var(--segments, 3), minmax(0, 1fr));
+  border-radius: 999px;
+  background: rgba(247, 244, 237, .055);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .13),
+    inset 0 -1px 0 rgba(0, 0, 0, .18),
+    0 1px 2px rgba(1, 5, 10, .3);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  isolation: isolate;
+}
+
+.glass-thumb {
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--segments, 3));
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .17), rgba(255, 255, 255, .07));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .3),
+    0 2px 8px rgba(1, 5, 10, .35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform: translateX(calc(var(--active, 0) * 100%));
+  transition: transform .32s cubic-bezier(.32, .72, 0, 1);
+}
+
+.glass-segmented button {
+  position: relative;
+  z-index: 1;
+  min-height: 38px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.glass-segmented button.is-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.glass-segmented button:active {
+  opacity: .7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-thumb { transition: none; }
 }
 
 .minimal-segment {
@@ -1752,6 +1828,150 @@
 .catalog-nav button.is-active {
   background: rgba(255, 101, 72, 0.12);
   color: #ff9f89;
+}
+
+/* B558: секции единого каталога. Заголовок + список + необязательная ссылка
+   «все». Раньше каждая группа услуг рисовала свой заголовок и сетку карточек —
+   теперь секций три на всю страницу: услуги, специалисты, библиотека. */
+.catalog-section {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.catalog-section > header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.catalog-section > header p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.catalog-section-more {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--coral);
+}
+
+.service-rows {
+  display: grid;
+  gap: 7px;
+}
+
+/* Компактная строка каталога: цена в правом верхнем углу, иконка — в одной
+   строке с заголовком. Прежняя карточка занимала ~140px на четыре зоны
+   (плитка-иконка · заголовок · описание · стрелка); здесь две строки текста. */
+.service-row {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: linear-gradient(145deg, rgba(17, 31, 49, .9), rgba(10, 21, 34, .9));
+  overflow: hidden;
+}
+
+.service-row > button,
+a.service-row {
+  width: 100%;
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-row:active {
+  background: rgba(247, 244, 237, .04);
+}
+
+.service-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.service-row-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.service-row-title > svg {
+  flex: 0 0 auto;
+  color: #d7a996;
+}
+
+.service-row strong {
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-row-price {
+  flex: 0 0 auto;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.service-row p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted-strong);
+}
+
+.service-row small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.service-row-person {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.service-row-person > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.service-row-share {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(247, 244, 237, .06);
+  color: var(--muted-strong);
+  cursor: pointer;
 }
 
 .catalog-groups {
@@ -3209,16 +3429,45 @@
   letter-spacing: -0.8px;
 }
 
+/* B556: владелец увидел у «Закрыть» жёлтую окружность. Это не рамка кнопки, а
+   глобальное кольцо фокуса: base-ui уводит шторку в портал на `body`, наружу
+   `.stage`, поэтому мини-аппный `:focus-visible` до неё не доставал и работал
+   `@layer base { * { outline-ring/50 } }` с `--focus-ring: var(--brand-soft-gold)`.
+   Диалог сам ставит фокус на первый элемент при открытии — кольцо появлялось
+   сразу. Правило ниже вне слоя, поэтому перебивает базовый слой; сама кнопка
+   стала мягким квадратом со скруглением, как остальная система. */
+.bottom-sheet button:focus-visible,
+.bottom-sheet a:focus-visible,
+.bottom-sheet input:focus-visible,
+.bottom-sheet textarea:focus-visible {
+  outline: 2px solid #ffd4ca;
+  outline-offset: 3px;
+}
+
 .sheet-close {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  background: rgba(247, 244, 237, 0.035);
-  color: var(--muted);
+  background: rgba(247, 244, 237, 0.06);
+  color: var(--muted-strong);
   cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.sheet-close:active {
+  background: rgba(247, 244, 237, 0.12);
+  color: var(--text);
+}
+
+.sheet-free-note {
+  margin: 8px 0 0;
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .sheet-lead {
@@ -3877,6 +4126,263 @@
   gap: 8px;
 }
 
+/* B557: календарь записи. Плоский список слотов за неделю заменён на месяц +
+   время выбранного дня — как на вебе. Сетка 7 колонок держится и на 344px:
+   ячейка квадратная через aspect-ratio, без фиксированных пикселей. */
+.booking-calendar {
+  padding: 12px 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(17, 31, 49, .92), rgba(10, 21, 34, .92));
+}
+
+.booking-calendar header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.booking-calendar header strong {
+  font-size: 14.5px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.booking-calendar header button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+
+.booking-calendar header button:disabled {
+  opacity: .3;
+  cursor: default;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.calendar-weekdays span {
+  padding-bottom: 4px;
+  text-align: center;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.calendar-day.is-outside {
+  opacity: .25;
+}
+
+.calendar-day.is-available {
+  background: rgba(255, 101, 72, .11);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.calendar-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.calendar-day.is-selected {
+  background: var(--coral);
+  color: #fff;
+  font-weight: 600;
+}
+
+.slot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.slot-chips button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(247, 244, 237, .04);
+  color: var(--text);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.slot-chips button.is-selected {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #fff;
+  font-weight: 600;
+}
+
+.slot-chips > p,
+.slot-chips > section {
+  width: 100%;
+}
+
+.booking-context {
+  display: grid;
+  gap: 7px;
+}
+
+.booking-context label {
+  display: grid;
+  gap: 2px;
+}
+
+.booking-context label strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.booking-context label small,
+.booking-context > small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.booking-context textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(247, 244, 237, .04);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.booking-context textarea::placeholder {
+  color: var(--muted);
+}
+
+/* B559: иерархия вместо полотна — первый профиль крупной карточкой, остальные
+   плиткой 2-в-ряд с портретом сверху. */
+.practitioner-lead {
+  margin-top: 12px;
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(22, 38, 58, .95), rgba(10, 21, 34, .95));
+}
+
+.practitioner-lead > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.practitioner-lead small {
+  font-size: 9.5px;
+  letter-spacing: .07em;
+  color: #d7a996;
+}
+
+.practitioner-lead strong {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.practitioner-lead em {
+  font-size: 12.5px;
+  font-style: normal;
+  line-height: 1.35;
+  color: var(--muted-strong);
+}
+
+.practitioner-lead b {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--coral);
+}
+
+.practitioner-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.practitioner-tile {
+  padding: 9px 9px 11px;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: linear-gradient(160deg, rgba(17, 31, 49, .9), rgba(10, 21, 34, .9));
+}
+
+.practitioner-tile :is(.practitioner-avatar, .practitioner-avatar-fallback) {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  margin-bottom: 5px;
+  border-radius: 13px;
+}
+
+.practitioner-tile strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.practitioner-tile em {
+  font-size: 11.5px;
+  font-style: normal;
+  line-height: 1.35;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.practitioner-tile b {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--coral);
+}
+
 .practitioner-card {
   min-height: 82px;
   padding: 11px 10px;
@@ -3902,7 +4408,15 @@
 .practitioner-avatar-fallback {
   display: grid;
   place-items: center;
-  color: #d7a996;
+  /* B559: инициалы на собственном оттенке вместо одинакового серого силуэта. */
+  background: linear-gradient(
+    150deg,
+    hsl(var(--avatar-hue, 20) 34% 34% / .85),
+    hsl(calc(var(--avatar-hue, 20) + 26) 30% 22% / .9)
+  );
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: #f3e6df;
   background: linear-gradient(145deg, #362e38, #182133);
 }
 

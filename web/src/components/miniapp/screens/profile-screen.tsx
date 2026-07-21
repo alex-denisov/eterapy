@@ -122,7 +122,18 @@ export function ProfileScreen() {
 
         <section className={styles["profile-support"]}>
           <Link href="/miniapp/help#support"><Lifebuoy size={20} /><span><strong>Поддержка</strong><small>Вопросы об услугах и оплате</small></span></Link>
-          {viewer.authenticated ? <Link className={styles.signout} href="/api/auth/logout?callbackUrl=/miniapp"><SignOut size={20} /><span><strong>Выйти</strong><small>Завершить сессию на этом устройстве</small></span></Link> : null}
+          {/* INC-068: это была `<Link>`, а Next предзагружает цель ссылки, когда
+              она попадает во вьюпорт — то есть открытие профиля разлогинивало
+              человека молча, без нажатия. Выход — действие, а не переход. */}
+          {viewer.authenticated ? (
+            <button
+              className={styles.signout}
+              type="button"
+              onClick={() => { window.location.href = "/api/auth/logout?callbackUrl=/miniapp"; }}
+            >
+              <SignOut size={20} /><span><strong>Выйти</strong><small>Завершить сессию на этом устройстве</small></span>
+            </button>
+          ) : null}
         </section>
       </div>
     </MiniAppChrome>

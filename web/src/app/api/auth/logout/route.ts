@@ -18,7 +18,34 @@ function clearCookie(response: NextResponse, name: string, withDomain = false) {
   });
 }
 
+/**
+ * INC-068: выход — разрушающее действие на GET, а `<Link>` в Next.js
+ * ПРЕДЗАГРУЖАЕТ цель, как только она попадает во вьюпорт. На экране профиля
+ * мини-аппа кнопка «Выйти» была ссылкой — и открытие профиля разлогинивало
+ * человека без единого нажатия. В логах прода это видно по маркеру `_rsc=`:
+ *
+ *   19:35:53 GET /api/auth/logout?callbackUrl=/miniapp&_rsc=… 307
+ *   19:35:59 GET /miniapp/account?mode=login&…                200
+ *
+ * Ссылку на экране заменили на кнопку, но одной клиентской правки мало: любой
+ * префетчер (браузер, следующий `<Link>`, сканер) снова уронит сессию. Поэтому
+ * запрос с признаком предзагрузки обслуживаем как no-op — куки не трогаем.
+ */
+function isPrefetch(request: Request): boolean {
+  const headers = request.headers;
+  return headers.get("next-router-prefetch") === "1"
+    || headers.get("purpose")?.toLowerCase() === "prefetch"
+    || headers.get("x-purpose")?.toLowerCase() === "preview"
+    || headers.get("x-moz")?.toLowerCase() === "prefetch"
+    || headers.get("sec-purpose")?.toLowerCase().includes("prefetch") === true
+    || new URL(request.url).searchParams.has("_rsc");
+}
+
 export async function GET(request: Request) {
+  if (isPrefetch(request)) {
+    return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+  }
+
   const params = new URL(request.url).searchParams;
   const reason = params.get("reason");
   // B554: Mini App звал `?callbackUrl=/miniapp`, но параметр не читался — клиент

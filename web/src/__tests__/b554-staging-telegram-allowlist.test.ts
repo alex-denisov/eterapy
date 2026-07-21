@@ -48,3 +48,28 @@ describe("B554 — вход в стейджевый мини-апп по спи�
     expect(stagingTelegramAccessDenied("")).toBe(true);
   });
 });
+
+describe("B554 (owner 2026-07-21) — список задаётся по @username", () => {
+  const original = process.env.MINIAPP_TELEGRAM_ALLOWLIST;
+  afterEach(() => {
+    if (original === undefined) delete process.env.MINIAPP_TELEGRAM_ALLOWLIST;
+    else process.env.MINIAPP_TELEGRAM_ALLOWLIST = original;
+  });
+
+  // Владелец дал «@alexey_denisov»: числовой id человеку взять неоткуда без
+  // стороннего бота, поэтому сверяем и id, и username.
+  it("пускает по username вне зависимости от @ и регистра", () => {
+    process.env.MINIAPP_TELEGRAM_ALLOWLIST = "@alexey_denisov";
+    expect(stagingTelegramAccessDenied("55501", "alexey_denisov")).toBe(false);
+    expect(stagingTelegramAccessDenied("55501", "@Alexey_Denisov")).toBe(false);
+    expect(stagingTelegramAccessDenied("55501", "someone_else")).toBe(true);
+    expect(stagingTelegramAccessDenied("55501", null)).toBe(true);
+  });
+
+  it("числовой id продолжает работать рядом с username", () => {
+    process.env.MINIAPP_TELEGRAM_ALLOWLIST = "777, @alexey_denisov";
+    expect(stagingTelegramAccessDenied("777", null)).toBe(false);
+    expect(stagingTelegramAccessDenied("888", "alexey_denisov")).toBe(false);
+    expect(stagingTelegramAccessDenied("888", "stranger")).toBe(true);
+  });
+});

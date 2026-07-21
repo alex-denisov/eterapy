@@ -43,24 +43,11 @@ import {
 import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
 import type { MiniAppOffer, MiniAppPractitionerCard } from "@/lib/miniapp/journey-data";
 import { loadTelegramSdk } from "@/lib/miniapp/telegram/client";
+import { MINIAPP_DIRECTIONS, matchesDirection, type MiniAppDirection } from "@/lib/miniapp/practitioner-filter";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
+import { GlassSegmented } from "@/components/miniapp/glass-segmented";
+import { PageHead, PractitionerAvatar } from "@/components/miniapp/subpage-ui";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
-
-function BackLink({ href, label = "Назад" }: { href: string; label?: string }) {
-  return <Link href={href} className={styles["subpage-back"]} aria-label={label}><CaretLeft size={21} /><span className={styles["sr-only"]}>{label}</span></Link>;
-}
-
-function PageHead({ eyebrow, title, description, back }: { eyebrow: string; title: string; description?: string; back: string }) {
-  return (
-    <header className={styles["subpage-head"]}>
-      <div className={styles["subpage-title-row"]}>
-        <BackLink href={back} />
-        <div><p className={styles.eyebrow}>{eyebrow}</p><h1>{title}</h1></div>
-      </div>
-      {description ? <p>{description}</p> : null}
-    </header>
-  );
-}
 
 function GateLink({ href, children }: { href: string; children: React.ReactNode }) {
   const { data } = useMiniAppV21();
@@ -75,30 +62,61 @@ function counted(value: number, one: string, few: string, many: string) {
   return `${value} ${word}`;
 }
 
-function PractitionerAvatar({ practitioner, size = 56 }: { practitioner: MiniAppPractitionerCard; size?: number }) {
-  return practitioner.avatar
-    ? <Image className={styles["practitioner-avatar"]} src={practitioner.avatar} alt="" width={size} height={size} />
-    : <span className={styles["practitioner-avatar-fallback"]}><User size={Math.round(size * .45)} weight="fill" /></span>;
-}
-
+/**
+ * B559: витрина специалистов.
+ *
+ * Была «полотном» — одинаковые строки 82px подряд, без иерархии: ни на ком не
+ * задерживается взгляд, все профили выглядят одинаково важными. Стало: первый
+ * профиль подборки — крупной карточкой с портретом, остальные — плиткой 2-в-ряд,
+ * где фотография занимает верх карточки. Фильтр направлений — тот же стеклянный
+ * контрол и те же ярлыки, что на «Услугах» (в том числе «Эзотерика» вместо
+ * прежних «Практик», на которые указал владелец).
+ */
 export function PractitionersScreen({ practitioners }: { practitioners: MiniAppPractitionerCard[] }) {
   const { data } = useMiniAppV21();
-  const [format, setFormat] = useState("all");
-  const filtered = useMemo(() => format === "all" ? practitioners : practitioners.filter((item) => item.categories.includes(format)), [format, practitioners]);
+  const [direction, setDirection] = useState<MiniAppDirection>("all");
+  const filtered = useMemo(
+    () => practitioners.filter((item) => matchesDirection(direction, item)),
+    [direction, practitioners],
+  );
+  const [lead, ...rest] = filtered;
+
   return (
     <MiniAppChrome data={data}>
       <div className={styles.subpage} data-testid="miniapp-practitioners">
         <PageHead back="/miniapp/services" eyebrow="живые специалисты" title="Выберите человека" description="Профили из рабочего каталога ETerapy. Цена и формат видны до записи." />
-        <div className={styles["compact-tabs"]} role="group" aria-label="Направление">
-          {[{ id: "all", label: "Все" }, { id: "psychology", label: "Психология" }, { id: "esoteric", label: "Практики" }].map((item) => <button key={item.id} type="button" className={format === item.id ? styles["is-active"] : undefined} onClick={() => setFormat(item.id)}>{item.label}</button>)}
-        </div>
-        {filtered.length ? <div className={styles["practitioner-list"]}>{filtered.map((item) => (
-          <Link key={item.slug} className={styles["practitioner-card"]} href={`/miniapp/practitioners/${item.slug}`}>
-            <PractitionerAvatar practitioner={item} />
-            <span><small>{item.verified ? "ПРОВЕРЕННЫЙ ПРОФИЛЬ" : "СПЕЦИАЛИСТ"}</small><strong>{item.name}</strong><em>{item.title}</em><span>{item.priceRub.toLocaleString("ru-RU")} ₽ · {item.durationMin} мин</span></span>
-            <CaretRight size={19} />
-          </Link>
-        ))}</div> : <section className={styles["empty-detail"]}><Users size={28} /><strong>В этом фильтре пока нет профилей</strong><p>Показываем только реальные активные анкеты.</p></section>}
+        <GlassSegmented label="Направление" options={MINIAPP_DIRECTIONS} value={direction} onChange={(value) => setDirection(value as MiniAppDirection)} />
+
+        {lead ? (
+          <>
+            <Link className={styles["practitioner-lead"]} href={`/miniapp/practitioners/${lead.slug}`}>
+              <PractitionerAvatar practitioner={lead} size={92} />
+              <span>
+                <small>{lead.verified ? "ПРОВЕРЕННЫЙ ПРОФИЛЬ" : "АКТИВНЫЙ ПРОФИЛЬ"}</small>
+                <strong>{lead.name}</strong>
+                <em>{lead.title}</em>
+                <b>{lead.priceRub.toLocaleString("ru-RU")} ₽ · {lead.durationMin} мин</b>
+              </span>
+            </Link>
+
+            {rest.length ? (
+              <div className={styles["practitioner-grid"]}>
+                {rest.map((item) => (
+                  <Link key={item.slug} className={styles["practitioner-tile"]} href={`/miniapp/practitioners/${item.slug}`}>
+                    <PractitionerAvatar practitioner={item} size={132} />
+                    <strong>{item.name}</strong>
+                    <em>{item.title}</em>
+                    <b>{item.priceRub.toLocaleString("ru-RU")} ₽</b>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <section className={styles["empty-detail"]}>
+            <Users size={28} /><strong>В этом направлении пока нет профилей</strong><p>Показываем только реальные активные анкеты.</p>
+          </section>
+        )}
       </div>
     </MiniAppChrome>
   );
@@ -119,93 +137,6 @@ export function PractitionerDetailScreen({ practitioner }: { practitioner: MiniA
         <GateLink href={`/miniapp/practitioners/${practitioner.slug}/book`}>Посмотреть свободное время</GateLink>
         <button className={styles["journey-secondary"]} type="button" onClick={() => share(practitioner.name, `/miniapp/practitioners/${practitioner.slug}`)}><LinkSimple size={17} />Поделиться профилем</button>
       </article>
-    </MiniAppChrome>
-  );
-}
-
-type Slot = { id?: string; slotId?: string; startAt: string; endAt: string };
-
-export function PractitionerBookingScreen({ practitioner }: { practitioner: MiniAppPractitionerCard }) {
-  const { data } = useMiniAppV21();
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [selected, setSelected] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  // B554 (owner): экран показывал «Свободное время уточняется» ВСЕГДА, и это
-  // читалось как «записаться нельзя». Причина — источник данных: `/api/slots`
-  // отдаёт только разовые записи в `time_slots`, а реальное расписание у всех
-  // специалистов задано НЕДЕЛЬНЫМИ ПРАВИЛАМИ, из которых веб генерирует слоты
-  // на лету (`/api/slots/month` + `/api/slots/available`). Персональных строк
-  // на проде нет ни у кого — отсюда пустой список в мини-аппе при живой записи
-  // в вебе. Берём тот же источник, что и веб.
-  useEffect(() => {
-    let cancelled = false;
-    const id = encodeURIComponent(practitioner.id);
-    const duration = practitioner.durationMin;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const now = new Date();
-        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        // month — 0-based, как Date.getMonth() (см. /api/slots/month).
-        const months = [
-          { year: now.getFullYear(), month: now.getMonth() },
-          { year: next.getFullYear(), month: next.getMonth() },
-        ];
-
-        // Запросы идут параллельно: последовательно это девять round-trip'ов
-        // подряд, и на мобильной сети экран несколько секунд висит в
-        // «Проверяем расписание…».
-        const monthPayloads = await Promise.all(months.map(async ({ year, month }) => {
-          const response = await fetch(`/api/slots/month?practitionerId=${id}&year=${year}&month=${month}&durationMin=${duration}`);
-          if (!response.ok) return [];
-          const payload = await response.json() as { availableDates?: string[] };
-          return Array.isArray(payload.availableDates) ? payload.availableDates : [];
-        }));
-
-        // Ближайшие дни, а не весь горизонт: список в мини-аппе прокручивается,
-        // и тянуть 90 запросов ради него незачем.
-        const soonest = [...new Set(monthPayloads.flat())].sort().slice(0, 7);
-        const dayPayloads = await Promise.all(soonest.map(async (date) => {
-          const response = await fetch(`/api/slots/available?practitionerId=${id}&date=${date}&durationMin=${duration}`);
-          if (!response.ok) return [];
-          const payload = await response.json() as { slots?: Slot[] };
-          return Array.isArray(payload.slots) ? payload.slots : [];
-        }));
-
-        if (!cancelled) setSlots(dayPayloads.flat());
-      } catch {
-        if (!cancelled) setSlots([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => { cancelled = true; };
-  }, [practitioner.id, practitioner.durationMin]);
-
-  // Сгенерированные по правилу слоты приходят БЕЗ id — ключом служит startAt,
-  // иначе выбор не защёлкивался бы вообще (undefined === selected).
-  const slotKey = (item: Slot) => item.id ?? item.slotId ?? item.startAt;
-  const slot = slots.find((item) => slotKey(item) === selected);
-  const review = slot ? `/miniapp/checkout/review?offer=${encodeURIComponent(`practitioner:${practitioner.slug}`)}&slot=${encodeURIComponent(slot.startAt)}` : "#time";
-  return (
-    <MiniAppChrome data={data}>
-      <div className={styles.subpage}>
-        <PageHead back={`/miniapp/practitioners/${practitioner.slug}`} eyebrow="запись" title="Выберите время" description={`${practitioner.name} · ${practitioner.durationMin} минут`} />
-        <section className={styles["booking-person"]}><PractitionerAvatar practitioner={practitioner} /><div><strong>{practitioner.name}</strong><span>{practitioner.priceRub.toLocaleString("ru-RU")} ₽ за встречу</span></div></section>
-        <div id="time" className={styles["slot-list"]}>
-          {loading ? <p className={styles["flow-note"]}>Проверяем расписание…</p> : slots.length ? slots.map((item) => {
-            const key = slotKey(item);
-            const date = new Date(item.startAt);
-            return <button key={key} type="button" className={selected === key ? styles["is-selected"] : undefined} onClick={() => setSelected(key)}><CalendarBlank size={18} /><span><strong>{date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })}</strong><small>{date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</small></span><Check size={17} /></button>;
-          }) : <section className={styles["empty-detail"]}><Clock size={28} /><strong>Свободное время уточняется</strong><p>Расписание показывает только реальные доступные слоты.</p></section>}
-        </div>
-        <Link className={c("journey-primary", !slot && "is-disabled")} aria-disabled={!slot} href={review}>Проверить запись<ArrowRight size={18} /></Link>
-        <p className={styles["flow-note"]}>Запись не создаётся и оплата не списывается до следующего подтверждения.</p>
-      </div>
     </MiniAppChrome>
   );
 }
@@ -317,10 +248,9 @@ async function linkCurrentTelegram() {
   const telegram = await loadTelegramSdk();
   if (!telegram?.initData) return { linked: false as const, inTelegram: false as const };
   const response = await fetch("/api/miniapp/auth/telegram/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: telegram.initData }) });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: string };
-    throw new Error(payload.error ?? "Не удалось связать Telegram. Перезапустите Mini App и повторите вход.");
-  }
+  // B555: серверные формулировки («Telegram SSO отключён») — для логов, не для
+  // клиента. Наружу отдаём одну человеческую фразу.
+  if (!response.ok) throw new Error("Не получилось связать аккаунт с Telegram. Это не мешает работе — попробуйте позже.");
   window.sessionStorage.setItem("eterapy:miniapp:telegram-linked", "1");
   return { linked: true as const, inTelegram: true as const };
 }
@@ -369,14 +299,12 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
       }
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.error) throw new Error(mode === "login" ? "Неверный email или пароль" : "Аккаунт создан, но войти не удалось");
-      try {
-        await linkCurrentTelegram();
-      } catch (reason) {
-        const message = reason instanceof Error ? reason.message : "Не удалось связать Telegram.";
-        setError(`Вход выполнен. ${message} Закройте и заново откройте Mini App — повторно вводить пароль не понадобится.`);
-        router.refresh();
-        return;
-      }
+      // B555: привязка Telegram — необязательный довесок к входу. Раньше её
+      // отказ выводился как ошибка входа («Вход выполнен. Telegram SSO
+      // отключен. Закройте и заново откройте Mini App…») — текст для
+      // разработчика на экране клиента, который в этот момент УЖЕ вошёл.
+      // Вход состоялся: ведём дальше, а состояние связки экран покажет сам.
+      await linkCurrentTelegram().catch(() => undefined);
       router.replace(returnTo);
       router.refresh();
     } catch (reason) {
@@ -386,7 +314,55 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
     }
   }
 
-  if (data.viewer.authenticated) return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow="аккаунт" title="Аккаунт подключён" description={data.viewer.email ?? "Ваш профиль уже открыт"} /><section className={styles["conversation-card"]}><span><ShieldCheck size={22} /><strong>{linkStatus === "linked" ? "Вход через Telegram готов" : "Подключить вход через Telegram"}</strong></span><p>{linkStatus === "linked" ? "При следующем открытии приложения вводить пароль не понадобится." : "После подключения этот аккаунт будет открываться в Telegram автоматически."}</p><button className={styles["journey-primary"]} type="button" disabled={linkStatus !== "idle"} onClick={() => void linkAuthenticatedAccount()}>{linkStatus === "linking" ? "Проверяем…" : linkStatus === "linked" ? "Готово" : "Подключить Telegram"}<ArrowRight size={18} /></button></section>{error ? <p className={styles["form-error"]} role="alert">{error}</p> : null}<Link className={styles["journey-secondary"]} href={returnTo}>Продолжить</Link></div></MiniAppChrome>;
+  // B555: раньше здесь всегда висел блок «Подключить вход через Telegram» с
+  // кнопкой, которая на стенде без Telegram-входа отвечала 404, а у уже
+  // привязанного аккаунта не делала ничего. Экран показывает ровно одно из
+  // трёх: связка есть (статус, без кнопки) · связку можно сделать (действие) ·
+  // вход через Telegram на стенде выключен (блока нет вовсе).
+  if (data.viewer.authenticated) {
+    const linked = linkStatus === "linked";
+    const canLink = data.viewer.telegramLinkAvailable && !linked;
+    return (
+      <MiniAppChrome data={data}>
+        <div className={styles.subpage}>
+          <PageHead
+            back="/miniapp/profile"
+            eyebrow="аккаунт"
+            title="Вы вошли"
+            description={data.viewer.email ?? "Ваш профиль уже открыт"}
+          />
+          {linked || canLink ? (
+            <section className={styles["conversation-card"]}>
+              <span>
+                <ShieldCheck size={22} />
+                <strong>{linked ? "Telegram подключён" : "Входить без пароля"}</strong>
+              </span>
+              <p>
+                {linked
+                  ? "В следующий раз приложение откроется сразу — пароль вводить не нужно."
+                  : "Свяжите аккаунт с Telegram, и приложение будет открываться сразу."}
+              </p>
+              {canLink ? (
+                <button
+                  className={styles["journey-primary"]}
+                  type="button"
+                  disabled={linkStatus === "linking"}
+                  onClick={() => void linkAuthenticatedAccount()}
+                >
+                  {linkStatus === "linking" ? "Связываем…" : "Связать с Telegram"}
+                  <ArrowRight size={18} />
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+          {error ? <p className={styles["form-error"]} role="alert">{error}</p> : null}
+          <Link className={styles["journey-primary"]} href={returnTo}>
+            Продолжить <ArrowRight size={18} />
+          </Link>
+        </div>
+      </MiniAppChrome>
+    );
+  }
   return (
     <MiniAppChrome data={data}>
       <div className={styles.subpage}>
