@@ -29,6 +29,35 @@ export function activePaymentProvider(): PaymentProviderName {
 }
 
 /**
+ * Can we actually take a card payment right now?
+ *
+ * B554 (owner): the Mini App used to print «оплата картой появится скоро» as a
+ * literal string. Once the rail is live that sentence is a lie — but flipping it
+ * to «оплатить» unconditionally is worse: without credentials on the server the
+ * button would walk the user into a 500. So the copy follows this probe, and
+ * go-live is the same single env change that switches the provider.
+ *
+ * Deliberately never throws: callers are asking a question, not demanding the
+ * secrets exist.
+ */
+export function cardPaymentAvailable(): boolean {
+  const present = (name: string) => Boolean(process.env[name]?.trim());
+
+  if (activePaymentProvider() === "robokassa") {
+    // Test mode signs with a SEPARATE password pair — the production ones fail
+    // there with error 29, so «configured» means the pair for the CURRENT mode.
+    const isTest = process.env.ROBOKASSA_IS_TEST?.trim() === "1";
+    return (
+      present("ROBOKASSA_MERCHANT_LOGIN")
+      && present(isTest ? "ROBOKASSA_TEST_PASSWORD_1" : "ROBOKASSA_PASSWORD_1")
+      && present(isTest ? "ROBOKASSA_TEST_PASSWORD_2" : "ROBOKASSA_PASSWORD_2")
+    );
+  }
+
+  return present("YUKASSA_SHOP_ID") && present("YUKASSA_SECRET_KEY");
+}
+
+/**
  * Taxation system printed on fiscal receipts. ИП на УСН «доходы» → `usn_income`,
  * which also means every line is billed without VAT (`none`).
  */

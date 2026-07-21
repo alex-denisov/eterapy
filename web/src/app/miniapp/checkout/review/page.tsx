@@ -1,6 +1,7 @@
 import { miniAppService } from "@/lib/miniapp/catalog";
 import { loadMiniAppPractitioner, miniAppOffers } from "@/lib/miniapp/journey-data";
 import { CheckoutReviewScreen, type ReviewOffer } from "@/components/miniapp/journey-screens";
+import { cardPaymentAvailable } from "@/lib/payments/config";
 
 export default async function MiniAppCheckoutReviewPage({ searchParams }: { searchParams: Promise<{ offer?: string; slot?: string }> }) {
   const query = await searchParams;
@@ -16,5 +17,7 @@ export default async function MiniAppCheckoutReviewPage({ searchParams }: { sear
     const found = miniAppOffers().find((item) => item.key === key);
     if (found) offer = { key, title: found.title, price: found.price, note: found.note, kind: found.kind };
   }
-  return <CheckoutReviewScreen offer={offer} slot={query.slot ?? null} />;
+  // B554 (owner): копия и кнопка на этом экране идут от РЕАЛЬНОЙ готовности
+  // платёжного рельса, а не от захардкоженного «скоро».
+  return <CheckoutReviewScreen offer={offer} slot={query.slot ?? null} cardPaymentEnabled={cardPaymentAvailable()} />;
 }

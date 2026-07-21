@@ -132,5 +132,12 @@ export type MiniAppInitialData = {
   upcomingBookingLabel: string | null;
   streak: number;
   completedWeekdays: number[];
+  /**
+   * B554 (owner): готов ли платёжный рельс принимать карту ПРЯМО СЕЙЧАС.
+   * Кнопки и копия про оплату идут от этого флага, а не от захардкоженного
+   * «скоро» — иначе после подключения провайдера интерфейс продолжал бы врать,
+   * а до подключения уводил бы человека в тупик.
+   */
+  cardPaymentEnabled: boolean;
   loadError: boolean;
 };

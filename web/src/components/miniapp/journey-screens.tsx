@@ -192,8 +192,44 @@ export function PackagesScreen({ offers, initialKind = "subscription" }: { offer
 
 export type ReviewOffer = { key: string; title: string; price: string; note: string; kind: string };
 
-export function CheckoutReviewScreen({ offer, slot }: { offer: ReviewOffer | null; slot?: string | null }) {
+export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }: { offer: ReviewOffer | null; slot?: string | null; cardPaymentEnabled?: boolean }) {
   const { data } = useMiniAppV21();
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
+  // B554 (owner): раньше экран ВСЕГДА говорил «оплата картой появится скоро» и
+  // держал кнопку выключенной. Теперь и текст, и кнопка идут от готовности
+  // рельса: пока кредов на сервере нет — честное «скоро», как только они есть —
+  // настоящий переход на оплату.
+  async function pay() {
+    if (!offer) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const response = await fetch("/api/billing/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productKey: offer.key.startsWith("service:") ? offer.key.slice("service:".length) : offer.key,
+          checkoutSource: "miniapp-checkout-review",
+          returnPath: `/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`,
+        }),
+      });
+      const payload = await response.json().catch(() => ({})) as { confirmationUrl?: string; error?: string };
+      if (!response.ok || !payload.confirmationUrl) {
+        setPayError(response.status === 401
+          ? "Сессия истекла. Войдите в аккаунт и попробуйте ещё раз."
+          : payload.error ?? "Не удалось открыть оплату. Попробуйте ещё раз.");
+        return;
+      }
+      window.location.href = payload.confirmationUrl;
+    } catch {
+      setPayError("Нет связи с сервером. Попробуйте ещё раз.");
+    } finally {
+      setPaying(false);
+    }
+  }
+
   return (
     <MiniAppChrome data={data}>
       <div className={styles.subpage} data-testid="miniapp-checkout-review">
@@ -204,9 +240,23 @@ export function CheckoutReviewScreen({ offer, slot }: { offer: ReviewOffer | nul
           <div className={styles["review-row"]}><span>Итого</span><strong>{offer.price}</strong></div>
           <div className={styles["review-row"]}><span>Условия</span><strong>{offer.note}</strong></div>
         </section> : <section className={styles["empty-detail"]}><Wallet size={28} /><strong>Предложение не найдено</strong><p>Вернитесь в каталог и выберите услугу ещё раз.</p></section>}
-        <section className={styles["payment-hold"]}><Lock size={22} /><div><strong>Оплата картой появится скоро</strong><p>Сейчас заказ не создаётся и данные карты не запрашиваются.</p></div></section>
-        <button className={c("journey-primary", "is-disabled")} type="button" disabled>Оплата скоро<ArrowRight size={18} /></button>
-        <p className={styles["flow-note"]}><ShieldCheck size={16} />На этом экране ничего не списывается.</p>
+
+        {cardPaymentEnabled ? (
+          <>
+            <section className={styles["payment-hold"]}><ShieldCheck size={22} /><div><strong>Оплата на защищённой странице банка</strong><p>Данные карты вводятся у платёжного партнёра — на нашей стороне они не сохраняются.</p></div></section>
+            <button className={styles["journey-primary"]} type="button" onClick={() => void pay()} disabled={!offer || paying}>
+              {paying ? "Открываем оплату…" : "Перейти к оплате"}<ArrowRight size={18} />
+            </button>
+            {payError ? <p className={styles["form-error"]} role="alert">{payError}</p> : null}
+            <p className={styles["flow-note"]}><ShieldCheck size={16} />Чек придёт на вашу почту после оплаты.</p>
+          </>
+        ) : (
+          <>
+            <section className={styles["payment-hold"]}><Lock size={22} /><div><strong>Оплата картой появится скоро</strong><p>Сейчас заказ не создаётся и данные карты не запрашиваются.</p></div></section>
+            <button className={c("journey-primary", "is-disabled")} type="button" disabled>Оплата скоро<ArrowRight size={18} /></button>
+            <p className={styles["flow-note"]}><ShieldCheck size={16} />На этом экране ничего не списывается.</p>
+          </>
+        )}
       </div>
     </MiniAppChrome>
   );
@@ -423,5 +473,5 @@ export function ProfileSectionScreen({ section }: { section: ProfileSection }) {
 
 export function HelpScreen() {
   const { data } = useMiniAppV21();
-  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp" eyebrow="помощь" title="Коротко о главном" description="Как устроены вопросы, приватность и покупки." /><div className={styles["settings-list"]}><div id="dialogue"><span><PaperPlaneTilt size={19} /></span><span><strong>Первичный разбор</strong><small>Начинается бесплатно с одного вопроса. Платные шаги предлагаются отдельно.</small></span></div><div><span><Notebook size={19} /></span><span><strong>Дневник</strong><small>Хранит ваши результаты и личные наблюдения после входа.</small></span></div><div id="payments"><span><Wallet size={19} /></span><span><strong>Оплата</strong><small>Покупка картой временно недоступна; данные карты не запрашиваются.</small></span></div><div id="support"><span><Lifebuoy size={19} /></span><span><strong>Поддержка</strong><small>support@eterapy.com</small></span></div></div><Link className={styles["journey-secondary"]} href="mailto:support@eterapy.com"><Lifebuoy size={17} />Написать в поддержку</Link></div></MiniAppChrome>;
+  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp" eyebrow="помощь" title="Коротко о главном" description="Как устроены вопросы, приватность и покупки." /><div className={styles["settings-list"]}><div id="dialogue"><span><PaperPlaneTilt size={19} /></span><span><strong>Первичный разбор</strong><small>Начинается бесплатно с одного вопроса. Платные шаги предлагаются отдельно.</small></span></div><div><span><Notebook size={19} /></span><span><strong>Дневник</strong><small>Хранит ваши результаты и личные наблюдения после входа.</small></span></div><div id="payments"><span><Wallet size={19} /></span><span><strong>Оплата</strong><small>{data.cardPaymentEnabled ? "Картой на защищённой странице банка; чек приходит на почту." : "Покупка картой временно недоступна; данные карты не запрашиваются."}</small></span></div><div id="support"><span><Lifebuoy size={19} /></span><span><strong>Поддержка</strong><small>support@eterapy.com</small></span></div></div><Link className={styles["journey-secondary"]} href="mailto:support@eterapy.com"><Lifebuoy size={17} />Написать в поддержку</Link></div></MiniAppChrome>;
 }

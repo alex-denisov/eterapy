@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
@@ -29,24 +29,12 @@ import type { MiniAppInitialData, MiniAppService } from "@/lib/miniapp/types";
 import { MiniAppTelegramBootstrap } from "@/components/miniapp/telegram-bootstrap";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
-type Utility = "balance" | "subscription" | "help" | null;
+// Контекст живёт в отдельном модуле без CSS — см. `miniapp-context.ts`.
+// Ре-экспорт сохранён, чтобы не переписывать десятки существующих импортов.
+import { MiniAppV21Context, useMiniAppV21, type MiniAppContextValue, type Utility } from "@/components/miniapp/miniapp-context";
 
-type MiniAppContextValue = {
-  data: MiniAppInitialData;
-  viewerName: string;
-  openService: (service: MiniAppService) => void;
-  openUtility: (utility: Exclude<Utility, null>) => void;
-  notify: (message: string) => void;
-  share: (title: string, url: string) => Promise<void>;
-};
-
-const MiniAppV21Context = createContext<MiniAppContextValue | null>(null);
-
-export function useMiniAppV21(): MiniAppContextValue {
-  const context = useContext(MiniAppV21Context);
-  if (!context) throw new Error("useMiniAppV21 must be used inside MiniAppShell");
-  return context;
-}
+export { useMiniAppV21, useMiniAppV21Optional } from "@/components/miniapp/miniapp-context";
+export type { MiniAppContextValue } from "@/components/miniapp/miniapp-context";
 
 const NAV_ICONS = {
   home: House,

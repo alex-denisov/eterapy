@@ -226,8 +226,12 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     expect(chat).toContain('const authPending = authStatus === "loading"');
     expect(chat).toContain("if (authPending) return;");
     expect(chat).toContain('authPending ? "Проверяем вход…"');
-    // Оплата картой в мини-аппе ещё не подключена — кнопка не обещает лишнего.
-    expect(controls).toContain('inMiniApp ? "Картой — скоро"');
+    // Кнопка не обещает оплату, которой нет. Раньше здесь стояло безусловное
+    // `inMiniApp ? "Картой — скоро"`, но после подключения Robokassa (B423) это
+    // стало бы враньём в обратную сторону: рельс есть, а кнопка зовёт ждать.
+    // Условие теперь — РЕАЛЬНАЯ готовность рельса, флагом с сервера.
+    expect(controls).toContain('inMiniApp && !miniAppCardReady ? "Картой — скоро"');
+    expect(controls).toContain("useMiniAppV21Optional()?.data.cardPaymentEnabled");
   });
 
   it("п.20 — короткий месяц в записях Дневника не зависит от сборки ICU", () => {
