@@ -15,6 +15,13 @@ export async function POST(req: NextRequest) {
   const user = await db.user.findUnique({ where: { id: session.user!.id } });
   if (!user) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
 
+  // B554 п.14: у аккаунта, заведённого через Telegram/соцсеть, пароля нет, и
+  // bcrypt.compare с пустым хэшем бросал исключение. Роут отдавал 500 без поля
+  // `error`, а мини-апп показывал безымянное «Не удалось изменить пароль».
+  if (!user.password) {
+    return NextResponse.json({ error: "У аккаунта ещё нет пароля. Создайте его через «Не помню текущий пароль»." }, { status: 400 });
+  }
+
   const valid = await bcrypt.compare(currentPassword, user.password);
   if (!valid) return NextResponse.json({ error: "Неверный текущий пароль" }, { status: 400 });
 

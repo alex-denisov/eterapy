@@ -7,9 +7,14 @@ import { ArrowRight, Check, Eye, Lock, ShareNetwork, StarFour } from "@phosphor-
 import { MINIAPP_DIARY_SERVICE } from "@/lib/miniapp/catalog";
 import { pluralRu } from "@/lib/streak-display";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
+import { MiniAppDiaryPinButton, MiniAppDiaryPinGate } from "@/components/miniapp/diary-pin";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+// Тот же шаг, что у веба (`RevealList` в кабинете): четыре записи и «показать ещё».
+const DIARY_PAGE_SIZE = 4;
+// Заглушка темы для записей, у которых её нет (результаты услуг) — см. server-data.
+const GENERIC_TOPIC = "Личное";
 
 // B554: числа в полосе недели были захардкожены (14…20) и совпадали с реальным
 // календарём одну неделю в месяц. Дневник — это личная запись пользователя;
@@ -35,14 +40,24 @@ export function DiaryScreen() {
   const [saving, setSaving] = useState(false);
   const [perspective, setPerspective] = useState("");
   const [topic, setTopic] = useState("Все");
-  const [activeItem, setActiveItem] = useState(data.diaryItems[0]?.id ?? "");
+  const [activeJournalId, setActiveJournalId] = useState(data.journalEntries[0]?.id ?? "");
+  const [visibleItems, setVisibleItems] = useState(DIARY_PAGE_SIZE);
   const weekDates = useMemo(() => currentWeekDates(), []);
-  const topics = useMemo(() => ["Все", ...Array.from(new Set(data.diaryItems.map((item) => item.topic))).slice(0, 4)], [data.diaryItems]);
-  const filtered = useMemo(() => topic === "Все" ? data.diaryItems : data.diaryItems.filter((item) => item.topic === topic), [data.diaryItems, topic]);
-  const selected = data.diaryItems.find((item) => item.id === activeItem) ?? data.diaryItems[0];
+  // B554 п.18: фильтр строился по `item.topic`, а у результатов услуг тема всегда
+  // одна («Личное») — получались две кнопки, «Все» и «Личное», с одинаковым
+  // списком. Различаются записи типом, по нему и фильтруем.
+  const topics = useMemo(() => ["Все", ...Array.from(new Set(data.diaryItems.map((item) => item.type))).slice(0, 4)], [data.diaryItems]);
+  const filtered = useMemo(() => topic === "Все" ? data.diaryItems : data.diaryItems.filter((item) => item.type === topic), [data.diaryItems, topic]);
+  const activeJournal = data.journalEntries.find((entry) => entry.id === activeJournalId) ?? data.journalEntries[0];
+  // B554 п.18/20: у результатов услуг темы нет, и `topic` приходил заглушкой
+  // «Личное» — наблюдение всегда срабатывало и всегда сообщало «тема "личное"
+  // возвращается в ваших разборах». Считаем только настоящие темы.
   const repeatedTopic = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const item of data.diaryItems) counts.set(item.topic, (counts.get(item.topic) ?? 0) + 1);
+    for (const item of data.diaryItems) {
+      if (item.topic === GENERIC_TOPIC) continue;
+      counts.set(item.topic, (counts.get(item.topic) ?? 0) + 1);
+    }
     return Array.from(counts.entries()).find(([, count]) => count > 1)?.[0] ?? null;
   }, [data.diaryItems]);
 
@@ -81,9 +96,11 @@ export function DiaryScreen() {
       <div className={styles["diary-screen"]} data-screen="diary" data-testid="miniapp-diary-screen">
         <section className={styles["page-heading"]}>
           <div className={styles["page-heading-copy"]}><p className={styles.eyebrow}>дневник</p><h1>Ваше пространство</h1><p className={styles["page-description"]}>Вопросы, разборы и заметки. Видите только вы.</p></div>
-          <Link className={styles["privacy-button"]} href="/miniapp/profile/security" aria-label="Защита Дневника"><Lock size={19} /></Link>
+          {/* B554 п.19: замок открывает PIN Дневника, а не страницу смены пароля аккаунта. */}
+          <MiniAppDiaryPinButton />
         </section>
 
+        <MiniAppDiaryPinGate>
         <section className={styles["diary-practice"]}>
           <div className={styles["practice-head"]}>
             <span><small>ВОПРОС ДНЯ · ДЛЯ ВАС</small><strong>Что сегодня помогло вам не торопиться с решением?</strong></span>
@@ -106,11 +123,21 @@ export function DiaryScreen() {
           <p className={styles["practice-footnote"]}>На 7-й день серии соберём итог недели: что повторялось и что менялось.</p>
         </section>
 
-        {selected ? (
+        {/* B554 п.20: раньше здесь стояли пять последних РАЗБОРОВ, поэтому в ряду
+            повторялись числа («20, 20, 20, 20, 17») и у каждого была одна и та же
+            подпись «Личное». Это дни практики — те же карточки, что в вебе:
+            день, вопрос этого дня и то, что человек на него получил. */}
+        {activeJournal ? (
           <section className={styles["journal-history"]}>
             <div className={styles["section-title-row"]}><span><small>ВАШИ ЗАПИСИ</small><strong>Последние дни</strong></span></div>
-            <div className={styles["journal-day-buttons"]}>{data.diaryItems.slice(0, 5).map((item) => <button key={item.id} type="button" className={activeItem === item.id ? styles["is-active"] : undefined} onClick={() => setActiveItem(item.id)}><small>{item.dayLabel}</small><span>{item.topic}</span></button>)}</div>
-            <article className={styles["journal-expanded"]}><p>{selected.insight}</p><button type="button" onClick={() => share(selected.title, `/miniapp/diary/${encodeURIComponent(selected.id)}`)}><ShareNetwork size={16} /> Поделиться анонимным инсайтом</button></article>
+            <div className={styles["journal-day-buttons"]} role="tablist" aria-label="Последние записи">{data.journalEntries.map((entry) => <button key={entry.id} type="button" role="tab" aria-selected={entry.id === activeJournal.id} className={entry.id === activeJournal.id ? styles["is-active"] : undefined} onClick={() => setActiveJournalId(entry.id)}><small>{entry.dayLabel}</small><span>{entry.monthLabel}</span></button>)}</div>
+            <article className={styles["journal-expanded"]} role="tabpanel">
+              <small>{activeJournal.fullDateLabel} · {activeJournal.own ? "ваш вопрос" : "вопрос дня"}</small>
+              <p>«{activeJournal.question}»</p>
+              {activeJournal.perspective ? <><small>ВЗГЛЯД ДНЯ</small><p>{activeJournal.perspective}</p></> : null}
+              {activeJournal.step ? <><small>МАЛЕНЬКИЙ ШАГ</small><p>{activeJournal.step}</p></> : null}
+              {!activeJournal.perspective && !activeJournal.step ? <p>В этот день вы отметили практику без развёрнутого ответа.</p> : null}
+            </article>
           </section>
         ) : null}
 
@@ -120,13 +147,17 @@ export function DiaryScreen() {
           <div className={styles["section-title-row"]}><span><small>ВАШИ РАЗБОРЫ</small><strong>{filtered.length} сохранено</strong></span></div>
           {data.viewer.authenticated ? (
             <>
-              <div className={c("filter-row", "diary-filters")} role="group" aria-label="Фильтр по темам">{topics.map((item) => <button key={item} type="button" className={topic === item ? styles["is-selected"] : undefined} aria-pressed={topic === item} onClick={() => setTopic(item)}>{item}</button>)}</div>
-              <div className={styles["diary-item-list"]}>{filtered.map((item) => <article key={item.id}><Link className={styles["diary-item-main"]} href={`/miniapp/diary/${encodeURIComponent(item.id)}`}><span className={styles["diary-item-icon"]}><StarFour size={19} /></span><span><em>{item.topic} · {item.type}</em><strong>{item.title}</strong><small>{item.date}</small></span><ArrowRight size={17} /></Link><button className={styles["diary-share"]} type="button" aria-label={`Поделиться: ${item.title}`} onClick={() => share(item.title, `/miniapp/diary/${item.id}`)}><ShareNetwork size={17} /></button></article>)}</div>
+              {topics.length > 2 ? <div className={c("filter-row", "diary-filters")} role="group" aria-label="Фильтр по типу записи">{topics.map((item) => <button key={item} type="button" className={topic === item ? styles["is-selected"] : undefined} aria-pressed={topic === item} onClick={() => { setTopic(item); setVisibleItems(DIARY_PAGE_SIZE); }}>{item}</button>)}</div> : null}
+              {/* B554 п.18: список выводился целиком — на два десятка записей
+                  экран превращался в бесконечную ленту. Показываем по четыре. */}
+              <div className={styles["diary-item-list"]}>{filtered.slice(0, visibleItems).map((item) => <article key={item.id}><Link className={styles["diary-item-main"]} href={`/miniapp/diary/${encodeURIComponent(item.id)}`}><span className={styles["diary-item-icon"]}><StarFour size={19} /></span><span><em>{item.topic} · {item.type}</em><strong>{item.title}</strong><small>{item.date}</small></span><ArrowRight size={17} /></Link><button className={styles["diary-share"]} type="button" aria-label={`Поделиться: ${item.title}`} onClick={() => share(item.title, `/miniapp/diary/${item.id}`)}><ShareNetwork size={17} /></button></article>)}</div>
+              {filtered.length > visibleItems ? <button className={styles["diary-more"]} type="button" onClick={() => setVisibleItems((current) => current + DIARY_PAGE_SIZE)}>Показать ещё ({filtered.length - visibleItems})</button> : null}
             </>
           ) : <div className={styles["empty-state"]}><Lock size={29} /><h2>Дневник должен помнить именно вас</h2><p>Добавьте email и пароль перед сохранением личных результатов.</p><Link href="/miniapp/account?intent=diary">Создать личное пространство</Link></div>}
         </section>
 
         {MINIAPP_DIARY_SERVICE && data.diaryItems.length >= 2 ? <section className={styles["family-scenario"]}><div><small>ПОВТОРЯЮЩАЯСЯ ТЕМА</small><strong>{MINIAPP_DIARY_SERVICE.title}</strong><p>{MINIAPP_DIARY_SERVICE.description}</p></div><button type="button" onClick={() => openService(MINIAPP_DIARY_SERVICE!)}>Посмотреть <ArrowRight size={16} /></button></section> : null}
+        </MiniAppDiaryPinGate>
       </div>
     </MiniAppChrome>
   );

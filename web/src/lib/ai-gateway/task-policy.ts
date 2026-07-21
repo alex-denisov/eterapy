@@ -58,11 +58,20 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
   {
     feature: "dialogue-primary-answer",
     enabled: true,
-    tier: "free",
+    // B554 (owner 2026-07-21): тир `free` разрешался в cheapModelPreferences,
+    // то есть YandexGPT **Lite**. Живой прогон staging это подтвердил:
+    // dialogue-primary-answer уходил на `yandexgpt-lite/latest`. Разбор — это
+    // ЕДИНСТВЕННЫЙ текст, который клиент реально читает после диалога, и по нему
+    // он решает, возвращаться ли. Экономить на нём Lite-моделью означает
+    // экономить ровно на том, что продаёт продукт. Тир поднят до premium (Pro);
+    // бесплатность разбора обеспечивается лимитом 3 разбора/сутки, а не слабой
+    // моделью.
+    tier: "premium",
     title: "Free первичный разбор",
     purpose: "Бесплатный вход: короткий первичный разбор и мягкий следующий шаг.",
-    providerOrder: [...freeOrder],
-    maxTokens: 900,
+    providerOrder: [...directPremiumOrder],
+    // Пять блоков структуры не помещались в 900 токенов.
+    maxTokens: 1400,
     temperature: 0.45,
     timeoutMs: 30_000,
     // Issue #2/#3: no per-user daily TOKEN cap — the free разбор must ALWAYS be

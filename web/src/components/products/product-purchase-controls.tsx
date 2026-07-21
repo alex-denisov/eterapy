@@ -19,6 +19,12 @@ type ProductPurchaseControlsProps = {
   className?: string;
   variant?: "default" | "catalog";
   onUnlocked?: () => void;
+  /**
+   * B554 п.25: проверка обязательных полей ДО оплаты. Возвращает текст
+   * предупреждения или null. Без неё «Открыть за баллы» списывало баллы при
+   * пустой форме и только потом просило заполнить поля.
+   */
+  beforePay?: () => string | null;
 };
 
 async function jsonRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
@@ -48,6 +54,7 @@ export function ProductPurchaseControls({
   className,
   variant = "default",
   onUnlocked,
+  beforePay,
 }: ProductPurchaseControlsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -114,7 +121,18 @@ export function ProductPurchaseControls({
     return () => { cancelled = true; };
   }, [onUnlocked, paymentStatus, productKey, returnedProductKey, status]);
 
+  /** Общий вход в оплату: без заполненных полей платить не за что. */
+  function blockedByInput(): boolean {
+    const warning = beforePay?.();
+    if (warning) {
+      setMessage(warning);
+      return true;
+    }
+    return false;
+  }
+
   async function payWithCredits() {
+    if (blockedByInput()) return;
     setAction("credits");
     setMessage(null);
     try {
@@ -124,14 +142,27 @@ export function ProductPurchaseControls({
       onUnlocked?.();
       setMessage("Доступ открыт за баллы.");
     } catch (error) {
-      const text = error instanceof Error ? error.message : "Не удалось списать баллы";
-      setMessage(`${text}. Можно оплатить картой.`);
+      // B554 п.25: раньше к ЛЮБОМУ отказу приклеивалось «Можно оплатить
+      // картой», и при пустом теле ответа получалось бессодержательное
+      // «Не удалось выполнить действие. Можно оплатить картой.» Карту
+      // предлагаем только там, где она действительно выход — когда не хватило
+      // баллов; остальные отказы называем своим текстом.
+      const typed = error as Error & { status?: number };
+      const text = error instanceof Error && error.message ? error.message : "";
+      if (typed.status === 402) {
+        setMessage(`${text || "Не хватает баллов"}. Можно оплатить картой.`);
+      } else if (typed.status === 401) {
+        setMessage("Сессия истекла. Войдите в аккаунт и попробуйте ещё раз.");
+      } else {
+        setMessage(text || "Не получилось списать баллы. Попробуйте ещё раз через минуту.");
+      }
     } finally {
       setAction("idle");
     }
   }
 
   async function payWithCard() {
+    if (blockedByInput()) return;
     if (inMiniApp) {
       window.location.href = `/miniapp/checkout/review?offer=${encodeURIComponent(`service:${productKey}`)}`;
       return;
@@ -275,7 +306,10 @@ export function ProductPurchaseControls({
           data-analytics-checkout-source={checkoutSource}
         >
           {action === "card" ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4 shrink-0" aria-hidden="true" />}
-          {action === "card" ? "Открываем оплату" : hasCredits ? "Картой" : label}
+          {/* B554 п.27: в мини-аппе оплата картой ещё не подключена — экран
+              проверки честно говорит «скоро». Кнопка на самой услуге обещала
+              оплату, уводила с заполненной формы и упиралась в тупик. */}
+          {action === "card" ? "Открываем оплату" : inMiniApp ? "Картой — скоро" : hasCredits ? "Картой" : label}
         </button>
       </div>
       {messageBlock}

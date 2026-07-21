@@ -9,7 +9,12 @@ import {
   verifyTelegramInitData,
 } from "@/lib/miniapp/telegram/auth";
 import { getRequestMeta } from "@/lib/request-meta";
+import {
+  MINIAPP_LAUNCH_COOKIE,
+  readLaunchSessionCookieValue,
+} from "@/lib/miniapp/telegram/launch-session";
 import { isSameOriginMiniAppRequest, readMiniAppInitData } from "@/lib/miniapp/telegram/request";
+import type { VerifiedTelegramLaunch } from "@/lib/miniapp/telegram/auth";
 
 function noStore(response: NextResponse) {
   response.headers.set("Cache-Control", "no-store, max-age=0");
@@ -25,11 +30,40 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return noStore(authRateLimitResponse(limit));
   if (!isSameOriginMiniAppRequest(request)) return noStore(NextResponse.json({ error: "Недопустимый источник запроса" }, { status: 403 }));
 
-  const body = await readMiniAppInitData(request);
-  if (!body.ok) return noStore(NextResponse.json({ error: body.error }, { status: body.status }));
+  // B554 п.6: сначала — launch-сессия, выданная на bootstrap после проверки
+  // подписи. Telegram не обновляет `initData`, пока Mini App открыт, поэтому к
+  // моменту «связать аккаунт» (после разбора, то есть заведомо позже пяти
+  // минут) он всегда просрочен, и клиент упирался в «сессия устарела».
+  // `initData` остаётся запасным путём: для запуска, где куку не приняли.
+  const launchSession = readLaunchSessionCookieValue(request.cookies.get(MINIAPP_LAUNCH_COOKIE)?.value);
+
+  let launch: VerifiedTelegramLaunch;
+  if (launchSession) {
+    launch = {
+      provider: "telegram",
+      subjectId: launchSession.subjectId,
+      username: launchSession.username,
+      firstName: launchSession.firstName,
+      lastName: launchSession.lastName,
+      // Эти два поля нужны только проверке подписи запуска, которая уже
+      // пройдена; связывание их не использует.
+      authDate: new Date(),
+      launchHash: "",
+    };
+  } else {
+    const body = await readMiniAppInitData(request);
+    if (!body.ok) return noStore(NextResponse.json({ error: body.error }, { status: body.status }));
+    try {
+      launch = verifyTelegramInitData(body.initData);
+    } catch (error) {
+      if (error instanceof TelegramLaunchError) {
+        return noStore(NextResponse.json({ error: error.message, code: error.code }, { status: 401 }));
+      }
+      return noStore(NextResponse.json({ error: "Не удалось связать Telegram с аккаунтом" }, { status: 500 }));
+    }
+  }
 
   try {
-    const launch = verifyTelegramInitData(body.initData);
     const result = await linkTelegramIdentity(session.user.id, launch);
     if (!result.ok) {
       const message = result.code === "IDENTITY_IN_USE"

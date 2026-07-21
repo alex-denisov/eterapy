@@ -127,14 +127,16 @@ export function ServiceTriage({
 
         <Link
           href={specialist?.href ?? specialistHref}
-          className="soft-triage-option sm:col-span-2 ring-1 ring-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-card)]"
+          // B554 п.3: см. checkin-experience — `ring-1` рисуется снаружи и
+          // срезается предком с `overflow-hidden`, `ring-inset` не срезается.
+          className="soft-triage-option sm:col-span-2 ring-1 ring-inset ring-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-card)]"
           data-testid="specialist-recommendation"
         >
           <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="block truncate font-medium text-[var(--soft-ink)]">{specialist?.name ?? "Встреча со специалистом"}</span>
-              <span className="rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
             </span>
             <span className="block truncate text-[11px] text-[var(--soft-ink-faint)]">
               {specialist?.rationale ?? "живое сопровождение, когда нужно"}

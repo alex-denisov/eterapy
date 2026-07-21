@@ -95,6 +95,11 @@ export type CompanionChatPanelProps = {
 export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, loginNext, autoStart = false }: CompanionChatPanelProps) {
   const { status: authStatus } = useSession();
   const authed = authStatus === "authenticated";
+  // B554 п.27: пока `useSession()` в состоянии "loading", `authed` ещё false —
+  // и вошедший пользователь видел на главной кнопке «Войти и начать», а нажатие
+  // в этом окне уводило его на экран входа. На мобильной сети окно заметное.
+  // Третье состояние вместо вранья про гостя.
+  const authPending = authStatus === "loading";
   const [state, setState] = useState<State | null>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -234,6 +239,9 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
   }, [expired, windowExpiresAt]);
 
   const startSession = useCallback(async () => {
+    // Пока статус сессии неизвестен, ни входить, ни начинать нельзя — иначе
+    // вошедшего человека выкинет на логин (B554 п.27).
+    if (authPending) return;
     if (!authed) {
       redirectToLogin(loginNext);
       return;
@@ -270,7 +278,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     } finally {
       setStarting(false);
     }
-  }, [authed, state, loginNext, applySession, dialogueId, analysisId]);
+  }, [authed, authPending, state, loginNext, applySession, dialogueId, analysisId]);
 
   // Task 7: auto-open the paid session once (after the session state loads) when
   // the panel was launched from the «Продолжить разговор в чате» CTA. This is what
@@ -371,11 +379,11 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
         <Button
           type="button"
           onClick={startSession}
-          disabled={starting || (authed && !state)}
+          disabled={starting || authPending || (authed && !state)}
           className="soft-button soft-button-primary mt-5"
           data-testid="companion-start-session"
         >
-          {authed ? (starting ? "Открываем…" : "Начать диалог") : "Войти и начать"}
+          {authPending ? "Проверяем вход…" : authed ? (starting ? "Открываем…" : "Начать диалог") : "Войти и начать"}
           <ArrowRight className="size-4" aria-hidden="true" />
         </Button>
       )}

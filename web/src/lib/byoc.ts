@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 
 import db from "@/lib/db";
 import { requestFingerprint, logFraudEvent } from "@/lib/antifraud";
+import { APP_URL } from "@/lib/env";
 import { mainUrl } from "@/lib/subdomain";
 import { visitorHashFromRequest } from "@/lib/share-referral";
 import {
@@ -41,7 +42,9 @@ export function createPractitionerInviteToken() {
 }
 
 export function practitionerInviteLandingUrl(slug: string, token: string) {
-  const url = new URL(mainUrl(`/p/${slug}`));
+  // См. B554 п.12 в share-referral.ts: на одном домене `mainUrl` относительный,
+  // и односоставный `new URL()` бросает TypeError.
+  const url = new URL(mainUrl(`/p/${slug}`), APP_URL);
   url.searchParams.set("ref", token);
   return url.toString();
 }

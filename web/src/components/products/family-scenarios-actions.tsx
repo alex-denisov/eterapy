@@ -151,9 +151,16 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
     return () => window.clearInterval(id);
   }, [result]);
 
+  // B554 п.25: проверка обязательных полей ДО оплаты — иначе баллы списывались
+  // на пустой форме и человек только потом узнавал, что данных не хватает.
+  function missingInput(): string | null {
+    return pattern.trim().length < 10 ? "Опишите, что повторяется в роду, хотя бы парой предложений — так разбор будет точнее." : null;
+  }
+
   function handleGenerate() {
-    if (pattern.trim().length < 10) {
-      setMessage("Опишите, что повторяется в роду, хотя бы парой предложений — так разбор будет точнее.");
+    const warning = missingInput();
+    if (warning) {
+      setMessage(warning);
       return;
     }
     void generate(composeUserInput(pattern, question, topic));
@@ -239,13 +246,10 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
               label="Открыть семейные сценарии"
               checkoutSource="family-scenarios-direct"
               creditCost={creditCost}
+              beforePay={missingInput}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                if (pattern.trim()) {
-                  handleGenerate();
-                } else {
-                  setMessage("Доступ открыт. Опишите, что повторяется в роду — и карта появится здесь же.");
-                }
+                handleGenerate();
               }}
             />
           )}

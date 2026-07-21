@@ -15,7 +15,6 @@ import {
   Check,
   CheckCircle,
   Clock,
-  Coins,
   CrownSimple,
   DownloadSimple,
   FileText,
@@ -160,20 +159,31 @@ export function PractitionerBookingScreen({ practitioner }: { practitioner: Mini
   );
 }
 
-export function PackagesScreen({ offers }: { offers: MiniAppOffer[] }) {
+export function PackagesScreen({ offers, initialKind = "subscription" }: { offers: MiniAppOffer[]; initialKind?: "subscription" | "credits" }) {
   const { data } = useMiniAppV21();
-  const [kind, setKind] = useState<"subscription" | "credits">("subscription");
+  // B554 п.10: вкладка жила только в стейте, поэтому ссылка «купить баллы»
+  // из любого CTA открывала экран на вкладке «Подписка». Вкладка теперь в URL,
+  // и переход попадает сразу туда, куда человек нажал.
+  const [kind, setKind] = useState<"subscription" | "credits">(initialKind);
+  function selectKind(next: "subscription" | "credits") {
+    setKind(next);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next === "credits" ? "credits" : "subscription");
+    window.history.replaceState(null, "", url.toString());
+  }
   const visible = offers.filter((offer) => offer.kind === kind);
   return (
     <MiniAppChrome data={data}>
       <div className={styles.subpage}>
         <PageHead back="/miniapp/profile" eyebrow="пакеты и подписка" title="Выберите свой ритм" description="Только действующие предложения платформы. Никаких скрытых списаний." />
-        <div className={styles["compact-tabs"]} role="group" aria-label="Тип предложения"><button type="button" className={kind === "subscription" ? styles["is-active"] : undefined} onClick={() => setKind("subscription")}>Подписка</button><button type="button" className={kind === "credits" ? styles["is-active"] : undefined} onClick={() => setKind("credits")}>Баллы</button></div>
+        <div className={styles["compact-tabs"]} role="group" aria-label="Тип предложения"><button type="button" className={kind === "subscription" ? styles["is-active"] : undefined} onClick={() => selectKind("subscription")}>Подписка</button><button type="button" className={kind === "credits" ? styles["is-active"] : undefined} onClick={() => selectKind("credits")}>Баллы</button></div>
         <div className={styles["offer-list"]}>{visible.map((offer) => <article key={offer.key} className={c("offer-card", offer.badge && "is-highlighted")}>
           <header><span><small>{offer.badge ?? (offer.kind === "subscription" ? "ТАРИФ" : "ПАКЕТ")}</small><strong>{offer.title}</strong></span><b>{offer.price}</b></header>
           <p>{offer.note}</p>
           <div>{offer.benefits.map((benefit) => <span key={benefit}><CheckCircle size={16} weight="fill" />{benefit}</span>)}</div>
-          <GateLink href={`/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`}>Выбрать</GateLink>
+          {/* B554 п.10: «Выбрать» ничего не обещает — человек идёт покупать. */}
+          <GateLink href={`/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`}>{offer.kind === "credits" ? "Купить баллы" : "Оформить подписку"}</GateLink>
         </article>)}</div>
       </div>
     </MiniAppChrome>
@@ -225,7 +235,12 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
   const [acceptPdn, setAcceptPdn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [linkStatus, setLinkStatus] = useState<"idle" | "linking" | "linked">("idle");
+  // B554 п.6: owner видел «Подключить вход через Telegram», уже войдя ЧЕРЕЗ
+  // Telegram, и по нажатии получал ошибку. Состояние связки сервер уже отдаёт —
+  // экран его просто не читал и всегда стартовал с «idle».
+  const [linkStatus, setLinkStatus] = useState<"idle" | "linking" | "linked">(
+    data.viewer.telegramLinked ? "linked" : "idle",
+  );
 
   async function linkAuthenticatedAccount() {
     setError("");
@@ -377,7 +392,8 @@ export function DiaryDetailScreen({ itemId }: { itemId: string }) {
   return <MiniAppChrome data={data}><article className={styles.subpage}><PageHead back="/miniapp/diary" eyebrow={item?.topic ?? "дневник"} title={item?.title ?? "Запись"} description={item?.date} />{item ? <><section className={styles["library-summary"]}><Notebook size={23} /><p>{item.insight}</p></section><Link className={styles["journey-primary"]} href={item.href}>Открыть полный результат<ArrowRight size={18} /></Link><button className={styles["journey-secondary"]} type="button" onClick={() => share(item.title, `/miniapp/diary/${item.id}`)}><LinkSimple size={17} />Поделиться анонимно</button></> : <section className={styles["empty-detail"]}><Lock size={28} /><strong>Запись не найдена</strong><p>Личные записи доступны только после входа.</p></section>}</article></MiniAppChrome>;
 }
 
-type ProfileSection = "about" | "security" | "notifications" | "data" | "bookings" | "materials" | "wallet" | "invites" | "subscription";
+// «wallet» здесь нет намеренно — у кошелька собственный экран (B554 п.11).
+type ProfileSection = "about" | "security" | "notifications" | "data" | "bookings" | "materials" | "invites" | "subscription";
 const PROFILE_CONTENT: Record<ProfileSection, { eyebrow: string; title: string; description: string; Icon: Icon; rows: Array<{ Icon: Icon; title: string; text: string; href?: string }> }> = {
   about: { eyebrow: "профиль", title: "О себе", description: "Базовые данные и темы, которые помогают не начинать с нуля.", Icon: IdentificationCard, rows: [{ Icon: User, title: "Имя", text: "Из профиля ETerapy" }, { Icon: Notebook, title: "Темы и цели", text: "Добавление будет доступно в форме профиля" }] },
   security: { eyebrow: "настройки", title: "Безопасность", description: "Email, пароль и способы входа.", Icon: Lock, rows: [{ Icon: Password, title: "Пароль", text: "Изменяется после подтверждения email", href: "/miniapp/account/recover" }, { Icon: LinkSimple, title: "Telegram", text: "Автоматический вход внутри приложения" }, { Icon: ShieldCheck, title: "Вход с сайта", text: "По email и паролю" }] },
@@ -385,7 +401,8 @@ const PROFILE_CONTENT: Record<ProfileSection, { eyebrow: string; title: string; 
   data: { eyebrow: "приватность", title: "Данные и удаление", description: "Экспорт, деактивация и понятные последствия.", Icon: ShieldCheck, rows: [{ Icon: DownloadSimple, title: "Экспорт данных", text: "Собрать архив аккаунта", href: "/api/auth/export-data" }, { Icon: Trash, title: "Деактивация", text: "Требует отдельного подтверждения" }] },
   bookings: { eyebrow: "встречи", title: "Мои записи", description: "Будущие и завершённые встречи со специалистами.", Icon: CalendarBlank, rows: [{ Icon: CalendarBlank, title: "Ближайшая запись", text: "Появится после подтверждения бронирования" }, { Icon: Users, title: "Выбрать специалиста", text: "Открыть каталог", href: "/miniapp/practitioners" }] },
   materials: { eyebrow: "после встречи", title: "Материалы", description: "Задания и файлы, которые отправил специалист.", Icon: FileText, rows: [{ Icon: FileText, title: "Новых материалов нет", text: "Здесь не будет общего чата — только полезные артефакты" }] },
-  wallet: { eyebrow: "баллы", title: "Кошелёк", description: "Баланс, пакеты и понятный срок действия.", Icon: Wallet, rows: [{ Icon: Coins, title: "Текущий баланс", text: "Баллы видны в верхней панели" }, { Icon: Gift, title: "Пакеты баллов", text: "Посмотреть варианты", href: "/miniapp/packages" }] },
+  // B554 п.11: «Кошелёк» больше не заглушка в этом реестре — он рендерится
+  // отдельным экраном с реальным балансом (см. app/miniapp/profile/[section]).
   invites: { eyebrow: "приглашения", title: "Пригласить друга", description: "Друг получает свой первый шаг, ваши данные не раскрываются.", Icon: Gift, rows: [{ Icon: Gift, title: "Личная ссылка", text: "Будет создана для вашего аккаунта" }, { Icon: ShieldCheck, title: "Приватность", text: "Чужие вопросы и результаты не связываются" }] },
   subscription: { eyebrow: "тариф", title: "Моя подписка", description: "Текущий план и варианты без скрытого переключения.", Icon: CrownSimple, rows: [{ Icon: CrownSimple, title: "Текущий план", text: "Статус показан в профиле" }, { Icon: Wallet, title: "Сравнить варианты", text: "Открыть тарифы", href: "/miniapp/packages" }] },
 };
@@ -401,7 +418,7 @@ export function ProfileSectionScreen({ section }: { section: ProfileSection }) {
     return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow="после встречи" title="Материалы" description="Задания и заметки от специалиста. Это не общий чат — ответить можно на следующей встрече." />{data.materials.length ? <div className={styles["profile-detail-list"]}>{data.materials.map((material) => <Link key={material.id} href={`/miniapp/materials/${material.id}`} className={material.unread ? styles["is-unread"] : undefined}><span><FileText size={20} /></span><div><small>{material.practitioner} · {material.date}</small><strong>{material.preview}</strong>{material.attachmentName ? <p><Paperclip size={13} />{material.attachmentName}</p> : null}</div><CaretRight size={18} /></Link>)}</div> : <section className={styles["empty-detail"]}><FileText size={28} /><strong>Новых материалов нет</strong><p>После сессии специалист сможет оставить здесь задание или полезный файл.</p></section>}</div></MiniAppChrome>;
   }
   const returnTo = encodeURIComponent(`/miniapp/profile/${section}`);
-  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow={content.eyebrow} title={content.title} description={content.description} /><section className={styles["settings-hero"]}><HeaderIcon size={27} /><div><small>ВАШ ПРОФИЛЬ</small><strong>{section === "wallet" ? `${data.viewer.points} баллов` : section === "subscription" ? data.viewer.plan : data.viewer.email ?? "Гостевой режим"}</strong></div></section><div className={styles["settings-list"]}>{content.rows.map(({ Icon: RowIcon, title, text, href }) => { const body = <><span><RowIcon size={19} /></span><span><strong>{title}</strong><small>{text}</small></span>{href ? <CaretRight size={18} /> : null}</>; return href ? <Link href={href} key={title}>{body}</Link> : <div key={title}>{body}</div>; })}</div>{!data.viewer.authenticated ? <GateLink href={`/miniapp/account?mode=login&intent=settings&returnTo=${returnTo}`}>Войти, чтобы управлять</GateLink> : null}</div></MiniAppChrome>;
+  return <MiniAppChrome data={data}><div className={styles.subpage}><PageHead back="/miniapp/profile" eyebrow={content.eyebrow} title={content.title} description={content.description} /><section className={styles["settings-hero"]}><HeaderIcon size={27} /><div><small>ВАШ ПРОФИЛЬ</small><strong>{section === "subscription" ? data.viewer.plan : data.viewer.email ?? "Гостевой режим"}</strong></div></section><div className={styles["settings-list"]}>{content.rows.map(({ Icon: RowIcon, title, text, href }) => { const body = <><span><RowIcon size={19} /></span><span><strong>{title}</strong><small>{text}</small></span>{href ? <CaretRight size={18} /> : null}</>; return href ? <Link href={href} key={title}>{body}</Link> : <div key={title}>{body}</div>; })}</div>{!data.viewer.authenticated ? <GateLink href={`/miniapp/account?mode=login&intent=settings&returnTo=${returnTo}`}>Войти, чтобы управлять</GateLink> : null}</div></MiniAppChrome>;
 }
 
 export function HelpScreen() {

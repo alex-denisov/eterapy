@@ -1,4 +1,5 @@
 import { aiComplete } from "@/lib/ai";
+import { buildClarifierSystemPrompt } from "@/lib/dialogue-clarifier-prompt";
 import { log, serializeError } from "@/lib/logger";
 
 export interface DialogueClarifyingQuestionsResult {
@@ -145,15 +146,28 @@ export function heuristicClarifyingQuestions(input: {
 
 export interface ConversationalTurnResult {
   type: "question" | "ready";
+  /** Реплика целиком (отражение + вопрос) — то, что видит клиент. */
   question?: string;
+  /**
+   * B554: только вопросительная часть `q`, без отражения. Дубликаты ловились по
+   * склеенной реплике, поэтому модель могла задать ТОТ ЖЕ вопрос с новым
+   * отражением, и проверка его пропускала. На живом прогоне это и случилось:
+   * клиент написал «мне это не помогает», а в ответ пришёл дословно тот же
+   * вопрос и те же подсказки.
+   */
+  askedQuestion?: string;
   chips?: string[];
   source: "ai" | "heuristic";
   provider?: string;
   model?: string;
 }
 
-const MIN_CLARIFYING_TURNS = 3;
-const MAX_CLARIFYING_TURNS = 5;
+// B554 (owner 2026-07-21): «не перегружал его вопросами». Триаж закрывается за
+// 2–4 хода: пол опущен 3→2, потолок 5→4. Пол нужен только чтобы модель не
+// сорвалась в разбор с первой реплики; выше него решает она сама по критерию
+// достаточности (четыре пункта в промте), а не счётчик.
+const MIN_CLARIFYING_TURNS = 2;
+const MAX_CLARIFYING_TURNS = 4;
 
 function normalizePair(pair: { question?: string; answer?: string; assistant?: string; user?: string }) {
   return {
@@ -179,10 +193,18 @@ function comparableTurn(value: string) {
 // retry — так же, как с дубликатами ходов.
 // `\b` в JS опирается на ASCII-класс \w, поэтому после кириллицы границы слова
 // не существует — везде явный просмотр вперёд.
+// B554: различитель — местоимение «вас», а не длина фразы. «Что ВАС
+// останавливает» спрашивает про внутреннюю причину человека, то есть это то же
+// «почему» другими словами. «Что останавливает в последний момент» — про
+// наблюдаемый момент, и это ровно та замена, которую рекомендуют эксперты
+// (см. B554-triage-prompt-expertise.md, таблица «вместо → так»). Поэтому
+// безличную форму пропускаем, а личную отбраковываем в любом виде.
 const INTERROGATION_PATTERNS = [
   /^\s*почему(?=\s|$)/iu,
   /^\s*зачем(?=\s|$)/iu,
-  /что\s+вас\s+(останавливает|беспокоит|тревожит|смущает|пугает)/iu,
+  /что\s+вас\s+останавливает/iu,
+  /что\s+останавливает\s+вас/iu,
+  /что\s+вас\s+(беспокоит|тревожит|смущает|пугает)/iu,
   /что\s+именно\s+(вызывает|мешает|останавливает)/iu,
   /в\s+ч[её]м\s+причина/iu,
   /почему\s+(вы|это|так)(?=\s|$|[?,.])/iu,
@@ -222,6 +244,25 @@ function isDuplicateAssistantTurn(
   });
 }
 
+/**
+ * B554: тот же вопрос под новым отражением. Предыдущие ходы хранятся склеенной
+ * репликой («отражение вопрос»), поэтому повтор ловится вхождением очищенного
+ * вопроса в очищенную прошлую реплику. Порог ниже, чем у проверки реплики
+ * целиком: вопрос короче, а повтор именно вопроса — самый заметный клиенту
+ * признак «бота, который меня не слышит».
+ */
+const REPEATED_QUESTION_MIN_CHARS = 16;
+
+function isRepeatedQuestion(
+  askedQuestion: string | undefined,
+  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
+) {
+  if (!askedQuestion) return false;
+  const key = comparableTurn(askedQuestion);
+  if (key.length < REPEATED_QUESTION_MIN_CHARS) return false;
+  return previousPairs.some((pair) => comparableTurn(normalizePair(pair).question).includes(key));
+}
+
 // Issue #3 (RU launch): the clarifying dialogue is ALWAYS LLM-driven. There is
 // no scripted/heuristic question pool. When the model cannot produce a valid
 // turn (after same-provider multi-model retries), we resolve to "ready" so the
@@ -247,6 +288,13 @@ export function parseConversationalTurnResponse(text: string): ConversationalTur
       const reflection = typeof parsed.m === "string" ? parsed.m.trim()
         : typeof parsed.reflection === "string" ? parsed.reflection.trim()
         : "";
+      // B554: готовность — явное булево решение `d`, которое модель принимает
+      // ПЕРВЫМ ключом, до того как напишет вопрос. Живые прогоны показали, что
+      // «верни пустой объект» YandexGPT Pro не исполняет ни разу за диалог: он
+      // всегда дописывает ещё один вопрос и упирается в потолок ходов — ровно
+      // то «перегружает вопросами», на что жаловался owner. Булев флаг модель
+      // держит надёжно. Пустой q оставлен как совместимый запасной сигнал.
+      if (parsed.d === true) return { type: "ready", source: "ai" };
       // Empty q or explicit ready signal = model is done
       if ((typeof q === "string" && q.trim() === "") || parsed.type === "ready") return { type: "ready", source: "ai" };
       const rawChips = Array.isArray(parsed.c) ? parsed.c
@@ -254,7 +302,13 @@ export function parseConversationalTurnResponse(text: string): ConversationalTur
         : [];
       const question = normalizeAssistantTurn(reflection ? `${reflection} ${q ?? ""}` : q);
       if (question) {
-        return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
+        return {
+          type: "question",
+          question,
+          askedQuestion: typeof q === "string" ? q.trim() : undefined,
+          chips: normalizeChips(rawChips),
+          source: "ai",
+        };
       }
     } catch {
       // Malformed JSON (e.g. a missing bracket — a real model output we saw in
@@ -293,53 +347,6 @@ export function parseConversationalTurnResponse(text: string): ConversationalTur
   return null;
 }
 
-function buildSystemPrompt(input: {
-  topic?: string | null;
-  difficulty?: string | null;
-  previousPairsCount: number;
-  canBeReady: boolean;
-  retry: boolean;
-}): string {
-  const readyInstruction = input.canBeReady
-    ? `Уже был ${input.previousPairsCount} живой обмен. Если контекста достаточно для первичного ответа — верни {"q":"","c":[]}.`
-    : "Это начало диалога: нужно коротко отозваться на сказанное и задать один уточняющий вопрос. Сигнал ready запрещён.";
-
-  const retryHint = input.retry
-    ? "Предыдущий ответ отвергнут: он либо пересказывал реплику пользователя своими же словами с заменой лица, либо задавал вопрос-допрос («что вас останавливает», «почему»). Сформулируй заново: в m назови СВОЁ наблюдение о сказанном (что за этим стоит, с чем это связано), в q спроси про конкретное и наблюдаемое."
-    : "";
-
-  return [
-    "Ты ведёшь разбор на платформе ETerapy. Пользователь делится живой ситуацией — ты помогаешь ему её прояснить.",
-    `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
-    "",
-    "Ты практик, который ВЕДЁТ разбор, а не интервьюер, собирающий анкету. На каждом ходе ты сначала возвращаешь человеку то, что услышал (и, если это уместно, называешь замеченную связь или противоречие), и только потом задаёшь ОДИН следующий вопрос.",
-    "Это диалог с человеком, не анкета. Нельзя выдавать пачку вопросов, нумерацию, одинаковые формулировки, безличные шаблоны или универсальный сценарий.",
-    "Контекст строится из всех предыдущих сообщений: учитывай конкретные детали, имена, обстоятельства и ответы пользователя — каждая следующая реплика должна явно их использовать.",
-    "",
-    "Ответь СТРОГО в формате JSON (без markdown, без префиксов, без пояснений):",
-    '{"m":"отражение последней реплики пользователя","q":"один вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
-    "",
-    "Пример (первый ход): {\"m\":\"Слышу, что вам важно не ошибиться и при этом сохранить устойчивость.\",\"q\":\"Что в этой ситуации сильнее всего просит внимания прямо сейчас?\",\"c\":[\"Решение\",\"Спокойствие\",\"Следующий шаг\"]}",
-    "Пример (после ответа «страх оценки»): {\"m\":\"Страх оценки вы называете первым — и раньше сказали, что молчите на встречах. Похоже, это одна и та же линия.\",\"q\":\"Этот страх больше про реакцию руководителя или про что-то более давнее?\",\"c\":[\"Реакция шефа\",\"Давнее\",\"Привычка молчать\"]}",
-    "",
-    "Правила:",
-    "- m: 1-2 предложения. ОБЯЗАТЕЛЬНО опирайся на конкретное слово/фразу из ПОСЛЕДНЕЙ реплики пользователя. Пустое m недопустимо, пока диалог продолжается",
-    "- НЕЛЬЗЯ повторять реплику пользователя дословно или почти дословно: отражение — это твоё понимание сказанного своими словами («хожу по кругу» → «решение буксует не из-за нехватки информации»), а не эхо",
-    "- В m разрешено и приветствуется назвать замеченную связь между тем, что человек сказал сейчас и раньше — именно это отличает практика от опросника",
-    "- q: ровно ОДИН вопрос, до 200 символов, мягко, конкретно, лично, не диагностически",
-    "- c: три коротких ВАРИАНТА ОТВЕТА пользователя (1-5 слов). Это то, что человек мог бы ответить, а не то, что можно у него спросить. Вопросы в c запрещены",
-    "- Не повторяй уже заданные вопросы и не используй безличные шаблоны вроде «что сейчас самое важное»",
-    // Owner 2026-07-21: «диалог всё время спрашивает "почему" на любое моё
-    // сообщение, это бесит жутко». «Почему» требует от человека объяснять и
-    // защищаться; живой практик спрашивает про конкретику, а не про причину.
-    "- ЗАПРЕЩЕНО начинать вопрос с «Почему» и «Зачем», а также спрашивать «что именно вызывает», «что вас беспокоит», «в чём причина». Это допрос, а не разговор",
-    "- Спрашивай про наблюдаемое и конкретное: когда это заметно сильнее всего, что происходит прямо перед этим, что уже пробовали, как это выглядит со стороны, что изменилось бы, если бы вопрос решился",
-    readyInstruction,
-    retryHint,
-    "- Не ставь диагнозов, не предсказывай гарантированный исход, не давай медицинских, юридических или финансовых советов",
-  ].filter(Boolean).join("\n");
-}
-
 async function attemptLlmTurn(input: {
   originalQuestion: string;
   previousPairs: Array<{ question: string; answer: string }>;
@@ -351,7 +358,8 @@ async function attemptLlmTurn(input: {
   retry: boolean;
   temperature: number;
 }): Promise<{ result: ConversationalTurnResult; provider?: string; model?: string; degraded?: boolean } | null> {
-  const systemContent = buildSystemPrompt({
+  const systemContent = buildClarifierSystemPrompt({
+    originalQuestion: input.originalQuestion,
     topic: input.topic,
     difficulty: input.difficulty,
     previousPairsCount: input.previousPairs.length,
@@ -422,7 +430,12 @@ async function attemptLlmTurn(input: {
     }
   }
 
-  if (parsed.type === "question" && parsed.question && isDuplicateAssistantTurn(parsed.question, input.previousPairs)) {
+  if (
+    parsed.type === "question"
+    && parsed.question
+    && (isDuplicateAssistantTurn(parsed.question, input.previousPairs)
+      || isRepeatedQuestion(parsed.askedQuestion, input.previousPairs))
+  ) {
     log.warn("dialogue-clarifier-duplicate-turn", {
       requestId: input.requestId,
       topic: input.topic,

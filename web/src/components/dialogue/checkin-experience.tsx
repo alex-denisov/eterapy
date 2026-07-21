@@ -144,6 +144,16 @@ function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
 }
 
+// B554 п.17: разбор, открытый из Дневника, восстанавливается по `?dialogueId=`.
+// Любой отказ раньше показывался служебной строкой самого API — включая
+// английское «Dialogue not found». Пользователю нужна причина и следующий шаг,
+// а не текст для разработчика.
+export function restoreErrorMessage(status: number): string {
+  if (status === 401 || status === 403) return "Сессия истекла. Войдите в аккаунт, чтобы открыть этот разбор.";
+  if (status === 404) return "Этот разбор не найден — возможно, он был удалён.";
+  return "Не удалось открыть разбор. Попробуйте ещё раз через минуту.";
+}
+
 export function CheckinExperience({
   surface = "web",
   surfaceClassName,
@@ -321,7 +331,11 @@ export function CheckinExperience({
       try {
         const response = await fetch(`/api/dialogues/${dialogueId}`);
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Диалог не найден");
+        // B554 п.17: сюда прилетала строка ошибки от API как есть — и человек,
+        // открывший свой разбор из Дневника, упирался в английское
+        // «Dialogue not found» поверх пустой формы нового вопроса. Причина
+        // отказа известна по статусу, её и объясняем по-русски.
+        if (!response.ok) throw new Error(restoreErrorMessage(response.status));
         if (cancelled) return;
         const restored = data.dialogue as DialoguePayload;
         setDialogue(restored);
@@ -609,7 +623,21 @@ export function CheckinExperience({
     >
       {!inMiniApp ? <PublicJsonLd route="/checkin" /> : null}
 
-      {phase === "question" && (
+      {/* B554 п.17: пока разбор из Дневника подгружается, показывать пустую форму
+          нового вопроса нечестно — человек шёл смотреть готовый ответ, а видел
+          приглашение начать заново (и на медленной сети сидел так секундами). */}
+      {phase === "question" && restoring && (
+        <div className="soft-dialogue-start" data-testid="dialogue-restore-step">
+          <div className="soft-halo-stage soft-dialogue-halo-stage">
+            <div className="soft-ask-card soft-dialogue-ask-card">
+              <p className="soft-eyebrow">ваш разбор</p>
+              <p className="mt-2 text-sm text-[var(--soft-ink-faint)]">Открываем сохранённый разбор…</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phase === "question" && !restoring && (
         <div className="soft-dialogue-start" data-testid="dialogue-question-step">
           <div className="soft-halo-stage soft-dialogue-halo-stage">
             <div className="soft-ask-card soft-dialogue-ask-card">
@@ -1127,7 +1155,11 @@ export function CheckinExperience({
                   <Link
                     key={rec.id}
                     href={productPath(`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`)}
-                    className="soft-triage-option sm:col-span-2 ring-1 ring-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-card)]"
+                    // B554 п.3: `ring-1` рисуется СНАРУЖИ рамки элемента, а
+                    // ближайший предок в мини-аппе — `overflow-hidden` ровно по
+                    // ширине карточки, поэтому терракотовое кольцо срезалось по
+                    // бокам. `ring-inset` рисует его внутри — ничего не режется.
+                    className="soft-triage-option sm:col-span-2 ring-1 ring-inset ring-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-card)]"
                     data-testid="specialist-recommendation"
                     data-analytics-surface="checkin_triage"
                     data-analytics-event="triage_secondary_clicked"
@@ -1141,9 +1173,9 @@ export function CheckinExperience({
                   >
                     <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="block truncate font-medium text-[var(--soft-ink)]">{rec.name ?? "Специалист"}</span>
-                        <span className="rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
                       </span>
                       <span className="block truncate text-[11px] text-[var(--soft-ink-faint)]">{rec.rationale}</span>
                     </span>
@@ -1167,9 +1199,9 @@ export function CheckinExperience({
                 >
                   <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="block truncate font-medium text-[var(--soft-ink)]">Встреча со специалистом</span>
-                      <span className="rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--soft-terracotta-dark)] px-2 py-0.5 text-[9px] uppercase tracking-wide text-[#FBF0E1]">человек рядом</span>
                     </span>
                     <span className="block text-[11px] text-[var(--soft-ink-faint)]">живое сопровождение, когда нужно</span>
                   </span>

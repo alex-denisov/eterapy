@@ -946,6 +946,16 @@
     font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.2;
+    /* B554 п.23: горизонтального отступа не было вовсе, и текст с подсказкой
+       упирались в скруглённый край поля (border-radius 14px, padding 0). */
+    padding-inline: 0.85rem;
+  }
+
+  /* B554 п.25: незаполненное обязательное поле подсвечивается до оплаты и
+     гаснет, как только человек начинает в него писать. */
+  .soft-question-input[data-field-warning="1"] {
+    border-color: var(--soft-bordeaux) !important;
+    background: color-mix(in srgb, var(--soft-bordeaux) 6%, transparent) !important;
   }
 
   .soft-question-input.product-compact-input {
@@ -1431,6 +1441,15 @@
   .soft-triage-primary:hover {
     transform: translateY(-2px);
     box-shadow: var(--soft-shadow-lg);
+  }
+
+  /* B554 п.3: лента абсолютная и висит на 0.7rem ВЫШЕ карточки, то есть места в
+     потоке не занимает. Вертикальный зазор в стопке — 8px, меньше выноса, и
+     лента «подобрано для вас» заезжала на нижний край карточки «продолжить в
+     диалоге». Карточка с лентой сама резервирует себе запас сверху; :has()
+     точнее соседского селектора — между карточками может встать что угодно. */
+  .soft-triage-primary:has(> .soft-triage-ribbon) {
+    margin-top: 0.7rem;
   }
 
   .soft-triage-ribbon {

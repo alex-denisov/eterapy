@@ -158,9 +158,16 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
     { active: !result },
   );
 
+  // B554 п.25: проверка обязательных полей ДО оплаты — иначе баллы списывались
+  // на пустой форме и человек только потом узнавал, что данных не хватает.
+  function missingInput(): string | null {
+    return birth.trim().length < 4 ? "Укажите дату рождения (а лучше — время и город), чтобы построить карту." : null;
+  }
+
   function handleGenerate() {
-    if (birth.trim().length < 4) {
-      setMessage("Укажите дату рождения (а лучше — время и город), чтобы построить карту.");
+    const warning = missingInput();
+    if (warning) {
+      setMessage(warning);
       return;
     }
     void generate(composeUserInput(birth, topic));
@@ -229,13 +236,10 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
               label="Открыть натальную карту"
               checkoutSource="natal-chart-direct"
               creditCost={creditCost}
+              beforePay={missingInput}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                if (birth.trim()) {
-                  handleGenerate();
-                } else {
-                  setMessage("Доступ открыт. Добавьте данные рождения — и карта появится здесь же.");
-                }
+                handleGenerate();
               }}
             />
           )}

@@ -140,7 +140,7 @@ describe("admin AI control API", () => {
     expect(body.policies).toEqual(expect.arrayContaining([
       expect.objectContaining({
         feature: "dialogue-primary-answer",
-        tier: "free",
+        tier: "premium",
         source: "default",
       }),
       expect.objectContaining({
