@@ -22,6 +22,8 @@ type MiniAppViewer = {
   role?: string | null;
 };
 
+const SHORT_MONTHS_RU = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
 function libraryItems(): MiniAppInitialData["libraryItems"] {
   return approvedLibraryEntries().slice(0, 3).map((entry) => ({
     slug: entry.slug,
@@ -149,7 +151,9 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       journalEntries: journal.map((entry) => ({
         id: entry.id,
         dayLabel: String(entry.date.getDate()),
-        monthLabel: entry.date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", ""),
+        // `month: "short"` в разных сборках ICU даёт то «июл.», то «июль» — рядом
+        // с числом это читается как «21 июль». Фиксируем сокращения явно.
+        monthLabel: SHORT_MONTHS_RU[entry.date.getMonth()],
         fullDateLabel: entry.date.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }),
         question: entry.question,
         own: entry.own,

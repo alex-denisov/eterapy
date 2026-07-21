@@ -306,7 +306,10 @@ export function ProductPurchaseControls({
           data-analytics-checkout-source={checkoutSource}
         >
           {action === "card" ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4 shrink-0" aria-hidden="true" />}
-          {action === "card" ? "Открываем оплату" : hasCredits ? "Картой" : label}
+          {/* B554 п.27: в мини-аппе оплата картой ещё не подключена — экран
+              проверки честно говорит «скоро». Кнопка на самой услуге обещала
+              оплату, уводила с заполненной формы и упиралась в тупик. */}
+          {action === "card" ? "Открываем оплату" : inMiniApp ? "Картой — скоро" : hasCredits ? "Картой" : label}
         </button>
       </div>
       {messageBlock}

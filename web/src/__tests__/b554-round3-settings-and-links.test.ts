@@ -207,6 +207,36 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     }
   });
 
+  it("п.24 — превью расклада рисуется на самой странице услуги, значения остаются платными", () => {
+    const numerology = source("src/components/products/numerology-actions.tsx");
+
+    // Схема считается детерминированно из даты — модель не нужна.
+    expect(numerology).toContain("computeDestinyMatrix(parsed.day, parsed.month, parsed.year)");
+    expect(numerology).toContain("parseStrictBirthDate(birth.trim())");
+    expect(numerology).toContain("<DestinyMatrixChart matrix={matrix} preview />");
+    // Сетка расшифрованных позиций — за оплатой (граница B450/B451).
+    expect(numerology).toContain("{preview ? null : <div className=\"mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5\"");
+    expect(numerology).toContain("введите дату рождения — матрица 22 энергий появится здесь же");
+  });
+
+  it("п.27 — чат не зовёт вошедшего человека войти, пока грузится сессия", () => {
+    const chat = source("src/components/companion/companion-chat-panel.tsx");
+    const controls = source("src/components/products/product-purchase-controls.tsx");
+
+    expect(chat).toContain('const authPending = authStatus === "loading"');
+    expect(chat).toContain("if (authPending) return;");
+    expect(chat).toContain('authPending ? "Проверяем вход…"');
+    // Оплата картой в мини-аппе ещё не подключена — кнопка не обещает лишнего.
+    expect(controls).toContain('inMiniApp ? "Картой — скоро"');
+  });
+
+  it("п.20 — короткий месяц в записях Дневника не зависит от сборки ICU", () => {
+    const serverData = source("src/lib/miniapp/server-data.ts");
+
+    expect(serverData).toContain("SHORT_MONTHS_RU");
+    expect(serverData).not.toContain('toLocaleDateString("ru-RU", { month: "short" })');
+  });
+
   it("п.21 — сегменты фильтра не переносятся на две строки", () => {
     const css = source("src/app/miniapp/miniapp-v21.module.css");
     const segment = css.slice(css.indexOf(".minimal-segment > div {"), css.indexOf(".minimal-segment button::before"));

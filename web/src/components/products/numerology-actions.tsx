@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -10,7 +10,7 @@ import { useSymbolicService, type SymbolicResult } from "@/components/products/u
 import { maskDateInput } from "@/lib/date-input-mask";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NumerologyPortrait } from "@/lib/numerology";
-import type { DestinyMatrix } from "@/lib/destiny-matrix";
+import { computeDestinyMatrix, parseStrictBirthDate, type DestinyMatrix } from "@/lib/destiny-matrix";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 
 // B451: «Числовой портрет» — самодостаточная услуга по паттерну Таро/reframe.
@@ -57,11 +57,21 @@ function MatrixNode({ x, y, value, tone = "neutral", size = 15 }: { x: number; y
   return <g><circle cx={x} cy={y} r={size} fill={fill} stroke={tone === "neutral" ? "#CDBDAA" : fill} strokeWidth="2" /><text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={size * 0.9} fontWeight="700" fill={color}>{value}</text></g>;
 }
 
-export function DestinyMatrixChart({ matrix }: { matrix: DestinyMatrix }) {
+/**
+ * `preview` — схема до оплаты (B554 п.24): сама фигура рисуется, а сетка
+ * расшифрованных позиций («Деньги — финансовый канал», «Любовь — сердце и
+ * чувства») остаётся за оплатой. Это ровно граница B450/B451: числа —
+ * арифметика, значения — то, за что платят.
+ */
+export function DestinyMatrixChart({ matrix, preview = false }: { matrix: DestinyMatrix; preview?: boolean }) {
   return (
     <figure data-testid="numerology-chart" aria-label={`Матрица судьбы: центральная энергия ${matrix.center}`}>
       <div className="rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3 sm:p-5">
-        <svg viewBox="0 0 420 420" className="mx-auto block w-full max-w-[520px]" role="img" aria-label="Матрица судьбы 22 энергий">
+        {/* B554 п.24: палитра схемы жёстко светлая (#3E3A36 линии, #FFFDF8 узлы),
+            а в мини-аппе тема тёмная — линии сливались с фоном. Бумажная
+            подложка только под самой схемой: карточки позиций ниже остаются в
+            теме приложения. */}
+        <svg viewBox="0 0 420 420" className="mx-auto block w-full max-w-[520px] rounded-[14px]" style={{ background: "#FBF7F0" }} role="img" aria-label="Матрица судьбы 22 энергий">
           <circle cx="210" cy="210" r="174" fill="none" stroke="#D8C9B8" strokeWidth="1" />
           <path d="M 36 210 L 210 36 L 384 210 L 210 384 Z" fill="none" stroke="#3E3A36" strokeWidth="1.5" />
           <path d="M 87 87 L 333 87 L 333 333 L 87 333 Z" fill="none" stroke="#6F665D" strokeWidth="1.2" />
@@ -115,7 +125,7 @@ export function DestinyMatrixChart({ matrix }: { matrix: DestinyMatrix }) {
           <MatrixNode x={247} y={286} value={matrix.love.outcome} tone="red" size={9} />
           <MatrixNode x={286} y={247} value={matrix.money.outcome} tone="gold" size={9} />
         </svg>
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Позиции расшифровки">
+        {preview ? null : <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Позиции расшифровки">
           {matrix.zones.map((zone) => (
             <div key={zone.key} className="rounded-[14px] bg-[var(--soft-paper-deep)] px-3 py-2.5">
               <p className="text-[11px] font-medium leading-tight text-[var(--soft-ink)]">{zone.title}</p>
@@ -123,7 +133,7 @@ export function DestinyMatrixChart({ matrix }: { matrix: DestinyMatrix }) {
               <p className="mt-2 font-heading text-xl text-[var(--soft-bordeaux)]">{zone.value}</p>
             </div>
           ))}
-        </div>
+        </div>}
       </div>
     </figure>
   );
@@ -180,7 +190,36 @@ function NumerologyChart({ portrait }: { portrait: NumerologyPortrait }) {
   );
 }
 
-function NumerologyTeaser() {
+/**
+ * B554 п.24: превью расклада прямо на странице услуги, без перехода куда-либо.
+ *
+ * Числа матрицы считаются детерминированно из даты рождения (`computeDestinyMatrix`)
+ * — это арифметика, а не работа модели. Поэтому саму фигуру можно нарисовать
+ * сразу, как только дата введена полностью, и человек видит, ЧТО он покупает.
+ * За деньгами остаётся то, за что и платят: разбор этих энергий.
+ */
+function NumerologyTeaser({ birth }: { birth: string }) {
+  const matrix = useMemo(() => {
+    const parsed = parseStrictBirthDate(birth.trim());
+    if (!parsed) return null;
+    try {
+      return computeDestinyMatrix(parsed.day, parsed.month, parsed.year);
+    } catch {
+      return null;
+    }
+  }, [birth]);
+
+  if (matrix) {
+    return (
+      <div data-testid="numerology-preview">
+        <DestinyMatrixChart matrix={matrix} preview />
+        <p className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">
+          Это ваша матрица — энергии посчитаны по дате рождения. Что каждая из них означает, откроется после оплаты.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       className="rounded-[16px] border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-center"
@@ -188,7 +227,7 @@ function NumerologyTeaser() {
       aria-hidden="true"
     >
       <svg viewBox="0 0 160 160" className="mx-auto block w-32" aria-hidden="true"><circle cx="80" cy="80" r="64" fill="none" stroke="var(--soft-paper-edge)" strokeDasharray="3 5" /><path d="M 16 80 L 80 16 L 144 80 L 80 144 Z M 35 35 L 125 35 L 125 125 L 35 125 Z" fill="none" stroke="var(--soft-paper-edge)" /><circle cx="80" cy="80" r="13" fill="var(--soft-paper-deep)" /></svg>
-      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">матрица 22 энергий появится здесь после оплаты</p>
+      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">введите дату рождения — матрица 22 энергий появится здесь же</p>
     </div>
   );
 }
@@ -345,7 +384,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
         />
 
         <div className="mt-1">
-          <NumerologyTeaser />
+          <NumerologyTeaser birth={birth} />
         </div>
 
         <div className="product-action-row">
