@@ -10,6 +10,7 @@ import db from "@/lib/db";
 import { APP_URL } from "@/lib/env";
 import type { ResolvedBillingPurchase } from "@/lib/entitlements";
 import { assertRubPaymentAmount, paymentDocumentVersionData, withPaymentPolicyMetadata } from "@/lib/billing-policy";
+import { humanizeBillingDescription } from "@/lib/billing-labels";
 import { yukassaFetch } from "@/lib/yukassa";
 import { activePaymentProvider, receiptTaxSystem, robokassaConfig } from "./config";
 import { buildPaymentUrl, type RobokassaReceiptItem } from "./robokassa";
@@ -35,7 +36,11 @@ const PAYMENT_LINK_TTL_MS = 60 * 60 * 1000;
 function receiptItemFor(purchase: ResolvedBillingPurchase): RobokassaReceiptItem {
   const isAdvance = purchase.kind === "credits";
   return {
-    name: purchase.description,
+    // `purchase.description` — машинная строка («ETerapy: deep-report»), она
+    // нужна коду. В чек по 54-ФЗ она попадать не должна: покупатель обязан
+    // понять из наименования, что именно он купил. Берём тот же перевод,
+    // которым подписана лента операций в кабинете.
+    name: humanizeBillingDescription(purchase.description),
     quantity: 1,
     sumKopecks: purchase.amountKopecks,
     // ИП на УСН не является плательщиком НДС.
