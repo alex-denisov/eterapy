@@ -2266,6 +2266,119 @@
   margin-top: 9px;
 }
 
+/* B554 п.13: выбор из справочника в «О себе» — семейное положение и темы. */
+.profile-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profile-choice legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.profile-choice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-choice button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(247, 244, 237, 0.025);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-choice button.is-selected {
+  border-color: rgba(255, 101, 72, 0.5);
+  background: rgba(255, 101, 72, 0.1);
+  color: #ffb19f;
+}
+
+/* B554 п.11: настоящий кошелёк — баланс, откуда баллы и куда ушли. */
+.wallet-balance {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 101, 72, .28);
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 11px;
+  background: rgba(255, 101, 72, .07);
+}
+
+.wallet-balance svg { color: var(--coral); }
+
+.wallet-balance strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.wallet-balance p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.wallet-block { margin-top: 16px; }
+
+.wallet-rows {
+  margin-top: 7px;
+  display: grid;
+  gap: 6px;
+}
+
+.wallet-rows > div {
+  min-height: 52px;
+  padding: 8px 11px;
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  background: rgba(247, 244, 237, 0.03);
+}
+
+.wallet-rows > div > span:first-child { color: #93afbe; display: grid; place-items: center; }
+
+.wallet-rows > div > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }
+
+.wallet-rows strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-rows small {
+  overflow: hidden;
+  color: #697589;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-rows b {
+  color: var(--lime, #bed95a);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.wallet-rows b.is-spend { color: #ff8069; }
+
 /* B554 п.18: «показать ещё» вместо бесконечной ленты разборов. */
 .diary-more {
   width: 100%;

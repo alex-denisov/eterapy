@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Bell, CaretDown, CaretLeft, CheckCircle, Copy, DownloadSimple, Envelope, LinkSimple, Lock, ShieldCheck, Trash, User } from "@phosphor-icons/react";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { styles } from "@/components/miniapp/styles";
+import { maskDateInput } from "@/lib/date-input-mask";
 
 function Head({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return <header className={styles["subpage-head"]}><div className={styles["subpage-title-row"]}><Link href="/miniapp/profile" className={styles["subpage-back"]} aria-label="Назад"><CaretLeft size={21} /><span className={styles["sr-only"]}>Назад</span></Link><div><p className={styles.eyebrow}>{eyebrow}</p><h1>{title}</h1></div></div><p>{description}</p></header>;
@@ -46,25 +47,123 @@ function FailureNote({ failure, onRetry }: { failure: RequestFailure; onRetry?: 
   );
 }
 
+// B554 п.13: в мини-аппе «О себе» состояло из имени и read-only email, тогда как
+// в вебе это ещё и данные рождения, семейное положение, занятие и темы, ради
+// которых персонализация вообще существует. Поля и справочники — те же, что в
+// `cabinet/settings`, эндпоинт тот же (`/api/auth/extended-profile`).
+const GOALS = [
+  { value: "relationships", label: "Отношения" },
+  { value: "career", label: "Карьера" },
+  { value: "selfdev", label: "Саморазвитие" },
+  { value: "health", label: "Здоровье" },
+  { value: "finance", label: "Финансы" },
+  { value: "family", label: "Семья" },
+  { value: "creativity", label: "Творчество" },
+  { value: "spirituality", label: "Духовность" },
+];
+
+const MARITAL_OPTIONS = [
+  { value: "single", label: "Не состою в отношениях" },
+  { value: "dating", label: "В отношениях" },
+  { value: "married", label: "Женат/замужем" },
+  { value: "divorced", label: "В разводе" },
+  { value: "widowed", label: "Вдовец/вдова" },
+];
+
+type ExtendedProfile = {
+  birthDate?: string | null;
+  birthTime?: string | null;
+  birthPlace?: string | null;
+  maritalStatus?: string | null;
+  occupation?: string | null;
+  aiGoals?: string[] | null;
+};
+
+/** «1990-05-11» с сервера → «11.05.1990» в поле. */
+function isoToDotted(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const parts = iso.split("-");
+  return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : "";
+}
+
 export function MiniAppAboutSettingsScreen() {
   const { data } = useMiniAppV21();
   const router = useRouter();
   const [name, setName] = useState(data.viewer.firstName === "Гость" ? "" : data.viewer.firstName);
-  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+  const [maritalStatus, setMaritalStatus] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [aiGoals, setAiGoals] = useState<string[]>([]);
+  const [state, setState] = useState<"loading" | "idle" | "saving" | "saved">("loading");
+  const [failure, setFailure] = useState<RequestFailure | null>(null);
+
+  const load = useCallback(async () => {
+    setState("loading"); setFailure(null);
+    const result = await requestJson<{ profile?: ExtendedProfile | null }>("/api/auth/extended-profile");
+    if (!result.ok) { setFailure(result.failure); setState("idle"); return; }
+    const profile = result.data.profile;
+    if (profile) {
+      setBirthDate(isoToDotted(profile.birthDate));
+      setBirthTime(profile.birthTime ?? "");
+      setBirthPlace(profile.birthPlace ?? "");
+      setMaritalStatus(profile.maritalStatus ?? "");
+      setOccupation(profile.occupation ?? "");
+      setAiGoals(Array.isArray(profile.aiGoals) ? profile.aiGoals : []);
+    }
+    setState("idle");
+  }, []);
+
+  // Профиль подтягивается с сервера один раз на маунте — обращение к внешней
+  // системе, состояние «загружаем» ставится тем же вызовом, что и на «Повторить».
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (data.viewer.authenticated) void load(); }, [data.viewer.authenticated, load]);
+
+  function toggleGoal(value: string) {
+    setAiGoals((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+  }
+
   async function submit(event: FormEvent) {
-    event.preventDefault(); setState("saving");
-    const formData = new FormData(); formData.append("name", name.trim());
+    event.preventDefault(); setState("saving"); setFailure(null);
     // B554: без catch оборванная мобильная сеть оставляла кнопку в «Сохраняем…»
     // навсегда — выйти можно было только перезапуском приложения.
     try {
-      const response = await fetch("/api/auth/update-profile", { method: "POST", body: formData });
-      setState(response.ok ? "saved" : "error");
-      if (response.ok) router.refresh();
+      const formData = new FormData(); formData.append("name", name.trim());
+      const nameResponse = await fetch("/api/auth/update-profile", { method: "POST", body: formData });
+      if (!nameResponse.ok) {
+        setFailure({ message: "Не удалось сохранить имя. Проверьте его и попробуйте ещё раз.", expired: nameResponse.status === 401 });
+        setState("idle");
+        return;
+      }
     } catch {
-      setState("error");
+      setFailure({ message: "Нет связи с сервером. Проверьте интернет.", expired: false });
+      setState("idle");
+      return;
     }
+
+    const profileResult = await requestJson<{ ok?: boolean; error?: string }>("/api/auth/extended-profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ birthDate: birthDate.trim(), birthTime: birthTime.trim(), birthPlace: birthPlace.trim(), maritalStatus, occupation: occupation.trim(), aiGoals }),
+    });
+    if (!profileResult.ok) { setFailure(profileResult.failure); setState("idle"); return; }
+    setState("saved");
+    router.refresh();
   }
-  return <MiniAppChrome data={data}><div className={styles.subpage}><Head eyebrow="профиль" title="О себе" description="Имя видно только вам и специалистам, с которыми вы работаете. Email нужен для входа с сайта и восстановления доступа." />{data.viewer.authenticated ? <form className={styles["account-form"]} onSubmit={submit}><label><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required maxLength={50} /></label><label><span>Email</span><input value={data.viewer.email ?? ""} readOnly aria-readonly="true" /></label>{state === "error" ? <p className={styles["form-error"]}>Не удалось сохранить. Проверьте имя и попробуйте ещё раз.</p> : null}<button className={styles["journey-primary"]} type="submit" disabled={state === "saving"}>{state === "saving" ? "Сохраняем…" : state === "saved" ? "Сохранено" : "Сохранить"}<CheckCircle size={18} /></button></form> : <GuestGate />}</div></MiniAppChrome>;
+
+  return <MiniAppChrome data={data}><div className={styles.subpage}><Head eyebrow="профиль" title="О себе" description="Имя видно только вам и специалистам, с которыми вы работаете. Остальное помогает разборам не начинать с нуля — можно заполнить частично." />{!data.viewer.authenticated ? <GuestGate /> : state === "loading" ? <p className={styles["flow-note"]}>Загружаем профиль…</p> : <form className={styles["account-form"]} onSubmit={submit}>
+    <label><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required maxLength={50} /></label>
+    <label><span>Email</span><input value={data.viewer.email ?? ""} readOnly aria-readonly="true" /></label>
+    <label><span>Дата рождения</span><input value={birthDate} inputMode="numeric" placeholder="11.05.1990" onChange={(event) => setBirthDate(maskDateInput(event.target.value.slice(0, 10), birthDate))} /></label>
+    <label><span>Время рождения</span><input value={birthTime} type="time" onChange={(event) => setBirthTime(event.target.value)} /></label>
+    <label><span>Место рождения</span><input value={birthPlace} placeholder="Москва" maxLength={100} onChange={(event) => setBirthPlace(event.target.value)} /></label>
+    <label><span>Чем занимаетесь</span><input value={occupation} placeholder="Например, врач" maxLength={100} onChange={(event) => setOccupation(event.target.value)} /></label>
+    <fieldset className={styles["profile-choice"]}><legend>Семейное положение</legend><div>{MARITAL_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={maritalStatus === option.value} className={maritalStatus === option.value ? styles["is-selected"] : undefined} onClick={() => setMaritalStatus(maritalStatus === option.value ? "" : option.value)}>{option.label}</button>)}</div></fieldset>
+    <fieldset className={styles["profile-choice"]}><legend>Темы, которые важны</legend><div>{GOALS.map((goal) => <button key={goal.value} type="button" aria-pressed={aiGoals.includes(goal.value)} className={aiGoals.includes(goal.value) ? styles["is-selected"] : undefined} onClick={() => toggleGoal(goal.value)}>{goal.label}</button>)}</div></fieldset>
+    {failure ? <FailureNote failure={failure} onRetry={() => void load()} /> : null}
+    <button className={styles["journey-primary"]} type="submit" disabled={state === "saving"}>{state === "saving" ? "Сохраняем…" : state === "saved" ? "Сохранено" : "Сохранить"}<CheckCircle size={18} /></button>
+  </form>}</div></MiniAppChrome>;
 }
 
 export function MiniAppSecuritySettingsScreen() {

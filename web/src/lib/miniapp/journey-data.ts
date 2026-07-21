@@ -49,15 +49,32 @@ export function miniAppOffers(): MiniAppOffer[] {
       ],
     };
   });
-  const credits: MiniAppOffer[] = Object.entries(CREDIT_PACKS).map(([key, pack]) => ({
-    key: `credits:${key}`,
-    kind: "credits",
-    title: pack.label,
-    price: rub(pack.amountKopecks),
-    note: "Действуют 12 месяцев",
-    badge: pack.badge,
-    benefits: ["Для цифровых разборов", "Не сгорают в конце месяца", "Сначала показываем итоговую сумму"],
-  }));
+  // B554 п.10: у всех трёх пакетов был ОДИН и тот же список выгод, причём
+  // «Сначала показываем итоговую сумму» — это обещание корзины, а не свойство
+  // пакета. Пакеты отличаются ценой балла и тем, на что их хватает: это и
+  // пишем, считая от реальных цен, а не текстом вручную.
+  const cheapestPerCredit = Math.min(
+    ...Object.values(CREDIT_PACKS).map((pack) => pack.amountKopecks / pack.credits),
+  );
+  const credits: MiniAppOffer[] = Object.entries(CREDIT_PACKS).map(([key, pack]) => {
+    const perCredit = pack.amountKopecks / pack.credits;
+    const savingPercent = Math.round((1 - perCredit / (CREDIT_PACKS["pack-5"].amountKopecks / CREDIT_PACKS["pack-5"].credits)) * 100);
+    return {
+      key: `credits:${key}`,
+      kind: "credits" as const,
+      title: pack.label,
+      price: rub(pack.amountKopecks),
+      note: `${rub(Math.round(perCredit))} за балл${perCredit === cheapestPerCredit ? " — лучшая цена" : ""}`,
+      badge: pack.badge,
+      benefits: [
+        // «до», потому что разборы стоят от 1 балла: Переосмысление — 1,
+        // Таро и Разбор переписки — 2, чат — 4.
+        `Открывает до ${pack.credits} ${pack.credits === 1 ? "разбора" : "разборов"}`,
+        savingPercent > 0 ? `Выгоднее пакета «5 баллов» на ${savingPercent}%` : "Базовая цена балла",
+        "Действуют 12 месяцев, не сгорают в конце месяца",
+      ],
+    };
+  });
   return [...subscriptions, ...credits];
 }
 

@@ -145,6 +145,68 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     expect(pin).toContain("hashDiaryPin");
   });
 
+  it("п.3 — блок рекомендаций не слипается и не режется", () => {
+    const checkin = source("src/components/dialogue/checkin-experience.tsx");
+    const triage = source("src/components/products/service-triage.tsx");
+    const css = source("src/app/v4-soft.css");
+
+    // Кольцо снаружи рамки срезал предок с overflow-hidden.
+    for (const file of [checkin, triage]) {
+      expect(file).toContain("ring-1 ring-inset ring-[var(--soft-terracotta-dark)]");
+      // Шильдик сжимался в flex-строке и переносился на 2–3 строки внутри пилюли.
+      expect(file).toContain('className="shrink-0 whitespace-nowrap rounded-full bg-[var(--soft-terracotta-dark)]');
+      expect(file).toContain('className="flex flex-wrap items-center gap-x-2 gap-y-1"');
+    }
+    // Лента висит на 0.7rem выше карточки — карточка резервирует себе запас.
+    expect(css).toContain(".soft-triage-primary:has(> .soft-triage-ribbon)");
+  });
+
+  it("п.10 — пакеты баллов различаются описанием, ведут на свою вкладку и зовут купить", () => {
+    const data = source("src/lib/miniapp/journey-data.ts");
+    const screens = source("src/components/miniapp/journey-screens.tsx");
+    const page = source("src/app/miniapp/packages/page.tsx");
+
+    // Один и тот же список выгод у всех пакетов + обещание корзины как «выгода».
+    expect(data).not.toContain('benefits: ["Для цифровых разборов", "Не сгорают в конце месяца", "Сначала показываем итоговую сумму"]');
+    expect(data).toContain("Открывает до ${pack.credits}");
+    expect(data).toContain("за балл");
+    // Вкладка в URL: CTA «купить баллы» больше не открывает подписки.
+    expect(page).toContain('initialKind={tab === "credits" ? "credits" : "subscription"}');
+    expect(screens).toContain('url.searchParams.set("tab"');
+    expect(screens).toContain('offer.kind === "credits" ? "Купить баллы" : "Оформить подписку"');
+    expect(screens).not.toContain(">Выбрать</GateLink>");
+  });
+
+  it("п.11 — кошелёк показывает баланс, источники и движение баллов", () => {
+    const wallet = source("src/components/miniapp/wallet-screen.tsx");
+    const page = source("src/app/miniapp/profile/[section]/page.tsx");
+    const screens = source("src/components/miniapp/journey-screens.tsx");
+
+    expect(page).toContain("getCreditWalletSnapshot");
+    expect(page).toContain('if (section === "wallet") return <WalletSection />');
+    expect(wallet).toContain("откуда баллы");
+    expect(wallet).toContain("движение баллов");
+    expect(wallet).toContain('href="/miniapp/packages?tab=credits"');
+    // Заглушка «Баллы видны в верхней панели» дублировала шапку и профиль.
+    expect(screens).not.toContain('title: "Текущий баланс", text: "Баллы видны в верхней панели"');
+  });
+
+  it("п.13 — «О себе» повторяет набор полей веба", () => {
+    const screens = source("src/components/miniapp/profile-settings-screens.tsx");
+
+    for (const field of ["birthDate", "birthTime", "birthPlace", "maritalStatus", "occupation", "aiGoals"]) {
+      expect(screens).toContain(field);
+    }
+    expect(screens).toContain('requestJson<{ profile?: ExtendedProfile | null }>("/api/auth/extended-profile")');
+    expect(screens).toContain('"/api/auth/extended-profile", {\n      method: "PATCH"');
+    // Справочники совпадают с cabinet/settings.
+    const settings = source("src/app/cabinet/settings/settings-client.tsx");
+    for (const goal of ["relationships", "career", "selfdev", "health", "finance", "family", "creativity", "spirituality"]) {
+      expect(screens).toContain(`"${goal}"`);
+      expect(settings).toContain(`"${goal}"`);
+    }
+  });
+
   it("п.21 — сегменты фильтра не переносятся на две строки", () => {
     const css = source("src/app/miniapp/miniapp-v21.module.css");
     const segment = css.slice(css.indexOf(".minimal-segment > div {"), css.indexOf(".minimal-segment button::before"));
