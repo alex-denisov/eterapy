@@ -62,9 +62,19 @@ async function handle(req: NextRequest) {
 
   const { invId, outSum, signatureValue, shp } = callback;
 
+  // B571: транзакция читается ДО проверки подписи, потому что она хранит режим
+  // кассы, а от режима зависит пароль #2, которым подписан этот колбэк.
+  // Проверить боевым паролем тестовый платёж — значит отвергнуть законную
+  // оплату, а пользователь останется без купленного.
+  const transaction = await db.transaction.findUnique({ where: { invoiceId: invId } });
+  if (!transaction) {
+    log.error("robokassa-result-unknown-invoice", { requestId: context.requestId, invId });
+    return text("unknown invoice", 404);
+  }
+
   let config;
   try {
-    config = robokassaConfig();
+    config = robokassaConfig({ testMode: transaction.testMode });
   } catch (err) {
     log.error("robokassa-result-not-configured", {
       requestId: context.requestId,
@@ -76,17 +86,16 @@ async function handle(req: NextRequest) {
   }
 
   if (!verifyResultSignature({ config, outSum, invId, signatureValue, shp })) {
-    log.error("robokassa-result-bad-signature", { requestId: context.requestId, invId });
+    log.error("robokassa-result-bad-signature", {
+      requestId: context.requestId,
+      invId,
+      testMode: transaction.testMode,
+    });
     return text("bad signature", 403);
   }
 
   // The signature covers OutSum, so a mismatch here means Robokassa charged an
   // amount our record does not know about. Never credit on that.
-  const transaction = await db.transaction.findUnique({ where: { invoiceId: invId } });
-  if (!transaction) {
-    log.error("robokassa-result-unknown-invoice", { requestId: context.requestId, invId });
-    return text("unknown invoice", 404);
-  }
   const paidKopecks = parseOutSumToKopecks(outSum);
   if (paidKopecks !== transaction.amount) {
     log.error("robokassa-result-amount-mismatch", {

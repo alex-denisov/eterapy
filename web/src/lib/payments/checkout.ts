@@ -12,7 +12,7 @@ import type { ResolvedBillingPurchase } from "@/lib/entitlements";
 import { assertRubPaymentAmount, paymentDocumentVersionData, withPaymentPolicyMetadata } from "@/lib/billing-policy";
 import { humanizeBillingDescription } from "@/lib/billing-labels";
 import { yukassaFetch } from "@/lib/yukassa";
-import { activePaymentProvider, receiptTaxSystem, robokassaConfig } from "./config";
+import { activePaymentProvider, isRobokassaTestPayer, receiptTaxSystem, robokassaConfig } from "./config";
 import { buildPaymentUrl, type RobokassaReceiptItem } from "./robokassa";
 import { buildBillingReturnUrl } from "./return-url";
 
@@ -71,9 +71,14 @@ export async function createCheckout({
   const policyMetadata = withPaymentPolicyMetadata(purchase.metadata);
 
   if (provider === "robokassa") {
-    // Почта решает, боевая касса или тестовая (B570). Берётся из сессии
-    // вызывающим кодом, а не из формы, — подставить чужую нельзя.
-    const config = robokassaConfig({ payerEmail: userEmail });
+    // B571: режим кассы решает признак пользователя, выданный суперадмином.
+    // Читается из базы, а не из запроса, — подделать его клиент не может.
+    const payer = await db.user.findUnique({
+      where: { id: userId },
+      select: { testPaymentsEnabled: true },
+    });
+    const testMode = isRobokassaTestPayer(payer);
+    const config = robokassaConfig({ testMode });
 
     const transaction = await db.transaction.create({
       data: {
@@ -82,6 +87,10 @@ export async function createCheckout({
         currency: "RUB",
         status: "PENDING",
         provider: "robokassa",
+        // Режим фиксируется на транзакции: признак у пользователя могут снять
+        // до прихода ResultURL, а проверять подпись надо той же парой, какой
+        // ссылка была подписана.
+        testMode,
         description: purchase.description,
         offerVersion: documentVersions.offerVersion,
         termsVersion: documentVersions.termsVersion,

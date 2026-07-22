@@ -17,6 +17,7 @@ const mockDb = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  user: { findUnique: jest.fn().mockResolvedValue({ testPaymentsEnabled: false }) },
   savedCard: {
     findUnique: jest.fn(),
     count: jest.fn(),
@@ -89,27 +90,24 @@ function request(body: unknown) {
 
 describe("B424 payment policy", () => {
   // B570: рельс один — Robokassa, и ей нужны креды, иначе checkout бросит.
-  // Пароли здесь БОЕВЫЕ по смыслу теста: почта пользователя не входит в
-  // ROBOKASSA_TEST_EMAILS, значит подписывать должно боевой парой.
+  // Пароли здесь БОЕВЫЕ по смыслу теста: у плательщика нет признака «тестовые
+  // платежи» (B571), значит подписывать должно боевой парой.
   const previousProvider = process.env.PAYMENT_PROVIDER;
   const previousRobokassa = {
     login: process.env.ROBOKASSA_MERCHANT_LOGIN,
     p1: process.env.ROBOKASSA_PASSWORD_1,
     p2: process.env.ROBOKASSA_PASSWORD_2,
-    testEmails: process.env.ROBOKASSA_TEST_EMAILS,
   };
   beforeAll(() => {
     process.env.ROBOKASSA_MERCHANT_LOGIN = "eterapy";
     process.env.ROBOKASSA_PASSWORD_1 = "p1";
     process.env.ROBOKASSA_PASSWORD_2 = "p2";
-    delete process.env.ROBOKASSA_TEST_EMAILS;
     delete process.env.ROBOKASSA_IS_TEST;
   });
   afterAll(() => {
     process.env.ROBOKASSA_MERCHANT_LOGIN = previousRobokassa.login;
     process.env.ROBOKASSA_PASSWORD_1 = previousRobokassa.p1;
     process.env.ROBOKASSA_PASSWORD_2 = previousRobokassa.p2;
-    process.env.ROBOKASSA_TEST_EMAILS = previousRobokassa.testEmails;
   });
   afterAll(() => {
     process.env.PAYMENT_PROVIDER = previousProvider;
@@ -126,6 +124,7 @@ describe("B424 payment policy", () => {
     mockDb.transaction.update.mockResolvedValue({});
     mockDb.$executeRaw.mockResolvedValue(1);
     mockDb.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(mockDb));
+    mockDb.user.findUnique.mockResolvedValue({ testPaymentsEnabled: false });
   });
 
   // B570: рельс переведён на Robokassa целиком, ветки ЮKassa в checkout больше
@@ -159,10 +158,10 @@ describe("B424 payment policy", () => {
   // структурной, но сам страж остаётся живым кодом — его вызывает сверка, — и
   // проверяется здесь напрямую.
   it("rejects non-RUB amounts at the policy guard", () => {
-    expect(() => assertRubPaymentAmount({ amount: { value: "3.00", currency: "USD" } })).toThrow(
+    expect(() => assertRubPaymentAmount({ amount: { currency: "USD" } })).toThrow(
       /Unsupported payment currency: USD/,
     );
-    expect(() => assertRubPaymentAmount({ amount: { value: "299.00", currency: "RUB" } })).not.toThrow();
+    expect(() => assertRubPaymentAmount({ amount: { currency: "RUB" } })).not.toThrow();
   });
 
   it("normalizes foreign-card cancellation and stores a durable decline reason", async () => {

@@ -18,6 +18,12 @@ model User {
   password              String
   role                  Role      @default(CLIENT)
   emailVerified         Boolean   @default(false)
+  /// B571: суперадмин выдаёт признак «тестовые платежи». Такой пользователь
+  /// платит по ТЕСТОВЫМ ключам Robokassa, но платформа обрабатывает платёж как
+  /// настоящий — баллы, подписки и услуги начисляются. Нужно, чтобы люди могли
+  /// участвовать в проверке рельса, не тратя денег. Снятие признака мгновенно
+  /// возвращает пользователя на боевые ключи.
+  testPaymentsEnabled   Boolean   @default(false) @map("test_payments_enabled")
   avatarUrl             String?
   deletedAt             DateTime? // deactivated at this time, anonymize after 7 days
   retentionAnonymizedAt DateTime? @map("retention_anonymized_at")
@@ -1840,6 +1846,11 @@ model Transaction {
   /// of the same checkout reuses it and Robokassa collapses the duplicate.
   invoiceId            Int               @unique @default(autoincrement()) @map("invoice_id")
   description          String?
+  /// B571: каким комплектом ключей Robokassa подписан ЭТОТ платёж.
+  /// ResultURL приходит подписанным паролем #2 того же комплекта, поэтому
+  /// режим обязан жить на транзакции: признак у пользователя могут снять между
+  /// оплатой и колбэком, и тогда проверка подписи пошла бы не той парой.
+  testMode             Boolean           @default(false) @map("test_mode")
   paymentDeclineReason String?           @map("payment_decline_reason")
   offerVersion         String?           @map("offer_version")
   termsVersion         String?           @map("terms_version")
