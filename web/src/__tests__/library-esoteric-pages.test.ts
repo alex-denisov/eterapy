@@ -5,6 +5,13 @@ const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 describe("B205 Library and esoteric service pages", () => {
+  it("does not keep experimental section hubs or redirect them", () => {
+    for (const route of ["esoterika", "esotericism"]) {
+      expect(fs.existsSync(path.join(root, `src/app/library/${route}/page.tsx`))).toBe(false);
+      expect(fs.existsSync(path.join(root, `src/app/library/${route}/route.ts`))).toBe(false);
+    }
+  });
+
   it("keeps legacy esoteric URLs as redirects to canonical /products pages", () => {
     const redirects: Record<string, string> = {
       tarot: "/products/tarot",
@@ -49,17 +56,17 @@ describe("B205 Library and esoteric service pages", () => {
     expect(catalog).not.toContain('id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "#"' );
   });
 
-  it("updates library detail pages to match the v4.1 public anonymous-card structure", () => {
+  it("keeps the library detail page aligned with the current editorial structure", () => {
     const detail = source("src/app/library/[slug]/page.tsx");
     const cta = source("src/components/library/library-entry-cta.tsx");
     const ctaLib = source("src/lib/library-cta.ts");
 
-    expect(detail).toContain("что мы услышали");
-    expect(detail).toContain("главная развилка");
-    expect(detail).toContain("фрагмент разбора · открыт публично");
-    // B382: single-canvas redesign — boxed «Скрыто в публичной карточке» panel
-    // became a typographic «что в полном разборе» section.
-    expect(detail).toContain("что в полном разборе");
+    expect(detail).toContain("короткий ответ");
+    expect(detail).toContain("что здесь важно различить");
+    expect(detail).toContain("что можно проверить");
+    expect(detail).toContain("первый шаг");
+    expect(detail).toContain("Как подготовлен материал");
+    expect(detail).toContain("Частые вопросы");
     expect(detail).toContain("рядом в библиотеке");
     expect(detail).toContain("LibraryEntryCta");
     // B382: CTA now drives into the mapped paid service (label from resolveLibraryCta).
