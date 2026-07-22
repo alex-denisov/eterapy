@@ -80,11 +80,15 @@ export function PractitionerBookingScreen({
   const today = useMemo(() => localDateStr(base), [base]);
   const [year, setYear] = useState(() => base.getFullYear());
   const [month, setMonth] = useState(() => base.getMonth());
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [monthAvailability, setMonthAvailability] = useState<{ key: string; dates: string[] }>({
+    key: "",
+    dates: [],
+  });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [loadingMonth, setLoadingMonth] = useState(true);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotAvailability, setSlotAvailability] = useState<{ key: string; slots: Slot[] }>({
+    key: "",
+    slots: [],
+  });
   const [selected, setSelected] = useState("");
   const [meetingContext, setMeetingContext] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -94,21 +98,30 @@ export function PractitionerBookingScreen({
 
   const duration = practitioner.durationMin;
   const isCurrentMonth = year === base.getFullYear() && month === base.getMonth();
+  const monthRequestKey = `${practitioner.id}:${duration}:${year}:${month}`;
+  const availableDates = useMemo(
+    () => (monthAvailability.key === monthRequestKey ? monthAvailability.dates : []),
+    [monthAvailability, monthRequestKey],
+  );
+  const loadingMonth = monthAvailability.key !== monthRequestKey;
+  const slotRequestKey = selectedDate
+    ? `${practitioner.id}:${duration}:${selectedDate}:${today}`
+    : "";
+  const slots = slotAvailability.key === slotRequestKey ? slotAvailability.slots : [];
+  const loadingSlots = Boolean(selectedDate && slotAvailability.key !== slotRequestKey);
 
   // Доступные дни месяца. Если в текущем месяце свободного времени нет, один
   // раз перепрыгиваем на месяц ближайшей доступной даты — иначе клиент видит
   // пустую сетку и решает, что записаться нельзя.
   useEffect(() => {
     let cancelled = false;
-    setLoadingMonth(true);
     const id = encodeURIComponent(practitioner.id);
     fetch(`/api/slots/month?practitionerId=${id}&year=${year}&month=${month}&durationMin=${duration}`)
       .then((response) => (response.ok ? response.json() : { availableDates: [] }))
       .then((payload: { availableDates?: string[]; earliestAvailableDate?: string | null }) => {
         if (cancelled) return;
         const dates = Array.isArray(payload.availableDates) ? payload.availableDates : [];
-        setAvailableDates(dates);
-        setLoadingMonth(false);
+        setMonthAvailability({ key: monthRequestKey, dates });
 
         const firstLoad = !autoJumped.current;
         autoJumped.current = true;
@@ -124,16 +137,16 @@ export function PractitionerBookingScreen({
         // со свободным временем.
         if (dates.length > 0) setSelectedDate((prev) => prev ?? (dates.includes(today) ? today : dates[0]));
       })
-      .catch(() => { if (!cancelled) setLoadingMonth(false); });
+      .catch(() => {
+        if (!cancelled) setMonthAvailability({ key: monthRequestKey, dates: [] });
+      });
     return () => { cancelled = true; };
-  }, [practitioner.id, duration, year, month, today]);
+  }, [practitioner.id, duration, year, month, today, monthRequestKey]);
 
   // Время выбранного дня. Для сегодня отбрасываем уже прошедшие слоты.
   useEffect(() => {
     if (!selectedDate) return;
     let cancelled = false;
-    setLoadingSlots(true);
-    setSelected("");
     const id = encodeURIComponent(practitioner.id);
     fetch(`/api/slots/available?practitionerId=${id}&date=${selectedDate}&durationMin=${duration}`)
       .then((response) => (response.ok ? response.json() : { slots: [] }))
@@ -141,12 +154,18 @@ export function PractitionerBookingScreen({
         if (cancelled) return;
         const list = Array.isArray(payload.slots) ? payload.slots : [];
         const now = Date.now();
-        setSlots(selectedDate === today ? list.filter((item) => new Date(item.startAt).getTime() > now) : list);
-        setLoadingSlots(false);
+        setSlotAvailability({
+          key: slotRequestKey,
+          slots: selectedDate === today
+            ? list.filter((item) => new Date(item.startAt).getTime() > now)
+            : list,
+        });
       })
-      .catch(() => { if (!cancelled) { setSlots([]); setLoadingSlots(false); } });
+      .catch(() => {
+        if (!cancelled) setSlotAvailability({ key: slotRequestKey, slots: [] });
+      });
     return () => { cancelled = true; };
-  }, [practitioner.id, duration, selectedDate, today]);
+  }, [practitioner.id, duration, selectedDate, today, slotRequestKey]);
 
   // Сгенерированные по правилу слоты приходят БЕЗ id — ключом служит startAt.
   const slotKey = (item: Slot) => item.id ?? item.slotId ?? item.startAt;
@@ -162,6 +181,11 @@ export function PractitionerBookingScreen({
       || (next.getFullYear() === base.getFullYear() && next.getMonth() < base.getMonth()))) return;
     setYear(next.getFullYear());
     setMonth(next.getMonth());
+  }
+
+  function selectDate(date: string) {
+    setSelectedDate(date);
+    setSelected("");
   }
 
   async function submit() {
@@ -193,7 +217,7 @@ export function PractitionerBookingScreen({
           : payload.error ?? "Не удалось записаться. Попробуйте ещё раз.");
         return;
       }
-      if (payload.confirmationUrl) { window.location.href = payload.confirmationUrl; return; }
+      if (payload.confirmationUrl) { window.location.assign(payload.confirmationUrl); return; }
       setBookedId(payload.booking?.id ?? null);
     } catch {
       setError("Нет связи с сервером. Попробуйте ещё раз.");
@@ -210,9 +234,11 @@ export function PractitionerBookingScreen({
           <section className={styles["conversation-card"]}>
             <span><Check size={22} /><strong>Встреча в календаре</strong></span>
             <p>
-              {new Date(slot?.startAt ?? Date.now()).toLocaleString("ru-RU", {
-                weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
-              })}
+              {slot
+                ? new Date(slot.startAt).toLocaleString("ru-RU", {
+                    weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+                  })
+                : "Время встречи сохранено в профиле"}
               {askContext ? " · специалист получил ваш запрос" : ""}
             </p>
           </section>
@@ -264,7 +290,7 @@ export function PractitionerBookingScreen({
                   day.isToday && "is-today",
                   selectedDate === day.key && "is-selected",
                 )}
-                onClick={() => setSelectedDate(day.key)}
+                onClick={() => selectDate(day.key)}
               >
                 {day.date.getDate()}
               </button>
