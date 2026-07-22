@@ -42,7 +42,7 @@ import {
 } from "@phosphor-icons/react";
 import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
 import type { MiniAppOffer, MiniAppPractitionerCard } from "@/lib/miniapp/journey-data";
-import { loadTelegramSdk } from "@/lib/miniapp/telegram/client";
+import { insideTelegram, loadTelegramSdk, openTelegramInvoice } from "@/lib/miniapp/telegram/client";
 import { MINIAPP_DIRECTIONS, matchesDirection, type MiniAppDirection } from "@/lib/miniapp/practitioner-filter";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { GlassSegmented } from "@/components/miniapp/glass-segmented";
@@ -174,10 +174,70 @@ export function PackagesScreen({ offers, initialKind = "subscription" }: { offer
 
 export type ReviewOffer = { key: string; title: string; price: string; note: string; kind: string };
 
+/**
+ * Тело запроса на оплату из ключа предложения. Ключ несёт вид покупки, и
+ * разбирать его в двух местах (карта и звёзды) значило бы разъехаться на первой
+ * же правке каталога.
+ */
+function purchaseBodyFor(offer: ReviewOffer, source: string) {
+  const returnPath = `/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`;
+  if (offer.kind === "credits") return { creditPackKey: offer.key, checkoutSource: source, returnPath };
+  if (offer.kind === "subscription") return { planKey: offer.key, checkoutSource: source, returnPath };
+  return {
+    productKey: offer.key.startsWith("service:") ? offer.key.slice("service:".length) : offer.key,
+    checkoutSource: source,
+    returnPath,
+  };
+}
+
 export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }: { offer: ReviewOffer | null; slot?: string | null; cardPaymentEnabled?: boolean }) {
   const { data } = useMiniAppV21();
+  const router = useRouter();
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  // B529: правила Telegram и сторов — цифровой товар внутри мини-аппа
+  // продаётся ТОЛЬКО за Stars. Внешняя платёжная ссылка там не «другой способ
+  // оплаты», а нарушение, за которое снимают бота. Определяем поверхность после
+  // монтирования: на сервере Telegram SDK нет, и разметка обязана совпасть.
+  const [starsRail, setStarsRail] = useState(false);
+  useEffect(() => { setStarsRail(insideTelegram()); }, []);
+
+  // B529: оплата звёздами. Права выдаёт вебхук `successful_payment` на сервере —
+  // колбэк окна оплаты лишь говорит, чем кончилось окно, и верить ему как
+  // источнику покупки нельзя. Поэтому на `paid` экран ПЕРЕЧИТЫВАЕТ состояние
+  // с сервера, а не рисует успех сам.
+  async function payWithStars() {
+    if (!offer) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const response = await fetch("/api/miniapp/billing/stars-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(purchaseBodyFor(offer, "miniapp-stars-review")),
+      });
+      const payload = await response.json().catch(() => ({})) as { invoiceLink?: string; error?: string };
+      if (!response.ok || !payload.invoiceLink) {
+        setPayError(response.status === 401
+          ? "Сессия истекла. Войдите в аккаунт и попробуйте ещё раз."
+          : payload.error ?? "Не удалось выставить счёт. Попробуйте ещё раз.");
+        return;
+      }
+      const status = await openTelegramInvoice(payload.invoiceLink);
+      if (status === "paid") {
+        // Вебхук мог ещё не доехать — обновляем данные, а не обещаем баллы.
+        router.refresh();
+        router.push("/miniapp/profile/wallet");
+        return;
+      }
+      if (status === "failed") setPayError("Оплата не прошла. Звёзды не списаны.");
+      // «cancelled» — человек закрыл окно сам, сообщать не о чем.
+    } catch {
+      setPayError("Нет связи с сервером. Попробуйте ещё раз.");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   // B554 (owner): раньше экран ВСЕГДА говорил «оплата картой появится скоро» и
   // держал кнопку выключенной. Теперь и текст, и кнопка идут от готовности
@@ -223,7 +283,17 @@ export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }
           <div className={styles["review-row"]}><span>Условия</span><strong>{offer.note}</strong></div>
         </section> : <section className={styles["empty-detail"]}><Wallet size={28} /><strong>Предложение не найдено</strong><p>Вернитесь в каталог и выберите услугу ещё раз.</p></section>}
 
-        {cardPaymentEnabled ? (
+        {starsRail ? (
+          /* B529: внутри Telegram — только звёзды. */
+          <>
+            <section className={styles["payment-hold"]}><Star size={22} /><div><strong>Оплата звёздами Telegram</strong><p>Счёт откроется в Telegram. Баллы и доступы начисляются те же, что при оплате на сайте.</p></div></section>
+            <button className={styles["journey-primary"]} type="button" onClick={() => void payWithStars()} disabled={!offer || paying} data-testid="miniapp-pay-stars">
+              {paying ? "Открываем счёт…" : "Оплатить звёздами"}<ArrowRight size={18} />
+            </button>
+            {payError ? <p className={styles["form-error"]} role="alert">{payError}</p> : null}
+            <p className={styles["flow-note"]}><ShieldCheck size={16} />Звёзды списывает Telegram — данные карты к нам не попадают.</p>
+          </>
+        ) : cardPaymentEnabled ? (
           <>
             <section className={styles["payment-hold"]}><ShieldCheck size={22} /><div><strong>Оплата на защищённой странице банка</strong><p>Данные карты вводятся у платёжного партнёра — на нашей стороне они не сохраняются.</p></div></section>
             <button className={styles["journey-primary"]} type="button" onClick={() => void pay()} disabled={!offer || paying}>

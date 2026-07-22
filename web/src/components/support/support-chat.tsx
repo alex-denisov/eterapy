@@ -278,9 +278,17 @@ export function SupportChat() {
           )}
         </div>
       )}
+      {/* B573 (owner 2026-07-22): «форма с историей диалогов заходит за края
+          экрана». Высота треда была задана константами — пол в 280px и потолок
+          в 420px, — которые ничего не знают ни про блок базы знаний над чатом,
+          ни про высоту вьюпорта Telegram, ни про поднятую клавиатуру. На 375px
+          пол в одиночку уводил композер под сгиб, а собственный `overflow-y`
+          треда при этом конкурировал со скроллом страницы. Тот же класс дефекта
+          уже чинили в живом диалоге (B554 п.2) и в чате услуги (B561).
+          Класс-хук нужен, чтобы мини-апп мерил тред своим вьюпортом. */}
       <div
         ref={scrollRef}
-        className="flex max-h-[420px] min-h-[280px] flex-col gap-2 overflow-y-auto p-4"
+        className="support-chat-thread flex max-h-[420px] min-h-[160px] flex-col gap-2 overflow-y-auto p-4"
         style={{ background: "linear-gradient(165deg, var(--soft-paper-deep) 0%, var(--soft-paper) 100%)" }}
         data-testid="support-chat-thread"
       >

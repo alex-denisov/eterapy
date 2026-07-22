@@ -17,6 +17,12 @@ import { formatTelegramGrowthMessage, resolveTelegramGrowthPayload } from "@/lib
 import { log, serializeError } from "@/lib/logger";
 import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib/webhook-idempotency";
 import { APP_URL } from "@/lib/env";
+import {
+  handleStarsPreCheckout,
+  handleStarsSuccessfulPayment,
+  type TelegramPreCheckoutQuery,
+  type TelegramSuccessfulPayment,
+} from "@/lib/payments/telegram-stars-webhook";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
@@ -64,6 +70,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, supportGroupIgnored: true });
     }
 
+    // B529: pre_checkout_query отвечается ДО и ВНЕ журнала идемпотентности.
+    // Telegram ждёт ответ 10 секунд; повторная доставка того же запроса — это
+    // ещё одна попытка покупателя оплатить, и промолчать в ответ на неё значит
+    // уронить платёж. Отказ здесь бесплатен, поэтому ответить важнее, чем не
+    // повториться.
+    if (update.pre_checkout_query) {
+      const result = await handleStarsPreCheckout(update.pre_checkout_query);
+      log.info("telegram-webhook-precheckout", { result });
+      return NextResponse.json({ ok: true, result });
+    }
+
     const eventId = update.update_id !== undefined
       ? String(update.update_id)
       : `message:${update.message?.chat.id ?? "unknown"}:${update.message?.date ?? "unknown"}:${update.message?.text ?? ""}`;
@@ -80,6 +97,19 @@ export async function POST(req: NextRequest) {
     claimedEventId = claim.event.id;
 
     const msg = update.message;
+
+    // B529: успешная оплата звёздами приходит сообщением БЕЗ текста — до этой
+    // правки она попадала в ветку «ignored» ниже, то есть звёзды списались бы,
+    // а покупка не выдалась.
+    if (msg?.successful_payment) {
+      const result = await handleStarsSuccessfulPayment({
+        payment: msg.successful_payment,
+        requestId: claim.event.id,
+      });
+      await completeWebhookEvent(claim.event.id, { result });
+      return NextResponse.json({ ok: true, result });
+    }
+
     if (!msg || !msg.text) {
       await completeWebhookEvent(claim.event.id, { result: "ignored" });
       return NextResponse.json({ ok: true });
@@ -197,6 +227,8 @@ export async function POST(req: NextRequest) {
 
 interface TelegramUpdate {
   update_id?: number;
+  /** B529: подтверждение счёта перед списанием звёзд. */
+  pre_checkout_query?: TelegramPreCheckoutQuery;
   message?: {
     text?: string;
     date?: number;
@@ -204,6 +236,8 @@ interface TelegramUpdate {
     message_thread_id?: number;
     chat: { id: number };
     from?: { username?: string };
+    /** B529: приходит вместо текста, когда звёзды уже списаны. */
+    successful_payment?: TelegramSuccessfulPayment;
     // B333: staff replies in the support group carry the original
     // forwarded message in reply_to_message so we can pick up the
     // `conversation: <id>` marker without storing thread maps.

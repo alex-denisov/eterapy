@@ -33,9 +33,20 @@ describe("B561 — страница результата скроллится, �
   it("клавиатурные правила тоже ограничены фазами с полем ввода", () => {
     const css = source(MINIAPP_CSS);
 
-    expect(css).toContain(
-      ':global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"])',
+    // B573 добавил в этот же список фазу `chat` (экран «Решить вопрос в чате»
+    // переехал на тот же контракт). Проверяем СОДЕРЖАНИЕ списка, а не его
+    // точную строку: иначе тест ломается на каждой новой фазе с полем ввода,
+    // ничего при этом не защищая.
+    const keyboardRule = css.match(
+      /:global\(html\[data-miniapp-keyboard-open="true"\]\) \.dialogue-surface:where\(([^)]*)\)/,
     );
+    expect(keyboardRule).not.toBeNull();
+    const phases = keyboardRule?.[1] ?? "";
+    expect(phases).toContain('[data-phase="question"]');
+    expect(phases).toContain('[data-phase="clarifying"]');
+    // Фазы БЕЗ поля ввода (результат) в список попадать не должны — ровно этот
+    // дефект и чинил B561.
+    expect(phases).not.toContain('[data-phase="result"]');
   });
 
   it("свёрнутая история получает тот же контракт, что живая сессия", () => {

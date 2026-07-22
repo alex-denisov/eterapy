@@ -186,6 +186,11 @@ jobs:
           ROBOKASSA_HASH_ALGORITHM: ${{ secrets.ROBOKASSA_HASH_ALGORITHM }}
           ROBOKASSA_IS_TEST: ${{ secrets.ROBOKASSA_IS_TEST }}
           PAYMENT_PROVIDER: ${{ secrets.PAYMENT_PROVIDER }}
+          # B529: курс звезды Telegram (₽ за 1 XTR). Не задан — берётся
+          # задокументированный запасной курс из `payments/telegram-stars.ts`.
+          # Меняется настройкой, потому что Telegram меняет цену пачки звёзд, а
+          # сторы удерживают свою долю: вшитое число устареет молча.
+          TELEGRAM_STARS_RUB_RATE: ${{ secrets.TELEGRAM_STARS_RUB_RATE }}
           # B569: ключи Cloudflare для панели мониторинга флота.
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -325,7 +330,7 @@ jobs:
           for key in ROBOKASSA_MERCHANT_LOGIN ROBOKASSA_PASSWORD_1 ROBOKASSA_PASSWORD_2 \
                      ROBOKASSA_TEST_PASSWORD_1 ROBOKASSA_TEST_PASSWORD_2 \
                      ROBOKASSA_HASH_ALGORITHM ROBOKASSA_IS_TEST \
-                     PAYMENT_PROVIDER \
+                     PAYMENT_PROVIDER TELEGRAM_STARS_RUB_RATE \
                      CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN \
                      FLEET_GITHUB_TOKEN \
                      TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID \
