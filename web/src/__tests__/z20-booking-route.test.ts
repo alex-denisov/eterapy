@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { POST as createBooking } from "@/app/api/bookings/route";
+// B572: слаг версии оферты меняется вместе с датой публикации пакета —
+// фикстура берёт его из источника, а не повторяет строкой.
+import { AGENT_OFFER_VERSION } from "@/lib/practitioner-compliance";
 
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
@@ -145,7 +148,7 @@ function activePractitioner() {
     status: "ACTIVE",
     verified: true,
     agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
-    agentOfferVersion: "agent-offer-2026-06-18",
+    agentOfferVersion: AGENT_OFFER_VERSION,
     taxStatus: "SELF_EMPLOYED",
     taxReviewStatus: "VERIFIED",
     taxStatusVerifiedAt: new Date("2026-06-18T10:05:00.000Z"),

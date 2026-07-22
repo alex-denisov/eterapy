@@ -1,4 +1,6 @@
 import { TextDecoder, TextEncoder } from "util";
+// B572: см. z20-booking-route — версия агентской оферты идёт из источника.
+import { AGENT_OFFER_VERSION } from "@/lib/practitioner-compliance";
 
 if (!global.TextEncoder) {
   // Prisma / Next.js server helpers expect these globals in the test runtime.
@@ -95,7 +97,7 @@ describe("admin refactor routes", () => {
       status: "ACTIVE",
       verified: true,
       agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
-      agentOfferVersion: "agent-offer-2026-06-18",
+      agentOfferVersion: AGENT_OFFER_VERSION,
       taxStatus: "SELF_EMPLOYED",
       taxReviewStatus: "VERIFIED",
       taxStatusVerifiedAt: new Date("2026-06-18T10:05:00.000Z"),

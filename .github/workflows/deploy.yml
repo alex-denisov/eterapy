@@ -137,6 +137,13 @@ jobs:
       NODE_SLUG: ${{ matrix.vm.slug }}
       # B537: standby nodes carry a read-only replica of eterapy-1.
       NODE_STANDBY: ${{ matrix.vm.standby && '1' || '0' }}
+      # B572: роль ноды — по ней включается таймер SEO-отчёта (ровно на одной).
+      NODE_ROLE: ${{ matrix.vm.role }}
+      # B572: WireGuard-адрес ноды, на котором её слышит панель мониторинга.
+      # Пусто на foreign-нодах — они в мост флота не входят. Значение приходит
+      # из репозиторного deploy/fleet-matrix.json, не из события, и дальше
+      # используется только как "$NODE_WEB_BIND" внутри run.
+      NODE_WEB_BIND: ${{ matrix.vm.webBind }}
     steps:
       - uses: actions/checkout@v4
 
@@ -182,6 +189,16 @@ jobs:
           # B569: ключи Cloudflare для панели мониторинга флота.
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # B572: PAT (fine-grained, actions:write) для кнопки редеплоя в панели.
+          # Пока секрет не заведён, панель честно пишет «деплой выключен».
+          FLEET_GITHUB_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN }}
+          # B572: SEO-отчёт переехал с расписания GitHub Actions на systemd-таймер
+          # ноды — GitHub роняет и опаздывает на часы (замер в тикете).
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
+          YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
+          YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -215,6 +232,51 @@ jobs:
                else \
                  echo 'backup timer not enabled on this node — files staged only'; \
                fi"
+          # B572: WG-приёмник :3200 для панели мониторинга. Нужен ТОЛЬКО там,
+          # где веб в host-сети: Next слушает ровно один адрес (`--hostname`),
+          # он занят под 127.0.0.1 для host-nginx, а 0.0.0.0 недопустим —
+          # файрвола на хостах нет. Где порт публикует docker, адрес задаёт
+          # ETERAPY_WEB_BIND и прокси не нужен. Условие читаем прямо из
+          # compose-файла ноды, чтобы оно не разъехалось с матрицей.
+          if [ -n "$NODE_WEB_BIND" ] && grep -q 'network_mode: host' "deploy/compose/$COMPOSE_FILE_NAME"; then
+            sed "s/__WG_BIND__/$NODE_WEB_BIND/" deploy/agent/eterapy-wg-proxy.socket > /tmp/eterapy-wg-proxy.socket
+            scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+              /tmp/eterapy-wg-proxy.socket \
+              deploy/agent/eterapy-wg-proxy.service \
+              "$VM_USER@$VM_HOST:/tmp/"
+            $SSH "sudo install -m 0644 /tmp/eterapy-wg-proxy.socket /etc/systemd/system/eterapy-wg-proxy.socket \
+              && sudo install -m 0644 /tmp/eterapy-wg-proxy.service /etc/systemd/system/eterapy-wg-proxy.service \
+              && rm -f /tmp/eterapy-wg-proxy.socket /tmp/eterapy-wg-proxy.service \
+              && sudo systemctl daemon-reload \
+              && sudo systemctl enable eterapy-wg-proxy.socket \
+              && sudo systemctl restart eterapy-wg-proxy.socket \
+              && sudo systemctl is-active eterapy-wg-proxy.socket"
+            echo "▶ WG-приёмник слушает $NODE_WEB_BIND:3200"
+          else
+            echo "▶ WG-приёмник не нужен на этой ноде"
+          fi
+          # B572: SEO-отчёт. Таймер поднимается ТОЛЬКО на primary — иначе
+          # владелец получит столько отчётов, сколько нод во флоте. Скрипт
+          # кладём на все ноды: он безвреден без таймера, а при смене primary
+          # достаточно поменять роль в матрице.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/seo/seo-telegram-report.sh \
+            deploy/seo/eterapy-seo-report.service \
+            deploy/seo/eterapy-seo-report.timer \
+            "$VM_USER@$VM_HOST:/tmp/"
+          $SSH "sudo install -m 0755 /tmp/seo-telegram-report.sh /opt/eterapy/seo-telegram-report.sh \
+            && sudo install -m 0644 /tmp/eterapy-seo-report.service /etc/systemd/system/eterapy-seo-report.service \
+            && sudo install -m 0644 /tmp/eterapy-seo-report.timer /etc/systemd/system/eterapy-seo-report.timer \
+            && rm -f /tmp/seo-telegram-report.sh /tmp/eterapy-seo-report.service /tmp/eterapy-seo-report.timer \
+            && sudo systemctl daemon-reload"
+          if [ "$NODE_ROLE" = "primary" ]; then
+            $SSH "sudo systemctl enable --now eterapy-seo-report.timer \
+              && sudo systemctl list-timers eterapy-seo-report.timer --no-pager | head -2"
+            echo "▶ SEO-отчёт: таймер включён (09:00 МСК)"
+          else
+            $SSH "sudo systemctl disable --now eterapy-seo-report.timer >/dev/null 2>&1 || true"
+            echo "▶ SEO-отчёт: не primary — таймер выключен"
+          fi
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
           # releases piled up until the disk filled and `docker load` failed.
@@ -238,6 +300,21 @@ jobs:
               && sudo sed -i 's#^$key=.*#$kv#' /opt/eterapy/.env \
               || echo '$kv' | sudo tee -a /opt/eterapy/.env >/dev/null"
           done
+          # B572: адрес, на котором нода слышна панели мониторинга. Раньше это
+          # был node-local `.env` (вписан руками на eterapy-2 при B540) — то
+          # есть значение, которого нет в git, и при пересборке ноды оно
+          # исчезает вместе с мониторингом. Теперь едет из матрицы.
+          # Пусто → ключ УДАЛЯЕМ: в compose стоит `${ETERAPY_WEB_BIND:-127.0.0.1}`,
+          # и оставленный пустой ключ читался бы как «слушать все интерфейсы»,
+          # а файрвола на хостах нет (PRB-009).
+          if [ -n "$NODE_WEB_BIND" ]; then
+            $SSH "sudo sed -i '/^ETERAPY_WEB_BIND=/d' /opt/eterapy/.env \
+              && echo 'ETERAPY_WEB_BIND=$NODE_WEB_BIND' | sudo tee -a /opt/eterapy/.env >/dev/null"
+            echo "▶ ETERAPY_WEB_BIND=$NODE_WEB_BIND"
+          else
+            $SSH "sudo sed -i '/^ETERAPY_WEB_BIND=/d' /opt/eterapy/.env"
+            echo "▶ ETERAPY_WEB_BIND снят (нода вне моста флота)"
+          fi
           # B423/B566: платёжные креды приезжают выкаткой из секретов репозитория.
           # Владелец не правит .env на хосте руками — значит значение, которого
           # нет в git-управляемом пути, до прода не доедет (так уже случилось со
@@ -249,7 +326,10 @@ jobs:
                      ROBOKASSA_TEST_PASSWORD_1 ROBOKASSA_TEST_PASSWORD_2 \
                      ROBOKASSA_HASH_ALGORITHM ROBOKASSA_IS_TEST \
                      PAYMENT_PROVIDER \
-                     CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN; do
+                     CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN \
+                     FLEET_GITHUB_TOKEN \
+                     TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID \
+                     YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue
             printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \

@@ -100,7 +100,7 @@ describe("B466 owner-fix #4 — «Настроить уведомления» в
 
 describe("B466 owner-fix #5 — агентская оферта: русское название + гиперссылка", () => {
   it("экспортируется человекочитаемое название версии", () => {
-    expect(AGENT_OFFER_VERSION_LABEL).toBe("редакция от 18 июня 2026 года");
+    expect(AGENT_OFFER_VERSION_LABEL).toBe("редакция от 20 июля 2026 года");
     // слаг не должен утекать в баннер (сравнение версии — отдельно)
     expect(AGENT_OFFER_VERSION_LABEL).not.toContain("agent-offer");
   });

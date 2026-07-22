@@ -1,0 +1,25 @@
+# B572 — приёмник :3200 на WireGuard-адресе ноды.
+#
+# Нужен только там, где веб живёт в host-сети (docker-compose.prod.yml): Next
+# слушает РОВНО один адрес (`--hostname`), и он занят под 127.0.0.1 — туда
+# ходит host-nginx. Отдать этот адрес WireGuard'у нельзя, а слушать 0.0.0.0
+# нельзя тем более: на хостах флота нет файрвола (PRB-009), порт ушёл бы в
+# интернет. На остальных нодах порт публикует docker (ETERAPY_WEB_BIND), и
+# этот юнит там не ставится.
+#
+# __WG_BIND__ подставляет выкатка из `webBind` в deploy/fleet-matrix.json —
+# адрес ноды node-local'ом не остаётся.
+
+[Unit]
+Description=ETerapy: WG-приёмник :3200 для панели мониторинга флота
+# Адрес принадлежит интерфейсу wg-fleet: без него bind падает с EADDRNOTAVAIL.
+Requires=wg-quick@wg-fleet.service
+After=wg-quick@wg-fleet.service
+
+[Socket]
+ListenStream=__WG_BIND__:3200
+# Туннель может подняться позже сокета — не падаем на гонке при загрузке.
+FreeBind=true
+
+[Install]
+WantedBy=sockets.target

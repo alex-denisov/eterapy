@@ -1992,7 +1992,12 @@ a.service-row {
 
 .service-row-person {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  /* B572 (owner 2026-07-22): «иконка специалиста налипает на описание».
+     Дорожка была 40px по числу из пропа `size={40}`, но у PractitionerAvatar
+     проп задаёт только intrinsic-атрибуты картинки — рендерит бокс класс
+     .practitioner-avatar, а он 52px. Аватар вылезал из дорожки и заходил на
+     текст на 2px (замерено на проде). Дорожка равна реальному размеру. */
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
 }
@@ -4783,6 +4788,13 @@ a.service-row {
 .miniapp-session {
   --soft-paper: var(--canvas);
   --soft-paper-card: #0e1b2a;
+  /* B572 (owner 2026-07-22): «кнопка имеет неправильный контраст когда активна».
+     Тёмная перекладка --soft-* забывала --soft-surface, и он оставался светлым
+     кремом из :root. Все «выбранные» состояния v4-soft залиты именно им, а
+     текст на них берётся из --soft-ink/--soft-bordeaux, которые здесь уже
+     светлые — получалось #f7f4ed на #f6efe1, контраст 1.03:1 (замерено).
+     Активная заливка — коралловый налёт: и видно, что выбрано, и читаемо. */
+  --soft-surface: rgba(255, 101, 72, .14);
   --soft-paper-deep: #091522;
   --soft-paper-edge: rgba(211, 226, 239, .13);
   --soft-ink: var(--text);
@@ -4885,6 +4897,13 @@ a.service-row {
 .product-native-page {
   --soft-paper: var(--canvas);
   --soft-paper-card: #0e1b2a;
+  /* B572 (owner 2026-07-22): «кнопка имеет неправильный контраст когда активна».
+     Тёмная перекладка --soft-* забывала --soft-surface, и он оставался светлым
+     кремом из :root. Все «выбранные» состояния v4-soft залиты именно им, а
+     текст на них берётся из --soft-ink/--soft-bordeaux, которые здесь уже
+     светлые — получалось #f7f4ed на #f6efe1, контраст 1.03:1 (замерено).
+     Активная заливка — коралловый налёт: и видно, что выбрано, и читаемо. */
+  --soft-surface: rgba(255, 101, 72, .14);
   --soft-paper-deep: #091522;
   --soft-paper-edge: rgba(211, 226, 239, .13);
   --soft-ink: var(--text);
@@ -5177,6 +5196,13 @@ a.service-row {
 .dialogue-surface {
   --soft-paper: var(--canvas);
   --soft-paper-card: #0e1b2a;
+  /* B572 (owner 2026-07-22): «кнопка имеет неправильный контраст когда активна».
+     Тёмная перекладка --soft-* забывала --soft-surface, и он оставался светлым
+     кремом из :root. Все «выбранные» состояния v4-soft залиты именно им, а
+     текст на них берётся из --soft-ink/--soft-bordeaux, которые здесь уже
+     светлые — получалось #f7f4ed на #f6efe1, контраст 1.03:1 (замерено).
+     Активная заливка — коралловый налёт: и видно, что выбрано, и читаемо. */
+  --soft-surface: rgba(255, 101, 72, .14);
   --soft-paper-deep: #091522;
   --soft-paper-edge: rgba(211, 226, 239, .13);
   --soft-ink: var(--text);

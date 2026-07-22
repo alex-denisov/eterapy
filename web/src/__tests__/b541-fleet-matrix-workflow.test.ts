@@ -63,19 +63,53 @@ describe("B541 · инвентарь флота ↔ deploy.yml", () => {
     }
   });
 
-  // Порт 3200 слушает ТОЛЬКО 127.0.0.1, поэтому умолчание `http://<ip>:3200`
-  // из nodes.ts для чужой ноды всегда таймаутит — панель показывала весь флот
-  // «недоступен» уже после того, как инвентарь доехал. Адрес опроса обязан
-  // быть задан явно.
-  it("каждая нода объявляет адрес опроса, и он не ведёт на закрытый :3200", () => {
+  // B572: адрес опроса обязан быть задан явно — умолчание `http://<ip>:3200`
+  // из nodes.ts всегда таймаутит, порт наружу не смотрит.
+  //
+  // Loopback для своего узла не годится: прод раздаётся с ДВУХ нод за HAProxy,
+  // и когда панель отрисовала eterapy-2, `127.0.0.1:3200` ведёт в eterapy-2 —
+  // строка eterapy-1 показывала «нет агента». Публичный адрес тоже не подошёл:
+  // у eterapy-1 nginx с сертификатом только на eterapy.com, и запрос соседа на
+  // `https://<ip>.sslip.io` падает в TLS (замерено с eterapy-2: HTTP 000).
+  //
+  // RU-ноды опрашиваются по WireGuard — мост уже несёт репликацию PG и
+  // HAProxy-пиринг, адрес не зависит от того, какая нода отрисовала страницу, и
+  // порт не выходит в интернет. Foreign-ноды в мост не входят — им sslip.io.
+  it("RU-ноды опрашиваются по WireGuard, foreign — по sslip.io", () => {
     for (const vm of matrix) {
       expect(vm.baseUrl).toBeTruthy();
-      if (vm.slug === "eterapy-1") {
-        // Свой узел — по loopback.
-        expect(vm.baseUrl).toBe("http://127.0.0.1:3200");
+      if (vm.contour === "ru") {
+        expect(vm.webBind).toMatch(/^10\.77\.0\.\d+$/);
+        expect(vm.baseUrl).toBe(`http://${vm.webBind}:3200`);
       } else {
+        expect(vm.webBind).toBe("");
         expect(vm.baseUrl).toBe(`https://${vm.host}.sslip.io`);
       }
+    }
+  });
+
+  it("WG-адреса уникальны — иначе две ноды отвечают за одну строку панели", () => {
+    const binds = matrix.map((vm) => vm.webBind).filter(Boolean);
+    expect(binds.length).toBeGreaterThan(1);
+    expect(new Set(binds).size).toBe(binds.length);
+  });
+
+  // Адрес привязки перестаёт быть node-local: на eterapy-2 `ETERAPY_WEB_BIND`
+  // был вписан в /opt/eterapy/.env руками (B540) и потерялся бы при пересборке
+  // ноды. Теперь он едет из матрицы выкаткой.
+  it("deploy.yml доставляет ETERAPY_WEB_BIND из матрицы", () => {
+    expect(workflow).toContain("ETERAPY_WEB_BIND");
+    expect(workflow).toContain("NODE_WEB_BIND");
+  });
+
+  // Хост-сетевой ноде docker порт не публикует: Next слушает ОДИН адрес
+  // (--hostname), и переставить его на WG значит отобрать 127.0.0.1 у nginx.
+  // Поэтому на такой ноде WG-адрес отдаёт systemd-socket-proxyd.
+  it("хост-сетевая нода получает WG-приёмник через socket-proxy", () => {
+    expect(workflow).toContain("eterapy-wg-proxy.socket");
+    expect(workflow).toContain("eterapy-wg-proxy.service");
+    for (const file of ["eterapy-wg-proxy.socket", "eterapy-wg-proxy.service"]) {
+      expect(fs.existsSync(path.join(repoRoot, "deploy", "agent", file))).toBe(true);
     }
   });
 
