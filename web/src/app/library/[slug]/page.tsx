@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChevronLeft, Lock } from "lucide-react";
+import { ArrowRight, ChevronLeft, CircleHelp, Compass, ShieldCheck } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { mainUrl } from "@/lib/subdomain";
-import { approvedLibraryEntries, getApprovedLibraryEntry } from "@/data/anonymous-library";
+import { approvedLibraryEntries, getApprovedLibraryEntry, librarySection } from "@/data/anonymous-library";
 import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 import { ogImageUrl } from "@/lib/share";
+import {
+  LIBRARY_EDITORIAL_DATE,
+  LIBRARY_EDITORIAL_DATE_RU,
+  libraryChecks,
+  libraryFaqs,
+  libraryFirstStep,
+  libraryHumanSupport,
+  libraryMetaDescription,
+  libraryMetaTitle,
+} from "@/lib/library-editorial";
 
 export function generateStaticParams() {
   return approvedLibraryEntries().map((entry) => ({ slug: entry.slug }));
@@ -23,8 +33,8 @@ export async function generateMetadata({
   const entry = getApprovedLibraryEntry(slug);
   if (!entry) return {};
 
-  const title = entry.seo?.metaTitle ?? `${entry.topic}: анонимный вопрос — ETerapy`;
-  const description = entry.seo?.metaDescription ?? entry.summary;
+  const title = libraryMetaTitle(entry);
+  const description = libraryMetaDescription(entry);
   const url = canonicalUrl(`/library/${entry.slug}`);
   // B390: брендовая OG-картинка делает карточку красивой при шеринге; конкретный
   // текст вопроса идёт в og:title/description (соцсеть рисует его сама).
@@ -60,9 +70,10 @@ export default async function LibraryEntryPage({
   const { slug } = await params;
   const entry = getApprovedLibraryEntry(slug);
   if (!entry) notFound();
+  const section = librarySection(entry);
   const relatedEntries = approvedLibraryEntries()
-    .filter((item) => item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
-    .slice(0, 3);
+    .filter((item) => librarySection(item) === section && item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
+    .slice(0, 4);
   // v2 single-canvas content with graceful fallback to legacy perspectives[].
   const forkTitle =
     entry.mainFork?.title ??
@@ -71,16 +82,17 @@ export default async function LibraryEntryPage({
     "Что в этой ситуации требует бережного уточнения?";
   const forkNote =
     entry.mainFork?.note ??
-    "Публичная карточка показывает только безопасный контур. В личном разборе система уточнит факты, чувства, границы и ближайший шаг именно под ваш контекст.";
-  const freeFragment = entry.freeFragment ?? entry.perspectives[0] ?? entry.summary;
-  const hidden = entry.hidden ?? [
-    "детали запроса автора и уточняющий диалог",
-    "Полная картина: мысли, чувства, скрытый смысл, первый шаг",
-    "безопасный следующий шаг",
-  ];
-  const similar = entry.similarCount ?? entry.reactions;
+    "Здесь важно не выбирать самое тревожное объяснение автоматически. Сначала стоит отделить наблюдаемые факты от версий и понять, какой ответ действительно поможет двигаться дальше.";
+  const checks = libraryChecks(entry);
+  const firstStep = libraryFirstStep(entry);
+  const humanSupport = libraryHumanSupport(entry);
+  const faqs = libraryFaqs(entry);
+  const interestCount = entry.similarCount ?? entry.reactions;
   const cta = resolveLibraryCta({ topic: entry.topic, ctaProduct: entry.ctaProduct, fromSlug: entry.slug });
   const ctaHref = mainUrl(cta.productPath);
+  const freeHref = mainUrl(`/checkin?from=library&slug=${encodeURIComponent(entry.slug)}`);
+  const isSymbolic = section === "symbolic";
+  const libraryHref = isSymbolic ? "/library?section=symbolic" : "/library";
 
   // B384: each card is a search target — enrich Article (about/section/teaser-gated)
   // and add a BreadcrumbList. One @graph keeps it in a single JSON-LD script.
@@ -91,14 +103,16 @@ export default async function LibraryEntryPage({
     "@graph": [
       {
         "@type": "Article",
-        headline: entry.seo?.metaTitle ?? `${entry.topic}: анонимный вопрос`,
-        description: entry.seo?.metaDescription ?? entry.summary,
+        headline: libraryMetaTitle(entry),
+        description: libraryMetaDescription(entry),
         about: { "@type": "Thing", name: entry.topic },
         articleSection: entry.topic,
         url: articleUrl,
         mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
         inLanguage: "ru-RU",
-        isAccessibleForFree: false,
+        isAccessibleForFree: true,
+        datePublished: LIBRARY_EDITORIAL_DATE,
+        dateModified: LIBRARY_EDITORIAL_DATE,
         author: { "@type": "Organization", name: "ETerapy", url: orgUrl },
         publisher: { "@type": "Organization", name: "ETerapy", url: orgUrl },
       },
@@ -109,6 +123,14 @@ export default async function LibraryEntryPage({
           { "@type": "ListItem", position: 2, name: "Библиотека", item: canonicalUrl("/library") },
           { "@type": "ListItem", position: 3, name: entry.topic, item: articleUrl },
         ],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: { "@type": "Answer", text: faq.answer },
+        })),
       },
     ],
   };
@@ -125,7 +147,7 @@ export default async function LibraryEntryPage({
             the topic + similar-count meta moves under the title, not above it. */}
         <div className="flex items-center gap-1.5">
           <Link
-            href="/library"
+            href={libraryHref}
             aria-label="Назад в библиотеку"
             data-testid="library-entry-back"
             className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
@@ -142,7 +164,7 @@ export default async function LibraryEntryPage({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="soft-chip">{entry.topic}</span>
             <span className="text-xs text-[var(--soft-ink-faint)]">
-              анонимно · {similar.toLocaleString("ru-RU")} прошли похожий разбор
+              {interestCount.toLocaleString("ru-RU")} откликов по теме · обновлено {LIBRARY_EDITORIAL_DATE_RU}
             </span>
           </div>
         </header>
@@ -151,16 +173,19 @@ export default async function LibraryEntryPage({
             (eyebrow + интервалы + тонкие линии), а не цветными рамками. */}
         <div className="soft-library-canvas mt-10 max-w-3xl">
           <section>
-            <p className="soft-eyebrow">что мы услышали</p>
+            <p className="soft-eyebrow">короткий ответ</p>
             <p className="mt-3 text-xl leading-relaxed text-[var(--soft-ink)]" style={{ fontFamily: "var(--font-heading)" }}>
               {entry.summary}
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Это не единственное объяснение. Полезнее рассматривать его как отправную точку и проверять по конкретным событиям, словам и собственным границам.
             </p>
           </section>
 
           <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
 
           <section>
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">что здесь важно различить</p>
             <h2 className="soft-h3 mt-3">{forkTitle}</h2>
             <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{forkNote}</p>
           </section>
@@ -168,35 +193,34 @@ export default async function LibraryEntryPage({
           <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
 
           <section>
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">фрагмент разбора · открыт публично</p>
-            <p className="mt-4 text-2xl italic leading-snug text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>
-              {freeFragment}
-            </p>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">что можно проверить</p>
+            <ul className="mt-5 space-y-4">
+              {checks.map((item, index) => (
+                <li key={item} className="flex gap-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--soft-paper-deep)] text-xs font-semibold text-[var(--soft-bordeaux)]">
+                    {index + 1}
+                  </span>
+                  <span className="pt-0.5">{item}</span>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
 
           <section>
             <div className="flex items-center gap-3">
-              <Lock className="size-4 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+              <Compass className="size-5 text-[var(--soft-bordeaux)]" aria-hidden="true" />
               <p className="soft-eyebrow text-[var(--soft-bordeaux)]" style={{ marginBottom: 0 }}>
-                что в полном разборе
+                первый шаг
               </p>
             </div>
-            <ul className="mt-4 space-y-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              {hidden.map((item) => (
-                <li key={item} className="flex gap-3">
-                  <span aria-hidden="true" className="text-[var(--soft-ink-faint)]">—</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            {/* B454: drop the auto «Важно» heading (the redundant line) and force a
-                readable ink colour over the component's faded `text-muted-foreground`. */}
+            <p className="mt-4 text-2xl italic leading-snug text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>
+              {firstStep}
+            </p>
             <Disclaimer title="" className="mt-6 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]">
               <span className="text-[var(--soft-ink-soft)]">
-                Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
-                доступно только в личном разборе.
+                {humanSupport}
               </span>
             </Disclaimer>
           </section>
@@ -204,18 +228,51 @@ export default async function LibraryEntryPage({
 
         <LibraryEntryCta
           slug={entry.slug}
-          baseline={similar}
-          href={ctaHref}
-          label={cta.label}
-          teaserNote={cta.teaserNote}
-          product={cta.product}
+          baseline={interestCount}
+          primaryHref={isSymbolic ? ctaHref : freeHref}
+          primaryLabel={isSymbolic ? `Открыть: ${cta.product}` : "Разобрать свой вопрос бесплатно"}
+          primaryProduct={isSymbolic ? cta.product : "free-reflection"}
+          secondaryHref={isSymbolic ? freeHref : ctaHref}
+          secondaryLabel={isSymbolic ? "Разобрать жизненный вопрос бесплатно" : `${cta.label}: ${cta.teaserNote}`}
           headline={forkTitle}
         />
+
+        <section className="soft-library-canvas mt-12 max-w-3xl" aria-labelledby="library-method-title">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+            <h2 id="library-method-title" className="soft-h3">Как подготовлен материал</h2>
+          </div>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Редакция ETerapy отделяет факты от предположений, не ставит диагнозов и не решает за читателя. Материал подготовлен по общей редакционной методике и обновляется организацией ETerapy.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <Link href={mainUrl("/editorial-policy")} className="font-medium text-[var(--soft-bordeaux)] underline underline-offset-4">Редакционная политика</Link>
+            <Link href={mainUrl("/about")} className="font-medium text-[var(--soft-bordeaux)] underline underline-offset-4">О платформе</Link>
+            <Link href={mainUrl("/help")} className="font-medium text-[var(--soft-bordeaux)] underline underline-offset-4">Безопасность и помощь</Link>
+          </div>
+        </section>
+
+        <section className="mt-12 max-w-3xl" aria-labelledby="library-faq-title">
+          <div className="flex items-center gap-3">
+            <CircleHelp className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+            <h2 id="library-faq-title" className="soft-h3">Частые вопросы</h2>
+          </div>
+          <div className="mt-6 divide-y divide-[var(--soft-paper-edge)] border-y border-[var(--soft-paper-edge)]">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="group py-5">
+                <summary className="cursor-pointer list-none pr-8 text-base font-semibold text-[var(--soft-ink)] marker:hidden">
+                  {faq.question}
+                </summary>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
 
         {relatedEntries.length > 0 && (
           <section className="mt-12">
             <p className="soft-eyebrow mb-5">рядом в библиотеке</p>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               {relatedEntries.map((item) => (
                 <Link
                   key={item.slug}

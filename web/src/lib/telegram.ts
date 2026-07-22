@@ -103,27 +103,20 @@ export async function sendTelegram(
 
 /** Configures product-facing bot copy, commands and the persistent Mini App menu button. */
 export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl: string; staging: boolean }) {
-  // B533 (owner 2026-07-22: «оставляем твою рекомендацию как за мой выбор»).
-  // Имя обязано называть ПОЛКУ: в каталоге Telegram его читают вместе с одной
-  // строкой описания, и «ETerapy — Что дальше?» там не отвечает «что это».
-  // «Разбор» — уже собственное слово продукта (первичный разбор, подробный
-  // разбор, разбор переписки), различительность несёт ETerapy.
-  const name = staging ? "ETerapy · Разбор (Stage)" : "ETerapy · Разбор";
+  // B576: name carries both the distinctive product word and the discovery
+  // category. It names AI honestly without presenting the bot as a clinician.
+  const name = staging ? "ETerapy · ИИ-разбор (Stage)" : "ETerapy · ИИ-разбор";
   const suffix = staging ? " Тестовая версия." : "";
   const requests: Array<[string, Record<string, unknown>]> = [
     ["setMyName", { name }],
-    // B554 (owner): описание обязано называть результат, а не цель платформы.
-    // B533: текст утверждён владельцем. Последнее предложение — про запись к
-    // специалистам — сохранено из редакции B554: это отдельная продуктовая
-    // поверхность, и молча убирать её из каталожного описания неправильно.
-    ["setMyDescription", { description: `Опишите ситуацию своими словами. Несколько уточняющих вопросов — и вы получите разбор: что я слышу в вашем вопросе, главная развилка и следующий безопасный шаг. Первый разбор бесплатный, без регистрации. Дальше — подробные разборы и запись к специалистам.${suffix}` }],
-    ["setMyShortDescription", { short_description: `Вопрос своими словами → короткий диалог → разбор: что происходит и какой шаг безопасен.${suffix}` }],
+    ["setMyDescription", { description: `Анонимный ИИ-чат, чтобы разобрать отношения, работу или трудное решение. Ответьте на 2–3 уточнения и получите первичный разбор: факты, главная развилка и следующий шаг. Бесплатно, без карты, около 3 минут. Не заменяет психолога и экстренную помощь. Здесь же приходят выбранные уведомления ETerapy.${suffix}` }],
+    ["setMyShortDescription", { short_description: `Анонимный ИИ-чат: разберите ситуацию и получите первый шаг бесплатно. Не заменяет психолога.${suffix}` }],
     ["setMyCommands", { commands: [
-      { command: "start", description: "Разобрать вопрос" },
+      { command: "start", description: "Начать разбор бесплатно" },
       { command: "status", description: "Проверить связь с аккаунтом" },
       { command: "stop", description: "Отключить уведомления Telegram" },
     ] }],
-    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Разобрать вопрос", web_app: { url: miniAppUrl } } }],
+    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Начать разбор", web_app: { url: miniAppUrl } } }],
   ];
   const results = [];
   for (const [method, body] of requests) {

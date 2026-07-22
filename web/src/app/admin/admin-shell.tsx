@@ -29,6 +29,7 @@ import {
   FileSpreadsheet,
   Coins,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
 import { useAdminNavCounts } from "./use-admin-nav-counts";
@@ -48,7 +49,7 @@ interface NavItem {
   href: string;
   icon: ElementType;
   label: string;
-  section: "workspace" | "product" | "finance" | "ops" | "support";
+  section: "workspace" | "product" | "marketing" | "finance" | "ops" | "support";
   level?: 0 | 1;
   /** Если задано — показывать только при наличии этого полномочия */
   permission?: Permission;
@@ -70,6 +71,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/product/sessions"), icon: Gauge,            label: "Сессии и транскрипты", section: "product", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/product/subscriptions"), icon: Coins,       label: "Подписки, баллы и рефералы", section: "product", level: 1 },
   { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество", section: "product", level: 1 },
+
+  { href: adminUrl("/admin/marketing"),    icon: Search,              label: "Поиск и маркетинг", section: "marketing", level: 0, superadminOnly: true },
 
   { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },

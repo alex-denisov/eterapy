@@ -1,9 +1,11 @@
 import { LIBRARY_TOPICS, type LibraryTopic, type LibraryCtaProduct } from "@/lib/library-cta";
 import { b383LibraryCards } from "@/data/library-cards-b383";
+import { symbolicLibraryCards } from "@/data/symbolic-library-cards";
 
 export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
 
 export type LibraryMainFork = { title: string; note?: string };
+export type LibrarySection = "life" | "symbolic";
 
 export type AnonymousLibraryEntry = {
   slug: string;
@@ -14,6 +16,7 @@ export type AnonymousLibraryEntry = {
   reactions: number;
   status: AnonymousLibraryStatus;
   indexable: boolean;
+  section?: LibrarySection;
   // v2 single-canvas card fields (B382 schema; filled by B383). All optional so the
   // legacy entries still render via the `perspectives[]`/`reactions` fallback.
   ctaProduct?: LibraryCtaProduct;
@@ -22,6 +25,7 @@ export type AnonymousLibraryEntry = {
   hidden?: string[];
   similarCount?: number;
   seo?: { metaTitle: string; metaDescription: string };
+  faqs?: Array<{ question: string; answer: string }>;
 };
 
 const baseLibraryEntries: AnonymousLibraryEntry[] = [
@@ -926,14 +930,21 @@ const baseLibraryEntries: AnonymousLibraryEntry[] = [
 export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   ...baseLibraryEntries,
   ...b383LibraryCards,
+  ...symbolicLibraryCards,
 ];
 
-export function approvedLibraryEntries() {
-  return anonymousLibraryEntries.filter((entry) => entry.status === "approved" && entry.indexable);
+export function librarySection(entry: AnonymousLibraryEntry): LibrarySection {
+  return entry.section ?? "life";
 }
 
-export function libraryTopics(): LibraryTopic[] {
-  const present = new Set(approvedLibraryEntries().map((entry) => entry.topic));
+export function approvedLibraryEntries(section?: LibrarySection) {
+  return anonymousLibraryEntries.filter(
+    (entry) => entry.status === "approved" && entry.indexable && (!section || librarySection(entry) === section),
+  );
+}
+
+export function libraryTopics(section?: LibrarySection): LibraryTopic[] {
+  const present = new Set(approvedLibraryEntries(section).map((entry) => entry.topic));
   // Canonical life-stage order (B382), not alphabetical; only topics with cards.
   return LIBRARY_TOPICS.filter((topic) => present.has(topic));
 }

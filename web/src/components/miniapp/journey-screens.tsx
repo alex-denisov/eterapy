@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Image from "next/image";
+import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -10,22 +9,17 @@ import {
   Bell,
   CalendarBlank,
   CaretDown,
-  CaretLeft,
   CaretRight,
-  Check,
   CheckCircle,
-  Clock,
   CrownSimple,
   DownloadSimple,
   FileText,
   Gift,
   IdentificationCard,
-  Lifebuoy,
   LinkSimple,
   Lock,
   MagnifyingGlass,
   Notebook,
-  PaperPlaneTilt,
   Paperclip,
   Password,
   ShieldCheck,
@@ -62,6 +56,8 @@ function counted(value: number, one: string, few: string, many: string) {
   const word = mod100 >= 11 && mod100 <= 14 ? many : mod10 === 1 ? one : mod10 >= 2 && mod10 <= 4 ? few : many;
   return `${value} ${word}`;
 }
+
+const subscribeToTelegramSurface = () => () => {};
 
 /**
  * B559: витрина специалистов.
@@ -184,8 +180,11 @@ export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }
   // продаётся ТОЛЬКО за Stars. Внешняя платёжная ссылка там не «другой способ
   // оплаты», а нарушение, за которое снимают бота. Определяем поверхность после
   // монтирования: на сервере Telegram SDK нет, и разметка обязана совпасть.
-  const [starsRail, setStarsRail] = useState(false);
-  useEffect(() => { setStarsRail(insideTelegram()); }, []);
+  const starsRail = useSyncExternalStore(
+    subscribeToTelegramSurface,
+    insideTelegram,
+    () => false,
+  );
 
   // B529: оплата звёздами. Права выдаёт вебхук `successful_payment` на сервере —
   // колбэк окна оплаты лишь говорит, чем кончилось окно, и верить ему как

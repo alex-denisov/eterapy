@@ -17,8 +17,8 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     async function loadShareLandingUrl(env: Record<string, string | undefined>) {
       jest.resetModules();
       process.env = { ...ORIGINAL, ...env };
-      const module = await import("@/lib/share-referral");
-      return module.shareLandingUrl;
+      const shareReferral = await import("@/lib/share-referral");
+      return shareReferral.shareLandingUrl;
     }
 
     it("строит абсолютную ссылку, когда сайт живёт на одном домене", async () => {

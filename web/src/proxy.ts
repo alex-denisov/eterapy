@@ -114,6 +114,8 @@ const ALWAYS_ALLOW = ["/auth/", "/callback/"];
 const APP_PUBLIC_MAIN_PATHS = [
   "/miniapp",
   "/about",
+  "/ai-psychologist",
+  "/editorial-policy",
   "/all-modalities",
   "/catalog",
   "/checkin",

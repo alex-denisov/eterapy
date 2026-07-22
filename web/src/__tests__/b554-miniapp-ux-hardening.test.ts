@@ -85,7 +85,7 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(telegram).toContain('{ command: "status"');
     expect(telegram).toContain('{ command: "stop"');
     expect(webhook).toContain("OPEN_APP_KEYBOARD");
-    expect(webhook).toContain("ETerapy — разбор вашей ситуации в тексте");
+    expect(webhook).toContain("Что сейчас не даёт вам покоя?");
     expect(setup).toContain("configureTelegramBot");
   });
 
@@ -100,14 +100,14 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(webhook).not.toContain("когда нужно прояснить вопрос");
 
     // Приветствие называет результат, его цену и время.
-    expect(webhook).toContain("что происходит, что на это влияет и с чего начать");
+    expect(webhook).toContain("факты, главную развилку и один следующий шаг");
     expect(webhook).toContain("бесплатно");
     expect(webhook).toContain("около трёх минут");
 
     // CTA — действие, а не «открыть приложение». Формулировку заменил B533
     // (владелец утвердил «Разобрать вопрос» 2026-07-22): требование прежнее,
     // слова новые — см. b533-miniapp-naming.test.ts.
-    expect(webhook).toContain('text: "Разобрать вопрос"');
-    expect(telegram).toContain('{ command: "start", description: "Разобрать вопрос" }');
+    expect(webhook).toContain('text: "Начать разбор"');
+    expect(telegram).toContain('{ command: "start", description: "Начать разбор бесплатно" }');
   });
 });

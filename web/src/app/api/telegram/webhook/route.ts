@@ -27,8 +27,8 @@ import {
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
   ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString();
-// B533: один глагол во всех точках входа — кнопка бота, меню и /start.
-const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Разобрать вопрос", web_app: { url: MINI_APP_URL } }]] };
+// B576: one outcome-led action in welcome, commands and the persistent menu.
+const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Начать разбор", web_app: { url: MINI_APP_URL } }]] };
 
 async function safeSend(chatId: string, text: string, withAppButton = false) {
   try {
@@ -125,14 +125,14 @@ export async function POST(req: NextRequest) {
       const token = text.split(" ")[1]?.trim();
 
       if (!token) {
-        // B554 (owner): прежний текст обещал «прояснить вопрос» и треть письма
-        // отводил под уведомления — человек не понимал, что именно получит.
-        // Теперь сразу назван результат, его цена и время.
+        // B576: job-first welcome, one action and a quiet explanation of the
+        // bot's second role as the cross-platform notification endpoint.
         await safeSend(chatId,
-          "<b>ETerapy — разбор вашей ситуации в тексте</b>\n\n"
-          + "Опишите, что происходит. Мы зададим 2–3 уточняющих вопроса и вернём разбор: "
-          + "что происходит, что на это влияет и с чего начать.\n\n"
-          + "Первый разбор — бесплатно, без карты. Занимает около трёх минут.",
+          "<b>Что сейчас не даёт вам покоя?</b>\n\n"
+          + "Опишите ситуацию своими словами. ETerapy задаст 2–3 коротких вопроса и соберёт первичный разбор: "
+          + "факты, главную развилку и один следующий шаг.\n\n"
+          + "Первичный разбор бесплатно, без карты и регистрации. Обычно около трёх минут.\n\n"
+          + "Этот же бот присылает выбранные уведомления ETerapy. Проверить связь: /status, отключить: /stop.",
           true,
         );
         await completeWebhookEvent(claim.event.id, { result: "start-help" });
@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Unknown command
-    await safeSend(chatId, "Опишите ситуацию в приложении — вернём разбор и первый шаг.\n\n/status — проверить уведомления\n/stop — отключить уведомления", true);
+    await safeSend(chatId, "Опишите ситуацию в приложении. ETerapy соберёт первичный разбор и один следующий шаг.\n\n/status — проверить уведомления\n/stop — отключить уведомления", true);
     await completeWebhookEvent(claim.event.id, { result: "unknown-command" });
     return NextResponse.json({ ok: true });
   } catch (err) {

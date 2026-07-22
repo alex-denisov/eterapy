@@ -17,7 +17,7 @@ export function LibraryPreviewSection() {
     <section className="soft-shell py-12 md:py-20">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="soft-eyebrow">библиотека анонимных вопросов</div>
+          <div className="soft-eyebrow">библиотека жизненных вопросов</div>
           <h2 className="soft-h1 mt-2">
             С этим <span className="soft-italic">приходят многие</span>
           </h2>
