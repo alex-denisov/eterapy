@@ -264,7 +264,11 @@ jobs:
           # ЦЕЛИКОМ, а не выборку нод: панель показывает весь флот, даже когда
           # катят одну ноду. `name` — это slug, потому что кнопка редеплоя в
           # админке ходит по слагам.
-          FLEET_NODES=$(jq -c '[.[] | {name: .slug, host, role, contour}]' deploy/fleet-matrix.json)
+          # baseUrl обязателен: порт 3200 слушает только 127.0.0.1, поэтому
+          # умолчание `http://<ip>:3200` для чужих нод всегда даёт таймаут —
+          # панель показывала весь флот «недоступен». Свой узел опрашивается по
+          # loopback, остальные — через sslip.io за nginx (проверено вживую).
+          FLEET_NODES=$(jq -c '[.[] | {name: .slug, host, role, contour, baseUrl}]' deploy/fleet-matrix.json)
           printf '%s\n' "$FLEET_NODES" | $SSH "sudo sed -i '/^FLEET_NODES=/d' /opt/eterapy/.env \
             && read -r v \
             && printf 'FLEET_NODES=%s\n' \"\$v\" | sudo tee -a /opt/eterapy/.env >/dev/null"
