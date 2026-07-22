@@ -63,6 +63,22 @@ describe("B541 · инвентарь флота ↔ deploy.yml", () => {
     }
   });
 
+  // Порт 3200 слушает ТОЛЬКО 127.0.0.1, поэтому умолчание `http://<ip>:3200`
+  // из nodes.ts для чужой ноды всегда таймаутит — панель показывала весь флот
+  // «недоступен» уже после того, как инвентарь доехал. Адрес опроса обязан
+  // быть задан явно.
+  it("каждая нода объявляет адрес опроса, и он не ведёт на закрытый :3200", () => {
+    for (const vm of matrix) {
+      expect(vm.baseUrl).toBeTruthy();
+      if (vm.slug === "eterapy-1") {
+        // Свой узел — по loopback.
+        expect(vm.baseUrl).toBe("http://127.0.0.1:3200");
+      } else {
+        expect(vm.baseUrl).toBe(`https://${vm.host}.sslip.io`);
+      }
+    }
+  });
+
   it("ровно одна нода — primary", () => {
     expect(matrix.filter((vm) => vm.role === "primary")).toHaveLength(1);
   });
@@ -77,6 +93,7 @@ describe("B541 · инвентарь флота ↔ deploy.yml", () => {
           host: vm.host,
           role: vm.role,
           contour: vm.contour,
+          baseUrl: vm.baseUrl,
         })),
       ),
     );
@@ -84,6 +101,7 @@ describe("B541 · инвентарь флота ↔ deploy.yml", () => {
     expect(nodes.map((n) => n.name)).toEqual(matrix.map((vm) => vm.slug));
     expect(nodes.map((n) => n.role)).toEqual(matrix.map((vm) => vm.role));
     expect(nodes.map((n) => n.contour)).toEqual(matrix.map((vm) => vm.contour));
+    expect(nodes.map((n) => n.baseUrl)).toEqual(matrix.map((vm) => vm.baseUrl));
   });
 
   it("deploy.yml собирает FLEET_NODES из матрицы и доставляет ключи Cloudflare", () => {
