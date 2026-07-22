@@ -7,6 +7,8 @@
  */
 const mockDb = {
   transaction: { create: jest.fn(), update: jest.fn() },
+  // B571: checkout читает признак «тестовые платежи» у плательщика.
+  user: { findUnique: jest.fn().mockResolvedValue({ testPaymentsEnabled: false }) },
 };
 jest.mock("@/lib/db", () => ({ __esModule: true, default: mockDb }));
 
@@ -86,6 +88,9 @@ describe("B423 Robokassa checkout", () => {
 
     mockDb.transaction.create.mockResolvedValue({ id: "tx-1", invoiceId: 4242 });
     mockDb.transaction.update.mockResolvedValue({});
+    // clearAllMocks стирает и заготовленный ответ — возвращаем обычного
+    // (неТЕСТОВОГО) плательщика.
+    mockDb.user.findUnique.mockResolvedValue({ testPaymentsEnabled: false });
   });
 
   it("records the transaction before handing out a payable link", async () => {

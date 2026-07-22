@@ -66,6 +66,9 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [role, setRole] = useState<UserRole>(row.role);
   const [clarityCredits, setClarityCredits] = useState(String(row.clarityCredits));
   const [subscriptionPlan, setSubscriptionPlan] = useState(row.subscriptionPlanKey ?? "none");
+  // B571 — «тестовые платежи»: человек проходит оплату по тестовым ключам
+  // Robokassa, а платформа начисляет купленное как за настоящий платёж.
+  const [testPayments, setTestPayments] = useState(row.testPaymentsEnabled);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [perms, setPerms] = useState<string[]>(row.moderatorPermissions);
@@ -233,6 +236,14 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
         await patchJson(`/api/admin/users/${row.id}`, {
           action: "set_subscription",
           planKey: subscriptionPlan === "none" ? null : subscriptionPlan,
+        });
+      }
+      // B571: признак тестовых платежей — действие только для суперадмина,
+      // сервер это тоже проверяет (ACTION_PERMISSION.set_test_payments).
+      if (canEditBalance && testPayments !== row.testPaymentsEnabled) {
+        await patchJson(`/api/admin/users/${row.id}`, {
+          action: "set_test_payments",
+          enabled: testPayments,
         });
       }
       // 6. Manual password
@@ -518,6 +529,25 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                   </label>
                 )}
               </div>
+              {/* B571 — участие в проверке платёжного рельса без трат. */}
+              <label className="mt-3 flex items-start gap-2.5 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  checked={testPayments}
+                  disabled={!canEditBalance}
+                  onChange={(e) => setTestPayments(e.target.checked)}
+                />
+                <span className="text-sm leading-snug text-[var(--soft-ink-strong)]">
+                  Тестовые платежи
+                  <span className="mt-0.5 block text-xs text-[var(--soft-ink-soft)]">
+                    Оплата проходит по тестовым ключам Robokassa — деньги не
+                    списываются, но баллы, подписки и услуги начисляются
+                    по-настоящему. Снимите признак — и со следующего платежа
+                    человек платит боевой кассой.
+                  </span>
+                </span>
+              </label>
             </section>
           )}
 
