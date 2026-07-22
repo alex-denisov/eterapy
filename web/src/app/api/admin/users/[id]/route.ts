@@ -23,6 +23,9 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   unblock:          "clients.block",
   update_clarity_credits: "SUPERADMIN_ONLY",
   set_subscription: "SUPERADMIN_ONLY",
+  // B571: признак решает, настоящими или тестовыми деньгами платит человек.
+  // Это про деньги, поэтому только суперадмин.
+  set_test_payments: "SUPERADMIN_ONLY",
   soft_delete:      "clients.delete",
   restore:          "clients.delete",
 };
@@ -117,6 +120,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       await db.user.update({ where: { id }, data: { blockedAt: null } });
       await logAudit(adminId, "ACCOUNT_UNBLOCK", id);
       return NextResponse.json({ ok: true });
+    }
+    // B571 — «тестовые платежи»: человек платит по ТЕСТОВЫМ ключам Robokassa,
+    // а платформа обрабатывает платёж как настоящий и начисляет купленное.
+    // Снятие признака возвращает на боевые ключи со следующего платежа; уже
+    // созданные ссылки остаются в своём режиме — он записан на транзакции.
+    case "set_test_payments": {
+      const enabled = body.enabled === true;
+      await db.user.update({ where: { id }, data: { testPaymentsEnabled: enabled } });
+      // Действие про деньги — след в аудите обязателен.
+      await logAudit(
+        adminId,
+        "PROFILE_UPDATE",
+        id,
+        `test_payments=${enabled ? "on" : "off"}`,
+      );
+      return NextResponse.json({ ok: true, testPaymentsEnabled: enabled });
     }
     case "update_profile": {
       const { email, birthDate, birthTime, birthPlace, timezone, telegramUsername } = body;

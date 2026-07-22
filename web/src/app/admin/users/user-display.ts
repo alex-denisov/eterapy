@@ -22,6 +22,8 @@ export interface AdminUserRow {
   role: UserRole;
   createdAt: string;
   emailVerified: boolean;
+  /** B571: платит по ТЕСТОВЫМ ключам Robokassa, начисления при этом настоящие. */
+  testPaymentsEnabled: boolean;
   deletedAt: string | null;
   blockedAt: string | null;
   clarityCredits: number;

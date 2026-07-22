@@ -29,34 +29,30 @@ export function activePaymentProvider(): PaymentProviderName {
   return "robokassa";
 }
 
-/**
- * Плательщики, которым выставляется ТЕСТОВАЯ касса Robokassa.
- *
- * Владелец просил проверить платёжный путь на проде тестовыми платежами. Взвести
- * глобальный `ROBOKASSA_IS_TEST=1` на проде нельзя: тогда тестовую кассу увидит
- * любой посетитель и заберёт товар, не заплатив, — а живые регистрации на проде
- * идут. Поэтому режим адресный.
- */
-function robokassaTestEmails(): string[] {
-  return (process.env.ROBOKASSA_TEST_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
+/** Весь контур переведён в тест — так живёт стейдж (`ROBOKASSA_IS_TEST=1`). */
+export function contourForcesTestPayments(): boolean {
+  return process.env.ROBOKASSA_IS_TEST?.trim() === "1";
 }
 
 /**
- * Платит ли этот человек по тестовой кассе?
+ * Платит ли этот человек по ТЕСТОВОЙ кассе?
  *
- * `ROBOKASSA_IS_TEST=1` переводит в тест ВЕСЬ контур — так живёт стейдж.
- * На проде флага нет, и решает поимённый список.
+ * Решает признак у пользователя (B571): суперадмин выдаёт «тестовые платежи» в
+ * карточке пользователя, и тот проверяет рельс, не тратя денег, — платформа при
+ * этом обрабатывает платёж как настоящий и начисляет купленное. Снятие признака
+ * возвращает на боевые ключи со следующего платежа.
+ *
+ * Глобальный флаг контура перекрывает признак: на стейдже боевых ключей нет
+ * вовсе.
+ *
+ * Умолчание — БОЕВОЙ режим: не знать про пользователя должно означать «взять
+ * настоящие деньги», а не «отдать даром».
  */
-export function isRobokassaTestPayer(payerEmail?: string | null): boolean {
-  if (process.env.ROBOKASSA_IS_TEST?.trim() === "1") return true;
-
-  const email = payerEmail?.trim().toLowerCase();
-  if (!email) return false;
-
-  return robokassaTestEmails().includes(email);
+export function isRobokassaTestPayer(
+  user?: { testPaymentsEnabled?: boolean | null } | null,
+): boolean {
+  if (contourForcesTestPayments()) return true;
+  return user?.testPaymentsEnabled === true;
 }
 
 /**
@@ -71,14 +67,14 @@ export function isRobokassaTestPayer(payerEmail?: string | null): boolean {
  * Deliberately never throws: callers are asking a question, not demanding the
  * secrets exist.
  */
-export function cardPaymentAvailable(options: { payerEmail?: string | null } = {}): boolean {
+export function cardPaymentAvailable(options: { testMode?: boolean } = {}): boolean {
   const present = (name: string) => Boolean(process.env[name]?.trim());
 
   // В тестовом режиме Robokassa подписывает ОТДЕЛЬНОЙ парой паролей — боевые
   // там дают ошибку 29. Готовность считается для режима ЭТОГО плательщика:
-  // владелец может уже платить по тестовой кассе, пока боевая пара едет, и
+  // тестировщик может платить по тестовой кассе, пока боевая пара едет, и
   // наоборот.
-  const isTest = isRobokassaTestPayer(options.payerEmail);
+  const isTest = options.testMode ?? contourForcesTestPayments();
   return (
     present("ROBOKASSA_MERCHANT_LOGIN")
     && present(isTest ? "ROBOKASSA_TEST_PASSWORD_1" : "ROBOKASSA_PASSWORD_1")
@@ -123,9 +119,9 @@ function requireEnv(name: string): string {
  * почту должно означать «взять настоящие деньги», а не «отдать даром».
  */
 export function robokassaConfig(
-  options: { payerEmail?: string | null } = {},
+  options: { testMode?: boolean } = {},
 ): RobokassaConfig {
-  const isTest = isRobokassaTestPayer(options.payerEmail);
+  const isTest = options.testMode ?? contourForcesTestPayments();
   const algorithm = process.env.ROBOKASSA_HASH_ALGORITHM?.trim().toUpperCase();
   const allowed: readonly RobokassaHashAlgorithm[] = ["MD5", "SHA1", "SHA256", "SHA384", "SHA512"];
 
