@@ -94,21 +94,30 @@ export function buildPaymentSignature({
   config,
   outSum,
   invId,
-  receiptEncoded,
+  receiptJson,
   stepByStep = false,
   shp = {},
 }: {
   config: RobokassaConfig;
   outSum: string;
   invId: number;
-  receiptEncoded?: string;
+  /**
+   * СЫРОЙ JSON чека, НЕ url-encoded.
+   *
+   * Здесь раньше стоял encoded — и Robokassa отвечала ошибкой 29 на КАЖДУЮ
+   * ссылку с чеком, то есть на каждую настоящую покупку (проверено вживую
+   * 2026-07-22 против боевого магазина: без чека ссылка принималась, с чеком —
+   * 29; с сырым JSON в подписи — принимается). На провод чек по-прежнему уходит
+   * закодированным, кодировки в подписи и в URL намеренно РАЗНЫЕ.
+   */
+  receiptJson?: string;
   /** B425: холдирование. Добавляет сегмент `true` ПЕРЕД паролем #1. */
   stepByStep?: boolean;
   shp?: ShpParams;
 }): string {
   const segments = [config.merchantLogin, outSum, String(invId)];
-  if (receiptEncoded) {
-    segments.push(receiptEncoded);
+  if (receiptJson) {
+    segments.push(receiptJson);
   }
   // Документация: `MerchantLogin:OutSum:InvoiceId:Receipt:true:Пароль#1`.
   // Сегмент — литерал `true`, а не значение флага: при `StepByStep=false`
@@ -299,8 +308,10 @@ export function buildPaymentUrl({
   }
 
   const outSum = formatOutSum(amountKopecks);
-  const receiptEncoded = receipt ? encodeReceipt(buildReceipt(receipt)) : undefined;
-  const signature = buildPaymentSignature({ config, outSum, invId, receiptEncoded, stepByStep, shp });
+  // Подпись берёт сырой JSON, провод — закодированный. См. buildPaymentSignature.
+  const receiptJson = receipt ? buildReceipt(receipt) : undefined;
+  const receiptEncoded = receiptJson ? encodeReceipt(receiptJson) : undefined;
+  const signature = buildPaymentSignature({ config, outSum, invId, receiptJson, stepByStep, shp });
 
   const params = new URLSearchParams({
     MerchantLogin: config.merchantLogin,
@@ -416,15 +427,16 @@ export function buildConfirmSignature({
   config,
   outSum,
   invId,
-  receiptEncoded,
+  receiptJson,
 }: {
   config: RobokassaConfig;
   outSum: string;
   invId: number;
-  receiptEncoded?: string;
+  /** Сырой JSON, как и в подписи платёжной ссылки — см. buildPaymentSignature. */
+  receiptJson?: string;
 }): string {
   const segments = [config.merchantLogin, outSum, String(invId)];
-  if (receiptEncoded) segments.push(receiptEncoded);
+  if (receiptJson) segments.push(receiptJson);
   segments.push(config.password1);
   return hash(segments.join(":"), config.hashAlgorithm);
 }
@@ -491,14 +503,16 @@ export async function confirmHold({
   receipt?: { items: readonly RobokassaReceiptItem[]; taxSystem: RobokassaTaxSystem };
 }): Promise<HoldOperationResult> {
   const outSum = formatOutSum(amountKopecks);
-  const receiptEncoded = receipt ? encodeReceipt(buildReceipt(receipt)) : undefined;
+  const receiptJson = receipt ? buildReceipt(receipt) : undefined;
   const body = new URLSearchParams({
     MerchantLogin: config.merchantLogin,
     InvoiceID: String(invId),
     OutSum: outSum,
-    SignatureValue: buildConfirmSignature({ config, outSum, invId, receiptEncoded }),
+    SignatureValue: buildConfirmSignature({ config, outSum, invId, receiptJson }),
   });
-  if (receiptEncoded) body.set("Receipt", receiptEncoded);
+  // Сырой JSON: URLSearchParams закодирует его сам ровно один раз. Передавать
+  // сюда уже закодированное значение — двойная кодировка и снова ошибка 29.
+  if (receiptJson) body.set("Receipt", receiptJson);
   return postToRobokassa(ROBOKASSA_CONFIRM_URL, body);
 }
 

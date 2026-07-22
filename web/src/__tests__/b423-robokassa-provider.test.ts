@@ -37,8 +37,10 @@ const SIG_RESULT = "761A72042C89B50FAF7C15F79021A53C3437B72FC0BBEA2E48934E583F6C
 const SIG_SUCCESS = "6A834276271FF52C464B8C667B1232698F01920261E0DC0CBB87CA8DDAB37BC9";
 // openssl: printf '790.00:1001:P2:Shp_kind=product' | ...
 const SIG_RESULT_WITH_SHP = "B5384D8BBF1625522F67BFDD198C1DCE77DEEEA9097D7A6CD1BD84F184133409";
-// openssl over 'eterapy:1390.00:1002:<url-encoded receipt>:P1'
-const SIG_WITH_RECEIPT = "237D84BB9D2D62562F458F22DAD97C05022E7A33DC0A382F1361F14765586D9B";
+// B570: чек входит в подпись СЫРЫМ json, не url-кодированным (проверено на
+// боевом магазине — с кодированным Robokassa отвечает ошибкой 29).
+// openssl: printf 'eterapy:1390.00:1002:{"sno":"usn_income","items":[{"name":"Пакет 10 разборов","quantity":1,"sum":1390,"payment_method":"full_payment","payment_object":"service","tax":"none"}]}:P1' | openssl dgst -sha256
+const SIG_WITH_RECEIPT = "40804315A25306CC12D0A986F1327499CC5F599B98215F014657A2BDBDC55B11";
 
 describe("amount formatting", () => {
   it("renders kopecks as a two-decimal OutSum", () => {
@@ -92,12 +94,55 @@ describe("request signature", () => {
         },
       ],
     };
-    const receiptEncoded = encodeReceipt(buildReceipt(receipt));
-    expect(receiptEncoded).toContain("%7B%22sno%22%3A%22usn_income%22");
+    // На провод чек уходит закодированным…
+    const receiptJson = buildReceipt(receipt);
+    expect(encodeReceipt(receiptJson)).toContain("%7B%22sno%22%3A%22usn_income%22");
 
+    // …а в подпись — СЫРЫМ. Кодировки намеренно разные, см. ниже.
     expect(
-      buildPaymentSignature({ config, outSum: "1390.00", invId: 1002, receiptEncoded }),
+      buildPaymentSignature({ config, outSum: "1390.00", invId: 1002, receiptJson }),
     ).toBe(SIG_WITH_RECEIPT);
+  });
+
+  /**
+   * B570, проверено вживую против боевого магазина 2026-07-22.
+   *
+   * Подпись собиралась из URL-КОДИРОВАННОГО чека, и Robokassa отвечала ошибкой
+   * 29 на каждую ссылку с чеком — то есть на каждую настоящую покупку. Ссылка
+   * без чека при тех же кредах принималась, поэтому дефект не был виден ни
+   * тестам, ни проверке «а живые ли пароли».
+   *
+   * Замеры (магазин eterapy, боевая пара, SHA256):
+   *   подпись=encoded, url=encoded → error 29
+   *   подпись=RAW,     url=encoded → принято
+   */
+  it("подпись берёт СЫРОЙ json чека, а ссылка — закодированный", () => {
+    const receipt = {
+      taxSystem: "usn_income" as const,
+      items: [{
+        name: "Разбор ситуации",
+        quantity: 1,
+        sumKopecks: 10000,
+        tax: "none" as const,
+        paymentObject: "service" as const,
+        paymentMethod: "full_payment" as const,
+      }],
+    };
+    const receiptJson = buildReceipt(receipt);
+    const encoded = encodeReceipt(receiptJson);
+
+    // Подписи от сырого и от закодированного чека обязаны РАЗЛИЧАТЬСЯ —
+    // иначе регрессия проедет незамеченной.
+    expect(buildPaymentSignature({ config, outSum: "100.00", invId: 7, receiptJson }))
+      .not.toBe(buildPaymentSignature({ config, outSum: "100.00", invId: 7, receiptJson: encoded }));
+
+    const url = buildPaymentUrl({ config, amountKopecks: 10000, invId: 7, description: "x", receipt });
+    // В ссылке — закодированный чек…
+    expect(url).toContain(`Receipt=${encoded}`);
+    // …а подпись в ней совпадает с подписью от сырого json.
+    expect(url).toContain(
+      `SignatureValue=${buildPaymentSignature({ config, outSum: "100.00", invId: 7, receiptJson })}`,
+    );
   });
 });
 

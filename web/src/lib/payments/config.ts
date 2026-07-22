@@ -14,18 +14,49 @@ import type { RobokassaConfig, RobokassaHashAlgorithm, RobokassaTaxSystem } from
 export type PaymentProviderName = "robokassa" | "yookassa";
 
 /**
- * Provider currently handling checkouts.
+ * Provider handling checkouts.
  *
- * The default stays on the incumbent deliberately: the new rail only works once
- * its credentials are on the server, so switching must be an explicit act
- * (`PAYMENT_PROVIDER=robokassa`) rather than something a deploy does silently.
- * Go-live is that one env change plus a restart; rollback is the same change
- * back.
+ * B570 (owner 2026-07-22): «отключай Юкассу навсегда». Возврата по переменной
+ * больше нет — функция всегда отвечает `robokassa`. ЮKassa мерчантом так и не
+ * подключалась (на проде стоят ключи ТЕСТОВОГО кабинета), так что выключать
+ * было нечего: рельс всё это время вёл в песочницу.
+ *
+ * Тип оставлен двузначным: на нём ещё стоят вебхук, сверка и выплаты, которые
+ * разбираются отдельно (B562). Здесь важно одно — новый платёж уходит только в
+ * Robokassa.
  */
 export function activePaymentProvider(): PaymentProviderName {
-  return process.env.PAYMENT_PROVIDER?.trim().toLowerCase() === "robokassa"
-    ? "robokassa"
-    : "yookassa";
+  return "robokassa";
+}
+
+/**
+ * Плательщики, которым выставляется ТЕСТОВАЯ касса Robokassa.
+ *
+ * Владелец просил проверить платёжный путь на проде тестовыми платежами. Взвести
+ * глобальный `ROBOKASSA_IS_TEST=1` на проде нельзя: тогда тестовую кассу увидит
+ * любой посетитель и заберёт товар, не заплатив, — а живые регистрации на проде
+ * идут. Поэтому режим адресный.
+ */
+function robokassaTestEmails(): string[] {
+  return (process.env.ROBOKASSA_TEST_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Платит ли этот человек по тестовой кассе?
+ *
+ * `ROBOKASSA_IS_TEST=1` переводит в тест ВЕСЬ контур — так живёт стейдж.
+ * На проде флага нет, и решает поимённый список.
+ */
+export function isRobokassaTestPayer(payerEmail?: string | null): boolean {
+  if (process.env.ROBOKASSA_IS_TEST?.trim() === "1") return true;
+
+  const email = payerEmail?.trim().toLowerCase();
+  if (!email) return false;
+
+  return robokassaTestEmails().includes(email);
 }
 
 /**
@@ -40,21 +71,14 @@ export function activePaymentProvider(): PaymentProviderName {
  * Deliberately never throws: callers are asking a question, not demanding the
  * secrets exist.
  */
-export function cardPaymentAvailable(): boolean {
+export function cardPaymentAvailable(options: { payerEmail?: string | null } = {}): boolean {
   const present = (name: string) => Boolean(process.env[name]?.trim());
 
-  // ТОЛЬКО Robokassa считается живым рельсом.
-  //
-  // На проде выставлены YUKASSA_SHOP_ID/SECRET_KEY, но это ТЕСТОВЫЙ кабинет:
-  // ЮKassa как мерчант официально не подключалась (см. B423, решение владельца
-  // 2026-07-20 — переходим сразу на Robokassa). Если считать её настроенной,
-  // мини-апп начнёт звать людей платить в песочницу — это хуже честного
-  // «скоро». Веб-путь ЮKassa при этом не тронут: он существует как был.
-  if (activePaymentProvider() !== "robokassa") return false;
-
   // В тестовом режиме Robokassa подписывает ОТДЕЛЬНОЙ парой паролей — боевые
-  // там дают ошибку 29, поэтому «настроено» проверяется для текущего режима.
-  const isTest = process.env.ROBOKASSA_IS_TEST?.trim() === "1";
+  // там дают ошибку 29. Готовность считается для режима ЭТОГО плательщика:
+  // владелец может уже платить по тестовой кассе, пока боевая пара едет, и
+  // наоборот.
+  const isTest = isRobokassaTestPayer(options.payerEmail);
   return (
     present("ROBOKASSA_MERCHANT_LOGIN")
     && present(isTest ? "ROBOKASSA_TEST_PASSWORD_1" : "ROBOKASSA_PASSWORD_1")
@@ -94,9 +118,14 @@ function requireEnv(name: string): string {
  *
  * In test mode Robokassa signs with a SEPARATE pair of passwords — using the
  * production ones there fails with error 29, so the two sets never mix.
+ *
+ * Режим выбирается по плательщику (B570). Умолчание — БОЕВОЙ: забыть передать
+ * почту должно означать «взять настоящие деньги», а не «отдать даром».
  */
-export function robokassaConfig(): RobokassaConfig {
-  const isTest = process.env.ROBOKASSA_IS_TEST?.trim() === "1";
+export function robokassaConfig(
+  options: { payerEmail?: string | null } = {},
+): RobokassaConfig {
+  const isTest = isRobokassaTestPayer(options.payerEmail);
   const algorithm = process.env.ROBOKASSA_HASH_ALGORITHM?.trim().toUpperCase();
   const allowed: readonly RobokassaHashAlgorithm[] = ["MD5", "SHA1", "SHA256", "SHA384", "SHA512"];
 
