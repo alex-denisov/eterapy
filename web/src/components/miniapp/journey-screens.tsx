@@ -43,6 +43,7 @@ import {
 import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
 import type { MiniAppOffer, MiniAppPractitionerCard } from "@/lib/miniapp/journey-data";
 import { insideTelegram, loadTelegramSdk, openTelegramInvoice } from "@/lib/miniapp/telegram/client";
+import { purchaseBodyFor } from "@/lib/miniapp/purchase-body";
 import { MINIAPP_DIRECTIONS, matchesDirection, type MiniAppDirection } from "@/lib/miniapp/practitioner-filter";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { GlassSegmented } from "@/components/miniapp/glass-segmented";
@@ -174,22 +175,6 @@ export function PackagesScreen({ offers, initialKind = "subscription" }: { offer
 
 export type ReviewOffer = { key: string; title: string; price: string; note: string; kind: string };
 
-/**
- * Тело запроса на оплату из ключа предложения. Ключ несёт вид покупки, и
- * разбирать его в двух местах (карта и звёзды) значило бы разъехаться на первой
- * же правке каталога.
- */
-function purchaseBodyFor(offer: ReviewOffer, source: string) {
-  const returnPath = `/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`;
-  if (offer.kind === "credits") return { creditPackKey: offer.key, checkoutSource: source, returnPath };
-  if (offer.kind === "subscription") return { planKey: offer.key, checkoutSource: source, returnPath };
-  return {
-    productKey: offer.key.startsWith("service:") ? offer.key.slice("service:".length) : offer.key,
-    checkoutSource: source,
-    returnPath,
-  };
-}
-
 export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }: { offer: ReviewOffer | null; slot?: string | null; cardPaymentEnabled?: boolean }) {
   const { data } = useMiniAppV21();
   const router = useRouter();
@@ -248,14 +233,13 @@ export function CheckoutReviewScreen({ offer, slot, cardPaymentEnabled = false }
     setPaying(true);
     setPayError(null);
     try {
+      // B573: раньше здесь ВСЕГДА уходил `productKey`, даже когда покупали
+      // пакет баллов или подписку, — прейскурант такой ключ не знает и оплата
+      // падала на разборе покупки. Теперь тот же разбор, что у звёзд.
       const response = await fetch("/api/billing/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productKey: offer.key.startsWith("service:") ? offer.key.slice("service:".length) : offer.key,
-          checkoutSource: "miniapp-checkout-review",
-          returnPath: `/miniapp/checkout/review?offer=${encodeURIComponent(offer.key)}`,
-        }),
+        body: JSON.stringify(purchaseBodyFor(offer, "miniapp-checkout-review")),
       });
       const payload = await response.json().catch(() => ({})) as { confirmationUrl?: string; error?: string };
       if (!response.ok || !payload.confirmationUrl) {
