@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import Script from "next/script";
 import { getCookieConsent } from "./cookie-banner";
 import { track } from "@/lib/analytics";
-import { ADMIN_DOMAIN } from "@/lib/env";
+import { ADMIN_DOMAIN, APP_DOMAIN } from "@/lib/env";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
@@ -26,28 +26,45 @@ function isAdminSurface(): boolean {
     || window.location.pathname.startsWith("/admin/");
 }
 
+/**
+ * B568: авторизованная поверхность — кабинет и Mini App. Аналитика здесь
+ * нужна (это и есть продуктовое поведение), но вебвизор — нет: он пишет сам
+ * документ, то есть дневник, разборы и переписку. Счётчик поднимается,
+ * запись сеанса не включается.
+ */
+function isAuthorizedSurface(): boolean {
+  if (typeof window === "undefined") return false;
+  const { hostname, pathname } = window.location;
+  return hostname === APP_DOMAIN
+    || pathname === "/cabinet" || pathname.startsWith("/cabinet/")
+    || pathname === "/miniapp" || pathname.startsWith("/miniapp/");
+}
+
 export function Analytics() {
   // Defer reading the persisted consent until after hydration so the
   // server-rendered tree (consented=false → null) matches the first
   // client render, eliminating React #418 hydration mismatches on
   // sessions that have already accepted analytics cookies.
   const [consented, setConsented] = useState(false);
+  // B568: вебвизор решается той же поверхностью, что и подъём счётчика, и
+  // читается после гидратации — до неё `window` знать нечего.
+  const [webvisorAllowed, setWebvisorAllowed] = useState(false);
   useEffect(() => {
-    // B523: в админке внешнюю аналитику не поднимаем вовсе.
+    // B523: в админке внешнюю аналитику не поднимаем вовсе — админские URL
+    // несут идентификаторы пользователей, а сессии администраторов искажают
+    // продуктовые воронки.
     //
-    // Найдено по телеметрии CSP: на admin.eterapy.com действует nonce-политика
-    // БЕЗ 'unsafe-inline', и эти два инлайновых сниппета там реально
-    // блокировались (`script-src-elem`, `disposition: enforce`) — то есть
-    // аналитика всё равно не работала, а браузер писал нарушение на каждой
-    // загрузке. Убирать её здесь правильно и по существу: админские URL несут
-    // идентификаторы пользователей, и отправлять их в Метрику и GA не нужно,
-    // а сессии администраторов искажают продуктовые воронки.
+    // B568: в КАБИНЕТЕ поднимаем — там она и нужна. Раньше она там молча не
+    // работала: счётчики вставлялись инлайном, а nonce-политика инлайн режет.
+    // Теперь оба грузятся файлами со своего origin (`/analytics/*.js`), а
+    // адрес страницы уходит к ним вычищенным от идентификаторов.
     if (isAdminSurface()) return;
     // Intentional post-mount sync — keeps SSR and the first client
     // render at consented=false (null tree) and only flips after
     // hydration. Prevents the React #418 mismatch on sessions that
     // had already accepted analytics cookies.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWebvisorAllowed(!isAuthorizedSurface());
     if (getCookieConsent() === "all") setConsented(true);
   }, []);
 
@@ -133,29 +150,21 @@ export function Analytics() {
 
   return (
     <>
+      {/* B568: правило вычистки адреса нужно обоим счётчикам, поэтому грузится
+          первым и отдельно. */}
+      {(YANDEX_ID || GA_ID) && (
+        <Script id="eterapy-analytics-scrub" src="/analytics/scrub.js" strategy="afterInteractive" />
+      )}
+
       {/* Яндекс.Метрика */}
       {YANDEX_ID && (
         <>
           <Script
             id="yandex-metrika"
+            src="/analytics/metrika.js"
             strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-                m[i].l=1*new Date();
-                for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-                k=e.createElement(t);a=e.getElementsByTagName(t)[0];k.async=1;k.src=r;a.parentNode.insertBefore(k,a)})
-                (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-
-                ym(${YANDEX_ID}, "init", {
-                  clickmap: true,
-                  trackLinks: true,
-                  accurateTrackBounce: true,
-                  webvisor: true,
-                  ecommerce: "dataLayer"
-                });
-              `,
-            }}
+            data-eterapy-metrika-id={YANDEX_ID}
+            data-eterapy-webvisor={webvisorAllowed ? "1" : "0"}
           />
           <noscript>
             <div>
@@ -179,18 +188,9 @@ export function Analytics() {
           />
           <Script
             id="google-analytics"
+            src="/analytics/ga.js"
             strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${GA_ID}', {
-                  page_path: window.location.pathname,
-                  send_page_view: true
-                });
-              `,
-            }}
+            data-eterapy-ga-id={GA_ID}
           />
         </>
       )}

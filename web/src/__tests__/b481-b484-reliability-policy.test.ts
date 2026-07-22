@@ -16,7 +16,7 @@ import {
   RELIABILITY_WINDOW_DAYS,
 } from "@/lib/practitioner-reliability";
 import { penaltyPractitionerShareKopecks, PENALTY_PAYOUT_HOLD_REASON } from "@/lib/booking-penalty";
-import { lateCancelPenaltyPercent, penaltyKopecks } from "@/lib/booking-change-rules";
+import { LATE_CANCEL_RETENTION_PERCENT, penaltyKopecks } from "@/lib/booking-change-rules";
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -47,10 +47,12 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
-describe("B481 — штраф поздней отмены: комиссионная матрица", () => {
-  it("дефолт штрафа = 50% цены сессии", () => {
-    expect(lateCancelPenaltyPercent({} as NodeJS.ProcessEnv)).toBe(50);
-    expect(penaltyKopecks(5000, {} as NodeJS.ProcessEnv)).toBe(250000);
+describe("B481 — удержание поздней отмены: комиссионная матрица", () => {
+  // B567 (owner 2026-07-22): частичного возврата за позднюю отмену и неявку
+  // клиента нет — удерживается вся цена сессии.
+  it("удержание = 100% цены сессии", () => {
+    expect(LATE_CANCEL_RETENTION_PERCENT).toBe(100);
+    expect(penaltyKopecks(5000)).toBe(500000);
   });
 
   it("доля практика = штраф × (1 − комиссия%), как у обычной сессии", () => {

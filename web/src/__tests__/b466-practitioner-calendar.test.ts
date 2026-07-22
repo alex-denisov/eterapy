@@ -57,10 +57,11 @@ describe("B481 reschedule/cancel requests", () => {
     const controls = source("src/app/cabinet/bookings/booking-change-controls.tsx");
     expect(controls).toContain("Запросить отмену");
     expect(controls).toContain("Запросить перенос");
-    // B466 round-8 #8: prominent amber late-cancel penalty warning (50%, waivable).
+    // B466 round-8 #8: prominent amber late-cancel warning. B567: удержание
+    // полное, частичного возврата нет; практик может отменить его целиком.
     expect(controls).toContain("booking-late-cancel-warning");
-    expect(controls).toContain("DEFAULT_LATE_CANCEL_PENALTY_PERCENT");
-    expect(controls).toContain("простить штраф");
+    expect(controls).toContain("LATE_CANCEL_RETENTION_PERCENT");
+    expect(controls).toContain("Частичного возврата нет");
     expect(controls).toContain("Подтвердить перенос");
   });
 });

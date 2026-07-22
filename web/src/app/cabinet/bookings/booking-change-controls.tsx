@@ -11,7 +11,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { isLateChange, DEFAULT_LATE_CANCEL_PENALTY_PERCENT } from "@/lib/booking-change-rules";
+import { isLateChange, LATE_CANCEL_RETENTION_PERCENT } from "@/lib/booking-change-rules";
 
 // B481 — клиентские контролы для ПОДТВЕРЖДЁННОЙ сессии: запросить перенос или
 // отмену (модальные предупреждения; отмена <24ч — предупреждение о штрафе),
@@ -156,8 +156,9 @@ export function BookingChangeControls({ bookingId, status, slotStartAt, changeRe
             </DialogDescription>
           </DialogHeader>
           {/* B466 round-8 #8: explicit late-cancel penalty warning (owner: показывать
-              явно). 50% удержание, специалист может простить; распределяется как
-              оплаченная сессия (доля специалиста + комиссия платформы). */}
+              явно). B567 (owner 2026-07-22): удержание — вся стоимость, частичного
+              возврата нет; специалист может простить целиком. Удержанное
+              распределяется как оплаченная сессия (доля специалиста + комиссия). */}
           {modal === "cancel" && late && (
             <div
               className="flex gap-2.5 rounded-xl border p-3"
@@ -167,8 +168,9 @@ export function BookingChangeControls({ bookingId, status, slotStartAt, changeRe
               <AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: "var(--soft-amber-ink, #6E5114)" }} aria-hidden="true" />
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--soft-amber-ink, #6E5114)" }}>
                 До начала меньше 24 часов. По правилам поздней отмены удерживается{" "}
-                <span className="font-semibold">{DEFAULT_LATE_CANCEL_PENALTY_PERCENT}% стоимости сессии</span> — специалист
-                может простить штраф. Отмена более чем за 24 часа — полный возврат.
+                <span className="font-semibold">{LATE_CANCEL_RETENTION_PERCENT}% стоимости сессии</span>.{" "}
+                Частичного возврата нет — но специалист может отменить удержание целиком.{" "}
+                Отмена более чем за 24 часа — полный возврат.
               </p>
             </div>
           )}

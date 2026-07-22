@@ -63,6 +63,18 @@ esac
 
 echo "— текущее состояние —"
 curl -fsS "\$API/getWebhookInfo" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result",{}); print("url:", r.get("url") or "(снят)"); print("pending:", r.get("pending_update_count", 0)); print("last_error:", r.get("last_error_message") or "—")'
+
+# Второй затвор стенда (B566): даже с поднятым вебхуком вход в мини-апп
+# открыт только Telegram-аккаунтам из списка, а пустой список закрывает его
+# ВСЕМ — включая владельца. Печатаем это здесь, чтобы «вебхук поднял, а войти
+# не могу» не выяснялось методом тыка.
+ALLOW=\$(val MINIAPP_TELEGRAM_ALLOWLIST)
+if [ -n "\$ALLOW" ]; then
+  echo "allowlist: \$ALLOW"
+else
+  echo "allowlist: (пусто) → вход в мини-апп стенда закрыт для всех"
+  echo "  открыть: секрет MINIAPP_TELEGRAM_ALLOWLIST = ваш @username, затем выкатка develop"
+fi
 REMOTE
 
 remote "$SCRIPT"

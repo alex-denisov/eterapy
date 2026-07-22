@@ -355,7 +355,7 @@ export async function CalendarRequestsMobile({ practitionerId }: { practitionerI
                       {r.penaltyApplies && (
                         <>
                           {" · по правилам — "}
-                          <b>штраф 50%</b> (поздняя отмена)
+                          <b>удержание 100%</b> (поздняя отмена)
                         </>
                       )}
                     </>

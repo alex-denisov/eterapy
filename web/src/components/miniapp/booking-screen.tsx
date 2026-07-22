@@ -325,7 +325,7 @@ export function PractitionerBookingScreen({
           {booking ? "Записываем…" : "Записаться"}<ArrowRight size={18} />
         </button>
         <p className={styles["flow-note"]}>
-          <ShieldCheck size={16} />Отмена бесплатна не позднее чем за 24 часа до встречи.
+          <ShieldCheck size={16} />Отмена бесплатна не позднее чем за 24 часа до встречи; позже удерживается вся стоимость.
         </p>
       </div>
     </MiniAppChrome>
