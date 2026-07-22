@@ -5155,6 +5155,16 @@ a.service-row {
   min-height: 180px;
 }
 
+/* B573: то же лечение для чата поддержки. Он живёт ПОД блоком базы знаний, а не
+   на своём экране, поэтому доля вьюпорта меньше: при 0.52 композер всё равно
+   уходил под сгиб, когда над чатом раскрыт вопрос категории. С поднятой
+   клавиатурой `--miniapp-viewport-height` уже сжат, и тред ужимается вместе с
+   ним — поле остаётся на экране. */
+.product-action-boundary :global(.support-chat-thread) {
+  max-height: calc(var(--miniapp-viewport-height, 100dvh) * .38);
+  min-height: 120px;
+}
+
 .product-action-boundary :global(.miniapp-practice-intro) {
   margin-bottom: 10px;
   padding: 12px 13px;
@@ -5785,14 +5795,33 @@ a.service-row {
    своим же `overflow-hidden` — страница выглядела как блок фиксированной высоты
    и не прокручивалась до рекомендаций и подвала. Фаза приезжает атрибутом
    `data-phase` из `DialogueShell`. */
-.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) {
+/* B573 (owner 2026-07-22): «Решить вопрос в чате» приехал на тот же контракт.
+   Фаза у чата одна (`chat`), поэтому «живой» она считается не по названию фазы,
+   а по состоянию самой сессии: `soft-chat-screen[data-state="active"]`. Урок
+   B561 ровно об этом — прижимать вьюпорт можно только там, где есть поле ввода;
+   на завершённой сессии ниже лежат рекомендации, и страница обязана скроллиться. */
+.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]),
+.screen-scroll:has(.dialogue-surface[data-phase="chat"] :global(.soft-chat-screen[data-state="active"])) {
   display: flex;
   flex-direction: column;
   overflow-y: hidden;
 }
 
 .screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) .dialogue-surface,
-.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) .dialogue-surface > div {
+.screen-scroll:has(.dialogue-surface[data-phase="clarifying"]) .dialogue-surface > div,
+.screen-scroll:has(.dialogue-surface[data-phase="chat"] :global(.soft-chat-screen[data-state="active"])) .dialogue-surface,
+.screen-scroll:has(.dialogue-surface[data-phase="chat"] :global(.soft-chat-screen[data-state="active"])) .dialogue-surface > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Панель чата — ещё один уровень вложенности между `dialogue-surface > div` и
+   кадром `soft-chat-screen`: у разбора фазы лежат прямо в колонке шелла, у чата
+   между ними стоит сама панель. Без растяжения кадр схлопывается по контенту. */
+.screen-scroll:has(.dialogue-surface[data-phase="chat"] :global(.soft-chat-screen[data-state="active"]))
+  .dialogue-surface :global([data-testid="companion-chat-panel"]) {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -5818,8 +5847,8 @@ a.service-row {
 
 /* B561: те же рамки — только фазы, где есть поле ввода. `:where()` не меняет
    вес селектора, каскад остаётся прежним. */
-:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"]),
-:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"]) > div {
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"], [data-phase="chat"]),
+:global(html[data-miniapp-keyboard-open="true"]) .dialogue-surface:where([data-phase="question"], [data-phase="clarifying"], [data-phase="chat"]) > div {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

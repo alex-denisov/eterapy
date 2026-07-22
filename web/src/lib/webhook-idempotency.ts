@@ -2,7 +2,7 @@ import { Prisma, type WebhookEvent } from "@prisma/client";
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 
-export type WebhookProvider = "robokassa" | "yookassa" | "telegram";
+export type WebhookProvider = "robokassa" | "yookassa" | "telegram" | "telegram_stars";
 export type WebhookPayload = Prisma.InputJsonValue;
 export type WebhookResult = Prisma.InputJsonValue;
 

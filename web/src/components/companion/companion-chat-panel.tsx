@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Clock, Compass, MessageSquareText, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
+import { AssistantMsgAvatar, UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { useAutoGrowTextarea } from "@/lib/use-autogrow-textarea";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
@@ -90,9 +90,13 @@ export type CompanionChatPanelProps = {
   // that shows the price), open the paid session immediately on mount — one click
   // charges and starts the conversation, instead of a second in-panel start gate.
   autoStart?: boolean;
+  // B573 (owner 2026-07-22): в мини-аппе аватар клиента показывал «В» вместо его
+  // буквы — у гостя из Telegram нет ни имени, ни картинки в сессии кабинета.
+  // Первичный разбор давно передаёт сюда имя (`userName`), чат — нет.
+  userName?: string;
 };
 
-export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, loginNext, autoStart = false }: CompanionChatPanelProps) {
+export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, loginNext, autoStart = false, userName }: CompanionChatPanelProps) {
   const { status: authStatus } = useSession();
   const authed = authStatus === "authenticated";
   // B554 п.27: пока `useSession()` в состоянии "loading", `authed` ещё false —
@@ -449,7 +453,11 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
             className={`soft-msg-row ${isUser ? "soft-msg-row-user" : "soft-msg-row-assistant"}`}
             data-role={m.role}
           >
-            {isUser ? <UserMsgAvatar /> : <div className="soft-msg-avatar" aria-hidden="true" />}
+            {/* B573: платформа была ПУСТЫМ кружком — `soft-msg-avatar` без
+                модификатора и без иконки, тогда как в первичном разборе стоит
+                `AssistantMsgAvatar` со знаком. Одна и та же реплика ассистента
+                выглядела на двух экранах по-разному. */}
+            {isUser ? <UserMsgAvatar fallbackName={userName} /> : <AssistantMsgAvatar />}
             <div
               className={`soft-msg-bubble ${isUser ? "soft-msg-bubble-user" : "soft-msg-bubble-assistant"}`}
               style={{ whiteSpace: "pre-wrap" }}
@@ -461,7 +469,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
       })}
       {typing && (
         <div className="soft-msg-row soft-msg-row-assistant" data-testid="companion-typing">
-          <div className="soft-msg-avatar" aria-hidden="true" />
+          <AssistantMsgAvatar />
           <div className="soft-msg-bubble soft-msg-bubble-assistant">
             <div className="soft-typing"><span /><span /><span /></div>
           </div>
@@ -506,67 +514,73 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
         aria-disabled={locked}
       >
         <label htmlFor="companion-input" className="sr-only">Сообщение</label>
-        <textarea
-          id="companion-input"
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value.slice(0, CHAT_INPUT_MAX_CHARS))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-          rows={1}
-          maxLength={CHAT_INPUT_MAX_CHARS}
-          placeholder={expired ? (locked ? "Сессия завершена." : "Время сессии истекло — продлите, чтобы продолжить…") : "Напишите сообщение…"}
-          className="soft-question-input soft-dialogue-composer-input"
-          disabled={sending || expired || locked}
-          data-testid="companion-input"
-        />
+        {/* B573 (owner 2026-07-22): «форма ввода выглядит иначе, кнопка действия
+            другая». Композер первичного разбора — строка `поле + круглая кнопка
+            отправки`; здесь же поле стояло само по себе, а под ним широкая
+            текстовая кнопка «Отправить» в подвале карточки. Разметка сведена к
+            разбору: те же классы, те же правила CSS, расходиться больше нечему. */}
+        <div className="soft-dialogue-composer-row">
+          <textarea
+            id="companion-input"
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value.slice(0, CHAT_INPUT_MAX_CHARS))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            rows={1}
+            maxLength={CHAT_INPUT_MAX_CHARS}
+            placeholder={expired ? (locked ? "Сессия завершена." : "Время сессии истекло — продлите, чтобы продолжить…") : "Напишите сообщение…"}
+            className="soft-question-input soft-dialogue-composer-input"
+            disabled={sending || expired || locked}
+            data-testid="companion-input"
+          />
+          {/* На истёкшей сессии отправлять нечего — вместо кнопки внизу стоит
+              «Продлить». */}
+          {expired ? null : (
+            <button
+              type="button"
+              onClick={send}
+              disabled={sending || !input.trim()}
+              className="soft-dialogue-send"
+              aria-label="Отправить"
+              data-testid="companion-send"
+            >
+              <Send className="size-5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
+            дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
+        {expired ? (
           <div className="soft-ask-foot">
-            {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
-                дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
-            {expired ? (
-              <div className="flex w-full flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-[var(--soft-ink-faint)]" data-testid="companion-grace" aria-live="polite">
-                  При бездействии сессия завершится через{" "}
-                  <span className="tabular-nums font-semibold text-[var(--soft-bordeaux)]">{formatClock(graceMs)}</span>
-                </span>
-                <Button
-                  type="button"
-                  onClick={extendSession}
-                  disabled={sending}
-                  className="soft-button soft-button-primary"
-                  data-testid="companion-extend"
-                >
-                  <Clock className="size-3.5" aria-hidden="true" />
-                  Продлить на 30 минут (2 балла)
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* Issue #7: char counter — amber from -200, bordeaux from -50 (как в checkin). */}
-                <span
-                  className={`text-xs tabular-nums ${
-                    input.length >= CHAT_INPUT_MAX_CHARS - 50
-                      ? "text-[var(--soft-bordeaux)] font-semibold"
-                      : input.length >= CHAT_INPUT_MAX_CHARS - 200
-                        ? "text-[var(--soft-terracotta-dark)]"
-                        : "text-[var(--soft-ink-faint)]"
-                  }`}
-                  data-testid="companion-char-counter"
-                  aria-live="polite"
-                >
-                  {input.length}/{CHAT_INPUT_MAX_CHARS}
-                </span>
-                <Button type="button" onClick={send} disabled={sending || !input.trim()} className="soft-button soft-button-primary" data-testid="companion-send">
-                  Отправить
-                  <Send className="size-4" aria-hidden="true" />
-                </Button>
-              </>
-            )}
+            <div className="flex w-full flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-[var(--soft-ink-faint)]" data-testid="companion-grace" aria-live="polite">
+                При бездействии сессия завершится через{" "}
+                <span className="tabular-nums font-semibold text-[var(--soft-bordeaux)]">{formatClock(graceMs)}</span>
+              </span>
+              <Button
+                type="button"
+                onClick={extendSession}
+                disabled={sending}
+                className="soft-button soft-button-primary"
+                data-testid="companion-extend"
+              >
+                <Clock className="size-3.5" aria-hidden="true" />
+                Продлить на 30 минут (2 балла)
+              </Button>
+            </div>
           </div>
+        ) : input.length >= CHAT_INPUT_MAX_CHARS - 200 ? (
+          /* Issue #7: счётчик у разбора появляется только на подходе к потолку —
+             постоянный «0/1200» под каждым сообщением был лишним шумом. */
+          <span className="soft-dialogue-counter" data-testid="companion-char-counter" aria-live="polite">
+            {input.length}/{CHAT_INPUT_MAX_CHARS}
+          </span>
+        ) : null}
       </div>
       )}
 

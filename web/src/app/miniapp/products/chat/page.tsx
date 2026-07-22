@@ -1,7 +1,4 @@
-import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
-import { MiniAppProductFrame } from "@/components/miniapp/product-frame";
-import { CHAT_SESSION_COST_CREDITS } from "@/lib/chat-session";
-import { getProductPriceLabel } from "@/lib/product-prices";
+import { MiniAppChatScreen } from "@/components/miniapp/chat-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +15,11 @@ export default async function MiniAppChatPage({
   const query = params.toString();
   const loginNext = `/miniapp/products/chat${query ? `?${query}` : ""}`;
   return (
-    <MiniAppProductFrame title="Решить вопрос в чате" eyebrow="живой диалог в своём темпе" price={getProductPriceLabel("chat-session") ?? "790 ₽"} priceMeta={`или −${CHAT_SESSION_COST_CREDITS} балла`}>
-      <CompanionChatPanel dialogueId={search?.dialogueId ?? null} analysisId={search?.analysisId ?? null} autoStart={search?.start === "1"} loginNext={loginNext} />
-    </MiniAppProductFrame>
+    <MiniAppChatScreen
+      dialogueId={search?.dialogueId ?? null}
+      analysisId={search?.analysisId ?? null}
+      autoStart={search?.start === "1"}
+      loginNext={loginNext}
+    />
   );
 }

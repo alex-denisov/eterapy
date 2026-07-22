@@ -29,12 +29,12 @@ type TelegramInlineKeyboard = {
   }>>;
 };
 
-type TelegramApiResponse = { ok?: boolean; description?: string };
+type TelegramApiResponse<T = unknown> = { ok?: boolean; description?: string; result?: T };
 
-async function telegramApi(method: string, body: Record<string, unknown>): Promise<TelegramApiResponse> {
+async function telegramApi<T = unknown>(method: string, body: Record<string, unknown>, timeoutMs = 10000): Promise<TelegramApiResponse<T>> {
   if (!BOT_TOKEN) return { ok: false, description: "TELEGRAM_BOT_TOKEN not set" };
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_BASE}/${method}`, {
       method: "POST",
@@ -42,10 +42,28 @@ async function telegramApi(method: string, body: Record<string, unknown>): Promi
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    return await response.json().catch(() => ({ ok: false, description: `HTTP ${response.status}` })) as TelegramApiResponse;
+    return await response.json().catch(() => ({ ok: false, description: `HTTP ${response.status}` })) as TelegramApiResponse<T>;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * B529: тот же вызов Bot API для платёжных методов (`createInvoiceLink`,
+ * `answerPreCheckoutQuery`, `refundStarPayment`). Экспортируется, чтобы
+ * платёжный модуль не заводил второй клиент с собственным токеном и своим
+ * пониманием релея `TELEGRAM_API_BASE` — в РФ прямой api.telegram.org
+ * недоступен, и разъехавшийся базовый адрес означал бы неоплаченные счета.
+ *
+ * `timeoutMs` короче дефолта у pre_checkout: Telegram ждёт ответ 10 секунд,
+ * после чего платёж падает у покупателя.
+ */
+export async function callTelegramApi<T = unknown>(
+  method: string,
+  body: Record<string, unknown>,
+  timeoutMs?: number,
+): Promise<TelegramApiResponse<T>> {
+  return telegramApi<T>(method, body, timeoutMs);
 }
 
 export function getTelegramRuntimeConfig() {

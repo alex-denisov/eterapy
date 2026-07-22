@@ -1239,6 +1239,53 @@
     line-height: 1.48;
   }
 
+  /* B573: строка композера `поле + круглая кнопка` жила ТОЛЬКО в CSS мини-аппа,
+     хотя разметку с этими классами рендерит общий /checkin. На вебе кнопка
+     отправки выходила без единого правила — прямоугольная, по базовой линии
+     текста. Базовый слой описывает ту же геометрию, что и мини-апп. */
+  .soft-dialogue-composer-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .soft-dialogue-composer-row .soft-dialogue-composer-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .soft-dialogue-send {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 0;
+    border-radius: 999px;
+    color: #fff;
+    background: var(--soft-terracotta);
+    cursor: pointer;
+    transition: background var(--motion-fast, 160ms) ease, opacity var(--motion-fast, 160ms) ease;
+  }
+
+  .soft-dialogue-send:hover:not(:disabled) {
+    background: var(--soft-terracotta-dark);
+  }
+
+  .soft-dialogue-send:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .soft-dialogue-counter {
+    display: block;
+    margin: 0.3rem 3.1rem 0 auto;
+    width: fit-content;
+    color: var(--soft-ink-faint);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Compact composer toolbar: small buttons, tight spacing, no heavy divider. */
   .soft-dialogue-composer .soft-ask-foot {
     margin-top: 0.45rem;
