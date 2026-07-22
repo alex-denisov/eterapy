@@ -1,11 +1,20 @@
-# B552/B553 — SEO digest to Telegram, twice a week at 09:00 MSK (06:00 UTC).
-# Secrets: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (already present) +
+# B552/B553/B572 — SEO digest to Telegram, РУЧНОЙ запуск.
+#
+# Расписание отсюда снято. GitHub Actions выполняет `schedule` как получится:
+# по этому же репозиторию почасовой sync-staging-db за сутки отработал 12 раз
+# из 25, с опозданиями до 1ч55м. Владелец ждал отчёт в 09:00 и не получил его
+# вовсе (2026-07-22). Ежедневный отчёт теперь шлёт systemd-таймер primary-ноды
+# — deploy/seo/eterapy-seo-report.timer, ставится выкаткой.
+#
+# Здесь остаётся кнопка «прогнать сейчас»: удобно проверить креды и формат,
+# не дожидаясь 09:00 и не заходя на ноду. Триггер только workflow_dispatch,
+# пользовательского ввода нет — интерполировать в shell нечего.
+#
+# Secrets: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID +
 # YANDEX_OAUTH_TOKEN / YANDEX_WORDSTAT_API_KEY / YANDEX_CLOUD_FOLDER_ID.
 name: SEO Report
 
 on:
-  schedule:
-    - cron: '0 6 * * 1,4'
   workflow_dispatch: {}
 
 jobs:
@@ -21,7 +30,7 @@ jobs:
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
           YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
-          YANDEX_WEBMASTER_USER_ID: '253574184'
-          YANDEX_WEBMASTER_HOST_ID: 'https:eterapy.com:443'
-          YANDEX_METRIKA_COUNTER_ID: '108502034'
-        run: bash .github/scripts/seo-telegram-report.sh
+        # Идентификаторы площадок — умолчания внутри скрипта, чтобы у ноды и у
+        # workflow не было двух расходящихся копий. Файла /opt/eterapy/.env на
+        # раннере нет, поэтому креды берутся только из env выше.
+        run: bash deploy/seo/seo-telegram-report.sh

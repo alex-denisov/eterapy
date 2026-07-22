@@ -9,7 +9,8 @@
     "standby": false,
     "role": "primary",
     "contour": "ru",
-    "baseUrl": "http://127.0.0.1:3200"
+    "webBind": "10.77.0.1",
+    "baseUrl": "http://10.77.0.1:3200"
   },
   {
     "name": "eterapy-2 standby RU (192.144.13.153)",
@@ -21,7 +22,8 @@
     "standby": true,
     "role": "standby",
     "contour": "ru",
-    "baseUrl": "https://192.144.13.153.sslip.io"
+    "webBind": "10.77.0.2",
+    "baseUrl": "http://10.77.0.2:3200"
   },
   {
     "name": "eterapy-3 US racknerd (107.172.153.202)",
@@ -33,6 +35,7 @@
     "standby": false,
     "role": "edge",
     "contour": "foreign",
+    "webBind": "",
     "baseUrl": "https://107.172.153.202.sslip.io"
   },
   {
@@ -45,6 +48,7 @@
     "standby": false,
     "role": "edge",
     "contour": "foreign",
+    "webBind": "",
     "baseUrl": "https://18.195.184.182.sslip.io"
   }
 ]

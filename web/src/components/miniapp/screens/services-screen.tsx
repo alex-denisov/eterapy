@@ -97,7 +97,11 @@ function PractitionerRow({ practitioner }: { practitioner: MiniAppPractitionerCa
   return (
     <Link className={styles["service-row"]} href={`/miniapp/practitioners/${practitioner.slug}`}>
       <span className={styles["service-row-person"]}>
-        <PractitionerAvatar practitioner={practitioner} size={40} />
+        {/* B572: `size` у PractitionerAvatar — intrinsic-атрибуты картинки, а не
+            размер бокса: его задаёт класс .practitioner-avatar (52px). Число
+            должно совпадать с классом, иначе next/image отдаёт картинку не под
+            тот бокс, а вёрстка считает дорожку не по тому размеру. */}
+        <PractitionerAvatar practitioner={practitioner} size={52} />
         <span>
           <span className={styles["service-row-head"]}>
             <strong>{practitioner.name}</strong>

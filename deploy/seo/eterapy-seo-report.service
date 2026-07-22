@@ -1,0 +1,19 @@
+# B572 — разовый прогон SEO-отчёта, запускается таймером eterapy-seo-report.timer.
+#
+# Креды скрипт достаёт сам из /opt/eterapy/.env (их туда кладёт выкатка из
+# секретов репозитория). EnvironmentFile здесь намеренно не используется:
+# systemd разбирает такой файл по своим правилам и спотыкается о пароли со
+# спецсимволами, а весь .env ноды этому юниту и не нужен.
+
+[Unit]
+Description=ETerapy: собрать и отправить SEO-отчёт
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eterapy/seo-telegram-report.sh
+# Restart= с Type=oneshot systemd не принимает (юнит просто не загрузится).
+# Внешние API иногда отвечают не с первого раза — повтор делает сам скрипт
+# на уровне curl, а неудачный день виден в `systemctl status`.
+TimeoutStartSec=10min

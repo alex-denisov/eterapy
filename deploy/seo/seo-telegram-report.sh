@@ -1,12 +1,49 @@
 #!/usr/bin/env bash
-# B552/B553: SEO digest → Telegram. Runs on a schedule (Mon+Thu 09:00 MSK)
-# from .github/workflows/seo-report.yml; all credentials arrive via env
-# (GitHub secrets — nothing is stored in the repo).
+# B552/B553/B572: SEO digest → Telegram.
+#
+# Ежедневно в 09:00 МСК по systemd-таймеру primary-ноды (B572). Раньше отчёт
+# висел на расписании GitHub Actions и приходил как повезёт: замер по этому
+# репозиторию — опоздания до 1ч55м и примерно половина запусков пропущена
+# вовсе. `workflow_dispatch` в .github/workflows/seo-report.yml оставлен как
+# ручной запуск.
+#
+# Креды берутся из env (так его зовёт GitHub Actions) либо, если там пусто, из
+# /opt/eterapy/.env ноды (так его зовёт systemd). Ни один ключ в репозитории не
+# лежит. DRY_RUN=1 печатает отчёт вместо отправки.
 #
 # Env: TG_TOKEN TG_CHAT YANDEX_OAUTH_TOKEN YANDEX_WEBMASTER_USER_ID
 #      YANDEX_WEBMASTER_HOST_ID YANDEX_METRIKA_COUNTER_ID
 #      YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID
 set -euo pipefail
+
+ENV_FILE="${ETERAPY_ENV_FILE:-/opt/eterapy/.env}"
+
+# Значение читается, а не исполняется: `.env` ноды содержит пароли, в которых
+# бывает всё что угодно, и source/eval на нём — это выполнение чужого текста.
+from_env_file() {
+  [ -r "$ENV_FILE" ] || return 0
+  sed -n "s/^$1=//p" "$ENV_FILE" | head -1
+}
+
+TG_TOKEN="${TG_TOKEN:-$(from_env_file TELEGRAM_BOT_TOKEN)}"
+TG_CHAT="${TG_CHAT:-$(from_env_file TELEGRAM_CHAT_ID)}"
+YANDEX_OAUTH_TOKEN="${YANDEX_OAUTH_TOKEN:-$(from_env_file YANDEX_OAUTH_TOKEN)}"
+YANDEX_WORDSTAT_API_KEY="${YANDEX_WORDSTAT_API_KEY:-$(from_env_file YANDEX_WORDSTAT_API_KEY)}"
+YANDEX_CLOUD_FOLDER_ID="${YANDEX_CLOUD_FOLDER_ID:-$(from_env_file YANDEX_CLOUD_FOLDER_ID)}"
+
+# Идентификаторы площадок — не секреты; держим умолчания здесь, чтобы у ноды и
+# у workflow не было двух расходящихся копий.
+YANDEX_WEBMASTER_USER_ID="${YANDEX_WEBMASTER_USER_ID:-253574184}"
+YANDEX_WEBMASTER_HOST_ID="${YANDEX_WEBMASTER_HOST_ID:-https:eterapy.com:443}"
+YANDEX_METRIKA_COUNTER_ID="${YANDEX_METRIKA_COUNTER_ID:-108502034}"
+export YANDEX_METRIKA_COUNTER_ID
+
+for required in TG_TOKEN TG_CHAT YANDEX_OAUTH_TOKEN; do
+  if [ -z "${!required}" ]; then
+    echo "SEO-отчёт: не задан $required (ни в env, ни в $ENV_FILE)" >&2
+    exit 1
+  fi
+done
 
 wm() { curl -sf -H "Authorization: OAuth $YANDEX_OAUTH_TOKEN" \
   "https://api.webmaster.yandex.net/v4/user/$YANDEX_WEBMASTER_USER_ID$1" || echo '{}'; }

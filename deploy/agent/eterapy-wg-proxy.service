@@ -1,0 +1,23 @@
+# B572 — перекладывает соединения с WG-адреса на локальный Next (127.0.0.1:3200).
+#
+# Запускается сокет-активацией из eterapy-wg-proxy.socket; systemd-socket-proxyd
+# входит в systemd, ставить нечего. Проксируется весь порт, а не только
+# /api/ops/node-status: адрес виден лишь внутри туннеля флота, а сам эндпоинт
+# всё равно закрыт секретом `x-ops-secret`.
+
+[Unit]
+Description=ETerapy: проксирование WG :3200 → локальный веб
+Requires=eterapy-wg-proxy.socket
+After=eterapy-wg-proxy.socket
+
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd 127.0.0.1:3200
+# Прокси не читает диск и не нуждается в правах — прижимаем по умолчанию.
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+Restart=on-failure
+RestartSec=5s

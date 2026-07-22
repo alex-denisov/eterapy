@@ -30,7 +30,8 @@ const source = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8
 describe("B525 — версия пакета", () => {
   it("остаётся редакцией 1.0 — сервис не запущен, живых акцептов нет (owner 2026-07-17)", () => {
     expect(LEGAL_PACK_VERSION).toBe("1.0");
-    expect(LEGAL_PACK_PUBLISHED_AT).toBe("2026-06-18");
+    // Дата публикации переехала на день регистрации ИП — см. b572-legal-dates.
+    expect(LEGAL_PACK_PUBLISHED_AT).toBe("2026-07-20");
   });
 
   it("подставляет актуальную редакцию и дату в тексты", () => {
