@@ -3,7 +3,7 @@
 import { useState, useDeferredValue, useMemo } from "react";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
-import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
+import type { AnonymousLibraryEntry, LibrarySection } from "@/data/anonymous-library";
 
 const PAGE_SIZE = 9;
 
@@ -14,10 +14,14 @@ export function LibrarySearch({
   entries,
   topics,
   activeTopic,
+  section = "life",
+  cardLabel = "жизненная ситуация",
 }: {
   entries: AnonymousLibraryEntry[];
   topics: string[];
   activeTopic?: string;
+  section?: LibrarySection;
+  cardLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SortMode>("new");
@@ -50,9 +54,7 @@ export function LibrarySearch({
   const sorted = useMemo(() => {
     const factor = dir === "desc" ? -1 : 1;
     return [...filtered].sort((a, b) => {
-      if (mode === "popular") {
-        return factor * (a.entry.reactions - b.entry.reactions);
-      }
+      if (mode === "popular") return factor * (a.entry.reactions - b.entry.reactions);
       return factor * (a.addedAt - b.addedAt);
     });
   }, [filtered, mode, dir]);
@@ -64,18 +66,25 @@ export function LibrarySearch({
   const visibleCount = paginate ? Math.min(page * PAGE_SIZE, sorted.length) : sorted.length;
   const visible = sorted.slice(0, visibleCount);
   const hasMore = paginate && visibleCount < sorted.length;
+  const filterHref = (topic?: string) => {
+    const params = new URLSearchParams();
+    if (section === "symbolic") params.set("section", "symbolic");
+    if (topic) params.set("topic", topic);
+    const queryString = params.toString();
+    return queryString ? `/library?${queryString}` : "/library";
+  };
 
   return (
     <>
       {/* Topic filter chips — v4 style row */}
       <nav className="soft-library-filter-row mb-6" aria-label="Фильтр тем">
-        <Link href="/library" className={`soft-chip ${!activeTopic && !query ? "soft-chip-warm" : ""}`}>
+        <Link href={filterHref()} className={`soft-chip ${!activeTopic && !query ? "soft-chip-warm" : ""}`}>
           Все
         </Link>
         {topics.map((topic) => (
           <Link
             key={topic}
-            href={`/library?topic=${encodeURIComponent(topic)}`}
+            href={filterHref(topic)}
             className={`soft-chip ${activeTopic === topic ? "soft-chip-warm" : ""}`}
           >
             {topic}
@@ -112,7 +121,6 @@ export function LibrarySearch({
         )}
       </div>
 
-      {/* Sort row — mode toggle + direction toggle */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Режим сортировки">
           <button
@@ -144,12 +152,10 @@ export function LibrarySearch({
         </button>
       </div>
 
-      {query && (
-        <p className="mb-4 text-xs text-[var(--soft-ink-faint)]">
+      <p className="mb-4 text-xs text-[var(--soft-ink-faint)]" aria-live="polite">
           {sorted.length}{" "}
           {sorted.length === 1 ? "вопрос" : sorted.length >= 2 && sorted.length <= 4 ? "вопроса" : "вопросов"}
-        </p>
-      )}
+      </p>
 
       {/* Results */}
       {sorted.length === 0 ? (
@@ -173,7 +179,7 @@ export function LibrarySearch({
                   <span className="soft-chip soft-chip-warm" style={{ fontSize: 13, padding: "4px 9px" }}>
                     {entry.topic}
                   </span>
-                  <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>анонимно</span>
+                  <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>{cardLabel}</span>
                 </div>
                 <p className="soft-library-question mt-4">«{entry.question}»</p>
                 <div
@@ -191,10 +197,10 @@ export function LibrarySearch({
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                    {entry.reactions} прошли разбор
+                    {entry.reactions.toLocaleString("ru-RU")} откликов по теме
                   </span>
                   <span className="soft-button soft-button-soft" style={{ fontSize: 12, padding: "5px 10px" }}>
-                    Похожий разбор →
+                    Читать →
                   </span>
                 </div>
               </Link>

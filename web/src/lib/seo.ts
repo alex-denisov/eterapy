@@ -15,6 +15,8 @@ export const seoOrigins = {
 export const publicSeoRoutes = [
   "/",
   "/about",
+  "/editorial-policy",
+  "/ai-psychologist",
   "/help",
   "/how-it-works",
   "/how-to-choose",

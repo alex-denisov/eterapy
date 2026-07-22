@@ -86,7 +86,7 @@ const PAGE_STEP = 10;
 // IDs are chosen for evergreen accuracy (no renamed/removed M26 mechanics).
 const TOP_FAQ_IDS = [
   "p1", "p2", "p4", "p6", "p7", "p8",
-  "pr1", "pr3", "pr4", "pay4", "s1", "s2", "sf1",
+  "e2", "e7", "pr1", "pr3", "pr4", "pay4", "s1", "s2", "sf1",
 ];
 
 function HelpContent() {

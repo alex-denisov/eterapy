@@ -4,7 +4,7 @@ import { HOME_CONTENT_REVIEWED_AT } from "@/lib/home-authority-content";
 
 export type PublicSeoRoute = typeof publicSeoRoutes[number];
 
-type SchemaKind = "WebPage" | "Article" | "FAQPage" | "Product";
+type SchemaKind = "WebPage" | "Article" | "FAQPage" | "Product" | "Service";
 
 type PublicPageSeo = {
   title: string;
@@ -22,6 +22,16 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     title: "О проекте ETerapy",
     description: "ETerapy строит этичную question-first платформу для самопознания, безопасных практик и прозрачной работы со специалистами.",
     schemaKind: "Article",
+  },
+  "/editorial-policy": {
+    title: "Редакционная политика ETerapy",
+    description: "Как редакция ETerapy готовит, проверяет и обновляет материалы: авторство организации, работа с источниками, ИИ, исправления и границы сервиса.",
+    schemaKind: "Article",
+  },
+  "/ai-psychologist": {
+    title: "ИИ-психолог онлайн бесплатно: анонимный чат | ETerapy",
+    description: "Опишите ситуацию и получите бесплатный первичный разбор в анонимном чате с ИИ. Без карты и регистрации. ETerapy не ставит диагнозов и не заменяет психолога.",
+    schemaKind: "Service",
   },
   "/help": {
     title: "Помощь и вопросы — ETerapy",
@@ -59,8 +69,8 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "WebPage",
   },
   "/library": {
-    title: "Библиотека анонимных вопросов — ETerapy",
-    description: "Модерируемая SEO-библиотека обезличенных вопросов с короткими разборами, темами, реакциями и входом в персональный диалог.",
+    title: "Библиотека жизненных вопросов и символических практик | ETerapy",
+    description: "Содержательные вопросы об отношениях, выборе, работе, тревоге, снах, Таро и астрологии: короткий разбор, личный контекст и следующий шаг.",
     schemaKind: "Article",
   },
   "/products": {
@@ -251,6 +261,22 @@ export function jsonLdForPublicPage(route: PublicSeoRoute) {
       ...base,
       brand: { "@type": "Brand", name: "ETerapy" },
       category: "Self-care digital service",
+    };
+  }
+
+  if (seo.schemaKind === "Service") {
+    return {
+      ...base,
+      provider: base.publisher,
+      serviceType: "Информационный разбор жизненной ситуации с помощью ИИ",
+      areaServed: "RU",
+      availableLanguage: "ru",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "RUB",
+        description: "Бесплатный первичный разбор без банковской карты",
+      },
     };
   }
 
