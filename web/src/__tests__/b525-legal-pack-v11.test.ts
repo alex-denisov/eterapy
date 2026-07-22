@@ -15,7 +15,7 @@ import {
   getLegalDoc,
 } from "@/lib/legal/registry";
 import { buildConsentRecords } from "@/lib/legal/consent";
-import { DEFAULT_LATE_CANCEL_PENALTY_PERCENT } from "@/lib/booking-change-rules";
+import { LATE_CANCEL_RETENTION_PERCENT } from "@/lib/booking-change-rules";
 import { penaltyPractitionerShareKopecks } from "@/lib/booking-penalty";
 import {
   LATE_CANCEL_DEPRIORITIZE_THRESHOLD,
@@ -108,9 +108,23 @@ describe("B525 — раскрытия владельца агрегатора (�
 describe("B525 — B481: удержание за позднюю отмену соответствует коду", () => {
   const sessions = legalDocMarkdown("sessions");
 
-  it("называет тот же процент, что и дефолт в коде", () => {
-    expect(DEFAULT_LATE_CANCEL_PENALTY_PERCENT).toBe(50);
-    expect(sessions).toContain(`${DEFAULT_LATE_CANCEL_PENALTY_PERCENT}% цены услуги Практика`);
+  it("называет тот же процент удержания, что и код", () => {
+    expect(LATE_CANCEL_RETENTION_PERCENT).toBe(100);
+    expect(sessions).toContain(`${LATE_CANCEL_RETENTION_PERCENT}% цены услуги Практика`);
+  });
+
+  // B567 (owner 2026-07-22): решение опубликовано в документах, которые
+  // акцептует клиент, а не только в коде.
+  it("прямо отрицает частичный возврат за позднюю отмену и неявку клиента", () => {
+    expect(sessions).toContain("Частичного возврата в этих случаях нет");
+    expect(legalDocMarkdown("offer")).toContain("Частичный возврат в этих случаях не производится");
+    expect(legalDocMarkdown("agent-offer")).toContain("частичный возврат Клиенту в этих случаях не производится");
+  });
+
+  it("описывает признак расчёта: баллы и подписки — полная оплата, сессия — предоплата", () => {
+    const offer = legalDocMarkdown("offer");
+    expect(offer).toContain("**полная оплата**");
+    expect(offer).toContain("**предоплата 100%**");
   });
 
   it("описывает распределение по комиссионной матрице, как считает код", () => {

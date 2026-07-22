@@ -13,6 +13,7 @@ import { assertRubPaymentAmount, paymentDocumentVersionData, withPaymentPolicyMe
 import { humanizeBillingDescription } from "@/lib/billing-labels";
 import { yukassaFetch } from "@/lib/yukassa";
 import { activePaymentProvider, isRobokassaTestPayer, receiptTaxSystem, robokassaConfig } from "./config";
+import { fiscalSettlementFor } from "./fiscal";
 import { buildPaymentUrl, type RobokassaReceiptItem } from "./robokassa";
 import { buildBillingReturnUrl } from "./return-url";
 
@@ -30,11 +31,10 @@ const PAYMENT_LINK_TTL_MS = 60 * 60 * 1000;
 /**
  * Fiscal classification of what is being sold.
  *
- * Credit packs are money paid before the service is chosen, i.e. an advance —
- * the receipt at top-up records the prepayment, not a delivered service.
+ * Признаки расчёта живут в `./fiscal` — одном месте на все рельсы. Здесь
+ * остаётся только наименование и сумма строки чека.
  */
 function receiptItemFor(purchase: ResolvedBillingPurchase): RobokassaReceiptItem {
-  const isAdvance = purchase.kind === "credits";
   return {
     // `purchase.description` — машинная строка («ETerapy: deep-report»), она
     // нужна коду. В чек по 54-ФЗ она попадать не должна: покупатель обязан
@@ -45,8 +45,7 @@ function receiptItemFor(purchase: ResolvedBillingPurchase): RobokassaReceiptItem
     sumKopecks: purchase.amountKopecks,
     // ИП на УСН не является плательщиком НДС.
     tax: "none",
-    paymentObject: isAdvance ? "payment" : "service",
-    paymentMethod: isAdvance ? "advance" : "full_payment",
+    ...fiscalSettlementFor(purchase.kind),
   };
 }
 

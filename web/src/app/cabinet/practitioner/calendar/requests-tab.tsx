@@ -162,8 +162,8 @@ export async function RequestsTab({ practitionerId }: { practitionerId: string }
                   </div>
                   {r.penaltyApplies && (
                     <p className="mt-2.5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                      «Согласовать» удержит с клиента поздний штраф, «Без штрафа» — простит его (клиенту полный
-                      возврат).
+                      «Согласовать» удержит с клиента всю стоимость сессии (ваша доля — за вычетом комиссии),
+                      «Без штрафа» — вернёт её клиенту целиком. Частичного удержания нет.
                     </p>
                   )}
                 </article>

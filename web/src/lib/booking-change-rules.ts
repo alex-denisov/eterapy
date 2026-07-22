@@ -2,29 +2,30 @@
 // injected (unit-tested).
 //
 // Owner-решения (B466 brainstorm, 2026-07-05/06):
-//  • Клиент просит перенос/отмену → практик согласовывает. Отмена клиентом
-//    МЕНЕЕ чем за 24 часа — со штрафом, который практик может простить
-//    («Без штрафа»). Перенос за сутки — бесплатен (FAQ-политика).
+//  • Клиент просит перенос/отмену → практик согласовывает. Перенос за сутки —
+//    бесплатен (FAQ-политика).
 //  • Практик предлагает перенос → клиент подтверждает (уведомление).
 //  • B484: отмена ПРАКТИКОМ — клиенту всегда полный возврат; денежного штрафа
 //    для практика нет (санкции = метрика надёжности/приоритет каталога).
 //
-// ⚠ Размер штрафа за позднюю отмену клиентом НЕ зафиксирован owner'ом —
-// предложенный дефолт 50% (конфиг BOOKING_LATE_CANCEL_PENALTY_PERCENT),
-// ждёт sign-off в B481.
+// Owner-решение 2026-07-22 (B567), дословно: «у нас нет частичного возврата за
+// неявку клиента или позднюю отмену (позднее чем за 24 часа до начала сессии),
+// возврат только при неявке специалиста».
+//
+// Отсюда 100%, а не «дефолт со ставкой в окружении». Прежний конфиг
+// BOOKING_LATE_CANCEL_PENALTY_PERCENT снят намеренно: значение на хосте,
+// делающее возврат частичным, разошлось бы с текстом оферты, который клиент
+// принял, — и разошлось бы молча (готча B566: конфигурация мимо выкатки).
+// Практик по-прежнему может отменить удержание ЦЕЛИКОМ («без штрафа») — это
+// полный возврат, а не частичный, и правилу не противоречит.
 
 export const LATE_CHANGE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
-export const DEFAULT_LATE_CANCEL_PENALTY_PERCENT = 50;
+/** Доля цены сессии, удерживаемая при поздней отмене или неявке клиента. */
+export const LATE_CANCEL_RETENTION_PERCENT = 100;
 
 export type ChangeRequestType = "RESCHEDULE" | "CANCEL";
 export type ChangeInitiator = "CLIENT" | "PRACTITIONER";
-
-export function lateCancelPenaltyPercent(env: NodeJS.ProcessEnv = process.env): number {
-  const raw = Number(env.BOOKING_LATE_CANCEL_PENALTY_PERCENT);
-  if (Number.isFinite(raw) && raw >= 0 && raw <= 100) return Math.round(raw);
-  return DEFAULT_LATE_CANCEL_PENALTY_PERCENT;
-}
 
 /** Меньше 24 часов до начала сессии? */
 export function isLateChange(slotStartAt: Date, now: Date = new Date()): boolean {
@@ -32,10 +33,10 @@ export function isLateChange(slotStartAt: Date, now: Date = new Date()): boolean
 }
 
 /**
- * Применяется ли штраф к запросу. Только клиентская ОТМЕНА <24ч до начала.
+ * Применяется ли удержание к запросу. Только клиентская ОТМЕНА <24ч до начала.
  * Перенос — бесплатен («перенос за сутки бесплатен»; поздний перенос практик
- * может отклонить, но штрафа за него нет). Запросы практика — без штрафа
- * клиенту (B484).
+ * может отклонить, но удержания за него нет). Запросы практика — без удержания
+ * с клиента (B484).
  */
 export function penaltyAppliesFor({
   initiatedBy,
@@ -53,9 +54,9 @@ export function penaltyAppliesFor({
   return isLateChange(slotStartAt, now);
 }
 
-/** Копейки штрафа от цены сессии. */
-export function penaltyKopecks(priceRub: number, env: NodeJS.ProcessEnv = process.env): number {
-  return Math.round(priceRub * 100 * (lateCancelPenaltyPercent(env) / 100));
+/** Копейки удержания от цены сессии. */
+export function penaltyKopecks(priceRub: number): number {
+  return Math.round(priceRub * 100 * (LATE_CANCEL_RETENTION_PERCENT / 100));
 }
 
 /**

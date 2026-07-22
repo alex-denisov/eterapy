@@ -144,7 +144,10 @@ describe("B423 Robokassa checkout", () => {
     });
   });
 
-  it("bills a credit pack as an advance, not as a delivered service", async () => {
+  // B567 (owner 2026-07-22): «Баллы и подписки проводятся как полная оплата».
+  // Прежний признак `advance` порождал обязанность по второму чеку, сумму
+  // которого посчитать нечем — реестр баллов теряет связь с покупкой.
+  it("bills a credit pack as a delivered service, not as an advance", async () => {
     const checkout = await createCheckout({ userId: "user-1", purchase: creditsPurchase });
 
     const receiptRaw = checkout.confirmationUrl.slice(
@@ -152,8 +155,8 @@ describe("B423 Robokassa checkout", () => {
     );
     const receipt = JSON.parse(decodeURIComponent(receiptRaw));
     expect(receipt.items[0]).toMatchObject({
-      payment_object: "payment",
-      payment_method: "advance",
+      payment_object: "service",
+      payment_method: "full_payment",
     });
   });
 
