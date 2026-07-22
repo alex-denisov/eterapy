@@ -25,7 +25,7 @@ import { MINIAPP_DIRECTIONS, matchesDirection, type MiniAppDirection } from "@/l
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { GlassSegmented } from "@/components/miniapp/glass-segmented";
 import { PractitionerAvatar } from "@/components/miniapp/subpage-ui";
-import { miniAppClass as c, styles } from "@/components/miniapp/styles";
+import { styles } from "@/components/miniapp/styles";
 
 type Format = "all" | "digital" | "specialist";
 
