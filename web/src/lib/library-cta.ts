@@ -5,7 +5,7 @@
 import { formatPoints } from "@/lib/points";
 import { getProductCreditCost, getProductPriceLabel } from "@/lib/product-prices";
 
-export type LibraryTopic =
+export type LifeLibraryTopic =
   | "Отношения"
   | "Хожу по кругу"
   | "Тревога и состояние"
@@ -14,9 +14,19 @@ export type LibraryTopic =
   | "Выбор и решения"
   | "Про себя";
 
+export type SymbolicLibraryTopic =
+  | "Сны и символы"
+  | "Таро"
+  | "Матрица судьбы"
+  | "Натальная карта"
+  | "Совместимость"
+  | "Имя и фамилия";
+
+export type LibraryTopic = LifeLibraryTopic | SymbolicLibraryTopic;
+
 // Catalog/filter order — life-stage flow, not alphabetical. The "Паттерны" label
 // is intentionally gone (renamed «Хожу по кругу» per M26 spec table).
-export const LIBRARY_TOPICS: readonly LibraryTopic[] = [
+export const LIFE_LIBRARY_TOPICS: readonly LifeLibraryTopic[] = [
   "Отношения",
   "Хожу по кругу",
   "Тревога и состояние",
@@ -24,6 +34,20 @@ export const LIBRARY_TOPICS: readonly LibraryTopic[] = [
   "Одиночество",
   "Выбор и решения",
   "Про себя",
+];
+
+export const SYMBOLIC_LIBRARY_TOPICS: readonly SymbolicLibraryTopic[] = [
+  "Сны и символы",
+  "Таро",
+  "Матрица судьбы",
+  "Натальная карта",
+  "Совместимость",
+  "Имя и фамилия",
+];
+
+export const LIBRARY_TOPICS: readonly LibraryTopic[] = [
+  ...LIFE_LIBRARY_TOPICS,
+  ...SYMBOLIC_LIBRARY_TOPICS,
 ];
 
 export function isLibraryTopic(value: string): value is LibraryTopic {
@@ -34,13 +58,25 @@ export type LibraryCtaProduct =
   | "Разбор переписки"
   | "Вместе"
   | "Переосмысление"
-  | "Подробный разбор";
+  | "Подробный разбор"
+  | "Расклад Таро"
+  | "Натальная карта"
+  | "Матрица судьбы"
+  | "Совместимость по звёздам"
+  | "Арканы рождения"
+  | "Кармический код фамилии";
 
 const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
   "Разбор переписки": "chat-analysis",
   "Вместе": "pair",
   "Переосмысление": "reframe",
   "Подробный разбор": "deep-report",
+  "Расклад Таро": "tarot",
+  "Натальная карта": "natal-chart",
+  "Матрица судьбы": "numerology",
+  "Совместимость по звёздам": "synastry",
+  "Арканы рождения": "tarot-numerology",
+  "Кармический код фамилии": "surname-story",
 };
 
 // Default service per theme (spec П.4 funnel). A card may override via `ctaProduct`
@@ -53,6 +89,12 @@ const TOPIC_DEFAULT_PRODUCT: Record<LibraryTopic, LibraryCtaProduct> = {
   "Тревога и состояние": "Переосмысление",
   "Работа и деньги": "Подробный разбор",
   "Выбор и решения": "Подробный разбор",
+  "Сны и символы": "Подробный разбор",
+  "Таро": "Расклад Таро",
+  "Матрица судьбы": "Матрица судьбы",
+  "Натальная карта": "Натальная карта",
+  "Совместимость": "Совместимость по звёздам",
+  "Имя и фамилия": "Кармический код фамилии",
 };
 
 export function topicDefaultProduct(topic: LibraryTopic): LibraryCtaProduct {

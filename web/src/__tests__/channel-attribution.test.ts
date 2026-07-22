@@ -34,6 +34,8 @@ describe("B213 channel attribution model", () => {
     expect(provider).toContain("Suspense");
     expect(tracker).toContain("/api/attribution/touch");
     expect(tracker).toContain("utm_source");
+    expect(tracker).toContain("organicSearchSource");
+    expect(tracker).toContain('"organic"');
     expect(tracker).toContain("practitionerId");
     expect(tracker).toContain("widgetId");
     expect(tracker).toContain("channel_touch_recorded");

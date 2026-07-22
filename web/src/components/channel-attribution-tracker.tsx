@@ -11,6 +11,22 @@ function first(searchParams: URLSearchParams, ...keys: string[]) {
   return null;
 }
 
+function organicSearchSource(referrer: string) {
+  if (!referrer) return null;
+  try {
+    const host = new URL(referrer).hostname.toLowerCase();
+    if (host === window.location.hostname.toLowerCase()) return null;
+    if (host.includes("yandex.")) return "yandex";
+    if (host.includes("google.")) return "google";
+    if (host.includes("bing.com")) return "bing";
+    if (host.includes("duckduckgo.com")) return "duckduckgo";
+    if (host.includes("search.mail.ru")) return "mail.ru";
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function ChannelAttributionTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -18,9 +34,10 @@ export function ChannelAttributionTracker() {
   useEffect(() => {
     const query = searchParams.toString();
     const entryPath = query ? `${pathname}?${query}` : pathname;
+    const inferredOrganicSource = organicSearchSource(document.referrer);
     const payload = {
-      source: first(searchParams, "source", "from"),
-      channel: first(searchParams, "channel"),
+      source: first(searchParams, "source", "from") ?? inferredOrganicSource,
+      channel: first(searchParams, "channel") ?? (inferredOrganicSource ? "organic" : null),
       entryPath,
       utmSource: first(searchParams, "utm_source"),
       utmMedium: first(searchParams, "utm_medium"),

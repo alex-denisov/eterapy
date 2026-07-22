@@ -1,9 +1,9 @@
 import { approvedLibraryEntries } from "@/data/anonymous-library";
 import { b383LibraryCards } from "@/data/library-cards-b383";
-import { LIBRARY_TOPICS, isLibraryTopic, type LibraryTopic } from "@/lib/library-cta";
+import { LIFE_LIBRARY_TOPICS, isLibraryTopic, type LifeLibraryTopic } from "@/lib/library-cta";
 
 // Appendix A target distribution for the published catalogue (120 cards).
-const TARGET_DISTRIBUTION: Record<LibraryTopic, number> = {
+const TARGET_DISTRIBUTION: Record<LifeLibraryTopic, number> = {
   "Отношения": 30,
   "Хожу по кругу": 18,
   "Тревога и состояние": 18,
@@ -17,7 +17,7 @@ const TARGET_DISTRIBUTION: Record<LibraryTopic, number> = {
 const FORBIDDEN_WORDS = ["ясност", "ракурс", "паттерн", "триггер", "ресурс", "проработ"];
 
 describe("B383 — published library catalogue", () => {
-  const approved = approvedLibraryEntries();
+  const approved = approvedLibraryEntries("life");
 
   it("publishes ~120 approved & indexable cards (Appendix A target)", () => {
     expect(approved.length).toBe(120);
@@ -28,7 +28,7 @@ describe("B383 — published library catalogue", () => {
     for (const entry of approved) {
       counts[entry.topic] = (counts[entry.topic] ?? 0) + 1;
     }
-    for (const topic of LIBRARY_TOPICS) {
+    for (const topic of LIFE_LIBRARY_TOPICS) {
       expect(counts[topic] ?? 0).toBe(TARGET_DISTRIBUTION[topic]);
     }
   });

@@ -4,6 +4,7 @@ import { approvedLibraryEntries, anonymousLibraryEntries } from "@/data/anonymou
 import { publicPageSeo } from "@/lib/public-page-seo";
 import { publicSeoRoutes } from "@/lib/seo";
 import { GET as sitemapXml } from "@/app/sitemap.xml/route";
+import { libraryMetaDescription, libraryMetaTitle } from "@/lib/library-editorial";
 
 const srcDir = path.join(process.cwd(), "src");
 const source = (rel: string) => fs.readFileSync(path.join(srcDir, rel), "utf8");
@@ -11,12 +12,14 @@ const source = (rel: string) => fs.readFileSync(path.join(srcDir, rel), "utf8");
 describe("B384 — library cards as search targets (schema.org)", () => {
   const detail = source("app/library/[slug]/page.tsx");
 
-  it("emits an enriched Article (section/about/teaser-gated) in a @graph", () => {
+  it("emits an enriched free Article and FAQPage in a @graph", () => {
     expect(detail).toContain('"@graph"');
     expect(detail).toContain('"@type": "Article"');
     expect(detail).toContain("articleSection: entry.topic");
-    expect(detail).toContain("isAccessibleForFree: false");
+    expect(detail).toContain("isAccessibleForFree: true");
     expect(detail).toContain("mainEntityOfPage");
+    expect(detail).toContain('"@type": "FAQPage"');
+    expect(detail).toContain("dateModified: LIBRARY_EDITORIAL_DATE");
   });
 
   it("emits a BreadcrumbList (Главная → Библиотека → тема)", () => {
@@ -25,8 +28,8 @@ describe("B384 — library cards as search targets (schema.org)", () => {
   });
 
   it("uses each card's per-card seo for title/description + OpenGraph", () => {
-    expect(detail).toContain("entry.seo?.metaTitle");
-    expect(detail).toContain("entry.seo?.metaDescription");
+    expect(detail).toContain("libraryMetaTitle(entry)");
+    expect(detail).toContain("libraryMetaDescription(entry)");
     expect(detail).toContain("openGraph");
   });
 });
@@ -46,6 +49,15 @@ describe("B384 — unique, search-friendly metadata", () => {
     for (const t of titles) expect(t.length).toBeLessThanOrEqual(60);
   });
 
+  it("every published library card has unique bounded metadata, including legacy cards", () => {
+    const titles = approvedLibraryEntries().map(libraryMetaTitle);
+    expect(new Set(titles).size).toBe(titles.length);
+    for (const entry of approvedLibraryEntries()) {
+      expect(libraryMetaTitle(entry).length).toBeLessThanOrEqual(65);
+      expect(libraryMetaDescription(entry).length).toBeLessThanOrEqual(158);
+    }
+  });
+
   it("library card metaTitles do not collide with public-page titles", () => {
     const publicTitles = new Set(publicSeoRoutes.map((r) => publicPageSeo[r].title));
     for (const entry of approvedLibraryEntries()) {
@@ -59,7 +71,7 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     const res = await sitemapXml(new Request("https://eterapy.com/sitemap.xml", { headers: { host: "eterapy.com" } }));
     const body = await res.text();
     const indexable = anonymousLibraryEntries.filter((e) => e.status === "approved" && e.indexable);
-    expect(indexable.length).toBe(120);
+    expect(indexable.length).toBe(150);
     for (const entry of indexable) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
     }
