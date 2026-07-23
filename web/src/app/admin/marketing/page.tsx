@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Activity, FileCheck2, MousePointerClick, Search, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getSearchMarketingData } from "@/lib/search-marketing-data";
@@ -53,7 +54,6 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
   const observedQueries = data.webmaster.queries
     .filter((item) => !query || item.query.toLocaleLowerCase("ru-RU").includes(query))
     .sort((a, b) => b.impressions - a.impressions);
-  const observedByQuery = new Map(data.webmaster.queries.map((item) => [item.query.toLocaleLowerCase("ru-RU"), item]));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-marketing-page">
@@ -62,14 +62,14 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
         title="Поиск и маркетинг"
         actions={<PeriodToolbar basePath="/admin/marketing" start={period.startInput} end={period.endInput} />}
       >
-        Позиции считаются по запросам, по которым сайт уже показался в Яндексе. Wordstat показывает спрос рынка, а не позицию ETerapy.
+        Позиции считаются по запросам, по которым сайт уже показался в Яндексе. Wordstat показывает спрос рынка, а не позицию ETerapy. <Link className="font-semibold text-blue-700 hover:underline" href="/admin/marketing/publications">Открыть реестр внешних публикаций</Link>.
       </AdminHero>
 
       <MetricGrid>
         <MetricCard label="Показы в поиске" value={formatNumber(data.totals.impressions)} hint="Наблюдаемые запросы Вебмастера" icon={<Search className="size-4" />} />
         <MetricCard label="Клики из поиска" value={formatNumber(data.totals.clicks)} hint={`CTR ${formatPercent(data.totals.ctr)}`} icon={<MousePointerClick className="size-4" />} />
         <MetricCard label="Средняя позиция" value={formatPosition(data.totals.averagePosition)} hint="Взвешена по показам" icon={<TrendingUp className="size-4" />} />
-        <MetricCard label="Страниц в поиске" value={formatNumber(data.webmaster.summary.searchablePages)} hint={`${formatNumber(data.webmaster.summary.downloadedPages)} загружено роботом`} icon={<FileCheck2 className="size-4" />} />
+        <MetricCard label="Страниц в поиске" value={formatNumber(data.webmaster.summary.searchablePages)} hint={`${formatPercent(data.indexation.coverage)} от ${formatNumber(data.indexation.knownPublicPages)} известных URL`} tone={data.indexation.coverage < 80 ? "warn" : "ok"} icon={<FileCheck2 className="size-4" />} />
         <MetricCard label="Визиты из поисковиков" value={formatNumber(data.totals.organicVisits)} hint="Метрика за выбранный период" />
         <MetricCard label="Начато разборов" value={formatNumber(data.internal.dialogueStarts)} hint={`${formatPercent(data.internal.answerRate)} дошли до ответа`} icon={<Activity className="size-4" />} />
       </MetricGrid>
@@ -138,51 +138,71 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
           )}
         </AnalyticsSection>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <AnalyticsSection title="Спрос по стратегическому ядру">
+        <AnalyticsSection title="Очередь SEO-действий">
+          {data.actions.length === 0 ? (
+            <EmptyState>Критичных действий по текущим данным нет</EmptyState>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {data.actions.map((action) => (
+                <div key={`${action.title}-${action.note}`} className={`rounded-lg border p-3 ${action.tone === "warn" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+                  <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">{action.note}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </AnalyticsSection>
+
+        <AnalyticsSection title="Стратегическое семантическое ядро">
             <div className="overflow-x-auto rounded-lg border border-[#D6DEE9]">
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[960px] text-left text-sm">
                 <thead className="bg-slate-50 text-[0.68rem] uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-3 py-2.5">Фраза</th>
+                    <th className="px-3 py-2.5">Кластер</th>
+                    <th className="px-3 py-2.5">Целевая страница</th>
                     <th className="px-3 py-2.5 text-right">Спрос / месяц</th>
                     <th className="px-3 py-2.5 text-right">Позиция</th>
+                    <th className="px-3 py-2.5 text-right">Показы</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.wordstat.map((item) => {
-                    const observed = observedByQuery.get(item.phrase.toLocaleLowerCase("ru-RU"));
-                    return (
-                      <tr key={item.phrase}>
-                        <td className="px-3 py-2.5 font-medium">{item.phrase}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{item.monthlyDemand === null ? "—" : formatNumber(item.monthlyDemand)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{formatPosition(observed?.averagePosition ?? null)}</td>
-                      </tr>
-                    );
-                  })}
+                  {data.keywordCore.map((item) => (
+                    <tr key={item.phrase} className="hover:bg-slate-50/70">
+                      <td className="px-3 py-2.5">
+                        <span className="font-medium text-slate-900">{item.phrase}</span>
+                        <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[0.62rem] font-bold ${item.priority === "P1" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{item.priority}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">{item.cluster}</td>
+                      <td className="max-w-xs px-3 py-2.5"><Link href={`https://eterapy.com${item.landing}`} target="_blank" rel="noreferrer" className="break-all text-xs font-medium text-blue-700 hover:underline">{item.landing}</Link></td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {item.monthlyDemand === null ? "—" : formatNumber(item.monthlyDemand)}
+                        {item.demandSource === "baseline" ? <span className="ml-1 text-[0.6rem] text-slate-400" title="Проверено 22 июля 2026">22.07</span> : null}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{formatPosition(item.position)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(item.impressions)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Россия, broad match. Значение отражает интерес к теме, а не прогноз трафика ETerapy.</p>
-          </AnalyticsSection>
+            <p className="mt-2 text-xs text-slate-500">{data.keywordCore.length} запросов. Россия, broad match; дата рядом с числом означает сохранённый проверенный baseline. Пустое значение не заменяется догадкой.</p>
+        </AnalyticsSection>
 
+        <div className="grid gap-4 xl:grid-cols-2">
           <AnalyticsSection title="Поисковые системы">
             <HorizontalBars data={data.metrika.searchEngines.map((item) => ({ label: item.label, value: item.visits }))} />
           </AnalyticsSection>
+          <AnalyticsSection title="Внутренняя маркетинговая воронка">
+            <div className="grid grid-cols-2 gap-2">
+              <MetricCard label="Создано диалогов" value={formatNumber(data.internal.dialogueStarts)} />
+              <MetricCard label="Первичных ответов" value={formatNumber(data.internal.primaryAnswers)} />
+              <MetricCard label="Конверсия в ответ" value={formatPercent(data.internal.answerRate)} />
+              <MetricCard label="Органические конверсии" value={formatNumber(data.internal.organicConversions)} hint={`${formatNumber(data.internal.conversions)} всего`} />
+            </div>
+            <div className="mt-4"><HorizontalBars data={data.internal.channels} /></div>
+          </AnalyticsSection>
         </div>
-
-        <AnalyticsSection title="Внутренняя маркетинговая воронка">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <MetricCard label="Создано диалогов" value={formatNumber(data.internal.dialogueStarts)} />
-            <MetricCard label="Первичных ответов" value={formatNumber(data.internal.primaryAnswers)} />
-            <MetricCard label="Конверсия в ответ" value={formatPercent(data.internal.answerRate)} />
-            <MetricCard label="Все атрибутированные конверсии" value={formatNumber(data.internal.conversions)} />
-            <MetricCard label="Органические конверсии" value={formatNumber(data.internal.organicConversions)} hint="Новые касания после запуска разметки" />
-          </div>
-          <div className="mt-4">
-            <HorizontalBars data={data.internal.channels} />
-          </div>
-        </AnalyticsSection>
       </div>
     </main>
   );
