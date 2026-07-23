@@ -27,6 +27,7 @@ import { track } from "@/lib/analytics";
 import { formatPoints } from "@/lib/points";
 import { MINIAPP_FEATURES, miniAppFeatureForPath } from "@/lib/miniapp/registry";
 import type { MiniAppInitialData, MiniAppService } from "@/lib/miniapp/types";
+import { useMiniApp } from "@/components/miniapp-provider";
 import { MiniAppTelegramBootstrap } from "@/components/miniapp/telegram-bootstrap";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
@@ -233,11 +234,25 @@ export function MiniAppShell({ data, children }: { data: MiniAppInitialData; chi
   const [notice, setNotice] = useState("");
   const [telegramName, setTelegramName] = useState("");
   const pathname = usePathname();
+  const { platform } = useMiniApp();
   const inLiveSession = pathname.startsWith("/miniapp/session/");
 
   useEffect(() => {
-    track({ event: "miniapp_view", surface: "miniapp", properties: { view: miniAppFeatureForPath(pathname).id } });
-  }, [pathname]);
+    // Wait for the provider to resolve the real host. This prevents a Telegram
+    // launch being counted first as generic web and then a second time as TG.
+    if (!platform) return;
+    const search = new URLSearchParams(window.location.search);
+    track({
+      event: "miniapp_view",
+      surface: "miniapp",
+      properties: {
+        view: miniAppFeatureForPath(pathname).id,
+        platform,
+        channel: search.get("channel") ?? `${platform}_miniapp`,
+        entry: search.get("entry") ?? "profile_main_app",
+      },
+    });
+  }, [pathname, platform]);
 
   const notify = (message: string) => {
     setNotice(message);

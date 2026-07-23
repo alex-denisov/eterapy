@@ -91,6 +91,19 @@ jobs:
       selection: ${{ steps.select.outputs.selection }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Telegram product-bot identity
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$TG_TOKEN" ] || { echo "::error::TELEGRAM_BOT_TOKEN is missing"; exit 1; }
+          response=$(curl -fsS --retry 2 --max-time 15 "https://api.telegram.org/bot${TG_TOKEN}/getMe")
+          username=$(printf '%s' "$response" | jq -r 'select(.ok == true) | .result.username // empty')
+          if [ "$username" != "eterapy_bot" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN must belong to @eterapy_bot; received @${username:-unknown}"
+            exit 1
+          fi
+          echo "Telegram product-bot identity verified"
       - id: select
         # NODES is untrusted (dispatch input): it is only ever compared against
         # the fixed slug list by jq, never interpolated into a shell command.
