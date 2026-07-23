@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { configureTelegramBot, setTelegramWebhook } from "@/lib/telegram";
+import { getTrackedTelegramMiniAppUrl } from "@/lib/telegram-growth";
 import { APP_URL } from "@/lib/env";
 
 export async function POST(req: Request) {
@@ -18,8 +19,11 @@ export async function POST(req: Request) {
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL
     || `${APP_URL}/api/telegram/webhook`;
 
-  const miniAppUrl = process.env.TELEGRAM_MINIAPP_URL
-    || new URL("/miniapp?miniapp=telegram", APP_URL).toString();
+  const miniAppUrl = getTrackedTelegramMiniAppUrl(
+    process.env.TELEGRAM_MINIAPP_URL
+      || new URL("/miniapp?miniapp=telegram", APP_URL).toString(),
+    "bot_menu",
+  );
   const [webhookOk, branding] = await Promise.all([
     setTelegramWebhook(webhookUrl),
     configureTelegramBot({

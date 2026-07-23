@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import {
   formatTelegramGrowthMessage,
+  getTrackedTelegramMiniAppUrl,
   getTelegramStartUrl,
   resolveTelegramGrowthPayload,
   TELEGRAM_GROWTH_ENTRIES,
@@ -35,6 +36,20 @@ describe("B204 Telegram growth surfaces", () => {
     expect(message).toContain("Открыть в ETerapy");
   });
 
+  it("adds stable source attribution to Bot API Mini App launches", () => {
+    const menu = new URL(getTrackedTelegramMiniAppUrl("https://eterapy.com/miniapp?miniapp=telegram", "bot_menu"));
+    expect(menu.searchParams.get("source")).toBe("telegram");
+    expect(menu.searchParams.get("channel")).toBe("telegram_bot");
+    expect(menu.searchParams.get("entry")).toBe("bot_menu");
+    expect(menu.searchParams.get("utm_source")).toBe("telegram");
+    expect(menu.searchParams.get("utm_medium")).toBe("bot");
+    expect(menu.searchParams.get("utm_campaign")).toBe("miniapp");
+
+    const preserved = new URL(getTrackedTelegramMiniAppUrl("https://eterapy.com/miniapp?utm_campaign=custom", "bot_welcome"));
+    expect(preserved.searchParams.get("utm_campaign")).toBe("custom");
+    expect(preserved.searchParams.get("entry")).toBe("bot_welcome");
+  });
+
   it("wires deeplinks into the public Telegram page and webhook without breaking link tokens", () => {
     const page = source("src/app/telegram/page.tsx");
     const webhook = source("src/app/api/telegram/webhook/route.ts");
@@ -44,5 +59,16 @@ describe("B204 Telegram growth surfaces", () => {
     expect(webhook).toContain("resolveTelegramGrowthPayload");
     expect(webhook).toContain("formatTelegramGrowthMessage");
     expect(webhook.indexOf("resolveTelegramGrowthPayload")).toBeLessThan(webhook.indexOf("db.telegramLinkToken.findUnique"));
+  });
+
+  it("records the resolved Mini App platform and guards the deploy secret identity", () => {
+    const shell = source("src/components/miniapp/miniapp-shell.tsx");
+    const deploy = source("../.github/workflows/deploy.yml");
+
+    expect(shell).toContain("if (!platform) return");
+    expect(shell).toContain("channel: search.get(\"channel\")");
+    expect(shell).toContain("entry: search.get(\"entry\")");
+    expect(deploy).toContain("Verify Telegram product-bot identity");
+    expect(deploy).toContain('username" != "eterapy_bot"');
   });
 });

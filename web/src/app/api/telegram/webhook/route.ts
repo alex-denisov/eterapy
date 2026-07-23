@@ -13,7 +13,11 @@ import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { enableAllTelegramNotifications } from "@/lib/notifications";
 import { sendTelegram } from "@/lib/telegram";
-import { formatTelegramGrowthMessage, resolveTelegramGrowthPayload } from "@/lib/telegram-growth";
+import {
+  formatTelegramGrowthMessage,
+  getTrackedTelegramMiniAppUrl,
+  resolveTelegramGrowthPayload,
+} from "@/lib/telegram-growth";
 import { log, serializeError } from "@/lib/logger";
 import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib/webhook-idempotency";
 import { APP_URL } from "@/lib/env";
@@ -25,8 +29,11 @@ import {
 } from "@/lib/payments/telegram-stars-webhook";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
-const MINI_APP_URL = process.env.TELEGRAM_MINIAPP_URL
-  ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString();
+const MINI_APP_URL = getTrackedTelegramMiniAppUrl(
+  process.env.TELEGRAM_MINIAPP_URL
+    ?? new URL("/miniapp?miniapp=telegram", APP_URL).toString(),
+  "bot_welcome",
+);
 // B576: one outcome-led action in welcome, commands and the persistent menu.
 const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Начать разбор", web_app: { url: MINI_APP_URL } }]] };
 
