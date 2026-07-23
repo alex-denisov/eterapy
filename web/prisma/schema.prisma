@@ -60,14 +60,14 @@ model User {
 
   // Relations
   practitioner                    Practitioner?
-  bookingsAsClient                Booking[]                  @relation("BookingClient")
+  bookingsAsClient                Booking[]                   @relation("BookingClient")
   toolSessions                    ToolSession[]
-  reviewsWritten                  Review[]                   @relation("ReviewAuthor")
+  reviewsWritten                  Review[]                    @relation("ReviewAuthor")
   storedFiles                     StoredFile[]
   chatMessages                    ChatMessage[]
   notificationPrefs               NotificationPreference[]
   notifications                   Notification[]
-  complaints                      Complaint[]                @relation("ComplaintReporter")
+  complaints                      Complaint[]                 @relation("ComplaintReporter")
   aiSessionLogs                   AISessionLog[]
   aiGatewayRequests               AIRequest[]
   dialogues                       Dialogue[]
@@ -78,18 +78,18 @@ model User {
   subscriptions                   UserSubscription[]
   creditLedgerEntries             CreditLedgerEntry[]
   clarityCreditLedgerEntries      ClarityCreditLedgerEntry[]
-  compatibilitiesCreated          Compatibility[]            @relation("CompatibilityCreator")
-  compatibilitiesJoined           Compatibility[]            @relation("CompatibilityPartner")
-  clarityCirclesCreated           ClarityCircle[]            @relation("ClarityCircleCreator")
+  compatibilitiesCreated          Compatibility[]             @relation("CompatibilityCreator")
+  compatibilitiesJoined           Compatibility[]             @relation("CompatibilityPartner")
+  clarityCirclesCreated           ClarityCircle[]             @relation("ClarityCircleCreator")
   clarityCircleParticipations     ClarityCircleParticipant[]
   clarityRoutes                   ClarityRoute[]
   dailyCards                      DailyCard[]
   missionProgresses               MissionProgress[]
-  shareLinks                      ShareLink[]                @relation("ShareLinkOwner")
-  referralsGiven                  ReferralAttribution[]      @relation("ReferralReferrer")
-  referralsReceived               ReferralAttribution[]      @relation("ReferralReferredUser")
+  shareLinks                      ShareLink[]                 @relation("ShareLinkOwner")
+  referralsGiven                  ReferralAttribution[]       @relation("ReferralReferrer")
+  referralsReceived               ReferralAttribution[]       @relation("ReferralReferredUser")
   clientAttribution               ClientAttribution?
-  byocClientLinks                 ClientPractitionerLink[]   @relation("ClientByocLinks")
+  byocClientLinks                 ClientPractitionerLink[]    @relation("ClientByocLinks")
   byocInviteVisits                PractitionerInviteVisit[]
   channelAttributions             ChannelAttribution[]
   supportConversations            SupportConversation[]
@@ -211,8 +211,8 @@ model Practitioner {
 
   // Relations
   slots                  TimeSlot[]
-  bookings               Booking[]                @relation("BookingPractitioner")
-  reviews                Review[]                 @relation("ReviewPractitioner")
+  bookings               Booking[]                   @relation("BookingPractitioner")
+  reviews                Review[]                    @relation("ReviewPractitioner")
   scheduleRules          ScheduleRule[]
   blockedSlots           BlockedSlot[]
   priceRates             PriceRate[]
@@ -221,8 +221,8 @@ model Practitioner {
   agentReports           AgentReport[]
   invites                PractitionerInvite[]
   byocClientLinks        ClientPractitionerLink[]
-  clientAttributions     ClientAttribution[]      @relation("ClientAttributionPractitioner")
-  referredBookings       Booking[]                @relation("BookingReferrerPractitioner")
+  clientAttributions     ClientAttribution[]         @relation("ClientAttributionPractitioner")
+  referredBookings       Booking[]                   @relation("BookingReferrerPractitioner")
   bookingWaitlistEntries BookingWaitlistEntry[]
   // B466 practitioner platform
   aiAnalyses             PractitionerAiAnalysis[]
@@ -1176,6 +1176,64 @@ model ChannelAttribution {
   @@index([partnerId, lastTouchAt])
   @@index([widgetId, lastTouchAt])
   @@map("channel_attributions")
+}
+
+/// B577: owned registry of brand publications on external platforms.
+/// Status-like fields intentionally remain strings so a new channel or workflow
+/// state does not require a PostgreSQL enum migration.
+model ExternalPublication {
+  id               String                      @id @default(cuid())
+  key              String                      @unique
+  platform         String
+  channelName      String?                     @map("channel_name")
+  title            String
+  contentType      String                      @map("content_type")
+  status           String                      @default("PLANNED")
+  publicUrl        String?                     @unique @map("public_url")
+  destinationUrl   String?                     @map("destination_url")
+  utmSource        String?                     @map("utm_source")
+  utmMedium        String?                     @map("utm_medium")
+  utmCampaign      String?                     @map("utm_campaign")
+  utmContent       String?                     @map("utm_content")
+  targetQuery      String?                     @map("target_query")
+  cluster          String?
+  indexStatus      String                      @default("UNKNOWN") @map("index_status")
+  publishedAt      DateTime?                   @map("published_at")
+  lastIndexCheckAt DateTime?                   @map("last_index_check_at")
+  nextReviewAt     DateTime?                   @map("next_review_at")
+  notes            String?                     @db.Text
+  source           String                      @default("ADMIN_UI")
+  createdBy        String?                     @map("created_by")
+  updatedBy        String?                     @map("updated_by")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+  metrics          ExternalPublicationMetric[]
+
+  @@index([status, publishedAt])
+  @@index([platform, publishedAt])
+  @@index([indexStatus, lastIndexCheckAt])
+  @@index([nextReviewAt])
+  @@index([utmSource, utmCampaign])
+  @@map("external_publications")
+}
+
+model ExternalPublicationMetric {
+  id             String              @id @default(cuid())
+  publicationId  String              @map("publication_id")
+  publication    ExternalPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  reach          Int?
+  views          Int?
+  reactions      Int?
+  comments       Int?
+  shares         Int?
+  outboundClicks Int?                @map("outbound_clicks")
+  source         String              @default("MANUAL")
+  recordedAt     DateTime            @map("recorded_at")
+  createdBy      String?             @map("created_by")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  @@index([publicationId, recordedAt])
+  @@map("external_publication_metrics")
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

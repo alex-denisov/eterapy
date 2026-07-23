@@ -42,7 +42,8 @@ describe("Z14 synastry product", () => {
       productKey: "synastry",
     }));
     expect(publicSeoRoutes).toContain("/products/synastry");
-    expect(publicPageSeo["/products/synastry"].title).toContain("Совместимость по звёздам");
+    expect(publicPageSeo["/products/synastry"].title).toContain("Совместимость по дате рождения");
+    expect(publicPageSeo["/products/synastry"].title).toContain("синастрия");
   });
 
   it("wires the public page, action component, API route, and catalogue surfaces", () => {

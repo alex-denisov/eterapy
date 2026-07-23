@@ -58,6 +58,7 @@ export function GET(request: Request) {
     `Host: ${seoHosts.main}`,
     `Sitemap: ${seoOrigins.main}/sitemap.xml`,
     `# LLM content map: ${seoOrigins.main}/llms.txt`,
+    `# Machine-readable pricing: ${seoOrigins.main}/pricing.md`,
     "",
   ].join("\n"));
 }

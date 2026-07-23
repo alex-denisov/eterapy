@@ -1,6 +1,8 @@
 import { unstable_cache } from "next/cache";
 import db from "@/lib/db";
 import type { AdminPeriod } from "@/app/admin/admin-analytics-data";
+import { approvedLibraryEntries } from "@/data/anonymous-library";
+import { publicSeoRoutes } from "@/lib/seo";
 import {
   parseMetrikaTotals,
   parseMetrikaTrafficSources,
@@ -15,16 +17,52 @@ import {
   type WordstatMetric,
 } from "@/lib/search-marketing-parsers";
 
-export const SEARCH_WATCHLIST = [
-  "сонник",
-  "матрица судьбы",
-  "значение имени",
-  "таро онлайн",
-  "натальная карта онлайн",
-  "совместимость по дате рождения",
-  "психолог онлайн",
-  "ии психолог",
+export type StrategicKeyword = {
+  phrase: string;
+  cluster: string;
+  landing: string;
+  priority: "P1" | "P2";
+  intent: "информационный" | "коммерческий" | "смешанный";
+  verifiedDemand?: number;
+};
+
+// B578: one owned semantic core. The verifiedDemand values are retained only
+// where the 2026-07-22 Wordstat check is documented; all other demand cells are
+// populated by the live API or remain explicitly unknown.
+export const STRATEGIC_KEYWORDS: readonly StrategicKeyword[] = [
+  { phrase: "психолог онлайн", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий", verifiedDemand: 61_264 },
+  { phrase: "ии психолог", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий", verifiedDemand: 12_312 },
+  { phrase: "ии психолог онлайн", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий" },
+  { phrase: "вопрос психологу", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P2", intent: "смешанный" },
+  { phrase: "разбор переписки", cluster: "Отношения", landing: "/products/chat-analysis", priority: "P1", intent: "коммерческий" },
+  { phrase: "почему он перестал писать", cluster: "Отношения", landing: "/library/on-perestayal-pisat-i-ya-ne-znayu-pochemu", priority: "P1", intent: "информационный" },
+  { phrase: "признаки измены", cluster: "Отношения", landing: "/library/revnuyu-bez-povoda-i-ustala", priority: "P2", intent: "информационный" },
+  { phrase: "таро онлайн", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "коммерческий", verifiedDemand: 299_945 },
+  { phrase: "расклад таро онлайн", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "коммерческий" },
+  { phrase: "какой расклад таро выбрать", cluster: "Таро", landing: "/library/kakoy-rasklad-taro-vybrat-dlya-slozhnogo-resheniya", priority: "P2", intent: "информационный" },
+  { phrase: "арканы рождения", cluster: "Таро", landing: "/products/tarot-numerology", priority: "P2", intent: "коммерческий" },
+  { phrase: "матрица судьбы", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный" },
+  { phrase: "матрица судьбы рассчитать", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "коммерческий", verifiedDemand: 180_466 },
+  { phrase: "матрица судьбы расшифровка", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный" },
+  { phrase: "натальная карта онлайн", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий" },
+  { phrase: "натальная карта рассчитать", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий" },
+  { phrase: "совместимость по дате рождения", cluster: "Астрология", landing: "/products/synastry", priority: "P1", intent: "коммерческий" },
+  { phrase: "синастрия", cluster: "Астрология", landing: "/products/synastry", priority: "P1", intent: "смешанный" },
+  { phrase: "хорарная астрология", cluster: "Астрология", landing: "/products/horary", priority: "P2", intent: "смешанный" },
+  { phrase: "дизайн человека рассчитать", cluster: "Самопознание", landing: "/products/human-design", priority: "P1", intent: "коммерческий" },
+  { phrase: "значение фамилии", cluster: "Имя и род", landing: "/products/surname-story", priority: "P2", intent: "смешанный" },
+  { phrase: "кармический код фамилии", cluster: "Имя и род", landing: "/products/surname-story", priority: "P2", intent: "коммерческий" },
+  { phrase: "сонник", cluster: "Сны", landing: "/library?direction=symbolic&topic=Сны+и+символы", priority: "P1", intent: "информационный" },
+  { phrase: "к чему снится что выпадают зубы", cluster: "Сны", landing: "/library/snitsya-chto-vypadayut-zuby-pered-vazhnymi-sobytiyami", priority: "P1", intent: "информационный" },
 ] as const;
+
+// Live Wordstat calls are deliberately capped to the P1 head terms. The full
+// core is still position-monitored through Webmaster without turning every
+// dashboard view into an API burst.
+export const SEARCH_WATCHLIST = STRATEGIC_KEYWORDS
+  .filter((keyword) => keyword.priority === "P1")
+  .slice(0, 12)
+  .map((keyword) => keyword.phrase);
 
 export type MarketingSourceState = {
   key: "webmaster" | "metrika" | "wordstat" | "internal";
@@ -179,7 +217,7 @@ async function requestWordstatWatchlist(): Promise<WordstatMetric[]> {
 
 const getCachedWordstatWatchlist = unstable_cache(
   requestWordstatWatchlist,
-  ["b563-wordstat-watchlist-v1"],
+  ["b578-wordstat-watchlist-v2"],
   { revalidate: 86_400, tags: ["marketing-wordstat"] },
 );
 
@@ -267,11 +305,39 @@ export async function getSearchMarketingData(period: AdminPeriod) {
     (totals, row) => ({ impressions: totals.impressions + row.impressions, clicks: totals.clicks + row.clicks }),
     { impressions: 0, clicks: 0 },
   );
+  const demandByPhrase = new Map(wordstatValue.data.map((item) => [item.phrase.toLocaleLowerCase("ru-RU"), item.monthlyDemand]));
+  const observedByPhrase = new Map(webmasterValue.data.queries.map((item) => [item.query.toLocaleLowerCase("ru-RU"), item]));
+  const keywordCore = STRATEGIC_KEYWORDS.map((keyword) => {
+    const liveDemand = demandByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
+    const observed = observedByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
+    return {
+      ...keyword,
+      monthlyDemand: liveDemand ?? keyword.verifiedDemand ?? null,
+      demandSource: liveDemand !== undefined && liveDemand !== null ? "live" as const : keyword.verifiedDemand ? "baseline" as const : "unknown" as const,
+      position: observed?.averagePosition ?? null,
+      impressions: observed?.impressions ?? 0,
+      clicks: observed?.clicks ?? 0,
+    };
+  });
+  const knownPublicPages = publicSeoRoutes.length + approvedLibraryEntries().length;
+  const indexCoverage = knownPublicPages > 0 ? webmasterValue.data.summary.searchablePages / knownPublicPages * 100 : 0;
+  const actions = [
+    ...(indexCoverage < 80 ? [{ tone: "warn" as const, title: "Индексация отстаёт от опубликованного корпуса", note: `${webmasterValue.data.summary.searchablePages} из ${knownPublicPages} известных публичных страниц находятся в поиске Яндекса.` }] : []),
+    ...(webmasterValue.data.queries.length === 0 ? [{ tone: "warn" as const, title: "Нет наблюдаемых поисковых запросов", note: "После переобхода проверьте первые показы и закрепите страницы за запросами без каннибализации." }] : []),
+    ...keywordCore.filter((item) => item.priority === "P1" && item.position === null).slice(0, 5).map((item) => ({
+      tone: "neutral" as const,
+      title: `Нет позиции: ${item.phrase}`,
+      note: `Целевая страница ${item.landing}`,
+    })),
+  ];
 
   return {
     webmaster: webmasterValue.data,
     metrika: metrikaValue.data,
     wordstat: wordstatValue.data,
+    keywordCore,
+    indexation: { knownPublicPages, coverage: indexCoverage },
+    actions,
     internal,
     totals: {
       ...queryTotals,

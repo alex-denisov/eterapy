@@ -21,6 +21,26 @@ export const publicAgentResources = [
     url: `${seoOrigins.main}/pricing`,
   },
   {
+    title: "Машиночитаемые цены",
+    description: "Текущие цены цифровых продуктов, баллы, состав результата и ограничения в Markdown.",
+    url: `${seoOrigins.main}/pricing.md`,
+  },
+  {
+    title: "Расклад Таро онлайн",
+    description: "Символический расклад по одному вопросу без обещаний будущего.",
+    url: `${seoOrigins.main}/products/tarot`,
+  },
+  {
+    title: "Натальная карта",
+    description: "Расчёт по данным рождения и символическая расшифровка ключевых тем.",
+    url: `${seoOrigins.main}/products/natal-chart`,
+  },
+  {
+    title: "Матрица судьбы",
+    description: "Расчёт 22 энергий по дате рождения и объяснение методики без фатализма.",
+    url: `${seoOrigins.main}/products/numerology`,
+  },
+  {
     title: "Этический кодекс",
     description: "Границы, правила безопасности и ответственность специалистов.",
     url: `${seoOrigins.main}/legal/ethics`,

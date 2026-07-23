@@ -17,6 +17,7 @@ import { FamilyScenariosActions } from "@/components/products/family-scenarios-a
 import { HoraryActions, TarotNumerologyActions } from "@/components/products/new-symbolic-product-actions";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
+import { ProductSeoContent } from "@/components/products/product-seo-content";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 import { getSetting } from "@/lib/platform-settings";
@@ -160,6 +161,7 @@ export default async function ProductPage({
           action={<ProductActionSurface product={product} search={search} />}
         />
       )}
+      <ProductSeoContent slug={product.slug} />
     </main>
   );
 }

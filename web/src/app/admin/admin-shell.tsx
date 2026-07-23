@@ -28,6 +28,7 @@ import {
   Landmark,
   FileSpreadsheet,
   Coins,
+  Newspaper,
   ChevronDown,
   Search,
 } from "lucide-react";
@@ -73,6 +74,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество", section: "product", level: 1 },
 
   { href: adminUrl("/admin/marketing"),    icon: Search,              label: "Поиск и маркетинг", section: "marketing", level: 0, superadminOnly: true },
+  { href: adminUrl("/admin/marketing/publications"), icon: Newspaper, label: "Внешние публикации", section: "marketing", level: 1, superadminOnly: true },
 
   { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },
