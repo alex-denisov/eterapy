@@ -52,6 +52,29 @@ export function getTelegramStartUrl(payload: string) {
   return `${base}${separator}start=${encodeURIComponent(payload)}`;
 }
 
+/**
+ * Adds stable first-party attribution to Bot API Mini App buttons without
+ * overwriting an explicitly configured campaign. Telegram's profile-level
+ * Main Mini App does not expose its URL through Bot API, so runtime analytics
+ * also records the detected messenger platform (see MiniAppShell).
+ */
+export function getTrackedTelegramMiniAppUrl(rawUrl: string, entry: "bot_menu" | "bot_welcome") {
+  const url = new URL(rawUrl);
+  const defaults = {
+    miniapp: "telegram",
+    source: "telegram",
+    channel: "telegram_bot",
+    entry,
+    utm_source: "telegram",
+    utm_medium: "bot",
+    utm_campaign: "miniapp",
+  };
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!url.searchParams.has(key)) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
 export function resolveTelegramGrowthPayload(payload: string | undefined | null) {
   if (!payload) return null;
   const normalized = payload.trim().toLowerCase().replace(/^tg_/, "");
