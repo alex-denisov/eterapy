@@ -7,6 +7,7 @@ import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
 import { v5Products } from "@/lib/v5-products";
+import { approvedLibraryEntries } from "@/data/anonymous-library";
 import { homeAgentMarkdown } from "@/lib/agent-readiness";
 import { cspHeaders, cspValue } from "@/lib/security-headers";
 
@@ -172,6 +173,7 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
 // поверхность). Добавляем её слаг вручную — иначе middleware пометит путь как
 // неизвестный (→ 404) и не распознает его как публичную страницу услуги.
 const VALID_PRODUCT_SLUGS = new Set<string>([...v5Products.map((product) => product.slug), "chat"]);
+const VALID_LIBRARY_SLUGS = new Set(approvedLibraryEntries().map((entry) => entry.slug));
 
 // B373 (M26): любой слаг, которого нет в v5Products, отдаёт честный 404 (без
 // редиректа). Выпиленные услуги и «Круг» (закрыт в B385) убраны из v5Products/
@@ -181,6 +183,16 @@ function unknownProductSlug(pathname: string): boolean {
   const match = pathname.match(/^\/products\/([^/]+)\/?$/);
   if (!match) return false;
   return !VALID_PRODUCT_SLUGS.has(match[1]);
+}
+
+// INC-076: notFound() inside the streamed /library/[slug] page renders the
+// correct UI but Next has already committed HTTP 200. Resolve the static
+// editorial allowlist in middleware so crawlers receive a real 404 without an
+// external redirect or a duplicate section hub.
+function unknownLibrarySlug(pathname: string): boolean {
+  const match = pathname.match(/^\/library\/([^/]+)\/?$/);
+  if (!match) return false;
+  return !VALID_LIBRARY_SLUGS.has(match[1]);
 }
 
 // M26/B369: выпиленные кабинетные роуты (без редиректов). Покрываем и
@@ -246,7 +258,7 @@ export default async function proxy(request: NextRequest) {
     );
   }
 
-  if (unknownProductSlug(pathname) || isRemovedPath(pathname)) {
+  if (unknownProductSlug(pathname) || unknownLibrarySlug(pathname) || isRemovedPath(pathname)) {
     return applyRobotsPolicy(
       rewriteWithContext(internalRewriteUrl(request, "/__product-not-found"), requestHeaders, context),
       host,

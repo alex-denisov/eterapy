@@ -20,6 +20,11 @@ import {
   libraryMetaTitle,
 } from "@/lib/library-editorial";
 
+// The library corpus is editorial and fully known at build time. Keep the
+// route contract closed as well as the proxy allowlist; the proxy performs the
+// pre-stream 404 because the root loading boundary can commit HTTP 200 first.
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return approvedLibraryEntries().map((entry) => ({ slug: entry.slug }));
 }
