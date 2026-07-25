@@ -27,11 +27,14 @@ export async function GET(request: Request) {
 
   const sitemapRoutes = [
     ...publicSeoRoutes,
+    "/llms.txt",
+    "/llms-full.txt",
+    "/pricing.md",
     ...approvedLibraryEntries().map((entry) => `/library/${entry.slug}`),
     ...activePractitioners.filter((p) => p.slug).map((p) => `/practitioners/${p.slug}`),
   ];
 
-  const urls = sitemapRoutes.map((route) => [
+  const urls = [...new Set(sitemapRoutes)].map((route) => [
     "  <url>",
     `    <loc>${canonicalUrl(route)}</loc>`,
     "    <changefreq>weekly</changefreq>",
