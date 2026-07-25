@@ -10,6 +10,13 @@ describe("B205 Library and esoteric service pages", () => {
       expect(fs.existsSync(path.join(root, `src/app/library/${route}/page.tsx`))).toBe(false);
       expect(fs.existsSync(path.join(root, `src/app/library/${route}/route.ts`))).toBe(false);
     }
+
+    const detail = source("src/app/library/[slug]/page.tsx");
+    expect(detail).toContain("export const dynamicParams = false");
+
+    const proxy = source("src/proxy.ts");
+    expect(proxy).toContain("function unknownLibrarySlug");
+    expect(proxy).toContain("unknownLibrarySlug(pathname)");
   });
 
   it("keeps legacy esoteric URLs as redirects to canonical /products pages", () => {
