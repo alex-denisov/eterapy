@@ -67,3 +67,22 @@ describe("B586 — цель регистрации и идентификатор
     expect(read("src/app/cabinet/layout.tsx")).toContain("<AnalyticsIdentity userId={session.user.id} />");
   });
 });
+
+describe("B586 — хит не уходит без вычищенного адреса", () => {
+  const loader = read("public/analytics/metrika.js");
+
+  it("ждёт загрузки правила вычистки, а не отправляет голый origin", () => {
+    // Оба тега стоят afterInteractive, порядок не гарантирован. Когда загрузчик
+    // выполнялся первым, адрес терял путь целиком: 6 просмотров из 37 за
+    // 19–26 июля записаны на голый https://eterapy.com.
+    expect(loader).toContain('script[src="/analytics/scrub.js"]');
+    expect(loader).toContain('addEventListener("load", sendHit');
+    expect(loader).toContain('addEventListener("error", sendHit');
+  });
+
+  it("резервный вариант — origin, а не настоящий адрес: в нём идентификаторы", () => {
+    expect(loader).toContain("window.location.origin");
+    // Прямая отправка window.location.href мимо вычистки — то, чего быть не должно.
+    expect(loader).not.toMatch(/"hit",\s*window\.location\.href/);
+  });
+});

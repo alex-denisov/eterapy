@@ -45,6 +45,31 @@
     defer: true,
   });
 
-  var scrub = window.eterapyScrubAnalyticsUrl;
-  window.ym(counterId, "hit", scrub ? scrub(window.location.href) : window.location.origin);
+  // B586: правило вычистки грузится отдельным файлом, и оба тега стоят
+  // `afterInteractive` — то есть порядок их выполнения НЕ гарантирован. Когда
+  // этот файл выполнялся первым, `eterapyScrubAnalyticsUrl` ещё не было, и хит
+  // уходил на резервный `window.location.origin`, теряя путь целиком: в отчётах
+  // за 19–26 июля 6 просмотров из 37 записаны на голый `https://eterapy.com`
+  // без страницы. Данные не утекали, но и не считались.
+  //
+  // Поэтому ждём загрузки правила и только потом отправляем хит. Резервный
+  // вариант остаётся ровно для того, для чего он и нужен: правило не загрузилось
+  // вообще. Отправить настоящий адрес без вычистки нельзя — в нём
+  // идентификаторы.
+  function sendHit() {
+    var scrub = window.eterapyScrubAnalyticsUrl;
+    window.ym(counterId, "hit", scrub ? scrub(window.location.href) : window.location.origin);
+  }
+
+  if (window.eterapyScrubAnalyticsUrl) {
+    sendHit();
+  } else {
+    var scrubTag = document.querySelector('script[src="/analytics/scrub.js"]');
+    if (!scrubTag) {
+      sendHit();
+    } else {
+      scrubTag.addEventListener("load", sendHit, { once: true });
+      scrubTag.addEventListener("error", sendHit, { once: true });
+    }
+  }
 })();
