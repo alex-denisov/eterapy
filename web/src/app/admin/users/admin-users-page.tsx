@@ -351,6 +351,22 @@ export default async function AdminUsersPage(props: {
         provider: true,
         registrationChannel: true,
         telegramUsername: true,
+        telegramId: true,
+        // B585: настоящая привязка Telegram живёт в `platform_identities` (её
+        // пишет вход в Mini App после проверки подписи), а поле выше — только
+        // ручной адрес для уведомлений. Карточка показывала второе и молчала о
+        // первом, поэтому привязанный аккаунт выглядел непривязанным.
+        platformIdentities: {
+          select: {
+            provider: true,
+            subjectId: true,
+            username: true,
+            displayName: true,
+            createdAt: true,
+            lastSeenAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
         birthDate: true,
         birthTime: true,
         birthPlace: true,
@@ -367,6 +383,7 @@ export default async function AdminUsersPage(props: {
             verified: true,
             verifiedAt: true,
             bookingOverrideEnabled: true,
+            demoAccount: true,
             agentOfferAcceptedAt: true,
             agentOfferVersion: true,
             taxStatus: true,
@@ -538,6 +555,15 @@ export default async function AdminUsersPage(props: {
     clarityCredits: creditByUser.get(user.id) ?? 0,
     provider: user.provider,
     telegramUsername: user.telegramUsername,
+    telegramId: user.telegramId,
+    platformIdentities: user.platformIdentities.map((identity) => ({
+      provider: identity.provider,
+      subjectId: identity.subjectId,
+      username: identity.username,
+      displayName: identity.displayName,
+      linkedAt: identity.createdAt.toISOString(),
+      lastSeenAt: identity.lastSeenAt?.toISOString() ?? null,
+    })),
     birthDate: user.birthDate?.toISOString() ?? null,
     birthTime: user.birthTime,
     birthPlace: user.birthPlace,
@@ -555,6 +581,7 @@ export default async function AdminUsersPage(props: {
         verified: user.practitioner.verified,
         verifiedAt: user.practitioner.verifiedAt?.toISOString() ?? null,
         bookingOverrideEnabled: user.practitioner.bookingOverrideEnabled,
+        demoAccount: user.practitioner.demoAccount,
         agentOfferAcceptedAt: user.practitioner.agentOfferAcceptedAt?.toISOString() ?? null,
         agentOfferVersion: user.practitioner.agentOfferVersion,
         taxStatus: user.practitioner.taxStatus,

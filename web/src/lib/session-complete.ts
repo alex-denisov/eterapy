@@ -25,6 +25,7 @@
  *   - booking.endedAt is now set at completion time.
  */
 import db from "./db";
+import { SESSION_DISPUTE_WINDOW_HOURS } from "@/lib/session-dispute-window";
 import { payoutHoldMetadata } from "./practitioner-antifraud";
 import {
   PAYOUT_HOLD_DAYS_BY_PLAN,
@@ -42,7 +43,9 @@ export const PAYOUT_STATUS_FAILED = "FAILED";
 /** Minimum fraction of the scheduled slot that must pass before a
  *  practitioner-initiated completion counts as "not early". */
 export const EARLY_END_MIN_FRACTION = 0.75;
-export const SESSION_DISPUTE_WINDOW_HOURS = 24;
+// Величина живёт в чистом модуле: её же читает модель сплита Robokassa, которая
+// импортируется клиентскими компонентами и не может тянуть за собой БД.
+export { SESSION_DISPUTE_WINDOW_HOURS };
 
 export type CompletionOutcome =
   | {

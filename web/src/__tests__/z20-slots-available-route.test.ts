@@ -12,6 +12,8 @@ jest.mock("@/lib/auth", () => ({
 jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
+    // B584: маршрут сначала спрашивает, не демо-профиль ли это.
+    practitioner: { findUnique: jest.fn() },
     scheduleRule: { findUnique: jest.fn() },
     blockedSlot: { findMany: jest.fn() },
     booking: { findMany: jest.fn() },
@@ -49,6 +51,7 @@ function futureDateStr() {
 function setupDb(dateStr: string) {
   const startAt = new Date(`${dateStr}T12:00:00`);
   const endAt = new Date(`${dateStr}T13:00:00`);
+  (mockDb.practitioner.findUnique as jest.Mock).mockResolvedValue({ demoAccount: false });
   (mockDb.scheduleRule.findUnique as jest.Mock).mockResolvedValue({
     enabled: true,
     startHour: 12,

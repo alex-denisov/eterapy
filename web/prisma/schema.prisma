@@ -170,6 +170,12 @@ model Practitioner {
   // a «Проверен ETerapy» practitioner is bookable; never bypasses the active check.
   bookingOverrideEnabled  Boolean                     @default(false) @map("booking_override_enabled")
   bookingOverrideAt       DateTime?                   @map("booking_override_at")
+  // B584 (owner 2026-07-26): профиль-витрина, а не живой специалист. Сидированные
+  // аккаунты нужны каталогу, но записаться к ним нельзя: за ними никого нет.
+  // Флаг сильнее `bookingOverrideEnabled` — иначе он же их и открыл (B459 ставил
+  // override именно демо-аккаунтам). Живой специалист создаётся с `false`, то
+  // есть подключение реального человека кодом не сопровождается.
+  demoAccount             Boolean                     @default(false) @map("demo_account")
   agentOfferAcceptedAt    DateTime?                   @map("agent_offer_accepted_at")
   agentOfferVersion       String?                     @map("agent_offer_version")
   taxStatus               PractitionerTaxStatus       @default(UNKNOWN) @map("tax_status")

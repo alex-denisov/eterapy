@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
+import { AnalyticsIdentity } from "@/components/analytics-identity";
 import { loginUrl, logoutUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
 import { getSessionAccountAccessState, inactiveAccountReason } from "@/lib/account-state";
@@ -84,6 +85,12 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   // X2: the impersonation banner is now rendered globally in the root layout
   // (above the header), so the cabinet layout no longer renders its own.
   return (
-    <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel} counts={counts}>{children}</CabinetShell>
+    <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel} counts={counts}>
+      {/* B586: связываем визит с пользователем во внешнем счётчике. Сессия
+          известна только на сервере, поэтому id прокидывается сюда, а не
+          читается в самом счётчике. */}
+      {session.user?.id ? <AnalyticsIdentity userId={session.user.id} /> : null}
+      {children}
+    </CabinetShell>
   );
 }

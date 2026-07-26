@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { canAccessPrioritySlot, isEarlyAccessSlot } from "@/lib/priority-booking";
 import { trackServerEvent } from "@/lib/analytics";
+import { isDemoPractitioner } from "@/lib/practitioner-compliance";
 import { generatePotentialSlots, slotsOverlap } from "@/lib/slot-availability";
 
 /**
@@ -19,6 +20,13 @@ export async function GET(req: NextRequest) {
 
   if (!practitionerId || !dateStr) {
     return NextResponse.json({ error: "practitionerId и date обязательны" }, { status: 400 });
+  }
+
+  // B584: демо-профиль слотов не отдаёт вовсе. Расписание у него выключено
+  // миграцией, но правило можно вернуть из кабинета — поэтому запрет живёт в
+  // коде, а не только в данных.
+  if (await isDemoPractitioner(practitionerId)) {
+    return NextResponse.json({ slots: [], reason: "demo_account" });
   }
 
   const session = await auth().catch(() => null);

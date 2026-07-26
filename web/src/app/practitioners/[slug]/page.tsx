@@ -139,6 +139,9 @@ export default async function PractitionerPage({
   // rejected with a 409 on submit — show a gentle notice instead.
   const bookingGate = await assertPractitionerBookingAllowed(p.id);
   const bookingAllowed = bookingGate.allowed;
+  // B584: причина «профиль демонстрационный» звучит иначе, чем «документы в
+  // проверке», — обещать открытие записи нельзя.
+  const bookingDemoProfile = bookingGate.reasons.includes("demo_account");
 
   // B379: «контекст встречи». Спрашиваем при первой записи к специалисту;
   // повторная запись к тому же специалисту — без повторного запроса. Контекст
@@ -425,10 +428,16 @@ export default async function PractitionerPage({
                   className="mt-6 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]"
                   data-testid="booking-unavailable-notice"
                 >
-                  <p style={{ fontWeight: 600, color: "var(--soft-bordeaux)" }}>Запись скоро откроется</p>
+                  <p style={{ fontWeight: 600, color: "var(--soft-bordeaux)" }}>
+                    {bookingDemoProfile ? "Запись к этому специалисту закрыта" : "Запись скоро откроется"}
+                  </p>
                   <p className="mt-1.5 text-[var(--soft-ink-faint)]">
-                    Специалист завершает проверку документов и реквизитов. Загляните чуть позже —
-                    или выберите другого специалиста из каталога.
+                    {bookingDemoProfile
+                      /* B584: обещать «скоро откроется» здесь было бы неправдой —
+                         за демонстрационным профилем нет человека, который проведёт
+                         сессию. Говорим то, что есть: расписание закрыто. */
+                      ? "Расписание этого профиля закрыто — сессии по нему не проводятся. Живые специалисты появятся в каталоге по мере подключения."
+                      : "Специалист завершает проверку документов и реквизитов. Загляните чуть позже — или выберите другого специалиста из каталога."}
                   </p>
                   <Link href="/practitioners" className="soft-chip mt-3 inline-flex">
                     ← Все специалисты

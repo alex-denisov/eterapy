@@ -226,6 +226,32 @@ export function PractitionerBookingScreen({
     }
   }
 
+  // B584 (owner 2026-07-26): к демонстрационному профилю записаться нельзя —
+  // за ним нет специалиста. Календарь бы всё равно оказался пустым (слоты
+  // закрыты на сервере), но пустая сетка не объясняет причину.
+  if (practitioner.demoAccount) {
+    return (
+      <MiniAppChrome data={data}>
+        <div className={styles.subpage} data-testid="miniapp-booking-closed">
+          <PageHead
+            back={`/miniapp/practitioners/${practitioner.slug}`}
+            eyebrow="запись"
+            title="Запись закрыта"
+            description={practitioner.name}
+          />
+          <section className={styles["conversation-card"]}>
+            <span><Clock size={22} /><strong>Расписание закрыто</strong></span>
+            <p>
+              Сессии по этому профилю не проводятся. Живые специалисты появятся
+              в каталоге по мере подключения — а разборы и практики доступны сейчас.
+            </p>
+          </section>
+          <Link className={styles["journey-primary"]} href="/miniapp">На главную <ArrowRight size={18} /></Link>
+        </div>
+      </MiniAppChrome>
+    );
+  }
+
   if (bookedId) {
     return (
       <MiniAppChrome data={data}>

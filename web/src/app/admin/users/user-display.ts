@@ -29,6 +29,21 @@ export interface AdminUserRow {
   clarityCredits: number;
   provider: string | null;
   telegramUsername: string | null;
+  /** Легаси-поле уведомлений: числовой id, вписанный вручную или ботом. */
+  telegramId: string | null;
+  /**
+   * B585: подтверждённые платформенные личности. Их пишет вход в Mini App после
+   * проверки подписи Telegram — это и есть «привязан ли Telegram», в отличие от
+   * `telegramUsername`, который администратор набирает руками.
+   */
+  platformIdentities: Array<{
+    provider: string;
+    subjectId: string;
+    username: string | null;
+    displayName: string | null;
+    linkedAt: string;
+    lastSeenAt: string | null;
+  }>;
   birthDate: string | null;
   birthTime: string | null;
   birthPlace: string | null;
@@ -44,6 +59,8 @@ export interface AdminUserRow {
     verified: boolean;
     verifiedAt: string | null;
     bookingOverrideEnabled: boolean;
+    /** B584: демонстрационный профиль — запись закрыта сильнее любого override. */
+    demoAccount: boolean;
     agentOfferAcceptedAt: string | null;
     agentOfferVersion: string | null;
     taxStatus: string;

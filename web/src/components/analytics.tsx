@@ -10,10 +10,11 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { getCookieConsent } from "./cookie-banner";
 import { track } from "@/lib/analytics";
+import { ANALYTICS_EVENT, ANALYTICS_IDENTIFY_EVENT } from "@/lib/analytics-events";
 import { ADMIN_DOMAIN, APP_DOMAIN } from "@/lib/env";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
@@ -54,6 +55,7 @@ export function Analytics() {
   // B568: вебвизор решается той же поверхностью, что и подъём счётчика, и
   // читается после гидратации — до неё `window` знать нечего.
   const [webvisorAllowed, setWebvisorAllowed] = useState(false);
+  const identifiedUserId = useRef<string | null>(null);
   useEffect(() => {
     // B523: в админке внешнюю аналитику не поднимаем вовсе — админские URL
     // несут идентификаторы пользователей, а сессии администраторов искажают
@@ -102,6 +104,18 @@ export function Analytics() {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
+  // B586: id пользователя может прийти до согласия на cookies — счётчика тогда
+  // ещё нет. Помним его отдельным слушателем, который живёт всегда, и
+  // отправляем, когда счётчик поднимется.
+  useEffect(() => {
+    function remember(event: Event) {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      if (typeof detail?.userId === "string" && detail.userId) identifiedUserId.current = detail.userId;
+    }
+    window.addEventListener(ANALYTICS_IDENTIFY_EVENT, remember);
+    return () => window.removeEventListener(ANALYTICS_IDENTIFY_EVENT, remember);
+  }, []);
+
   useEffect(() => {
     function onConsentChange() {
       if (getCookieConsent() === "all") setConsented(true);
@@ -141,10 +155,34 @@ export function Analytics() {
       });
     }
 
-    window.addEventListener("eterapy:analytics", onCustom);
+    // B586: кто это. Метрика — не CRM: без `setUserID` в отчётах видны визиты,
+    // но не человек, и вопрос «что делал вот этот зарегистрировавшийся» ответа
+    // не имеет. Уходит только наш внутренний cuid.
+    function onIdentify(event: Event) {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      const userId = typeof detail?.userId === "string" ? detail.userId : null;
+      if (!userId) return;
+      identifiedUserId.current = userId;
+      const win = window as typeof window & {
+        ym?: (id: string, method: string, value: string) => void;
+      };
+      if (YANDEX_ID) win.ym?.(YANDEX_ID, "setUserID", userId);
+    }
+
+    window.addEventListener(ANALYTICS_EVENT, onCustom);
+    window.addEventListener(ANALYTICS_IDENTIFY_EVENT, onIdentify);
     document.addEventListener("click", onClick);
+
+    // Согласие часто даётся ПОСЛЕ того, как страница уже сообщила, кто вошёл:
+    // счётчика в тот момент не было, событие ушло в пустоту. Повторяем его сами,
+    // как только счётчик поднялся.
+    if (identifiedUserId.current) {
+      onIdentify(new CustomEvent(ANALYTICS_IDENTIFY_EVENT, { detail: { userId: identifiedUserId.current } }));
+    }
+
     return () => {
-      window.removeEventListener("eterapy:analytics", onCustom);
+      window.removeEventListener(ANALYTICS_EVENT, onCustom);
+      window.removeEventListener(ANALYTICS_IDENTIFY_EVENT, onIdentify);
       document.removeEventListener("click", onClick);
     };
   }, [consented]);

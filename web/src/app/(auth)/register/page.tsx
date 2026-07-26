@@ -12,6 +12,7 @@ import { VKIDButton } from "@/components/vkid-button";
 import { sanitizeName, sanitizeEmail, getNameError, getEmailError } from "@/lib/validation";
 import { appUrl, homeUrlForRole } from "@/lib/subdomain";
 import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
+import { reportAnalyticsGoal, SIGNUP_GOAL } from "@/lib/analytics-events";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -90,6 +91,10 @@ export default function RegisterPage() {
         const persisted = await persistGuestResultDraftToAccount();
         setGuestResultSaved(persisted.saved);
         setRegistered(true);
+        // B586: регистрация не была видна во внешнем счётчике вовсе — цели под
+        // неё не существовало, а автоцели Метрики ловят формы, но не наш
+        // клиентский submit. Отправляем событие сами.
+        reportAnalyticsGoal(SIGNUP_GOAL, { channel: "web" });
         toast.success(persisted.saved ? "Аккаунт создан, ответ сохранён." : "Аккаунт создан! Проверьте email для подтверждения.");
       }
     } catch {

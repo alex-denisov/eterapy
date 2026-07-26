@@ -96,12 +96,13 @@ describe("admin refactor routes", () => {
       id: "prac-1",
       status: "ACTIVE",
       verified: true,
+      demoAccount: false,
       agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
       agentOfferVersion: AGENT_OFFER_VERSION,
       taxStatus: "SELF_EMPLOYED",
       taxReviewStatus: "VERIFIED",
       taxStatusVerifiedAt: new Date("2026-06-18T10:05:00.000Z"),
-      payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED" },
+      payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED", robokassaAccount: "eterapy-spec-01" },
     });
     mockDb.practitioner.update.mockResolvedValue({
       id: "prac-1",

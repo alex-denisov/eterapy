@@ -36,6 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
 import type { MiniAppOffer, MiniAppPractitionerCard } from "@/lib/miniapp/journey-data";
+import { reportAnalyticsGoal, SIGNUP_GOAL } from "@/lib/analytics-events";
 import { insideTelegram, loadTelegramSdk, openTelegramInvoice } from "@/lib/miniapp/telegram/client";
 import { purchaseBodyFor } from "@/lib/miniapp/purchase-body";
 import { MINIAPP_DIRECTIONS, matchesDirection, type MiniAppDirection } from "@/lib/miniapp/practitioner-filter";
@@ -111,7 +112,9 @@ export function PractitionersScreen({ practitioners }: { practitioners: MiniAppP
           </>
         ) : (
           <section className={styles["empty-detail"]}>
-            <Users size={28} /><strong>В этом направлении пока нет профилей</strong><p>Показываем только реальные активные анкеты.</p>
+            {/* B584: «реальные анкеты» — обещание, которого каталог сейчас не
+                держит: все профили сидированные, запись к ним закрыта. */}
+            <Users size={28} /><strong>В этом направлении пока нет профилей</strong><p>Показываем только активные профили платформы.</p>
           </section>
         )}
       </div>
@@ -131,7 +134,15 @@ export function PractitionerDetailScreen({ practitioner }: { practitioner: MiniA
         </section>
         <div className={styles["trust-strip"]}><span><ShieldCheck size={18} />{practitioner.verified ? "Проверен ETerapy" : "Активный профиль"}</span><span><Star size={18} weight="fill" />{practitioner.reviewCount ? `${practitioner.rating.toFixed(1)} · ${practitioner.reviewCount}` : "Новый профиль"}</span></div>
         {practitioner.tags.length ? <section className={styles["journey-section"]}><p className={styles.eyebrow}>с чем работает</p><div className={styles["tag-list"]}>{practitioner.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></section> : null}
-        <GateLink href={`/miniapp/practitioners/${practitioner.slug}/book`}>Посмотреть свободное время</GateLink>
+        {/* B584: у демонстрационного профиля CTA обещал бы свободное время,
+            которого нет и не будет — за профилем нет специалиста. */}
+        {practitioner.demoAccount ? (
+          <p className={styles["flow-note"]} data-testid="miniapp-practitioner-booking-closed">
+            Запись к этому профилю закрыта — сессии по нему не проводятся.
+          </p>
+        ) : (
+          <GateLink href={`/miniapp/practitioners/${practitioner.slug}/book`}>Посмотреть свободное время</GateLink>
+        )}
         <button className={styles["journey-secondary"]} type="button" onClick={() => share(practitioner.name, `/miniapp/practitioners/${practitioner.slug}`)}><LinkSimple size={17} />Поделиться профилем</button>
       </article>
     </MiniAppChrome>
@@ -349,6 +360,9 @@ export function AccountScreen({ initialMode, returnTo }: { initialMode: "login" 
         const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, acceptContract, acceptPdn }) });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Не удалось создать аккаунт");
+        // B586: та же цель, что на вебе, с пометкой канала — иначе регистрации
+        // из мини-аппа не видно во внешнем счётчике вовсе.
+        reportAnalyticsGoal(SIGNUP_GOAL, { channel: "miniapp" });
       }
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.error) throw new Error(mode === "login" ? "Неверный email или пароль" : "Аккаунт создан, но войти не удалось");

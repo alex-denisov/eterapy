@@ -12,6 +12,7 @@ describe("B459 superadmin manual booking-enable override", () => {
   const incompleteButOverridden = {
     id: "p1",
     status: "ACTIVE" as const,
+    demoAccount: false,
     bookingOverrideEnabled: true,
     agentOfferAcceptedAt: null,
     agentOfferVersion: null,
@@ -58,7 +59,7 @@ describe("B459 superadmin manual booking-enable override", () => {
       taxStatus: "SELF_EMPLOYED" as const,
       taxReviewStatus: "VERIFIED" as const,
       taxStatusVerifiedAt: new Date("2026-06-18T10:05:00.000Z"),
-      payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED" },
+      payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED", robokassaAccount: "eterapy-spec-01" },
     };
     expect(evaluatePractitionerCommercialGate(fullyCompliant).allowed).toBe(true);
   });

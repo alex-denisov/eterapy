@@ -4,6 +4,7 @@ describe("B426 practitioner commercial compliance gate", () => {
   const base = {
     id: "practitioner-1",
     status: "ACTIVE" as const,
+    demoAccount: false,
     bookingOverrideEnabled: false,
     agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
     agentOfferVersion: AGENT_OFFER_VERSION,
@@ -13,7 +14,7 @@ describe("B426 practitioner commercial compliance gate", () => {
     payoutDetails: {
       type: "CARD",
       inn: "123456789012",
-      kycStatus: "NOT_REQUIRED",
+      kycStatus: "NOT_REQUIRED", robokassaAccount: "eterapy-spec-01",
     },
   };
 
@@ -46,7 +47,7 @@ describe("B426 practitioner commercial compliance gate", () => {
     const gate = evaluatePractitionerCommercialGate({
       ...base,
       taxStatus: "LEGAL_ENTITY",
-      payoutDetails: { type: "CARD", inn: "1234567890", kycStatus: "NOT_REQUIRED" },
+      payoutDetails: { type: "CARD", inn: "1234567890", kycStatus: "NOT_REQUIRED", robokassaAccount: "eterapy-spec-01" },
     });
 
     expect(gate.allowed).toBe(false);
@@ -55,7 +56,7 @@ describe("B426 practitioner commercial compliance gate", () => {
     const entityGate = evaluatePractitionerCommercialGate({
       ...base,
       taxStatus: "INDIVIDUAL_ENTREPRENEUR",
-      payoutDetails: { type: "ENTITY", inn: "123456789012", kycStatus: "PENDING" },
+      payoutDetails: { type: "ENTITY", inn: "123456789012", kycStatus: "PENDING", robokassaAccount: "eterapy-spec-01" },
     });
     expect(entityGate.reasons).toContain("entity_kyc_required");
   });

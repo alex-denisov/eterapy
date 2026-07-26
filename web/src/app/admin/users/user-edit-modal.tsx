@@ -486,7 +486,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               <h3 className={`mb-2 ${LABEL}`}>Профиль клиента</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className={LABEL}>Telegram</span>
+                  <span className={LABEL}>Telegram для уведомлений</span>
                   <Input className={FIELD} value={telegramUsername} disabled={!canEditName} placeholder="@username" onChange={(e) => setTelegramUsername(e.target.value)} />
                 </label>
                 <label className="block">
@@ -505,6 +505,44 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                   <span className={LABEL}>Часовой пояс</span>
                   <Input className={FIELD} value={timezone} disabled={!canEditName} placeholder="Europe/Moscow" onChange={(e) => setTimezone(e.target.value)} />
                 </label>
+              </div>
+
+              {/* B585: привязка Telegram, а не адрес для уведомлений. Пишется
+                  входом в Mini App после проверки подписи Telegram, поэтому
+                  редактировать её нельзя — только смотреть. Раньше карточка её
+                  не показывала вовсе: клиент, зашедший из Telegram и связавший
+                  аккаунт, выглядел непривязанным. */}
+              <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3" data-testid="user-modal-platform-identities">
+                <span className={LABEL}>Привязанные входы</span>
+                {row.platformIdentities.length === 0 ? (
+                  <p className="mt-1 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
+                    Привязок нет — вход в Mini App с этого аккаунта не подтверждался.
+                    {row.telegramId ? ` Легаси-id уведомлений: ${row.telegramId}.` : ""}
+                  </p>
+                ) : (
+                  <ul className="mt-1.5 space-y-1.5 text-[11px] text-[var(--soft-ink-soft)]">
+                    {row.platformIdentities.map((identity) => (
+                      <li
+                        key={`${identity.provider}-${identity.subjectId}`}
+                        className="rounded border border-[var(--soft-paper-edge)] px-2 py-1.5"
+                      >
+                        <span className="font-semibold text-[var(--soft-ink-strong)]">
+                          {identity.provider === "telegram" ? "Telegram" : identity.provider}
+                        </span>
+                        {" · id "}
+                        <span className="tabular-nums">{identity.subjectId}</span>
+                        {identity.username ? ` · @${identity.username}` : ""}
+                        {identity.displayName ? ` · ${identity.displayName}` : ""}
+                        <span className="mt-0.5 block text-[var(--soft-ink-faint)]">
+                          привязан {new Date(identity.linkedAt).toLocaleString("ru-RU")}
+                          {identity.lastSeenAt
+                            ? ` · последний вход ${new Date(identity.lastSeenAt).toLocaleString("ru-RU")}`
+                            : " · входов после привязки не было"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </section>
           )}
@@ -765,10 +803,22 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                     <div>
                       <span className={LABEL}>Ручное включение записи</span>
                       <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
-                        {bookingOverride ? "Запись открыта вручную в обход коммерческих реквизитов." : "Запись закрыта до выполнения коммерческих условий."}
+                        {/* B584: у демо-профиля переключатель бессмысленен — гейт
+                            закрыт до него, и врать об «открытой записи» нельзя. */}
+                        {pr.demoAccount
+                          ? "Профиль демонстрационный: запись закрыта, ручное включение её не открывает."
+                          : bookingOverride
+                            ? "Запись открыта вручную в обход коммерческих реквизитов."
+                            : "Запись закрыта до выполнения коммерческих условий."}
                       </p>
                     </div>
-                    <button type="button" className="soft-admin-action" data-variant={bookingOverride ? "subtle" : "primary"} onClick={() => void toggleBookingOverride()} disabled={busy}>
+                    <button
+                      type="button"
+                      className="soft-admin-action"
+                      data-variant={bookingOverride ? "subtle" : "primary"}
+                      onClick={() => void toggleBookingOverride()}
+                      disabled={busy || pr.demoAccount}
+                    >
                       {bookingOverride ? "Снять ручное включение" : "Включить запись"}
                     </button>
                   </div>

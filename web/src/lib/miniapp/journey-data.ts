@@ -16,6 +16,8 @@ export type MiniAppPractitionerCard = {
   durationMin: number;
   rating: number;
   reviewCount: number;
+  /** B584: профиль-витрина — записаться нельзя, сессии по нему не проводятся. */
+  demoAccount: boolean;
 };
 
 export type MiniAppOffer = {
@@ -109,6 +111,7 @@ export async function loadMiniAppPractitioners(): Promise<MiniAppPractitionerCar
       durationMin: rate?.durationMin ?? 50,
       rating: row.reviewCount > 0 ? row.ratingSum / row.reviewCount : 0,
       reviewCount: row.reviewCount,
+      demoAccount: row.demoAccount,
     };
   });
 }
