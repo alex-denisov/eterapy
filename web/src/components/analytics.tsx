@@ -56,6 +56,12 @@ export function Analytics() {
   // читается после гидратации — до неё `window` знать нечего.
   const [webvisorAllowed, setWebvisorAllowed] = useState(false);
   const identifiedUserId = useRef<string | null>(null);
+  // B586: личность нужна не только эффекту, но и РАЗМЕТКЕ — загрузчик счётчика
+  // получает её data-атрибутом и вызывает `setUserID` сразу после `init`. Прямой
+  // вызов из эффекта этого не заменяет: в момент, когда согласие получено,
+  // `window.ym` ещё не существует (тег только начал грузиться), и `win.ym?.(…)`
+  // молча ничего не делает. Именно так первые две версии правки и не работали.
+  const [analyticsUserId, setAnalyticsUserId] = useState<string | null>(null);
   useEffect(() => {
     // B523: в админке внешнюю аналитику не поднимаем вовсе — админские URL
     // несут идентификаторы пользователей, а сессии администраторов искажают
@@ -110,9 +116,19 @@ export function Analytics() {
   useEffect(() => {
     function remember(event: Event) {
       const detail = event instanceof CustomEvent ? event.detail : null;
-      if (typeof detail?.userId === "string" && detail.userId) identifiedUserId.current = detail.userId;
+      if (typeof detail?.userId === "string" && detail.userId) {
+        identifiedUserId.current = detail.userId;
+        setAnalyticsUserId(detail.userId);
+      }
     }
     window.addEventListener(ANALYTICS_IDENTIFY_EVENT, remember);
+    // Значение могло быть объявлено до подписки — эффекты идут снизу вверх.
+    const known = readAnalyticsUserId();
+    if (known) {
+      identifiedUserId.current = known;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnalyticsUserId(known);
+    }
     return () => window.removeEventListener(ANALYTICS_IDENTIFY_EVENT, remember);
   }, []);
 
@@ -209,6 +225,7 @@ export function Analytics() {
             strategy="afterInteractive"
             data-eterapy-metrika-id={YANDEX_ID}
             data-eterapy-webvisor={webvisorAllowed ? "1" : "0"}
+            data-eterapy-user-id={analyticsUserId ?? ""}
           />
           <noscript>
             <div>

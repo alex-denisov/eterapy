@@ -64,6 +64,22 @@ describe("B586 — цель регистрации и идентификатор
     expect(analytics).toContain("readAnalyticsUserId()");
   });
 
+  it("личность уходит в счётчик из загрузчика, а не из эффекта компонента", () => {
+    // ⚠ Вторая находка на живом проде: в момент, когда согласие получено,
+    // `window.ym` ещё не существует (тег только начал грузиться), и
+    // необязательный вызов `win.ym?.("setUserID", …)` молча ничего не делает —
+    // в очереди `ym.a` были только `init` и `hit`. Поэтому личность передаётся
+    // загрузчику атрибутом, и `setUserID` вызывается сразу после `init`.
+    const analytics = read("src/components/analytics.tsx");
+    expect(analytics).toContain("data-eterapy-user-id=");
+
+    const loader = read("public/analytics/metrika.js");
+    expect(loader).toContain('getAttribute("data-eterapy-user-id")');
+    // Порядок обязателен: init → setUserID → hit.
+    expect(loader.indexOf('"init"')).toBeLessThan(loader.indexOf('"setUserID"'));
+    expect(loader.indexOf('"setUserID"')).toBeLessThan(loader.indexOf("function sendHit"));
+  });
+
   it("счётчик вызывает setUserID и помнит id, пришедший до согласия на cookies", () => {
     const analytics = read("src/components/analytics.tsx");
     expect(analytics).toContain('"setUserID"');
