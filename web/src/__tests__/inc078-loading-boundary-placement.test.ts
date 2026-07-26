@@ -74,11 +74,25 @@ describe("INC-078 · граница загрузки не мешает стат�
   });
 
   it("границы переиспользуют один компонент, а не копию разметки", () => {
-    for (const seg of ["products", "cabinet", "(auth)", "auth", "miniapp", "checkin"]) {
+    for (const seg of ["products", "(auth)", "auth", "miniapp", "checkin"]) {
       const file = path.join(APP, seg, "loading.tsx");
       if (!fs.existsSync(file)) continue;
       expect(fs.readFileSync(file, "utf8")).toContain("@/components/route-loading");
     }
+  });
+
+  // INC-085: у кабинета фолбэк СВОЙ — оверлей на весь вьюпорт закрывал сайдбар
+  // и таб-бар, которые при переходе между страницами никуда не деваются, и
+  // рамка заведомо не совпадала с областью app-shell-main.
+  it("в кабинете фолбэк живёт в потоке главной колонки, а не оверлеем", () => {
+    const boundary = fs.readFileSync(path.join(APP, "cabinet", "loading.tsx"), "utf8");
+    expect(boundary).toContain("@/components/cabinet/cabinet-route-loading");
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "src", "components", "cabinet", "cabinet-route-loading.tsx"),
+      "utf8",
+    );
+    expect(src).not.toContain("fixed inset-0");
+    expect(src).not.toContain("100svh\"");
   });
 
   it("распорка от прыжка футера (B549) не потеряна при переезде", () => {

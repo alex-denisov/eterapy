@@ -53,7 +53,7 @@ describe("buildHeroAction — item 2 (никогда не «одно и то ж�
       lastDialogue: { id: "d1", title: "Вопрос", status: "ANSWERED", topic: "self", ageHours: 1 },
     }), 0);
     expect(hero.kind).toBe("resume-route");
-    expect(hero.route).toBe("/practice");
+    expect(hero.route).toBe("/diary");
   });
 
   it("resumes a FRESH unfinished разбор, but not a stale one", () => {

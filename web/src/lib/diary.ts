@@ -247,7 +247,7 @@ export async function listDiaryItems(
         eyebrow: "Маршрут",
         description: `День ${route.currentDay}. Статус: ${route.status === "PAUSED" ? "пауза" : route.status.toLowerCase()}.`,
         bodyMarkdown: "",
-        href: appUrl("/cabinet/practice"),
+        href: appUrl("/cabinet/diary"),
         updatedAt: route.updatedAt,
         status: route.status,
         exportText: `Маршрут: ${route.title}\nДень: ${route.currentDay}\nСтатус: ${route.status}`,

@@ -55,7 +55,11 @@ export const LOGOUT_LABEL = "Выйти";
 //    through mainUrl() so they always point at the public site. ──────────────
 export const LANDING_NAV: NavLink[] = [
   { href: "/how-it-works", label: "Как работает" },
-  { href: "/products", label: "Услуги" }, // renamed from «Продукты» (route unchanged)
+  // B594 (владелец 2026-07-27): «Услуги» ничего не обещало и не объясняло, куда
+  // ведёт. Существительное к тому же читалось как «мои услуги». Глагол называет
+  // действие и не может быть спутан с личным разделом, а «разбор» — то самое
+  // слово, которым продукт говорит о себе везде.
+  { href: "/products", label: "Разобрать" },
   { href: "/practitioners", label: "Специалисты" },
   { href: "/pricing", label: "Тарифы" },
   { href: "/library", label: "Библиотека" },
@@ -65,7 +69,7 @@ export const LANDING_NAV: NavLink[] = [
 //    the previously-empty centre nav so services are one click away). ─────────
 export const CABINET_BRIDGE: NavLink[] = [
   { href: mainUrl("/"), label: "На сайт" },
-  { href: mainUrl("/products"), label: "Услуги" },
+  { href: mainUrl("/products"), label: "Разобрать" },
   { href: mainUrl("/practitioners"), label: "Специалисты" },
   { href: mainUrl("/library"), label: "Библиотека" },
 ];
@@ -77,7 +81,7 @@ export const CABINET_BRIDGE: NavLink[] = [
 export const CLIENT_MOBILE_TABS: MobileTab[] = [
   { href: appUrl("/"), label: "Главная", iconKey: "home" },
   { href: mainUrl("/checkin"), label: "Вопрос", iconKey: "question" },
-  { href: mainUrl("/products"), label: "Услуги", iconKey: "services" },
+  { href: mainUrl("/products"), label: "Разобрать", iconKey: "services" },
   { href: appUrl("/diary"), label: "Дневник", iconKey: "diary" },
   { href: appUrl("/more"), label: MORE_LABEL, iconKey: "more" },
 ];
@@ -86,7 +90,7 @@ export const CLIENT_MOBILE_TABS: MobileTab[] = [
 export const GUEST_MOBILE_TABS: MobileTab[] = [
   { href: mainUrl("/login"), label: "Войти", iconKey: "login" },
   { href: mainUrl("/checkin"), label: "Вопрос", iconKey: "question" },
-  { href: mainUrl("/products"), label: "Услуги", iconKey: "services" },
+  { href: mainUrl("/products"), label: "Разобрать", iconKey: "services" },
   { href: mainUrl("/practitioners"), label: "Специалисты", iconKey: "specialists" },
   { href: "", label: MORE_LABEL, iconKey: "more" },
 ];
@@ -116,7 +120,7 @@ export const CLIENT_MORE_SECTIONS: MoreSection[] = [
   {
     heading: "Платформа",
     items: [
-      { href: mainUrl("/products"), label: "Услуги", iconKey: "services" },
+      { href: mainUrl("/products"), label: "Разобрать", iconKey: "services" },
       { href: mainUrl("/practitioners"), label: "Специалисты", iconKey: "specialists" },
       { href: mainUrl("/library"), label: "Библиотека", iconKey: "library" },
     ],

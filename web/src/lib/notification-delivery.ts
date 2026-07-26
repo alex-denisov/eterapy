@@ -224,7 +224,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "CREDITS_EXPIRING":
       return { title: "Баллы скоро сгорят", body: `${data.credits || "Несколько"} баллов закончатся через ${data.days || "пару"} дн.`, href: data.walletUrl || "/cabinet/wallet" };
     case "STREAK_AT_RISK":
-      return { title: "Ритм практики", body: `Можно сделать один короткий шаг и сохранить ${data.streak || ""} дн.`, href: data.practiceUrl || "/cabinet/practice" };
+      return { title: "Ритм практики", body: `Можно сделать один короткий шаг и сохранить ${data.streak || ""} дн.`, href: data.practiceUrl || "/cabinet/diary" };
     case "MOMENT_OF_NEED":
       return { title: "Можно вернуться к теме", body: data.topic ? `Тема: ${data.topic}` : "Ваша карта все еще доступна", href: data.mapUrl || "/cabinet/diary" };
     case "WELCOME_CREDITS":
@@ -308,7 +308,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "CREDITS_EXPIRING":
       return `Баллы скоро сгорят\n${data.credits ?? "Несколько"} баллов закончатся примерно через ${data.days ?? "пару"} дн.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     case "STREAK_AT_RISK":
-      return `Ритм практики\nЕсли сегодня есть силы, один короткий шаг сохранит ${data.streak ?? ""} дн.\n<a href="${data.practiceUrl ?? `${baseUrl}/cabinet/practice`}">Открыть практику →</a>`;
+      return `Ритм практики\nЕсли сегодня есть силы, один короткий шаг сохранит ${data.streak ?? ""} дн.\n<a href="${data.practiceUrl ?? `${baseUrl}/cabinet/diary`}">Открыть практику →</a>`;
     case "MOMENT_OF_NEED":
       return `Можно вернуться к теме\n${data.topic ? `Тема: ${data.topic}.` : "Ваша карта все еще доступна."}\n<a href="${data.mapUrl ?? `${baseUrl}/cabinet/diary`}">Открыть карту →</a>`;
     case "WELCOME_CREDITS":

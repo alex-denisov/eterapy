@@ -61,7 +61,7 @@ describe("B382 — topic→service CTA funnel", () => {
   });
 
   it("teaser microcopy states the honest price only (no free-fragment promise, B454)", () => {
-    const cta = resolveLibraryCta({ topic: "Хожу по кругу" }); // → Переосмысление, 1 балл, 299 ₽
+    const cta = resolveLibraryCta({ topic: "Повторяется одно и то же" }); // → Переосмысление, 1 балл, 299 ₽
     expect(cta.product).toBe("Переосмысление");
     expect(cta.teaserNote).toBe("разбор вашего вопроса — 1 балл (299 ₽)");
   });

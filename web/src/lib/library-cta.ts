@@ -7,7 +7,7 @@ import { getProductCreditCost, getProductPriceLabel } from "@/lib/product-prices
 
 export type LifeLibraryTopic =
   | "Отношения"
-  | "Хожу по кругу"
+  | "Повторяется одно и то же"
   | "Тревога и состояние"
   | "Работа и деньги"
   | "Одиночество"
@@ -25,10 +25,10 @@ export type SymbolicLibraryTopic =
 export type LibraryTopic = LifeLibraryTopic | SymbolicLibraryTopic;
 
 // Catalog/filter order — life-stage flow, not alphabetical. The "Паттерны" label
-// is intentionally gone (renamed «Хожу по кругу» per M26 spec table).
+// is intentionally gone (renamed «Повторяется одно и то же» per M26 spec table).
 export const LIFE_LIBRARY_TOPICS: readonly LifeLibraryTopic[] = [
   "Отношения",
-  "Хожу по кругу",
+  "Повторяется одно и то же",
   "Тревога и состояние",
   "Работа и деньги",
   "Одиночество",
@@ -84,7 +84,7 @@ const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
 const TOPIC_DEFAULT_PRODUCT: Record<LibraryTopic, LibraryCtaProduct> = {
   "Отношения": "Разбор переписки",
   "Одиночество": "Вместе",
-  "Хожу по кругу": "Переосмысление",
+  "Повторяется одно и то же": "Переосмысление",
   "Про себя": "Переосмысление",
   "Тревога и состояние": "Переосмысление",
   "Работа и деньги": "Подробный разбор",
@@ -138,4 +138,21 @@ export function resolveLibraryCta(input: {
     label: "Разобрать свой вопрос",
     teaserNote,
   };
+}
+
+/**
+ * B596: тема «Хожу по кругу» переименована — доменный эксперт указал, что так
+ * никто про себя не говорит и такого запроса не ищут. Старое значение осталось
+ * в разосланных ссылках `/library?topic=…`, в закладках и во внешних
+ * публикациях: без алиаса каждая из них открывала бы пустую библиотеку.
+ */
+const LEGACY_TOPIC_ALIASES: Readonly<Record<string, LibraryTopic>> = {
+  "Хожу по кругу": "Повторяется одно и то же",
+  "Паттерны": "Повторяется одно и то же",
+};
+
+export function resolveLibraryTopic(raw: string | undefined): LibraryTopic | undefined {
+  if (!raw) return undefined;
+  const aliased = LEGACY_TOPIC_ALIASES[raw] ?? raw;
+  return (LIBRARY_TOPICS as readonly string[]).includes(aliased) ? (aliased as LibraryTopic) : undefined;
 }

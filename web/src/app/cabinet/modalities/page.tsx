@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 
-// B306: /cabinet/modalities is a legacy URL. The product is now called
-// "Ежедневная практика" and lives under /cabinet/practice — see the
-// CabinetShell nav and v5Products.directHref for the canonical route.
-// We keep this stub to forward any old bookmarks or external links.
+// B306 → B593: /cabinet/modalities вёл на /cabinet/practice, а тот с B593 сам
+// стал переадресацией. Двойной прыжок ничего не даёт — старый URL ведёт сразу
+// на «Дневник», где ритуал и живёт.
 export default function LegacyCabinetModalitiesRedirect() {
-  redirect("/cabinet/practice");
+  permanentRedirect("/cabinet/diary");
 }

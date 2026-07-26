@@ -7,11 +7,17 @@ import { LibraryPreviewSection } from "@/components/landing/library-preview";
 import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { HomeAnalytics } from "@/components/landing/home-analytics";
-import { HomeAuthorityArticle } from "@/components/landing/authority-article";
 import { WebMcpRegistration } from "@/components/landing/webmcp-registration";
 
 export const metadata = createPublicPageMetadata("/");
 
+// B595 (владелец 2026-07-27): длинная SEO-статья («коротко и по существу» →
+// «вывод и следующий шаг» + FAQ) снята с главной и переехала на
+// /how-it-works — со своей разметкой Article и FAQPage. На главной она стоила
+// шести экранов прокрутки между входом в воронку и подвалом, а разметка
+// FAQPage на странице, чей основной контент — не FAQ, противоречит сама себе.
+// Удалять было нельзя: это единственный длинный материал сайта и его цитаты.
+//
 // B374: lean, dialogue-first landing (≤6 mobile screens). The hero question
 // entry is the single funnel entry; three scenario-routers sit below for people
 // not ready to type. The 21-card service «простыня», esoteric service chips, the
@@ -30,7 +36,6 @@ export default async function Home() {
       <HomeAnalytics />
       <WebMcpRegistration />
       <HeroSection />
-      <HomeAuthorityArticle />
       <ScenariosSection />
       <HowItWorksSection />
       <LibraryPreviewSection />

@@ -314,8 +314,10 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                       background: day.done ? "var(--soft-terracotta)" : "transparent",
                       color: day.done ? "#FBF0E1" : "var(--soft-ink-faint)",
                       border: day.done ? "none" : day.isToday ? "1.5px solid var(--soft-terracotta)" : "1px dashed var(--soft-paper-edge)",
+                      opacity: day.isFuture ? 0.45 : 1,
                     }}
                     data-done={day.done ? "1" : "0"}
+                    data-future={day.isFuture ? "1" : undefined}
                   >
                     {day.done ? "✓" : ""}
                   </span>

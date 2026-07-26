@@ -90,10 +90,10 @@ describe("G14 — Практика ясности full three-beat mechanic", () 
   });
 
   it("renders the calendar as a real Mon→Sun week with future days", () => {
-    const page = source("src/app/cabinet/practice/page.tsx");
-    expect(page).toContain("loadWeekStrip");
-    expect(page).toContain("isFuture");
-    expect(page).toContain("WEEKDAY_RU_SHORT");
+    const page = source("src/app/cabinet/diary/page.tsx");
+    expect(page).toContain("practiceWeekDays");
+    expect(page).toContain("day.isFuture");
+    expect(page).toContain("practiceWeekDays");
   });
 
   it("lets the user write their own вопрос дня and request взгляд + шаг", () => {

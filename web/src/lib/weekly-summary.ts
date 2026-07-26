@@ -139,6 +139,9 @@ export function practiceWeekDays(completedDays: Date[], now = new Date()) {
     const day = new Date(weekStart);
     day.setUTCDate(day.getUTCDate() + index);
     const key = day.toISOString().slice(0, 10);
-    return { label, done: doneKeys.has(key), isToday: key === todayKey };
+    // B593: «ещё не наступил» и «пропущен» — разные вещи. На /practice это
+    // различалось, и при переезде полосы на «Дневник» различие нельзя терять:
+    // иначе вторник в понедельник выглядит уже проваленным.
+    return { label, done: doneKeys.has(key), isToday: key === todayKey, isFuture: key > todayKey };
   });
 }

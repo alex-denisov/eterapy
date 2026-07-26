@@ -152,7 +152,7 @@ export function buildHeroAction(signals: CabinetSignals, seed: number): HeroActi
       title: activeRoute.title,
       cta: "Продолжить маршрут",
       hint: `${activeRoute.currentDay} день · ${activeRoute.status === "PAUSED" ? "на паузе" : "активен"}`,
-      route: "/practice",
+      route: "/diary",
       surface: "app",
     };
   }
@@ -229,7 +229,7 @@ export function buildHeroAction(signals: CabinetSignals, seed: number): HeroActi
       title: "Ответить на вопрос дня — пара минут для себя",
       cta: "Ответить на вопрос дня",
       hint: "бесплатно · остаётся в дневнике",
-      route: "/practice",
+      route: "/diary",
       surface: "app",
     });
   }
@@ -339,7 +339,7 @@ export function buildServiceNudge(signals: CabinetSignals, seed: number): Servic
       "После пары разборов здесь появится персональная рекомендация. А сегодня можно сделать маленький шаг — ответить на вопрос дня.",
     ]),
     ctaLabel: "Ответить на вопрос дня",
-    route: "/practice",
+    route: "/diary",
     surface: "app",
     productKey: null,
   });

@@ -80,7 +80,7 @@ describe("сборка ссылок шеринга и OG", () => {
 
   it("тексты шеринга по типу артефакта", () => {
     expect(shareText("human-design", "Генератор")).toContain("Дизайн");
-    expect(shareText("library", "Хожу по кругу")).toContain("Хожу по кругу");
+    expect(shareText("library", "Повторяется одно и то же")).toContain("Повторяется одно и то же");
     expect(shareText("weekly-summary", "")).toContain("итог недели");
   });
 

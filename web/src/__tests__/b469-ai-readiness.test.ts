@@ -61,8 +61,15 @@ describe("B469 AI search readiness", () => {
     expect(component).toContain("<table");
     expect(component).toContain("<details");
     expect(component).toContain("редакция ETerapy");
-    expect(page).toContain("<HomeAuthorityArticle />");
-    expect(page.indexOf("<HomeAuthorityArticle />")).toBeLessThan(page.indexOf("<ScenariosSection />"));
+    // B595: статья переехала с главной на /how-it-works — со своей разметкой
+    // Article и FAQPage. На главной FAQPage противоречил сам себе: основной
+    // контент страницы — не ответы на вопросы.
+    expect(page).not.toContain("<HomeAuthorityArticle />");
+    const howItWorks = fs.readFileSync(
+      path.join(process.cwd(), "src", "app", "how-it-works", "page.tsx"),
+      "utf8",
+    );
+    expect(howItWorks).toContain("<HomeAuthorityArticle />");
     expect(component).toContain("Коротко (TL;DR)");
     expect(component).toContain("Вывод и следующий шаг");
     expect(component).toContain("Что показывают данные платформы");

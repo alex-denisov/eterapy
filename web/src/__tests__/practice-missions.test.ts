@@ -59,7 +59,7 @@ describe("B203 Practice and missions", () => {
   });
 
   it("T20: surfaces взгляд дня and маленький шаг in the full practice ritual", () => {
-    const page = source("src/app/cabinet/practice/page.tsx");
+    const page = source("src/app/cabinet/diary/page.tsx");
     const actions = source("src/components/cabinet/daily-practice-actions.tsx");
 
     expect(page).toContain('variant="full"');

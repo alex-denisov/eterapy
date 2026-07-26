@@ -56,7 +56,19 @@ async function handle(req: NextRequest) {
   const callback = parseCallback(params);
 
   if (!callback) {
-    log.warn("robokassa-result-invalid-payload", { requestId: context.requestId });
+    // INC-081: раньше здесь было пусто, и четыре отказа подряд по оплаченному
+    // счёту выглядели в логе одинаково — «invalid payload», без единой зацепки,
+    // ЧТО именно провайдер прислал. Имена параметров и сырой OutSum секретами
+    // не являются (подпись намеренно не логируется), зато называют дефект с
+    // первого раза.
+    log.warn("robokassa-result-invalid-payload", {
+      requestId: context.requestId,
+      method: req.method,
+      contentType: req.headers.get("content-type"),
+      paramNames: [...new Set([...params.keys()])].sort(),
+      outSum: params.get("OutSum") ?? params.get("outsum"),
+      invId: params.get("InvId") ?? params.get("invid"),
+    });
     return text("bad request", 400);
   }
 

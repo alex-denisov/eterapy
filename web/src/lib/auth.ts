@@ -178,7 +178,7 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
       return true;
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         const emailVerified = user.emailVerified as unknown;
         (token as Record<string, unknown>).id = user.id;
@@ -195,6 +195,30 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
         if (dbUser) {
           (token as Record<string, unknown>).role = dbUser.role;
           (token as Record<string, unknown>).emailVerified = dbUser.emailVerified ? "true" : undefined;
+        }
+      }
+
+      // INC-083: подтверждение почты происходит ВНЕ сессии — человек уходит в
+      // почтовый клиент и открывает ссылку, иногда в другом браузере. В токене
+      // при этом навсегда остаётся то состояние, что было на момент входа, и
+      // плашка «Подтвердите email» висит над подтверждённым адресом до
+      // следующего логина. Перечитываем — но только пока адрес НЕ подтверждён
+      // (у подтверждённого перечитывать нечего) и не чаще раза в минуту, чтобы
+      // это не превратилось в запрос к БД на каждый рендер.
+      const bag = token as Record<string, unknown>;
+      if (!bag.emailVerified && typeof bag.id === "string") {
+        const lastCheck = typeof bag.evCheckedAt === "number" ? bag.evCheckedAt : 0;
+        // `trigger === "update"` — это явный запрос страницы подтверждения:
+        // ждать минуту там незачем, человек только что нажал ссылку.
+        if (trigger === "update" || Date.now() - lastCheck > 60_000) {
+          bag.evCheckedAt = Date.now();
+          const fresh = await db.user.findUnique({
+            where: { id: bag.id },
+            select: { emailVerified: true },
+          });
+          if (fresh?.emailVerified) {
+            bag.emailVerified = "true";
+          }
         }
       }
 

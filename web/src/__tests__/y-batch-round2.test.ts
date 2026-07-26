@@ -17,7 +17,7 @@ describe("Y6 — role-based client cabinet access control", () => {
     "app/cabinet/wallet/page.tsx",
     "app/cabinet/questions/page.tsx",
     "app/cabinet/diary/page.tsx",
-    "app/cabinet/practice/page.tsx",
+    "app/cabinet/diary/page.tsx",
   ])("guards the client-only surface %s", (file) => {
     expect(src(file)).toContain("guardClientCabinet");
   });

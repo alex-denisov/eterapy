@@ -296,7 +296,7 @@ describe("Y10 Z16 missions and streaks", () => {
     const entitlements = source("src/lib/entitlements.ts");
     const notificationPrefsRoute = source("src/app/api/notifications/preferences/route.ts");
     const cabinet = source("src/app/cabinet/page.tsx");
-    const practice = source("src/app/cabinet/practice/page.tsx");
+    const practice = source("src/app/cabinet/diary/page.tsx");
     const missionsApi = source("src/app/api/cabinet/missions/route.ts");
 
     expect(schema).toContain("practiceStreakCount");
@@ -321,7 +321,7 @@ describe("Y10 Z16 missions and streaks", () => {
     expect(cabinet).toContain('data-testid="client-first-steps"');
     expect(cabinet).toContain('data-testid="client-streak-badge"');
     expect(practice).toContain("getPracticeStreakSnapshot");
-    expect(practice).toContain('data-testid="practice-streak-badge"');
+    expect(practice).toContain('data-testid="diary-streak-ring"');
     expect(missionsApi).toContain("listMissionChecklist");
     expect(missionsApi).toContain("await auth()");
   });

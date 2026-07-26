@@ -5,48 +5,27 @@
 import type { NotifEvent } from "@/lib/notification-events";
 import { log } from "@/lib/logger";
 import { EMAIL_FROM as FROM } from "@/lib/env";
+import {
+  EMAIL_BORDEAUX as BORDEAUX,
+  EMAIL_INK_SOFT as INK_SOFT,
+  EMAIL_TERRACOTTA as TERRACOTTA,
+  emailButton as button,
+  emailHeading as heading,
+  emailInfoBox as box,
+  emailRow as rowOf,
+  emailWrapper as wrapper,
+} from "@/lib/email-theme";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-// Единый шаблон — тот же стиль что в lib/email.ts
-function emailWrapper(body: string) {
-  return `<!DOCTYPE html>
-<html lang="ru">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0D1B2A;font-family:Inter,Arial,sans-serif;color:#e2e8f0">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2236;border-radius:12px;border:1px solid rgba(201,168,76,0.2);padding:40px;max-width:560px">
-        <tr><td>
-          <p style="margin:0 0 24px;color:#C9A84C;font-size:20px;font-weight:700;letter-spacing:-0.3px">✦ ETerapy</p>
-          ${body}
-          <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:32px 0 24px">
-          <p style="margin:0;color:#475569;font-size:11px;line-height:1.6">
-            Вы получили это письмо как пользователь <a href="${BASE_URL}" style="color:#C9A84C;text-decoration:none">ETerapy</a>.
-            Управлять уведомлениями: <a href="${BASE_URL}/cabinet/settings#notifications" style="color:#C9A84C;text-decoration:none">настройки</a>.
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
-
-function btn(href: string, label: string) {
-  return `<a href="${href}" style="display:inline-block;background:#C9A84C;color:#0D1B2A;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">${label}</a>`;
-}
-
-function infoBox(content: string, accent = "rgba(201,168,76,0.15)") {
-  return `<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:rgba(201,168,76,0.05);border:1px solid ${accent};border-radius:8px;padding:20px;width:100%">
-    <tr><td>${content}</td></tr>
-  </table>`;
-}
-
-function row(label: string, value: string) {
-  return `<p style="margin:0 0 4px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px">${label}</p>
-          <p style="margin:0 0 16px;color:#f8fafc;font-weight:600">${value}</p>`;
-}
+// Оформление — общий модуль `email-theme.ts` (B592).
+const emailWrapper = (body: string) => wrapper(body, {
+  footer: `Вы получили это письмо как пользователь <a href="${BASE_URL}" style="color:${TERRACOTTA};text-decoration:none">ETerapy</a>.
+    Управлять уведомлениями: <a href="${BASE_URL}/cabinet/settings#notifications" style="color:${TERRACOTTA};text-decoration:none">настройки</a>.`,
+});
+const btn = button;
+const infoBox = box;
+const row = rowOf;
 
 const SUBJECTS: Record<NotifEvent, string> = {
   BOOKING_REQUESTED:  "Новый запрос на сессию — ETerapy",
@@ -92,226 +71,218 @@ const SUBJECTS: Record<NotifEvent, string> = {
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
-  const greeting = `<p style="margin:0 0 16px;color:#94a3b8;line-height:1.6">Привет, <strong style="color:#f8fafc">${name}</strong>!</p>`;
+  const greeting = `<p style="margin:0 0 16px;color:${INK_SOFT};line-height:1.6">Привет, <strong style="color:${BORDEAUX}">${name}</strong>!</p>`;
 
   switch (event) {
     case "BOOKING_REQUESTED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Новый запрос на сессию</h1>
+        ${heading("Новый запрос на сессию")}
         ${greeting}
         ${infoBox(row("Клиент", data.clientName) + row("Дата", data.date) + row("Время", data.time).replace("margin:0 0 16px", "margin:0"))}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Подтвердите или отклоните запрос в вашем кабинете.</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Подтвердите или отклоните запрос в вашем кабинете.</p>
         ${btn(`${BASE_URL}/cabinet/practitioner/clients`, "Открыть кабинет")}
       `;
     case "BOOKING_CONFIRMED":
       return `
-        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f8fafc">✅ Сессия подтверждена!</h1>
+        ${heading("✅ Сессия подтверждена!")}
         ${greeting}
         ${infoBox(
           row("Практик", data.practitionerName) +
           row("Дата", data.date) +
-          row("Время", data.time).replace("margin:0 0 16px", "margin:0"),
-          "rgba(34,197,94,0.2)"
-        )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Мы пришлём напоминание за 24 часа.</p>
+          row("Время", data.time).replace("margin:0 0 16px", "margin:0"))}
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Мы пришлём напоминание за 24 часа.</p>
         ${data.sessionUrl ? btn(data.sessionUrl, "Войти в видеочат") : btn(`${BASE_URL}/cabinet/bookings`, "Мои записи")}
       `;
     case "BOOKING_CANCELLED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Запись отменена</h1>
+        ${heading("Запись отменена")}
         ${greeting}
-        ${infoBox(row("Дата", data.date) + row("Время", data.time).replace("margin:0 0 16px", "margin:0"), "rgba(239,68,68,0.2)")}
-        ${data.reason ? `<p style="margin:0 0 28px;color:#94a3b8">Причина: ${data.reason}</p>` : ""}
+        ${infoBox(row("Дата", data.date) + row("Время", data.time).replace("margin:0 0 16px", "margin:0"))}
+        ${data.reason ? `<p style="margin:0 0 28px;color:${INK_SOFT}">Причина: ${data.reason}</p>` : ""}
         ${btn(`${BASE_URL}/checkin`, "Задать новый вопрос")}
       `;
     case "BOOKING_REMINDER":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">⏰ Напоминание о сессии</h1>
+        ${heading("⏰ Напоминание о сессии")}
         ${greeting}
         ${infoBox(
           (data.withName ? row("С", data.withName) : "") +
           row("Дата", data.date) +
           row("Время", data.time).replace("margin:0 0 16px", "margin:0")
         )}
-        <p style="margin:0 0 28px;color:#94a3b8">Сессия начнётся через <strong style="color:#f8fafc">${data.in}</strong>.</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT}">Сессия начнётся через <strong style="color:${BORDEAUX}">${data.in}</strong>.</p>
         ${data.sessionUrl ? btn(data.sessionUrl, "Открыть видеочат") : btn(`${BASE_URL}/session/${data.bookingId}`, "Открыть видеочат")}
       `;
     case "SESSION_STARTED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">🎥 Сессия началась</h1>
+        ${heading("🎥 Сессия началась")}
         ${greeting}
-        <p style="margin:0 0 28px;color:#94a3b8">Ваша сессия уже началась. Присоединяйтесь!</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT}">Ваша сессия уже началась. Присоединяйтесь!</p>
         ${btn(`${BASE_URL}/session/${data.bookingId}`, "Войти в видеочат")}
       `;
     case "SESSION_COMPLETED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Сессия завершена</h1>
+        ${heading("Сессия завершена")}
         ${greeting}
-        <p style="margin:0 0 28px;color:#94a3b8">Надеемся, сессия прошла продуктивно!
+        <p style="margin:0 0 28px;color:${INK_SOFT}">Надеемся, сессия прошла продуктивно!
         ${data.reviewUrl ? "Оставьте отзыв — это помогает другим клиентам." : ""}</p>
         ${data.reviewUrl ? btn(data.reviewUrl, "Оставить отзыв") : ""}
       `;
     case "REVIEW_REQUESTED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Как прошла сессия?</h1>
+        ${heading("Как прошла сессия?")}
         ${greeting}
-        <p style="margin:0 0 8px;color:#94a3b8;line-height:1.6">Ваша сессия с <strong style="color:#f8fafc">${data.practitionerName}</strong> завершена.</p>
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Оставьте отзыв — это занимает меньше минуты и помогает другим клиентам.</p>
+        <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Ваша сессия с <strong style="color:${BORDEAUX}">${data.practitionerName}</strong> завершена.</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Оставьте отзыв — это занимает меньше минуты и помогает другим клиентам.</p>
         ${btn(data.reviewUrl, "Оставить отзыв")}
       `;
     case "NEW_REVIEW":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">⭐ Новый отзыв</h1>
+        ${heading("⭐ Новый отзыв")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#C9A84C;font-size:20px">${"★".repeat(parseInt(data.rating || "5"))}</p>
-           <p style="margin:0;color:#f8fafc;font-style:italic">"${data.text}"</p>
-           <p style="margin:8px 0 0;color:#94a3b8;font-size:12px">— ${data.clientName}</p>`
+          `<p style="margin:0 0 8px;color:${TERRACOTTA};font-size:20px">${"★".repeat(parseInt(data.rating || "5"))}</p>
+           <p style="margin:0;color:${BORDEAUX};font-style:italic">"${data.text}"</p>
+           <p style="margin:8px 0 0;color:${INK_SOFT};font-size:12px">— ${data.clientName}</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/practitioner/reviews`, "Все отзывы")}
       `;
     case "PAYMENT_RECEIVED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">💰 Платёж получен</h1>
+        ${heading("💰 Платёж получен")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Сумма</p>
-           <p style="margin:0 0 16px;color:#C9A84C;font-weight:700;font-size:22px">${data.amountRub} ₽</p>
-           <p style="margin:0 0 4px;color:#94a3b8;font-size:12px">Дата</p>
-           <p style="margin:0;color:#f8fafc">${data.date}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Сумма</p>
+           <p style="margin:0 0 16px;color:${TERRACOTTA};font-weight:700;font-size:22px">${data.amountRub} ₽</p>
+           <p style="margin:0 0 4px;color:${INK_SOFT};font-size:12px">Дата</p>
+           <p style="margin:0;color:${BORDEAUX}">${data.date}</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/practitioner/earnings`, "Мои доходы")}
       `;
     case "BALANCE_TOPUP":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">💳 Баланс пополнен</h1>
+        ${heading("💳 Баланс пополнен")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Сумма пополнения</p>
-           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:22px">+${data.amountRub} ₽</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Сумма пополнения</p>
+           <p style="margin:0;color:${TERRACOTTA};font-weight:700;font-size:22px">+${data.amountRub} ₽</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
       `;
     case "PRODUCT_UNLOCKED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Продукт открыт</h1>
+        ${heading("Продукт открыт")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Доступ</p>
-           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${data.productKey}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Доступ</p>
+           <p style="margin:0;color:${TERRACOTTA};font-weight:700;font-size:18px">${data.productKey}</p>`
         )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Результат уже доступен в вашем кабинете. Если страница была открыта во время оплаты, обновите её.</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Результат уже доступен в вашем кабинете. Если страница была открыта во время оплаты, обновите её.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть доступы")}
       `;
     case "SUBSCRIPTION_STARTED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Подписка активна</h1>
+        ${heading("Подписка активна")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
-           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${data.planKey}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Тариф</p>
+           <p style="margin:0;color:${TERRACOTTA};font-weight:700;font-size:18px">${data.planKey}</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/billing`, "Управлять подпиской")}
       `;
     case "SUBSCRIPTION_CANCELLED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Подписка отменена</h1>
+        ${heading("Подписка отменена")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
-           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.planKey}</p>`,
-          "rgba(245,158,11,0.2)"
-        )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Доступ сохранится до конца оплаченного периода, если он указан в кабинете.</p>
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Тариф</p>
+           <p style="margin:0;color:${BORDEAUX};font-weight:600;font-size:18px">${data.planKey}</p>`)}
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Доступ сохранится до конца оплаченного периода, если он указан в кабинете.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть биллинг")}
       `;
     case "SUBSCRIPTION_PAYMENT_FAILED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Платёж подписки не прошёл</h1>
+        ${heading("Платёж подписки не прошёл")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
-           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.planKey}</p>`,
-          "rgba(239,68,68,0.2)"
-        )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Проверьте способ оплаты, чтобы доступ не прервался.</p>
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Тариф</p>
+           <p style="margin:0;color:${BORDEAUX};font-weight:600;font-size:18px">${data.planKey}</p>`)}
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Проверьте способ оплаты, чтобы доступ не прервался.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Проверить оплату")}
       `;
     case "CARD_LINKED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">🔗 Карта привязана</h1>
+        ${heading("🔗 Карта привязана")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Новая карта</p>
-           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Новая карта</p>
+           <p style="margin:0;color:${BORDEAUX};font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`
         )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Теперь вы можете быстро пополнять баланс этой картой.</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Теперь вы можете быстро пополнять баланс этой картой.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Мои карты")}
       `;
     case "CARD_REMOVED":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">🗑 Карта отвязана</h1>
+        ${heading("🗑 Карта отвязана")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Удалённая карта</p>
-           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`,
-          "rgba(239,68,68,0.2)"
-        )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если вы не совершали это действие — свяжитесь с поддержкой.</p>
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Удалённая карта</p>
+           <p style="margin:0;color:${BORDEAUX};font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`)}
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Если вы не совершали это действие — свяжитесь с поддержкой.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
       `;
     case "DAILY_CARD":
       return `
-        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Карта дня</h1>
+        ${heading("Карта дня")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Сегодняшний фокус</p>
-           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.title}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Сегодняшний фокус</p>
+           <p style="margin:0;color:${BORDEAUX};font-weight:600;font-size:18px">${data.title}</p>`
         )}
-        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body}</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.body}</p>
         ${btn(`${BASE_URL}/cabinet`, "Открыть кабинет")}
       `;
     case "ABANDONED_CHECKOUT":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Оплату можно спокойно завершить</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.productName ?? "Выбранный продукт"} останется доступен после оплаты.</p>${btn(data.checkoutUrl ?? `${BASE_URL}/pricing`, "Вернуться к оплате")}`;
+      return `${greeting}${heading("Оплату можно спокойно завершить")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.productName ?? "Выбранный продукт"} останется доступен после оплаты.</p>${btn(data.checkoutUrl ?? `${BASE_URL}/pricing`, "Вернуться к оплате")}`;
     case "REPORT_READY":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Отчет готов</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть отчет")}`;
+      return `${greeting}${heading("Отчет готов")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть отчет")}`;
     case "PARTNER_COMPLETED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть результат и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
+      return `${greeting}${heading("Вторая часть готова")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Партнер завершил свою часть. Можно открыть результат и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
     case "CIRCLE_READY":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Круг собран</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
+      return `${greeting}${heading("Круг собран")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
     case "ROUTE_REMINDER":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к маршруту</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body ?? "Один маленький шаг сегодня будет достаточно."}</p>${btn(data.routeUrl ?? `${BASE_URL}/cabinet`, "Продолжить")}`;
+      return `${greeting}${heading("Можно вернуться к маршруту")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.body ?? "Один маленький шаг сегодня будет достаточно."}</p>${btn(data.routeUrl ?? `${BASE_URL}/cabinet`, "Продолжить")}`;
     case "WEEKLY_DIGEST":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Недельный дайджест</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Ваши вопросы и практики собраны в мягкую сводку."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet`, "Открыть")}`;
+      return `${greeting}${heading("Недельный дайджест")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.summary ?? "Ваши вопросы и практики собраны в мягкую сводку."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet`, "Открыть")}`;
     case "PRACTITIONER_DIGEST":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Дайджест кабинета</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Заявки, встречи, выплаты и отзывы за период."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet/practitioner`, "Открыть кабинет")}`;
+      return `${greeting}${heading("Дайджест кабинета")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.summary ?? "Заявки, встречи, выплаты и отзывы за период."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet/practitioner`, "Открыть кабинет")}`;
     case "COMPLIANCE_ALERT":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Комплаенс-сигнал</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/product/quality`, "Открыть проверку")}`;
+      return `${greeting}${heading("Комплаенс-сигнал")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/product/quality`, "Открыть проверку")}`;
     case "CREDITS_EXPIRING":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Баллы скоро сгорят</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">У вас есть ${data.credits ?? "несколько"} баллов, которые закончатся примерно через ${data.days ?? "пару"} дн. Можно потратить их на один небольшой разбор без спешки.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+      return `${greeting}${heading("Баллы скоро сгорят")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">У вас есть ${data.credits ?? "несколько"} баллов, которые закончатся примерно через ${data.days ?? "пару"} дн. Можно потратить их на один небольшой разбор без спешки.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "STREAK_AT_RISK":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Один короткий шаг сохранит ритм</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Вчера у вас был ритм практики ${data.streak ?? "несколько"} дн. Если сегодня есть силы, можно сделать только один маленький шаг.</p>${btn(data.practiceUrl ?? `${BASE_URL}/cabinet/practice`, "Открыть практику")}`;
+      return `${greeting}${heading("Один короткий шаг сохранит ритм")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Вчера у вас был ритм практики ${data.streak ?? "несколько"} дн. Если сегодня есть силы, можно сделать только один маленький шаг.</p>${btn(data.practiceUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть практику")}`;
     case "MOMENT_OF_NEED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к своей теме</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.topic ? `Тема "${data.topic}"` : "Ваша сохраненная тема"} все еще доступна в карте. Можно продолжить с одного вопроса.</p>${btn(data.mapUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть карту")}`;
+      return `${greeting}${heading("Можно вернуться к своей теме")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.topic ? `Тема "${data.topic}"` : "Ваша сохраненная тема"} все еще доступна в карте. Можно продолжить с одного вопроса.</p>${btn(data.mapUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть карту")}`;
     case "WELCOME_CREDITS":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные баллы начислены</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.credits ?? "3"} балла уже в кошельке. Они помогут попробовать первый небольшой формат.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+      return `${greeting}${heading("Приветственные баллы начислены")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.credits ?? "3"} балла уже в кошельке. Они помогут попробовать первый небольшой формат.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "WELCOME_CREDITS_REMINDER":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные баллы ждут</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если хотите попробовать первый разбор, приветственные баллы еще доступны.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+      return `${greeting}${heading("Приветственные баллы ждут")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Если хотите попробовать первый разбор, приветственные баллы еще доступны.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     // B466 practitioner platform
     case "BOOKING_PROPOSED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Специалист предложил время сессии</h1>${infoBox(row("Специалист", data.practitionerName ?? "—") + row("Дата", data.date ?? "—") + row("Время", data.time ?? "—").replace("margin:0 0 16px", "margin:0"))}<p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Подтвердите предложение и оплатите сессию — или отклоните, если время не подходит.</p>${btn(`${BASE_URL}/cabinet/bookings`, "Открыть записи")}`;
+      return `${greeting}${heading("Специалист предложил время сессии")}${infoBox(row("Специалист", data.practitionerName ?? "—") + row("Дата", data.date ?? "—") + row("Время", data.time ?? "—").replace("margin:0 0 16px", "margin:0"))}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Подтвердите предложение и оплатите сессию — или отклоните, если время не подходит.</p>${btn(`${BASE_URL}/cabinet/bookings`, "Открыть записи")}`;
     case "BOOKING_CHANGE_REQUESTED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">${data.type === "CANCEL" ? "Запрос на отмену сессии" : "Запрос на перенос сессии"}</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.byName ?? "Другая сторона"} просит ${data.type === "CANCEL" ? "отменить" : "перенести"} сессию ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` на ${data.proposed}` : ""}. Ответьте в кабинете.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Ответить")}`;
+      return `${greeting}${heading(data.type === "CANCEL" ? "Запрос на отмену сессии" : "Запрос на перенос сессии")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.byName ?? "Другая сторона"} просит ${data.type === "CANCEL" ? "отменить" : "перенести"} сессию ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` на ${data.proposed}` : ""}. Ответьте в кабинете.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Ответить")}`;
     case "BOOKING_CHANGE_RESOLVED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">${data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано")}</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Сессия ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` → ${data.proposed}` : ""}.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Открыть записи")}`;
+      return `${greeting}${heading(data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано"))}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Сессия ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` → ${data.proposed}` : ""}.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Открыть записи")}`;
     case "PRACTITIONER_MESSAGE":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Сообщение от вашего специалиста</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.practitionerName ?? "Специалист"} отправил вам материал к сессии.${data.preview ? ` «${data.preview}»` : ""}</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/messages"}`, "Прочитать")}`;
+      return `${greeting}${heading("Сообщение от вашего специалиста")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${data.practitionerName ?? "Специалист"} отправил вам материал к сессии.${data.preview ? ` «${data.preview}»` : ""}</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/messages"}`, "Прочитать")}`;
     case "GOODWILL_CREDITS":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Компенсация баллами</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Мы начислили вам +${data.amount ?? ""} балл(ов). ${data.reason ?? ""}</p>${btn(`${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+      return `${greeting}${heading("Компенсация баллами")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Мы начислили вам +${data.amount ?? ""} балл(ов). ${data.reason ?? ""}</p>${btn(`${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "RELIABILITY_WARNING":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Предупреждение о надёжности</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">За последние 30 дней: поздних отмен — ${data.lateCancels ?? "0"}, подтверждённых неявок — ${data.noShows ?? "0"}. Профиль временно показывается ниже в каталоге; повторные случаи ведут к ручному ревью доступа.</p>${btn(`${BASE_URL}/cabinet/practitioner/calendar`, "Открыть календарь")}`;
+      return `${greeting}${heading("Предупреждение о надёжности")}<p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">За последние 30 дней: поздних отмен — ${data.lateCancels ?? "0"}, подтверждённых неявок — ${data.noShows ?? "0"}. Профиль временно показывается ниже в каталоге; повторные случаи ведут к ручному ревью доступа.</p>${btn(`${BASE_URL}/cabinet/practitioner/calendar`, "Открыть календарь")}`;
     default:
-      return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;
+      return `<p style="color:${INK_SOFT}">Уведомление от ETerapy.</p>`;
   }
 }
 
