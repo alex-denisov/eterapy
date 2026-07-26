@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Ban, KeyRound, LogIn, MailCheck, RotateCcw, ShieldCheck, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { adminDateTime } from "@/app/admin/admin-period-utils";
 import { Input } from "@/components/ui/input";
 import {
   type AdminUserRow,
@@ -40,6 +41,27 @@ const PRACTITIONER_STATUSES = [
 
 type ClientSessionRow = { id: string; status: string; priceRub: number; createdAt: string };
 type ClientEventRow = { action: string; createdAt: string; details: string | null };
+/** B597: первое касание пользователя — откуда он на самом деле пришёл. */
+type AttributionRow = {
+  source: string;
+  channel: string;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  referralToken: string | null;
+  practitionerSlug: string | null;
+  partnerId: string | null;
+  widgetId: string | null;
+  entryProduct: string | null;
+  firstEntryPath: string;
+  lastEntryPath: string;
+  firstTouchAt: string;
+  lastTouchAt: string;
+  conversionType: string | null;
+  conversionAt: string | null;
+};
 
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
   const response = await fetch(url, {
@@ -106,6 +128,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [clientEvents, setClientEvents] = useState<ClientEventRow[]>([]);
   const [loadingClientSessions, setLoadingClientSessions] = useState(false);
   const [loadingClientEvents, setLoadingClientEvents] = useState(false);
+  const [attribution, setAttribution] = useState<AttributionRow | null | "none">(null);
   // W1: render the modal in a portal at document.body so it escapes the admin
   // shell's stacking context (the sticky sidebar + the backdrop-blur header both
   // create one) — otherwise z-[100] still loses to the header's z-50.
@@ -141,6 +164,16 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       toast.error("Не удалось загрузить сессии клиента");
     } finally {
       setLoadingClientSessions(false);
+    }
+  }
+
+  async function loadAttribution() {
+    try {
+      const response = await fetch(`/api/admin/attribution?userId=${row.id}`);
+      const data = await response.json().catch(() => ({}));
+      setAttribution((data.attribution as AttributionRow | null) ?? "none");
+    } catch {
+      toast.error("Не удалось загрузить источник регистрации");
     }
   }
 
@@ -546,6 +579,61 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               </div>
             </section>
           )}
+
+            {/* B597: «откуда он взялся». Данные писались с самого начала
+                (первое касание, UTM, реферальный токен, практик, партнёр), но
+                показать их можно было только запросом в базу. Первое касание, а
+                не последнее: вопрос про источник — про то, что привело человека
+                на платформу, а не про то, откуда он зашёл вчера. */}
+            <section data-testid="admin-user-attribution">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className={LABEL}>Источник регистрации</h3>
+                <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void loadAttribution()}>
+                  {attribution === null ? "Загрузить" : "Обновить"}
+                </button>
+              </div>
+              <div className="rounded-md border border-[var(--soft-paper-edge)] p-3 text-xs">
+                {attribution === null ? (
+                  <p className="text-[var(--soft-ink-faint)]">Нажмите «Загрузить», чтобы увидеть, откуда пришёл этот пользователь.</p>
+                ) : attribution === "none" ? (
+                  <p className="text-[var(--soft-ink-faint)]">
+                    Данных о первом касании нет. Так бывает у аккаунтов, заведённых до появления
+                    учёта источников, и у сидированных профилей.
+                  </p>
+                ) : (
+                  <dl className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                    {([
+                      ["Источник", attribution.source],
+                      ["Канал", attribution.channel],
+                      ["utm_source", attribution.utmSource],
+                      ["utm_medium", attribution.utmMedium],
+                      ["utm_campaign", attribution.utmCampaign],
+                      ["utm_content", attribution.utmContent],
+                      ["utm_term", attribution.utmTerm],
+                      ["Реферальный токен", attribution.referralToken],
+                      ["Практик", attribution.practitionerSlug],
+                      ["Партнёр", attribution.partnerId],
+                      ["Виджет", attribution.widgetId],
+                      ["Продукт входа", attribution.entryProduct],
+                      ["Первое касание", adminDateTime(attribution.firstTouchAt)],
+                      ["Последнее касание", adminDateTime(attribution.lastTouchAt)],
+                    ] as Array<[string, string | null]>)
+                      .filter(([, value]) => value)
+                      .map(([label, value]) => (
+                        <div key={label} className="min-w-0">
+                          <dt className="text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">{label}</dt>
+                          <dd className="truncate text-[var(--soft-ink-strong)]" title={value ?? undefined}>{value}</dd>
+                        </div>
+                      ))}
+                    <div className="min-w-0 sm:col-span-2">
+                      <dt className="text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">Страница входа</dt>
+                      <dd className="break-all text-[var(--soft-ink-strong)]">{attribution.firstEntryPath}</dd>
+                    </div>
+                  </dl>
+                )}
+              </div>
+            </section>
+
 
           {row.role === "CLIENT" && (permissions.canViewClientSessions || permissions.canViewClientEvents) && (
             <section>

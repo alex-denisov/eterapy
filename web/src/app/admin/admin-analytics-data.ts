@@ -450,6 +450,7 @@ export async function getProductCenterData(period: AdminPeriod) {
   const [
     events,
     users,
+    signupAttributions,
     results,
     subscriptions,
     sessions,
@@ -467,6 +468,14 @@ export async function getProductCenterData(period: AdminPeriod) {
     db.user.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
       select: { id: true, role: true, registrationChannel: true, provider: true, createdAt: true, blockedAt: true, deletedAt: true },
+    }),
+    // B597: реальный источник новых пользователей. `registrationChannel` знает
+    // только про площадку (веб/мини-апп), а вопрос владельца — «откуда человек
+    // взялся»: поиск, Дзен, реферал, кампания. Это первое касание, и живёт оно
+    // в `ChannelAttribution`.
+    db.channelAttribution.findMany({
+      where: { userId: { not: null }, conversionAt: { gte: period.start, lte: period.end } },
+      select: { source: true, utmSource: true, utmMedium: true, utmCampaign: true, referralToken: true },
     }),
     db.productResult.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
@@ -609,6 +618,26 @@ export async function getProductCenterData(period: AdminPeriod) {
       referralSubscriptions: chartFromMap(period.days, referralSubscriptionDay),
       subscriptionPurchases: chartPlanBuckets(period.days, subscriptionPurchaseDay),
       creditsBalanceByDay,
+      // B597: источники новых пользователей. Метка собирается из первого
+      // касания: UTM-кампания точнее источника, но есть не всегда, поэтому
+      // берётся первое, что известно. «прямой / неизвестен» — честная строка:
+      // это не отдельный канал, а отсутствие данных, и прятать её значило бы
+      // завышать долю остальных.
+      signupSources: (() => {
+        const buckets = new Map<string, number>();
+        for (const row of signupAttributions) {
+          const label = row.referralToken
+            ? "реферальная ссылка"
+            : row.utmCampaign
+              ? `${row.utmSource ?? row.source} · ${row.utmCampaign}`
+              : row.utmSource ?? (row.source && row.source !== "direct" ? row.source : "прямой / неизвестен");
+          buckets.set(label, (buckets.get(label) ?? 0) + 1);
+        }
+        return [...buckets.entries()]
+          .map(([label, value]) => ({ label, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 12);
+      })(),
       topReferrers: [...topReferrers.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 10),
       productByDay: chartBuckets(period.days).map((bucket) => {
         const topKeys = productKeysByVolume.slice(0, 3);

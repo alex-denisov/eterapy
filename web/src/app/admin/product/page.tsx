@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProductCenterData, resolveAdminPeriod } from "../admin-analytics-data";
-import { AdminHero, AnalyticsSection, FunnelChart, MetricCard, MetricGrid, PeriodToolbar, VerticalBarChart, formatNumber } from "../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, FunnelChart, HorizontalBars, MetricCard, MetricGrid, PeriodToolbar, VerticalBarChart, formatNumber } from "../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -35,6 +35,12 @@ export default async function ProductCenterPage({ searchParams }: PageProps) {
       <div className="mt-6 grid gap-4">
         <AnalyticsSection title="Воронка продукта" actionHref="/admin/product/funnel" actionLabel="Воронка и конверсии">
           <FunnelChart data={data.funnel} />
+        </AnalyticsSection>
+        {/* B597 (владелец): «чтобы понимать реальный источник появления нового
+            пользователя». Считается по первому касанию, а не по последнему
+            переходу: последний ответил бы на другой вопрос. */}
+        <AnalyticsSection title="Источники новых пользователей" actionHref="/admin/marketing" actionLabel="Маркетинг">
+          <HorizontalBars data={data.charts.signupSources} />
         </AnalyticsSection>
         <AnalyticsSection title="Использование продуктов по дням" actionHref="/admin/product/results" actionLabel="Продукты и результаты">
           <VerticalBarChart label="Группированные столбцы по самым активным продуктам" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} integerTicks />
