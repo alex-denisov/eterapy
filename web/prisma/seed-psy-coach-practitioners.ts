@@ -10,6 +10,7 @@ import db from "../src/lib/db";
 import { PractitionerStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { generateUniqueSlug } from "../src/lib/slug";
+import { demoSeedPractitionerStatus, isDemoAccountEmail } from "../src/lib/demo-catalog";
 
 interface DemoPractitioner {
   email: string;
@@ -164,7 +165,10 @@ async function main() {
       create: {
         userId: user.id,
         slug,
-        status: PractitionerStatus.ACTIVE,
+        // B588: статус берётся из списка оставленных профилей, а не «ACTIVE»
+        // безусловно — иначе повторный прогон сида вернул бы в каталог
+        // отключённые владельцем профили.
+        status: demoSeedPractitionerStatus(d.email) as PractitionerStatus,
         title: d.title,
         bio: d.bio,
         experience: d.experience,
@@ -174,8 +178,12 @@ async function main() {
         tags: d.tags,
         languages: d.languages,
         verified: d.bookingReady,
-        bookingOverrideEnabled: d.bookingReady,
-        bookingOverrideAt: d.bookingReady ? new Date() : null,
+        // B588: сид обязан помечать демо-профиль (B584 ввёл флаг, но сид его
+        // не ставил — новый сидированный профиль выходил «живым»), и не
+        // открывать ему запись принудительно.
+        demoAccount: isDemoAccountEmail(d.email),
+        bookingOverrideEnabled: false,
+        bookingOverrideAt: null,
         pricePerSession: d.price,
         reviewCount: d.reviewCount,
         ratingSum: Math.round(d.rating * d.reviewCount * 10) / 10,
@@ -183,7 +191,10 @@ async function main() {
       },
       update: {
         slug,
-        status: PractitionerStatus.ACTIVE,
+        // B588: статус берётся из списка оставленных профилей, а не «ACTIVE»
+        // безусловно — иначе повторный прогон сида вернул бы в каталог
+        // отключённые владельцем профили.
+        status: demoSeedPractitionerStatus(d.email) as PractitionerStatus,
         title: d.title,
         bio: d.bio,
         experience: d.experience,
@@ -193,8 +204,12 @@ async function main() {
         tags: d.tags,
         languages: d.languages,
         verified: d.bookingReady,
-        bookingOverrideEnabled: d.bookingReady,
-        bookingOverrideAt: d.bookingReady ? new Date() : null,
+        // B588: сид обязан помечать демо-профиль (B584 ввёл флаг, но сид его
+        // не ставил — новый сидированный профиль выходил «живым»), и не
+        // открывать ему запись принудительно.
+        demoAccount: isDemoAccountEmail(d.email),
+        bookingOverrideEnabled: false,
+        bookingOverrideAt: null,
         pricePerSession: d.price,
         reviewCount: d.reviewCount,
         ratingSum: Math.round(d.rating * d.reviewCount * 10) / 10,
@@ -211,7 +226,10 @@ async function main() {
       ],
     });
 
-    // Weekly schedule (Mon–Sat, 10:00–20:00).
+    // Weekly schedule (Mon–Sat, 10:00–20:00). B584/B588: у демо-профиля правила
+    // создаются ВЫКЛЮЧЕННЫМИ — часы остаются на месте на случай появления живого
+    // человека, но сид больше не открывает расписание, которое владелец закрыл.
+    const scheduleEnabled = !isDemoAccountEmail(d.email);
     for (const day of [1, 2, 3, 4, 5, 6]) {
       await db.scheduleRule.upsert({
         where: { practitionerId_dayOfWeek: { practitionerId: practitioner.id, dayOfWeek: day } },
@@ -222,9 +240,9 @@ async function main() {
           startMinute: 0,
           endHour: 20,
           endMinute: 0,
-          enabled: true,
+          enabled: scheduleEnabled,
         },
-        update: { enabled: true, startHour: 10, startMinute: 0, endHour: 20, endMinute: 0 },
+        update: { enabled: scheduleEnabled, startHour: 10, startMinute: 0, endHour: 20, endMinute: 0 },
       });
     }
 

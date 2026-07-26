@@ -139,13 +139,17 @@ export function CookieBanner() {
         }}
       >
         <p className="text-xs sm:min-w-0 sm:flex-1" style={{ color: "var(--soft-ink-soft)" }}>
-          Cookies для входа и аналитики.{" "}
+          {/* B587: счётчик назван прямо в баннере — согласие даётся здесь, а
+              не на странице политики, и человек вправе знать, на что именно.
+              Ссылка ведёт в Cookie Policy (там же условия и отказ), а не в
+              общую политику ПДн. */}
+          Cookies для входа и аналитики — Яндекс Метрика.{" "}
           {/* B464 round-4: absolute main-domain URL — a relative href on the
-              app subdomain made Next prefetch /legal/privacy?_rsc, which the
+              app subdomain made Next prefetch /legal/cookies?_rsc, which the
               proxy redirects cross-origin → a CORS console error on EVERY
               cabinet page for consent-less visitors. */}
           <Link
-            href={mainUrl("/legal/privacy")}
+            href={mainUrl("/legal/cookies")}
             className="underline underline-offset-2 hover:no-underline"
             style={{ color: "var(--soft-bordeaux)" }}
           >

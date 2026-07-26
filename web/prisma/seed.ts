@@ -4,6 +4,7 @@ import { usersDb } from "../src/lib/users-db";
 import bcrypt from "bcryptjs";
 import { Specialty } from "@prisma/client";
 import { generateUniqueSlug } from "../src/lib/slug";
+import { demoSeedPractitionerStatus, isDemoAccountEmail } from "../src/lib/demo-catalog";
 
 async function main() {
   console.log("🌱 Seeding test accounts...");
@@ -26,27 +27,32 @@ async function main() {
       create: {
         userId: user.id,
         slug,
-        status: "ACTIVE",
+        // B588: статус из списка оставленных профилей. Елена в списке остаётся,
+        // но захардкоженный "ACTIVE" тихо воскресил бы любого, кого уберут позже.
+        status: demoSeedPractitionerStatus(practitionerEmail),
         title: "Астролог, нумеролог",
         bio: "Опытный практик с более чем 10-летним стажем.",
         experience: "10 лет",
         specialties: [Specialty.ASTROLOGY, Specialty.NUMEROLOGY],
         tags: ["астрология", "нумерология", "таро"],
         verified: true,
-        // B459: demo practitioner is booking-enabled via the superadmin override
-        // (bypasses the commercial requisites gate so the booking flow works).
-        bookingOverrideEnabled: true,
-        bookingOverrideAt: new Date(),
+        // B584/B588: демо-профиль помечается флагом, и запись ему принудительно
+        // НЕ открывается. B459 ставил здесь override ради живого каталога — это
+        // и была причина, по которой к тестовым практикам можно было записаться.
+        demoAccount: isDemoAccountEmail(practitionerEmail),
+        bookingOverrideEnabled: false,
+        bookingOverrideAt: null,
         pricePerSession: 3000,
         reviewCount: 15,
         ratingSum: 75,
         sessionCount: 120,
       },
       update: {
-        status: "ACTIVE",
+        status: demoSeedPractitionerStatus(practitionerEmail),
         verified: true,
-        bookingOverrideEnabled: true,
-        bookingOverrideAt: new Date(),
+        demoAccount: isDemoAccountEmail(practitionerEmail),
+        bookingOverrideEnabled: false,
+        bookingOverrideAt: null,
       },
     });
     // Тарифы
@@ -57,8 +63,10 @@ async function main() {
         { practitionerId: practitioner.id, durationMin: 90, priceRub: 4500, enabled: true },
       ],
     });
-    // Расписание (пн-пт 9:00-21:00)
+    // Расписание (пн-пт 9:00-21:00). B584/B588: у демо-профиля правила остаются
+    // выключенными — сид не открывает расписание, закрытое владельцем.
     const days = [1, 2, 3, 4, 5];
+    const scheduleEnabled = !isDemoAccountEmail(practitionerEmail);
     for (const day of days) {
       await db.scheduleRule.upsert({
         where: { practitionerId_dayOfWeek: { practitionerId: practitioner.id, dayOfWeek: day } },
@@ -69,9 +77,9 @@ async function main() {
           startMinute: 0,
           endHour: 21,
           endMinute: 0,
-          enabled: true,
+          enabled: scheduleEnabled,
         },
-        update: { enabled: true, startHour: 9, startMinute: 0, endHour: 21, endMinute: 0 },
+        update: { enabled: scheduleEnabled, startHour: 9, startMinute: 0, endHour: 21, endMinute: 0 },
       });
     }
     console.log("✅ Practitioner data ensured for", practitionerEmail);
@@ -114,15 +122,16 @@ async function main() {
         data: {
           userId: newUser.id,
           slug: practSlug,
-          status: "ACTIVE",
+          status: demoSeedPractitionerStatus(p.email),
           title: p.specialties.includes(Specialty.ASTROLOGY) ? "Астролог" : p.specialties.includes(Specialty.TAROT) ? "Таролог" : "Эзотерик",
           bio: "Опытный практик.",
           experience: "5 лет",
           specialties: p.specialties,
           tags: p.specialties.map(s => s.toLowerCase()),
           verified: true,
-          bookingOverrideEnabled: true,
-          bookingOverrideAt: new Date(),
+          demoAccount: isDemoAccountEmail(p.email),
+          bookingOverrideEnabled: false,
+          bookingOverrideAt: null,
           pricePerSession: p.price,
           reviewCount: 10,
           ratingSum: 50,
@@ -144,7 +153,7 @@ async function main() {
             startMinute: 0,
             endHour: 20,
             endMinute: 0,
-            enabled: true,
+            enabled: !isDemoAccountEmail(p.email),
           },
         });
       }
