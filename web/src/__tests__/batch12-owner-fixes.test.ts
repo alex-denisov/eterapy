@@ -197,3 +197,20 @@ describe("INC-085 · фолбэк загрузки совпадает с обл�
     expect(read("src/app/cabinet/loading.tsx")).toContain("cabinet-route-loading");
   });
 });
+
+describe("INC-081 · зависшая оплата не ждёт человека", () => {
+  it("досверка стоит в расписании воркера, а не запускается руками", () => {
+    const scheduler = read("src/lib/cron-scheduler.ts");
+    expect(scheduler).toContain('type: "cron.billing-reconcile-pending"');
+    expect(scheduler).toContain('cadence: "hourly"');
+    // НЕ financial: джоб ничего не списывает, а дочитывает у провайдера уже
+    // случившееся. Под гейтом финансовых джобов страховка была бы выключена
+    // ровно там, где она нужна.
+    const line = scheduler.split("\n").find((l) => l.includes("cron.billing-reconcile-pending")) ?? "";
+    expect(line).not.toContain("financial: true");
+  });
+
+  it("у джоба есть обработчик", () => {
+    expect(read("src/lib/cron-jobs.ts")).toContain('"cron.billing-reconcile-pending": runBillingReconcilePendingJob');
+  });
+});

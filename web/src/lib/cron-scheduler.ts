@@ -50,6 +50,10 @@ function bucketFor(cadence: Cadence, now: Date) {
  * run does not replay stale side effects.
  */
 export const CRON_SCHEDULES: CronSchedule[] = [
+  // INC-081: страховка за ResultURL. Ежечасно — оплаченный, но не выданный
+  // заказ не должен ждать сутки; не «financial», потому что джоб ничего не
+  // списывает, а только дочитывает у провайдера уже случившееся.
+  { type: "cron.billing-reconcile-pending", cadence: "hourly", keyPrefix: "billing-reconcile-pending" },
   { type: "cron.cleanup-users", cadence: "daily", keyPrefix: "cleanup-users" },
   { type: "cron.booking-reminders", cadence: "hourly", keyPrefix: "booking-reminders" },
   { type: "cron.practitioner-sync", cadence: "daily", keyPrefix: "practitioner-sync" },
