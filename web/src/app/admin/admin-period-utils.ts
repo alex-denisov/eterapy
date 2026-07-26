@@ -78,6 +78,11 @@ export function adminPresetRange(period: string) {
   } else if (period === "week") {
     const weekday = end.getDay() || 7;
     start.setDate(end.getDate() - weekday + 1);
+  } else if (period === "month") {
+    // Владелец 2026-07-27: «месяц» — это текущий календарный месяц с первого
+    // числа, а не последние 30 дней. Кнопки периода отвечают на вопрос «что у
+    // нас в этом месяце», а не «сколько набежало за месяц».
+    start = new Date(end.getFullYear(), end.getMonth(), 1);
   } else if (period === "quarter") {
     start = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
   }
@@ -188,4 +193,27 @@ export function adminMonthTitle(anchorIso: string) {
 export function adminShiftMonth(anchorIso: string, delta: number) {
   const anchor = adminPeriodParseIso(anchorIso) ?? adminStartOfToday();
   return adminPeriodToIsoDate(new Date(anchor.getFullYear(), anchor.getMonth() + delta, 1));
+}
+
+/**
+ * Дата и время одной строкой: `дд.мм.гггг чч:мм` (владелец 2026-07-27).
+ *
+ * В таблицах пользователей стояла только дата. Для «регистрации» и «последнего
+ * входа» это половина сведения: по колонке нельзя было отличить два входа в
+ * один день, а по регистрациям — понять всплеск внутри суток. Часовой пояс —
+ * московский, как и всё остальное в админке; браузер администратора может
+ * стоять в другом, и без явного пояса две панели показывали бы разное.
+ */
+export function adminDateTime(value: Date | string | number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  }).format(date).replace(", ", " ");
 }
