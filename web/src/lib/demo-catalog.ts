@@ -82,3 +82,34 @@ export function demoSeedPractitionerStatus(email: string | null | undefined): "A
   if (!isDemoAccountEmail(email)) return "ACTIVE";
   return isKeptDemoProfile(email) ? "ACTIVE" : "SUSPENDED";
 }
+
+/**
+ * B590 (owner 2026-07-26): «для тех что остались на платформе нужно поставить
+ * все признаки прохождения проверки, пусть будут как специалисты, но пока без
+ * доступных окон записи».
+ *
+ * Каталог обещает «проверку диплома, опыта и подписанный этический кодекс» —
+ * это проверка **самой ETerapy**, и её признаки у оставшейся четвёрки должны
+ * быть проставлены целиком, а не наполовину (на проде `verifiedAt` был только
+ * у одного профиля из четырёх).
+ *
+ * Механика проверок не меняется: `assertPractitionerBookingAllowed` работает
+ * как работал, и запись остаётся закрытой флагом `demoAccount` (B584) — он
+ * сильнее любого из этих признаков.
+ *
+ * Чего здесь намеренно НЕТ: `taxStatus` / `taxReviewStatus` / реквизитов
+ * выплат / ИНН. Это не «проверка ETerapy», а утверждение о налоговой
+ * регистрации конкретного человека, и оно печатается на публичной странице
+ * строкой «Статус: самозанятый (НПД) · ИНН …». За этими профилями людей нет,
+ * поэтому такую строку выдумывать нельзя — см. хвост B588.
+ */
+export function demoSeedPractitionerVerified(email: string | null | undefined): boolean {
+  if (!isDemoAccountEmail(email)) return false;
+  return isKeptDemoProfile(email);
+}
+
+/**
+ * Дата проверки для сида — фиксированная, а не `new Date()`: сид идемпотентный
+ * и прогоняется повторно, плавающая дата давала бы новый диф на каждом прогоне.
+ */
+export const DEMO_PROFILE_VERIFIED_AT = new Date("2026-07-26T00:00:00.000Z");

@@ -10,7 +10,12 @@ import db from "../src/lib/db";
 import { PractitionerStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { generateUniqueSlug } from "../src/lib/slug";
-import { demoSeedPractitionerStatus, isDemoAccountEmail } from "../src/lib/demo-catalog";
+import {
+  DEMO_PROFILE_VERIFIED_AT,
+  demoSeedPractitionerStatus,
+  demoSeedPractitionerVerified,
+  isDemoAccountEmail,
+} from "../src/lib/demo-catalog";
 
 interface DemoPractitioner {
   email: string;
@@ -177,7 +182,11 @@ async function main() {
         specialties: [],
         tags: d.tags,
         languages: d.languages,
-        verified: d.bookingReady,
+        // B590: оставленным профилям — полный набор признаков проверки ETerapy
+        // (с датой). `bookingReady` описывал коммерческую готовность и к
+        // проверке отношения не имел; запись всё равно закрыта `demoAccount`.
+        verified: demoSeedPractitionerVerified(d.email),
+        verifiedAt: demoSeedPractitionerVerified(d.email) ? DEMO_PROFILE_VERIFIED_AT : null,
         // B588: сид обязан помечать демо-профиль (B584 ввёл флаг, но сид его
         // не ставил — новый сидированный профиль выходил «живым»), и не
         // открывать ему запись принудительно.
@@ -203,7 +212,11 @@ async function main() {
         specialties: [],
         tags: d.tags,
         languages: d.languages,
-        verified: d.bookingReady,
+        // B590: оставленным профилям — полный набор признаков проверки ETerapy
+        // (с датой). `bookingReady` описывал коммерческую готовность и к
+        // проверке отношения не имел; запись всё равно закрыта `demoAccount`.
+        verified: demoSeedPractitionerVerified(d.email),
+        verifiedAt: demoSeedPractitionerVerified(d.email) ? DEMO_PROFILE_VERIFIED_AT : null,
         // B588: сид обязан помечать демо-профиль (B584 ввёл флаг, но сид его
         // не ставил — новый сидированный профиль выходил «живым»), и не
         // открывать ему запись принудительно.

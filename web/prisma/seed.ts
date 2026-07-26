@@ -4,7 +4,12 @@ import { usersDb } from "../src/lib/users-db";
 import bcrypt from "bcryptjs";
 import { Specialty } from "@prisma/client";
 import { generateUniqueSlug } from "../src/lib/slug";
-import { demoSeedPractitionerStatus, isDemoAccountEmail } from "../src/lib/demo-catalog";
+import {
+  DEMO_PROFILE_VERIFIED_AT,
+  demoSeedPractitionerStatus,
+  demoSeedPractitionerVerified,
+  isDemoAccountEmail,
+} from "../src/lib/demo-catalog";
 
 async function main() {
   console.log("🌱 Seeding test accounts...");
@@ -35,7 +40,10 @@ async function main() {
         experience: "10 лет",
         specialties: [Specialty.ASTROLOGY, Specialty.NUMEROLOGY],
         tags: ["астрология", "нумерология", "таро"],
-        verified: true,
+        // B590: признаки проверки ETerapy ставятся из одного места вместе с
+        // датой — «verified без verifiedAt» это половина признака.
+        verified: demoSeedPractitionerVerified(practitionerEmail),
+        verifiedAt: demoSeedPractitionerVerified(practitionerEmail) ? DEMO_PROFILE_VERIFIED_AT : null,
         // B584/B588: демо-профиль помечается флагом, и запись ему принудительно
         // НЕ открывается. B459 ставил здесь override ради живого каталога — это
         // и была причина, по которой к тестовым практикам можно было записаться.
@@ -49,7 +57,8 @@ async function main() {
       },
       update: {
         status: demoSeedPractitionerStatus(practitionerEmail),
-        verified: true,
+        verified: demoSeedPractitionerVerified(practitionerEmail),
+        verifiedAt: demoSeedPractitionerVerified(practitionerEmail) ? DEMO_PROFILE_VERIFIED_AT : null,
         demoAccount: isDemoAccountEmail(practitionerEmail),
         bookingOverrideEnabled: false,
         bookingOverrideAt: null,
@@ -128,7 +137,8 @@ async function main() {
           experience: "5 лет",
           specialties: p.specialties,
           tags: p.specialties.map(s => s.toLowerCase()),
-          verified: true,
+          verified: demoSeedPractitionerVerified(p.email),
+          verifiedAt: demoSeedPractitionerVerified(p.email) ? DEMO_PROFILE_VERIFIED_AT : null,
           demoAccount: isDemoAccountEmail(p.email),
           bookingOverrideEnabled: false,
           bookingOverrideAt: null,

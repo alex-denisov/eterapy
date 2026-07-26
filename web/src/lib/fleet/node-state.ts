@@ -188,23 +188,40 @@ export type ContainerSummary = {
   unhealthy: number;
   /** Версии образа приложения на ноде: >1 значит частичное обновление. */
   appVersions: string[];
+  /**
+   * Остановленные контейнеры приложения на версиях, которых нет ни в одном
+   * работающем. Это следы прошлых выкаток, а не обслуживаемый код.
+   */
+  staleAppVersions: string[];
 };
 
+const isAppContainer = (container: ContainerState) => container.image.startsWith("eterapy-web");
+
+const uniqueSortedTags = (containers: ContainerState[]) =>
+  [...new Set(containers.map((container) => container.tag).filter(Boolean))].sort();
+
+/**
+ * INC-079: версию флота задают только **работающие** контейнеры. Остановленный
+ * контейнер ничего не обслуживает, но живёт в `docker ps -a` бесконечно: у
+ * сервиса из выключенного compose-профиля его не убирает даже
+ * `up --remove-orphans` (профильный сервис объявлен в файле и орфаном не
+ * считается). Считая его наравне с живыми, панель месяцами показывала
+ * «разные версии» из-за контейнера, вышедшего восемь дней назад.
+ * Такие следы не прячем — они уезжают в отдельное поле.
+ */
 export function summarizeContainers(containers: ContainerState[]): ContainerSummary {
-  const appVersions = [
-    ...new Set(
-      containers
-        .filter((container) => container.image.startsWith("eterapy-web"))
-        .map((container) => container.tag)
-        .filter(Boolean),
-    ),
-  ].sort();
+  const appContainers = containers.filter(isAppContainer);
+  const appVersions = uniqueSortedTags(appContainers.filter((container) => container.state === "running"));
+  const staleAppVersions = uniqueSortedTags(
+    appContainers.filter((container) => container.state !== "running" && !appVersions.includes(container.tag)),
+  );
 
   return {
     total: containers.length,
     running: containers.filter((container) => container.state === "running").length,
     unhealthy: containers.filter((container) => container.health === "unhealthy").length,
     appVersions,
+    staleAppVersions,
   };
 }
 
