@@ -18,6 +18,7 @@ import { cancelSessionHold, captureGraceExpiredSessions } from "@/lib/session-pa
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 import { cleanupExpiredMiniAppAuthGrants } from "@/lib/miniapp/telegram/auth";
+import { reconcileRobokassaBacklog } from "@/lib/payments/reconcile-robokassa";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -418,7 +419,34 @@ export async function runSessionEscrowCaptureJob(job: Job): Promise<JobResult> {
   return result;
 }
 
+/**
+ * INC-081 — досверка зависших платежей.
+ *
+ * ResultURL — единственный путь зачисления, и у него ровно четыре попытки за
+ * четыре минуты. Если в эти четыре минуты наш ответ был неверным или нода была
+ * недоступна, деньги остаются списанными, а транзакция — PENDING навсегда: без
+ * этого джоба к ней не возвращается никто. Ровно так и вышло с первой боевой
+ * оплатой платформы.
+ *
+ * Джоб НЕ помечен `financial`: он не двигает деньги, а лишь дочитывает у
+ * провайдера то, что уже произошло. Гейт финансовых крон-джобов защищает от
+ * автоматических списаний и выплат — здесь его действие означало бы, что
+ * страховка выключена ровно там, где она нужна.
+ */
+export async function runBillingReconcilePendingJob(job: Job): Promise<JobResult> {
+  const changed = await reconcileRobokassaBacklog();
+  const result = {
+    ok: true,
+    changed: changed.length,
+    outcomes: changed.map((item) => `${item.invoiceId}:${item.outcome}`),
+    timestamp: jobNow(job).toISOString(),
+  };
+  log.info("cron-billing-reconcile-pending-completed", { jobId: job.id, ...result });
+  return result;
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
+  "cron.billing-reconcile-pending": runBillingReconcilePendingJob as JobHandler,
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
   "cron.practitioner-sync": runPractitionerCommissionSyncJob as JobHandler,
