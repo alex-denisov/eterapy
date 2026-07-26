@@ -78,7 +78,7 @@ describe("B550 — human editorial quality gate for life questions", () => {
   it("uses recognisable life categories instead of generic SEO buckets", () => {
     expect(LIFE_LIBRARY_TOPICS).toEqual([
       "Отношения",
-      "Хожу по кругу",
+      "Повторяется одно и то же",
       "Тревога и состояние",
       "Работа и деньги",
       "Одиночество",

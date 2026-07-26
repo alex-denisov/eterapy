@@ -21,7 +21,7 @@ export const TELEGRAM_GROWTH_ENTRIES: TelegramGrowthEntry[] = [
     key: "practice",
     label: "Ежедневная практика",
     description: "Карта дня, мягкий ритм и ежедневная практика.",
-    webPath: "/practice?channel=telegram_bot&entry=practice",
+    webPath: "/diary?channel=telegram_bot&entry=practice",
     startPayload: "practice",
   },
   {

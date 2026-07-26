@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { loadProductDraft } from "@/lib/product-draft";
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
@@ -306,6 +307,22 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
     return () => { cancelled = true; };
   }, [authStatus, resultId]);
 
+  // INC-082: возврат с оплаты. Раньше человек платил и попадал на ПУСТУЮ
+  // форму — описание ситуации, ради которого он и платил, оставалось на той
+  // стороне редиректа. Черновик снимается перед уходом на провайдера.
+  useEffect(() => {
+    if (resultId) return;
+    const draft = loadProductDraft<{ sourceText?: string; topic?: string | null; feeling?: string | null }>("reframe");
+    if (!draft) return;
+    // Черновик лежит в sessionStorage — на сервере его нет, читать можно только
+    // после монтирования. Инициализатор состояния здесь не годится: он
+    // выполнится и при рендере на сервере и разойдётся с клиентом.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- восстановление из браузерного хранилища, один раз при монтировании
+    if (draft.sourceText) setSourceText(draft.sourceText);
+    if (draft.topic) setTopic(draft.topic);
+    if (draft.feeling) setFeeling(draft.feeling);
+  }, [resultId]);
+
   // Узнаём доступ (entitlement) на свежем экране, чтобы показать прямой CTA.
   useEffect(() => {
     if (authStatus !== "authenticated" || resultId) return;
@@ -563,6 +580,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
               label="Открыть переосмысление"
               checkoutSource="reframe-generate"
               creditCost={1}
+              draft={() => ({ sourceText, topic, feeling })}
               onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
             />
           )}

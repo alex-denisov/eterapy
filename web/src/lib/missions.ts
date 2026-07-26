@@ -24,7 +24,7 @@ export const ONBOARDING_MISSIONS = [
     key: "first_practice",
     title: "Ответить на вопрос дня",
     description: "Запишите свой вопрос дня своими словами — в ответ придут взгляд дня и маленький шаг. Засчитывается именно запись, не открытие страницы.",
-    actionHref: "/cabinet/practice",
+    actionHref: "/cabinet/diary",
     rewardCredits: 2,
   },
   {

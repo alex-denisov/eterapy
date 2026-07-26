@@ -100,7 +100,7 @@ describe("R7 item 5 — cabinet heading hierarchy is consistent", () => {
     expect(wallet).toContain('<h2 className="soft-h3 mt-1">Дозаправить кошелёк</h2>');
     expect(wallet).not.toContain("soft-h2");
     // billing bare-eyebrow section heads promoted to real soft-h3 headings
-    expect(billing).toContain('<h3 className="soft-h3">Карты и платежи</h3>');
+    expect(billing).toContain('<h3 className="soft-h3">Карты</h3>');
     expect(billing).toContain('<h3 className="soft-h3">История платежей</h3>');
     // plan name no longer an ad-hoc inline 28px size
     expect(billing).not.toContain("fontSize: 28");

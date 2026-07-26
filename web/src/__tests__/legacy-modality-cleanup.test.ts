@@ -49,10 +49,12 @@ describe("B084 legacy modality unlock cleanup", () => {
     // that redirects forward; the real v4.2 Practice screen lives at
     // /cabinet/practice/page.tsx.
     const legacyIndex = source("src/app/cabinet/modalities/page.tsx");
-    const practice = source("src/app/cabinet/practice/page.tsx");
+    const practice = source("src/app/cabinet/diary/page.tsx");
     const slugPage = source("src/app/cabinet/modalities/[slug]/page.tsx");
 
-    expect(legacyIndex).toContain('redirect("/cabinet/practice")');
+    // B593: /cabinet/practice сам стал переадресацией — двойной прыжок убран,
+    // старый URL ведёт сразу на «Дневник».
+    expect(legacyIndex).toContain('permanentRedirect("/cabinet/diary")');
     expect(slugPage).toContain('redirect(`/cabinet/modalities/checkin?source=legacy-${slug}-cabinet`)');
     expect(practice).not.toContain("/cabinet/modalities/tarot");
     expect(practice).not.toContain("/cabinet/modalities/horoscope");

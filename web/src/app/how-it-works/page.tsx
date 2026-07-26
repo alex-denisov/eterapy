@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { HomeAuthorityArticle } from "@/components/landing/authority-article";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 export const metadata = createPublicPageMetadata("/how-it-works");
@@ -180,6 +181,11 @@ export default function HowItWorksPage() {
           </Link>
         </div>
       </section>
+
+      {/* B595: развёрнутый материал переехал сюда с главной. Здесь у него свой
+          URL, своя разметка Article и FAQPage — и страница, чей основной
+          контент действительно есть ответы на вопросы. */}
+      <HomeAuthorityArticle />
     </main>
   );
 }

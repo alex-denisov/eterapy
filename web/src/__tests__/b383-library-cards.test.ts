@@ -5,7 +5,7 @@ import { LIFE_LIBRARY_TOPICS, isLibraryTopic, type LifeLibraryTopic } from "@/li
 // Appendix A target distribution for the published catalogue (120 cards).
 const TARGET_DISTRIBUTION: Record<LifeLibraryTopic, number> = {
   "Отношения": 30,
-  "Хожу по кругу": 18,
+  "Повторяется одно и то же": 18,
   "Тревога и состояние": 18,
   "Работа и деньги": 16,
   "Одиночество": 14,

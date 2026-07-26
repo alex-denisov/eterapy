@@ -16,8 +16,8 @@ import {
 const labels = (items: { label: string }[]) => items.map((i) => i.label);
 
 describe("B464 IB0 nav-model — landing top nav", () => {
-  it("renames «Продукты» → «Услуги» but keeps the /products route", () => {
-    const services = LANDING_NAV.find((i) => i.label === "Услуги");
+  it("renames «Продукты» → «Разобрать» but keeps the /products route", () => {
+    const services = LANDING_NAV.find((i) => i.label === "Разобрать");
     expect(services).toBeTruthy();
     expect(services?.href).toBe("/products");
     // The user-facing «Продукты» label is gone platform-wide.
@@ -28,10 +28,10 @@ describe("B464 IB0 nav-model — landing top nav", () => {
     expect(labels(LANDING_NAV)).toContain("Библиотека");
   });
 
-  it("orders the nav Как работает · Услуги · Специалисты · Тарифы · Библиотека", () => {
+  it("orders the nav Как работает · Разобрать · Специалисты · Тарифы · Библиотека", () => {
     expect(labels(LANDING_NAV)).toEqual([
       "Как работает",
-      "Услуги",
+      "Разобрать",
       "Специалисты",
       "Тарифы",
       "Библиотека",
@@ -43,7 +43,7 @@ describe("B464 IB0 nav-model — cabinet service bridge", () => {
   it("fills the in-cabinet header centre with cross-shell service links", () => {
     expect(labels(CABINET_BRIDGE)).toEqual([
       "На сайт",
-      "Услуги",
+      "Разобрать",
       "Специалисты",
       "Библиотека",
     ]);
@@ -51,29 +51,29 @@ describe("B464 IB0 nav-model — cabinet service bridge", () => {
 });
 
 describe("B464 IB0 nav-model — mobile bottom bar (state-aware)", () => {
-  it("gives the logged-in client Главная · Вопрос · Услуги · Дневник · Ещё", () => {
+  it("gives the logged-in client Главная · Вопрос · Разобрать · Дневник · Ещё", () => {
     expect(labels(CLIENT_MOBILE_TABS)).toEqual([
       "Главная",
       "Вопрос",
-      "Услуги",
+      "Разобрать",
       "Дневник",
       "Ещё",
     ]);
   });
 
-  it("gives the guest Войти · Вопрос · Услуги · Специалисты · Ещё (slot 1 = Войти)", () => {
+  it("gives the guest Войти · Вопрос · Разобрать · Специалисты · Ещё (slot 1 = Войти)", () => {
     expect(labels(GUEST_MOBILE_TABS)).toEqual([
       "Войти",
       "Вопрос",
-      "Услуги",
+      "Разобрать",
       "Специалисты",
       "Ещё",
     ]);
   });
 
-  it("routes «Вопрос» to /checkin and «Услуги» to /products (the free door + services)", () => {
+  it("routes «Вопрос» to /checkin and «Разобрать» to /products (the free door + services)", () => {
     const q = CLIENT_MOBILE_TABS.find((t) => t.label === "Вопрос");
-    const s = CLIENT_MOBILE_TABS.find((t) => t.label === "Услуги");
+    const s = CLIENT_MOBILE_TABS.find((t) => t.label === "Разобрать");
     expect(q?.href).toContain("/checkin");
     expect(s?.href).toContain("/products");
   });
@@ -100,7 +100,7 @@ describe("B512 nav-model — client «Ещё» hub sections", () => {
       "Приглашения",
     ]);
     expect(labels(CLIENT_MORE_SECTIONS[1].items)).toEqual([
-      "Услуги",
+      "Разобрать",
       "Специалисты",
       "Библиотека",
     ]);

@@ -2,6 +2,8 @@
  * B544 — полноценный мониторинг флота: контейнеры с версиями, бэкапы,
  * бакеты, HAProxy, Cloudflare-воркеры.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { parseNodeState, summarizeContainers, RPO_WARN_SEC, RPO_FAIL_SEC } from "@/lib/fleet/node-state";
 import { checkCloudflareWorkers } from "@/lib/fleet/cloudflare";
 
@@ -117,10 +119,10 @@ describe("INC-079 · остановленный контейнер не зада
 });
 
 describe("INC-079 · выкатка убирает следы прошлых выкаток", () => {
-  const workflow = require("node:fs").readFileSync(
-    require("node:path").join(process.cwd(), "..", ".github", "workflows", "deploy.yml"),
+  const workflow = fs.readFileSync(
+    path.join(process.cwd(), "..", ".github", "workflows", "deploy.yml"),
     "utf8",
-  ) as string;
+  );
 
   it("после compose up чистятся остановленные контейнеры проекта", () => {
     expect(workflow).toContain("docker container prune -f");

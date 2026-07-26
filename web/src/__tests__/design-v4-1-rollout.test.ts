@@ -23,8 +23,8 @@ describe("design v4.2 rollout", () => {
     const navModel = source("lib/nav-model.ts");
     const footer = source("components/footer.tsx");
 
-    // B464 IB0: the landing nav moved to the shared model; «Продукты» → «Услуги».
-    expect(navModel).toContain('label: "Услуги"');
+    // B464 IB0: the landing nav moved to the shared model; «Продукты» → «Разобрать».
+    expect(navModel).toContain('label: "Разобрать"');
     expect(navModel).not.toContain('label: "Продукты"');
     // B380 (M26): the footer was condensed to the catalogue groups and no longer
     // links the removed growth routes (circle / clarity-practice / telegram).

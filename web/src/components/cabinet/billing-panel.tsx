@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Shield, Trash2, Check } from "lucide-react";
+import { Loader2, Shield, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { mainUrl } from "@/lib/subdomain";
@@ -79,7 +79,6 @@ export function BillingPanel() {
   const searchParams = useSearchParams();
 
   const [creatingPayment, setCreatingPayment] = useState(false);
-  const [savingCard, setSavingCard] = useState(false);
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
   const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
@@ -173,24 +172,6 @@ export function BillingPanel() {
     router.replace("/cabinet/wallet");
     return () => { cancelled = true; };
   }, [searchParams, router]);
-
-  async function handleLinkCard() {
-    setSavingCard(true);
-    try {
-      const res = await fetch("/api/billing/save-card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountKopecks: 100, description: "Привязка банковской карты" }),
-      });
-      const data = await res.json();
-      if (data.confirmationUrl) window.location.assign(data.confirmationUrl);
-      else toast.error(data.error || "Ошибка привязки карты");
-    } catch {
-      toast.error("Ошибка сети");
-    } finally {
-      setSavingCard(false);
-    }
-  }
 
   async function handleRemoveCard(cardId: string) {
     try {
@@ -372,8 +353,7 @@ export function BillingPanel() {
       {/* Карты и платежи — saved cards (delete bottom-right) + history (round-3 #3) */}
       <div className="soft-card p-5 md:p-6" data-testid="client-saved-cards">
         <div className="mb-3">
-          <h3 className="soft-h3">Карты и платежи</h3>
-          <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">Карты для оплаты сессий и подписки</p>
+          <h3 className="soft-h3">Карты</h3>
         </div>
 
         {loadingCards ? (
@@ -427,25 +407,25 @@ export function BillingPanel() {
                 )}
               </div>
             ))}
-            <button
-              onClick={handleLinkCard}
-              disabled={savingCard}
-              className="flex aspect-[1.6/1] w-full flex-col items-center justify-center gap-1.5 rounded-[0.9rem] border-2 border-dashed border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-bordeaux)]/50 hover:text-[var(--soft-bordeaux)] disabled:opacity-50"
-              data-testid="client-link-card"
-              title={linkedCards.length === 0 ? "Привязать карту" : "Добавить карту"}
-            >
-              {savingCard ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-7 w-7" />}
-              <span className="text-[11px] font-medium">{linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"}</span>
-            </button>
           </div>
         )}
         {!loadingCards && linkedCards.length === 0 && (
-          <p className="mt-2 text-center text-xs" style={{ color: "var(--soft-ink-faint)" }}>Привяжите карту, чтобы оплачивать сессии и подписку в один тап</p>
+          <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+            Сохранённых карт нет. Реквизиты вводятся на защищённой странице банка
+            при каждой оплате — на нашей стороне их нет и не появляется.
+          </p>
         )}
 
-        <div className="mt-4 flex items-center gap-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-          <Shield className="h-3 w-3" />
-          Платёж защищён через ЮKassa · мы не храним данные карты
+        {/* INC-084: кнопка «Привязать карту» уводила в ЮKassa — к провайдеру, с
+            которым платформа больше не работает (B570, 22.07). Она списывала 1 ₽
+            на верификацию через чужой кабинет и обещала «оплату в один тап»,
+            которой на боевом рельсе нет: Robokassa не отдаёт токен карты, её
+            последние четыре цифры и срок — показывать в этом блоке было бы
+            нечего. Кнопка снята до подключения рекуррентных платежей (B593);
+            удалить уже сохранённую карту по-прежнему можно. */}
+        <div className="mt-4 flex items-start gap-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+          <Shield className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>Оплата проходит на стороне Robokassa · данные карты к нам не попадают</span>
         </div>
       </div>
 

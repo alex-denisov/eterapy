@@ -29,7 +29,10 @@ describe("anonymous question library", () => {
     const detailPage = source("app/library/[slug]/page.tsx");
 
     expect(listPage).toContain('data-testid="anonymous-library-page"');
-    expect(listPage).toContain("Без комментариев, диагнозов и готовых решений за вас");
+    // B596: разделов «Жизненные ситуации / Символические практики» больше нет —
+    // список один, разделение живёт в чипах тем.
+    expect(listPage).toContain("комментариев и готовых решений за вас");
+    expect(listPage).not.toContain("Символические практики\n");
     expect(listPage).toContain('data-testid="library-dialogue-cta"');
     const cta = source("components/library/library-entry-cta.tsx");
     expect(detailPage).toContain("LibraryEntryCta");

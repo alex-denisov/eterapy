@@ -62,11 +62,11 @@ export function homeAuthorityJsonLd() {
     {
       "@context": "https://schema.org",
       "@type": "Article",
-      "@id": `${seoOrigins.main}/#how-eterapy-works-article`,
+      "@id": `${seoOrigins.main}/how-it-works#article`,
       headline: "ETerapy: как устроен разбор жизненного вопроса",
       description: "Определения, примеры, ограничения и критерии выбора между самостоятельным разбором, цифровым углублением и живым специалистом.",
       image: canonicalUrl("/clarity-flow.svg"),
-      mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl("/") },
+      mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl("/how-it-works") },
       author: organization,
       publisher: organization,
       datePublished: HOME_CONTENT_PUBLISHED_AT,
@@ -88,7 +88,7 @@ export function homeAuthorityJsonLd() {
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      "@id": `${seoOrigins.main}/#faq`,
+      "@id": `${seoOrigins.main}/how-it-works#faq`,
       mainEntity: HOME_FAQS.map((faq) => ({
         "@type": "Question",
         name: faq.question,

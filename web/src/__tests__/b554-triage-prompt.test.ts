@@ -37,7 +37,7 @@ describe("B554 регистр разговора", () => {
 });
 
 describe("B554 промт уточнения", () => {
-  const base = { originalQuestion: "Хожу по кругу уже месяц", topic: "career", difficulty: "medium" };
+  const base = { originalQuestion: "Повторяется одно и то же уже месяц", topic: "career", difficulty: "medium" };
 
   it("до минимума ходов готовность запрещена, после — требуется", () => {
     const early = buildClarifierSystemPrompt({ ...base, previousPairsCount: 0, canBeReady: false, retry: false });
@@ -103,10 +103,10 @@ describe("B554 разбор ответа модели", () => {
 
   it("d:false отдаёт ход и хранит вопрос отдельно от отражения", () => {
     const parsed = parseConversationalTurnResponse(
-      '{"d":false,"m":"«Хожу по кругу» — дело уже не в информации.","q":"Что тяжелее представить?","c":["Уйти","Остаться","Не знаю"]}',
+      '{"d":false,"m":"«Повторяется одно и то же» — дело уже не в информации.","q":"Что тяжелее представить?","c":["Уйти","Остаться","Не знаю"]}',
     );
     expect(parsed?.type).toBe("question");
-    expect(parsed?.question).toContain("Хожу по кругу");
+    expect(parsed?.question).toContain("Повторяется одно и то же");
     // Именно это поле чинит повтор вопроса под новым отражением.
     expect(parsed?.askedQuestion).toBe("Что тяжелее представить?");
     expect(parsed?.chips).toEqual(["Уйти", "Остаться", "Не знаю"]);

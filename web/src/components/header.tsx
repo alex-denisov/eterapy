@@ -520,8 +520,8 @@ export function Header() {
                 className={cn("rounded-full px-3 py-2 text-sm transition-colors",
                   i === 0
                     ? "inline-flex items-center gap-1 text-[var(--soft-ink-soft)] hover:text-foreground"
-                    : item.label === "Услуги"
-                      ? "font-medium text-[#6E5BA6] hover:bg-white/5"
+                    : item.href.includes("/products")
+                      ? "bg-[var(--soft-terracotta)] font-semibold text-white shadow-sm hover:brightness-105"
                       : "text-[var(--soft-ink-soft)] hover:bg-white/5 hover:text-foreground",
                 )}>
                 {i === 0 && <ArrowLeft className="size-3.5" aria-hidden="true" />}
@@ -728,7 +728,17 @@ export function Header() {
                   href={item.href}
                   prefetch={false}
                   onClick={() => setMobileOpen(false)}
-                  className={cn(base, tabActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-soft)]")}
+                  className={cn(
+                    base,
+                    // B594: вход в каталог — единственная коммерческая вкладка
+                    // бара, и он терялся среди четырёх одинаково серых. Терракот
+                    // здесь не «активное состояние», а постоянный акцент.
+                    item.href.includes("/products")
+                      ? "font-semibold text-[var(--soft-terracotta-dark)]"
+                      : tabActive(item.href)
+                        ? "text-[var(--soft-bordeaux)]"
+                        : "text-[var(--soft-ink-soft)]",
+                  )}
                 >
                   <Icon className="size-5" aria-hidden="true" />
                   {item.label}

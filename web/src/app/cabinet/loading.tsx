@@ -1,4 +1,5 @@
 // INC-078: граница загрузки живёт на сегменте, а не на корне — иначе Next
 // фиксирует HTTP 200 до того, как страница успевает вызвать notFound().
-// Подробности и причина именно этого набора сегментов — в RouteLoading.
-export { RouteLoading as default } from "@/components/route-loading";
+// INC-085: внутри кабинета фолбэк рисуется в потоке главной колонки, а не
+// оверлеем на весь экран — оболочка при переходе между страницами остаётся.
+export { CabinetRouteLoading as default } from "@/components/cabinet/cabinet-route-loading";

@@ -127,7 +127,7 @@ describe("R15 item 6 — daily question streak logic and copy", () => {
 
   it("diary and practice hide their streak counters when the chain is broken", () => {
     const diary = read("app/cabinet/diary/page.tsx");
-    const practice = read("app/cabinet/practice/page.tsx");
+    const practice = read("app/cabinet/diary/page.tsx");
     expect(diary).toContain("effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate)");
     expect(practice).toContain("effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate)");
     expect(practice).toContain("daysWord(practiceStreak.count)");

@@ -20,8 +20,11 @@ describe("W12/Z1-Ф1 — billing saved-card wallet (no ₽ balance rail)", () =>
   });
 
   it("the add-card tile says «Привязать карту» when empty, «Ещё карта» otherwise (Баг 8)", () => {
-    expect(page).toContain("Ещё карта");
-    expect(page).toContain("Привязать карту");
-    expect(page).toContain('linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"');
+    // INC-084: плитка «Привязать карту» вела в ЮKassa — к провайдеру, с которым
+    // платформа больше не работает. Снята до рекуррентных платежей Robokassa.
+    expect(page).not.toContain("Ещё карта");
+    expect(page).toContain("Сохранённых карт нет");
+    expect(page).not.toContain('linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"');
+    expect(page).not.toContain("/api/billing/save-card");
   });
 });

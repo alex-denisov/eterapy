@@ -30,9 +30,9 @@ describe("v5 public shell", () => {
     expect(header).not.toContain('label: "Задать вопрос"');
     expect(header).toContain('href={mainUrl("/checkin")}');
     expect(header).toContain("Задать вопрос");
-    // The landing nav lives in the shared model now; «Продукты» → «Услуги».
-    expect(navModel.indexOf('label: "Услуги"')).toBeLessThan(navModel.indexOf('label: "Библиотека"'));
-    expect(navModel).toContain('label: "Услуги"');
+    // The landing nav lives in the shared model now; «Продукты» → «Разобрать».
+    expect(navModel.indexOf('label: "Разобрать"')).toBeLessThan(navModel.indexOf('label: "Библиотека"'));
+    expect(navModel).toContain('label: "Разобрать"');
     expect(navModel).not.toContain('label: "Продукты"');
     expect(header).toContain('data-testid="public-shell-header"');
     expect(source("src/components/footer.tsx")).toContain('data-testid="public-shell-footer"');

@@ -21,6 +21,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { normalizePaymentDeclineReason, paymentDeclineUserMessage } from "@/lib/billing-policy";
+import { reconcileRobokassaForUser } from "@/lib/payments/reconcile-robokassa";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
@@ -85,10 +86,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // INC-081: боевой провайдер — Robokassa, и до этого места сверка его не
+  // видела вовсе. Ровно поэтому «Подтверждаем оплату и открываем доступ…»
+  // висело вечно: страница шесть раз спрашивала сверку об оплате, которую та
+  // не умела искать.
+  const robokassa = await reconcileRobokassaForUser(session.user.id);
+  for (const item of robokassa) {
+    results.push({
+      providerPaymentId: String(item.invoiceId),
+      outcome: item.outcome === "credited"
+        ? "credited"
+        : item.outcome === "cancelled"
+          ? "cancelled"
+          : item.outcome === "error"
+            ? "error"
+            : "noop",
+      declineReason: item.outcome === "cancelled" ? "provider_payment_canceled" : null,
+      message: item.outcome === "cancelled" ? paymentDeclineUserMessage("provider_payment_canceled") : null,
+    });
+  }
+
   log.info("billing-reconcile-completed", {
     requestId: context.requestId,
     userId: session.user.id,
-    pendingCount: pending.length,
+    pendingCount: pending.length + robokassa.length,
     reconciled: results.length,
     outcomes: results.map((result) => result.outcome),
   });

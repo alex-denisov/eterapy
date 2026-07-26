@@ -61,16 +61,30 @@ export function formatOutSum(amountKopecks: number): string {
   return (amountKopecks / 100).toFixed(2);
 }
 
-/** Parses an `OutSum` from a callback into kopecks, or null when malformed. */
+/**
+ * Parses an `OutSum` from a callback into kopecks, or null when malformed.
+ *
+ * ⚠ INC-081: два эндпоинта одного провайдера присылают РАЗНУЮ форму одной и
+ * той же суммы. Браузерный SuccessURL — `299.00`, серверный ResultURL —
+ * `299.000000` (шесть знаков, как и в ответе OpStateExt). Разбор, принимавший
+ * только две цифры, отвергал каждый боевой колбэк: деньги списывались, доступ
+ * не открывался. Поэтому допускается до шести знаков, но всё, что мельче
+ * копейки, отвергается, а не округляется — округление разошлось бы с суммой,
+ * которую реально списал банк, и на этом расхождении стоит проверка в
+ * `robokassa-result`.
+ */
 export function parseOutSumToKopecks(outSum: string): number | null {
-  if (!/^\d+([.,]\d{1,2})?$/.test(outSum.trim())) {
+  const trimmed = outSum.trim();
+  if (!/^\d+([.,]\d{1,6})?$/.test(trimmed)) {
     return null;
   }
-  const normalized = Number(outSum.trim().replace(",", "."));
-  if (!Number.isFinite(normalized)) {
+  const [whole, fraction = ""] = trimmed.replace(",", ".").split(".");
+  const kopecksFraction = fraction.padEnd(6, "0");
+  if (!/^0{4}$/.test(kopecksFraction.slice(2))) {
     return null;
   }
-  return Math.round(normalized * 100);
+  const kopecks = Number(whole) * 100 + Number(kopecksFraction.slice(0, 2));
+  return Number.isSafeInteger(kopecks) ? kopecks : null;
 }
 
 // ─── Signatures ───────────────────────────────────────────────────────────────
@@ -409,6 +423,107 @@ export function parseCallback(params: URLSearchParams): RobokassaCallback | null
     email: get("EMail"),
     paymentMethod: get("PaymentMethod"),
   };
+}
+
+// ─── Опрос состояния платежа (страховка на случай потерянного ResultURL) ──────
+
+/** XML-сервис Robokassa: авторитетное состояние операции по номеру счёта. */
+export const ROBOKASSA_OP_STATE_URL =
+  "https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt";
+
+/**
+ * Состояние операции у провайдера. Коды провайдерские, не наши:
+ * 5 — счёт выставлен, оплаты не было; 10 — отменён без оплаты;
+ * 50 — деньги от покупателя получены, идёт зачисление;
+ * 60 — деньги возвращены покупателю; 100 — операция завершена успешно.
+ */
+export type RobokassaOperationState =
+  | { kind: "succeeded"; stateCode: number; outSum: string | null; paymentMethod: string | null }
+  | { kind: "pending"; stateCode: number }
+  | { kind: "cancelled"; stateCode: number }
+  | { kind: "unknown"; reason: string };
+
+function xmlTagValue(xml: string, tag: string): string | null {
+  const found = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
+  return found ? found[1] : null;
+}
+
+/** Подпись опроса состояния: `MerchantLogin:InvoiceID:Пароль#2`. */
+export function buildOpStateSignature({
+  config,
+  invId,
+}: {
+  config: RobokassaConfig;
+  invId: number;
+}): string {
+  return hash([config.merchantLogin, String(invId), config.password2].join(":"), config.hashAlgorithm);
+}
+
+/**
+ * Спрашивает у Robokassa, что на самом деле стало с платежом.
+ *
+ * Нужен потому, что ResultURL — единственный путь зачисления, и у него нет
+ * второго шанса: провайдер повторяет вызов четыре раза за четыре минуты и
+ * сдаётся. Если в эти четыре минуты наш ответ был неверным (INC-081) или нода
+ * была недоступна, платёж остаётся PENDING навсегда, а деньги уже списаны.
+ * Опрос состояния возвращает эту цепочку к жизни без участия человека.
+ *
+ * Никогда не бросает: вызывающий решает, что делать с «не знаю», и «не знаю»
+ * обязано отличаться от «не оплачено».
+ */
+export async function fetchOperationState({
+  config,
+  invId,
+  fetchImpl = fetch,
+}: {
+  config: RobokassaConfig;
+  invId: number;
+  fetchImpl?: typeof fetch;
+}): Promise<RobokassaOperationState> {
+  const params = new URLSearchParams({
+    MerchantLogin: config.merchantLogin,
+    InvoiceID: String(invId),
+    Signature: buildOpStateSignature({ config, invId }),
+  });
+
+  let xml: string;
+  try {
+    const response = await fetchImpl(`${ROBOKASSA_OP_STATE_URL}?${params.toString()}`);
+    if (!response.ok) {
+      return { kind: "unknown", reason: `HTTP ${response.status}` };
+    }
+    xml = await response.text();
+  } catch (error) {
+    return { kind: "unknown", reason: error instanceof Error ? error.message : "network error" };
+  }
+
+  // <Result><Code>0</Code></Result> — запрос принят. Всё остальное (1 — плохая
+  // подпись, 3 — операция не найдена) состоянием платежа не является.
+  const resultCode = xmlTagValue(xml, "Code");
+  if (resultCode !== "0") {
+    const description = xmlTagValue(xml, "Description");
+    return { kind: "unknown", reason: `result code ${resultCode ?? "?"}${description ? `: ${description}` : ""}` };
+  }
+
+  // Второй <Code> в документе — уже внутри <State>.
+  const stateMatch = xml.match(/<State>[\s\S]*?<Code>(\d+)<\/Code>/);
+  const stateCode = stateMatch ? Number(stateMatch[1]) : NaN;
+  if (!Number.isFinite(stateCode)) {
+    return { kind: "unknown", reason: "state code missing" };
+  }
+
+  if (stateCode === 100) {
+    return {
+      kind: "succeeded",
+      stateCode,
+      outSum: xmlTagValue(xml, "OutSum"),
+      paymentMethod: xml.match(/<PaymentMethod>[\s\S]*?<Code>([^<]*)<\/Code>/)?.[1] ?? null,
+    };
+  }
+  if (stateCode === 10 || stateCode === 60) {
+    return { kind: "cancelled", stateCode };
+  }
+  return { kind: "pending", stateCode };
 }
 
 // ─── B425: холдирование (двухстадийная оплата) ────────────────────────────────

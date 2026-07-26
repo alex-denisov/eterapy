@@ -172,7 +172,7 @@ export async function runStreakAtRiskJob(job: Job): Promise<JobResult> {
       data: {
         streak: String(user.practiceStreakCount),
         longest: String(user.practiceStreakLongest),
-        practiceUrl: "/cabinet/practice",
+        practiceUrl: "/cabinet/diary",
       },
     });
     if (sent) notified++;
