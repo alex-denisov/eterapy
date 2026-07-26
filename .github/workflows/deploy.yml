@@ -375,6 +375,19 @@ jobs:
             && cd /opt/eterapy && { sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \
             && sudo docker compose -f $COMPOSE_FILE_NAME ps"
+
+          # INC-079: `up --remove-orphans` не убирает контейнер сервиса, чей
+          # профиль выключен, — такой сервис объявлен в compose-файле и орфаном
+          # не считается. На standby так остался worker, вышедший с кодом 1 (он
+          # писал в read-only реплику), и панель флота из-за его тега неделю
+          # показывала «разные версии». Чистим только ОСТАНОВЛЕННЫЕ контейнеры
+          # этого проекта старше суток: контейнеры текущей выкатки (включая
+          # отработавший migrate) моложе порога и остаются вместе с логами.
+          # Аргументы статические — внешнего ввода в команде нет.
+          $SSH "sudo docker container prune -f \
+            --filter label=com.docker.compose.project=eterapy \
+            --filter until=24h" || echo "prune пропущен (не критично)"
+          echo "▶ следы прошлых выкаток убраны"
           echo "▶ worker health"
           sleep 5
           if [ "$NODE_STANDBY" = "1" ]; then

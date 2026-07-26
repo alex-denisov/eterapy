@@ -68,6 +68,70 @@ describe("B544 · состояние ноды из host-коллектора", (
   });
 });
 
+describe("INC-079 · остановленный контейнер не задаёт версию флота", () => {
+  // Реальный случай: на standby-ноде остался worker с образом прошлой выкатки.
+  // Профиль worker там выключен, поэтому `up --remove-orphans` его не трогает.
+  const withGhost = {
+    ...SAMPLE,
+    containers: [
+      { name: "eterapy-web-1", image: "eterapy-web:bf4a94d7", tag: "bf4a94d7", state: "running", health: "healthy", uptime: "1m" },
+      { name: "eterapy-migrate-1", image: "eterapy-web:bf4a94d7", tag: "bf4a94d7", state: "exited", health: "", uptime: "1m" },
+      { name: "eterapy-worker-1", image: "eterapy-web:f6368164", tag: "f6368164", state: "exited", health: "", uptime: "8 days ago" },
+    ],
+  };
+
+  it("версию задают только работающие контейнеры", () => {
+    expect(summarizeContainers(parseNodeState(withGhost, NOW)!.containers).appVersions).toEqual(["bf4a94d7"]);
+  });
+
+  it("след прошлой выкатки не прячется, а уезжает в отдельное поле", () => {
+    expect(summarizeContainers(parseNodeState(withGhost, NOW)!.containers).staleAppVersions).toEqual(["f6368164"]);
+  });
+
+  it("отработавший migrate текущей версии следом не считается", () => {
+    // exited, но его тег совпадает с работающим — это норма одноразового джоба
+    expect(summarizeContainers(parseNodeState(SAMPLE, NOW)!.containers).staleAppVersions).toEqual([]);
+  });
+
+  it("остановленный контейнер не создаёт ложный рассинхрон на всём флоте", () => {
+    const fleet = [withGhost, SAMPLE].map((node) => summarizeContainers(parseNodeState(node, NOW)!.containers));
+    const allVersions = [...new Set(fleet.flatMap((s) => s.appVersions))];
+    // две ноды на разных релизах здесь были бы настоящим рассинхроном,
+    // но SAMPLE и withGhost работают на разных тегах намеренно — сверяем,
+    // что призрак f6368164 в этот набор не попал
+    expect(allVersions).not.toContain("f6368164");
+  });
+
+  it("чужие образы в версию приложения не попадают", () => {
+    const foreign = {
+      ...SAMPLE,
+      containers: [
+        { name: "eterapy-web-1", image: "eterapy-web:aaa", tag: "aaa", state: "running", health: "healthy", uptime: "1m" },
+        { name: "haproxy", image: "haproxy:2.9-alpine", tag: "2.9-alpine", state: "exited", health: "", uptime: "1m" },
+      ],
+    };
+    const summary = summarizeContainers(parseNodeState(foreign, NOW)!.containers);
+    expect(summary.appVersions).toEqual(["aaa"]);
+    expect(summary.staleAppVersions).toEqual([]);
+  });
+});
+
+describe("INC-079 · выкатка убирает следы прошлых выкаток", () => {
+  const workflow = require("node:fs").readFileSync(
+    require("node:path").join(process.cwd(), "..", ".github", "workflows", "deploy.yml"),
+    "utf8",
+  ) as string;
+
+  it("после compose up чистятся остановленные контейнеры проекта", () => {
+    expect(workflow).toContain("docker container prune -f");
+    expect(workflow).toContain("label=com.docker.compose.project=eterapy");
+  });
+
+  it("порог возраста защищает контейнеры текущей выкатки", () => {
+    expect(workflow).toContain("--filter until=24h");
+  });
+});
+
 describe("B544 · RPO бэкапов и бакеты", () => {
   it("свежий бэкап — ок", () => {
     const state = parseNodeState(SAMPLE, NOW)!;

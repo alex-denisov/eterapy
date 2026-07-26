@@ -51,8 +51,13 @@ export default async function AdminFleetMonitoringPage() {
 
   // Рассинхрон версий контейнеров приложения по всему флоту — признак
   // недокатившегося деплоя, который сводка по релиз-SHA может не поймать.
+  // Считаем только работающие контейнеры: остановленный код ничего не
+  // обслуживает (INC-079), его версии показываем отдельной строкой.
   const allAppVersions = [
     ...new Set(rows.flatMap((row) => row.containerSummary?.appVersions ?? [])),
+  ].sort();
+  const staleAppVersions = [
+    ...new Set(rows.flatMap((row) => row.containerSummary?.staleAppVersions ?? [])),
   ].sort();
   const unhealthyContainers = rows.reduce((sum, row) => sum + (row.containerSummary?.unhealthy ?? 0), 0);
 
@@ -105,6 +110,11 @@ export default async function AdminFleetMonitoringPage() {
           <p className="mt-1 text-xs text-muted-foreground">
             версия приложения: {allAppVersions.length ? allAppVersions.join(", ") : "нет данных"}
           </p>
+          {staleAppVersions.length > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="fleet-stale-versions">
+              остановленные следы прошлых выкаток: {staleAppVersions.join(", ")}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-2 text-sm font-medium">Релизы</div>

@@ -7,6 +7,9 @@
 import { useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, RefreshCw, XCircle } from "lucide-react";
 import { redeployFleetAction, type DeployActionResult } from "./actions";
+// Тип сводки — из того же модуля, что её считает: инлайновая копия здесь уже
+// разъезжалась с источником (INC-079 добавил поле, копия о нём не знала).
+import type { ContainerSummary } from "@/lib/fleet/node-state";
 
 export type FleetRow = {
   name: string;
@@ -22,7 +25,7 @@ export type FleetRow = {
   latencyMs: number | null;
   error: string | null;
   containers: Array<{ name: string; image: string; tag: string; state: string; health: string; uptime: string }>;
-  containerSummary: { total: number; running: number; unhealthy: number; appVersions: string[] } | null;
+  containerSummary: ContainerSummary | null;
   collectorStale: boolean;
   backup: { timer: string; lastFile: string | null; ageSec: number | null; sizeBytes: number | null } | null;
   buckets: Array<{ remote: string; objects: number; lastObject: string | null; ageSec: number | null; ok: boolean }>;
