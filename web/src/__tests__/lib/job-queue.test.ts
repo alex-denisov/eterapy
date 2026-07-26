@@ -1,6 +1,7 @@
 import { JobStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { completeJob, enqueueJob, failJob, getQueueStats, releaseStaleJobs, retryDelayMs } from "@/lib/job-queue";
+import { log } from "@/lib/logger";
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -149,6 +150,23 @@ describe("job queue", () => {
         runAfter: expect.any(Date),
       }),
     });
+  });
+
+  it("stays silent when there was nothing stale to release", async () => {
+    // Воркер зовёт это каждые 2 секунды. Безусловный warn давал запись раз в
+    // 2 секунды с `count: 0` — предупреждение о том, что ничего не произошло;
+    // настоящие warn'ы в таком потоке не видны.
+    const warn = jest.spyOn(log, "warn").mockImplementation(() => {});
+    (mockDb.job.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+    await expect(releaseStaleJobs(60_000)).resolves.toBe(0);
+    expect(warn).not.toHaveBeenCalledWith("jobs-stale-released", expect.anything());
+
+    (mockDb.job.updateMany as jest.Mock).mockResolvedValue({ count: 3 });
+    await expect(releaseStaleJobs(60_000)).resolves.toBe(3);
+    expect(warn).toHaveBeenCalledWith("jobs-stale-released", expect.objectContaining({ count: 3 }));
+
+    warn.mockRestore();
   });
 
   it("summarizes queue stats", async () => {

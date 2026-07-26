@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import type { TaxStatusKey } from "@/lib/practitioner-tax-verification";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { RequisitesEditForm } from "./requisites-edit-form";
+import { RobokassaAccountForm } from "./robokassa-account-form";
 
 // B466 — «Реквизиты выплат» (mockup -requisites-edit): куда переводить доход.
 // ИНН и налоговый статус указываются ОТДЕЛЬНО — «Налоговый статус» (owner).
@@ -34,6 +35,8 @@ export default async function RequisitesEditPage() {
           kpp: true,
           bik: true,
           corrAccount: true,
+          // B583: адресат сплита Robokassa.
+          robokassaAccount: true,
         },
       },
     },
@@ -61,6 +64,11 @@ export default async function RequisitesEditPage() {
           Куда переводить ваш доход. ИНН и налоговый статус указываются отдельно — в разделе «Налоговый статус».
         </p>
         <RequisitesEditForm taxStatus={taxStatus} recipientName={recipientName} initial={practitioner.payoutDetails} variant="pcab" />
+        {/* B583: аккаунт Robokassa показывается только когда реквизиты уже
+            заведены — форма правит существующую запись, а не создаёт её. */}
+        {practitioner.payoutDetails && (
+          <RobokassaAccountForm initialAccount={practitioner.payoutDetails.robokassaAccount} variant="pcab" />
+        )}
       </div>
 
       {/* ДЕСКТОП — прежний вид (ждёт новых десктоп-макетов R9-5) */}
@@ -76,6 +84,9 @@ export default async function RequisitesEditPage() {
         </p>
 
         <RequisitesEditForm taxStatus={taxStatus} recipientName={recipientName} initial={practitioner.payoutDetails} />
+        {practitioner.payoutDetails && (
+          <RobokassaAccountForm initialAccount={practitioner.payoutDetails.robokassaAccount} />
+        )}
       </div>
     </>
   );

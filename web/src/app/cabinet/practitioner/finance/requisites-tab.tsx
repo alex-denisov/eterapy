@@ -24,6 +24,8 @@ export interface RequisitesTabData {
     bankName: string | null;
     legalName: string | null;
     kycStatus: string;
+    /** B583: адресат сплита Robokassa. */
+    robokassaAccount?: string | null;
   } | null;
 }
 
@@ -123,6 +125,54 @@ export function RequisitesTab({ data }: { data: RequisitesTabData }) {
           </div>
         )}
       </section>
+
+      {/* B583: аккаунт Robokassa — адресат сплита.
+          Robokassa сплитует выплату ТОЛЬКО на аккаунт Robokassa получателя,
+          поэтому без него доля специалиста уходить автоматически не может.
+          Блок показывается после подтверждения статуса и заполнения способа
+          выплаты: он не заменяет банковские реквизиты, а дополняет их. */}
+      {taxVerified && data.payoutDetails && (
+        <section>
+          <p className="soft-eyebrow mb-2.5">Аккаунт Robokassa</p>
+          <Link
+            href={appUrl("/practitioner/finance/requisites/edit")}
+            data-testid="practitioner-robokassa-account-row"
+            className="flex items-center gap-3 rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-3.5 transition-colors hover:bg-[var(--soft-paper-deep)]/40"
+          >
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
+              style={data.payoutDetails.robokassaAccount
+                ? { background: "var(--soft-sage,#E4EADF)", color: "var(--soft-sage-ink,#4B6146)" }
+                : { background: "var(--soft-amber-bg,#F2E2C2)", color: "var(--soft-amber-ink,#6E5114)" }}
+            >
+              {data.payoutDetails.robokassaAccount
+                ? <ShieldCheck className="h-[18px] w-[18px]" />
+                : <ShieldAlert className="h-[18px] w-[18px]" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              {data.payoutDetails.robokassaAccount ? (
+                <>
+                  <span className="block truncate text-[13.5px] font-medium">
+                    {data.payoutDetails.robokassaAccount}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--soft-ink-faint)]">
+                    Ваша доля приходит сюда после того, как снимется холд с оплаты клиента
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="block text-[13.5px] font-medium">Аккаунт не указан</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+                    Robokassa переводит долю специалиста только на аккаунт Robokassa.
+                    Пока аккаунта нет, выплата проводится вручную и дольше.
+                  </span>
+                </>
+              )}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
+          </Link>
+        </section>
+      )}
 
       {/* Налоговый статус */}
       <section>

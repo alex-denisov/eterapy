@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { SPLIT_READINESS_LABELS, type SplitReadinessReason } from "@/lib/payments/robokassa-split";
 
 interface Practitioner {
   id: string;
@@ -20,6 +21,9 @@ interface Practitioner {
   reservePayout: number;
   payoutDetailsType: string | null;
   kycStatus: string | null;
+  /** B583: готовность к сплиту Robokassa и причины, если он невозможен. */
+  splitReadiness?: { ready: boolean; reasons: SplitReadinessReason[] };
+  robokassaAccount?: string | null;
   lastPayout: string | null;
 }
 
@@ -97,6 +101,19 @@ const practitionerPayoutColumns: AdminCompactColumn[] = [
       { value: "VERIFIED", label: "Проверен" },
       { value: "PENDING", label: "Проверка" },
       { value: "NONE", label: "Не требуется" },
+    ],
+  },
+  // B583: сплит Robokassa адресуется только на аккаунт Robokassa получателя.
+  // Колонка отвечает на вопрос «этому можно платить автоматически?» и, если
+  // нельзя, называет причину — иначе администратор не знает, что просить.
+  {
+    key: "split",
+    label: "Сплит",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "READY", label: "Готов" },
+      { value: "BLOCKED", label: "Нужны данные" },
     ],
   },
   { key: "actions", label: "Действия", filterKind: "none", align: "center" },
@@ -281,6 +298,21 @@ export function PaymentsPanel({
           filterValue: payoutType,
           sortValue: payoutType,
         },
+        split: (() => {
+          const readiness = p.splitReadiness ?? { ready: false, reasons: ["no_robokassa_account" as const] };
+          const value = readiness.ready ? "READY" : "BLOCKED";
+          return {
+            kind: "status" as const,
+            // Причина, а не «нельзя»: администратор должен видеть, чего именно
+            // не хватает, не открывая карточку специалиста.
+            label: readiness.ready
+              ? (p.robokassaAccount ?? "Готов")
+              : readiness.reasons.map((reason) => SPLIT_READINESS_LABELS[reason]).join(" · "),
+            tone: readiness.ready ? "ok" as const : "warn" as const,
+            filterValue: value,
+            sortValue: value,
+          };
+        })(),
         kycStatus: {
           kind: "status" as const,
           label: kycStatus === "VERIFIED" ? "Проверен" : kycStatus === "PENDING" ? "Проверка" : "Не требуется",

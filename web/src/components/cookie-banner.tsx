@@ -121,8 +121,13 @@ export function CookieBanner() {
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3"
       style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom))" }}
     >
+      {/* Раскладка: на мобильном — колонка (текст сверху, кнопки под ним),
+          от `sm` — строка. Было `flex-wrap` + `min-w-0 flex-1` на тексте, и
+          именно это ломало мобильный экран: `min-w-0` разрешает тексту сжаться
+          до нуля, поэтому перенос НИКОГДА не срабатывал — вместо него текст
+          сплющивался в колонку из двух слов рядом с кнопками. */}
       <div
-        className="pointer-events-auto mx-auto flex max-w-xl flex-wrap items-center justify-between gap-x-4 gap-y-2 border px-4 py-2.5"
+        className="pointer-events-auto mx-auto flex max-w-xl flex-col items-stretch gap-2 border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-2.5"
         style={{
           borderRadius: "1.5rem",
           background: "color-mix(in srgb, var(--soft-paper-card) 70%, transparent)",
@@ -133,7 +138,7 @@ export function CookieBanner() {
           color: "var(--soft-ink)",
         }}
       >
-        <p className="min-w-0 flex-1 text-xs" style={{ color: "var(--soft-ink-soft)" }}>
+        <p className="text-xs sm:min-w-0 sm:flex-1" style={{ color: "var(--soft-ink-soft)" }}>
           Cookies для входа и аналитики.{" "}
           {/* B464 round-4: absolute main-domain URL — a relative href on the
               app subdomain made Next prefetch /legal/privacy?_rsc, which the
@@ -147,18 +152,18 @@ export function CookieBanner() {
             Подробнее
           </Link>
         </p>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-1">
           <button
             onClick={necessary}
-            className="rounded-full px-3 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-70"
+            className="min-h-9 shrink-0 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-opacity hover:opacity-70 sm:min-h-0 sm:py-1.5"
             style={{ color: "var(--soft-ink-soft)" }}
           >
             Только нужные
           </button>
           <button
             onClick={accept}
-            className="soft-button soft-button-primary"
-            style={{ minHeight: "2rem", padding: "0.35rem 1rem", fontSize: "0.8125rem" }}
+            className="soft-button soft-button-primary shrink-0 whitespace-nowrap"
+            style={{ minHeight: "2.25rem", padding: "0.35rem 1.15rem", fontSize: "0.8125rem" }}
           >
             Принять
           </button>

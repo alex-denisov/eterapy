@@ -4939,12 +4939,19 @@
 
   .soft-admin-sticky-controls {
     align-self: flex-start;
-    margin-left: auto;
-    max-width: min(54rem, calc(100vw - 19rem));
   }
 
   @media (min-width: 768px) {
     .soft-admin-sticky-controls {
+      /* B581: вычет 19rem — это ширина сайдвара админки, а он существует
+         ТОЛЬКО от 768px (`md:pl-64` на shell). В базовом правиле этот вычет
+         съедал мобильный экран: при 390px `calc(100vw - 19rem)` = 86px, и
+         `max-width: 86px` побеждал мобильный `width: 100%` — панель периода
+         сжималась в столбик, прижатый к правому краю, а её содержимое
+         вылезало за экран и обрезалось `overflow-x: clip` на shell.
+         Поэтому и вычет, и `margin-left: auto` живут там, где есть сайдбар. */
+      margin-left: auto;
+      max-width: min(54rem, calc(100vw - 19rem));
       position: sticky;
       top: calc(var(--header-height, 64px) + 0.55rem);
       z-index: 35;
@@ -4968,6 +4975,8 @@
   @media (max-width: 767px) {
     .soft-admin-sticky-controls {
       width: 100%;
+      max-width: 100%;
+      margin-left: 0;
       padding: 0;
     }
   }

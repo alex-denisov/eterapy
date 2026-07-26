@@ -1427,21 +1427,28 @@ model PayoutRun {
 }
 
 model PayoutDetails {
-  id             String       @id @default(cuid())
-  practitionerId String       @unique
-  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
-  type           String // CARD | SBP | ENTITY
-  accountNumber  String // карта / телефон СБП / расчётный счёт (ENTITY)
-  bankName       String?
+  id                  String       @id @default(cuid())
+  practitionerId      String       @unique
+  practitioner        Practitioner @relation(fields: [practitionerId], references: [id])
+  type                String // CARD | SBP | ENTITY
+  accountNumber       String // карта / телефон СБП / расчётный счёт (ENTITY)
+  bankName            String?
   // Y3: реквизиты юридического лица (ИП / ООО) — null для CARD/SBP (самозанятые).
-  legalName      String? // наименование организации или ИП
-  inn            String?
-  kpp            String?
-  bik            String?
-  corrAccount    String? // корреспондентский счёт банка
-  kycStatus      String       @default("NOT_REQUIRED") @map("kyc_status") // NOT_REQUIRED | PENDING | VERIFIED
-  kycVerifiedAt  DateTime?    @map("kyc_verified_at")
-  updatedAt      DateTime     @updatedAt
+  legalName           String? // наименование организации или ИП
+  inn                 String?
+  kpp                 String?
+  bik                 String?
+  corrAccount         String? // корреспондентский счёт банка
+  // B583: адресат сплита Robokassa. Не ещё один `type` в ряду CARD/SBP/ENTITY,
+  // а отдельное поле: Robokassa умеет сплитовать ТОЛЬКО на аккаунт Robokassa,
+  // поэтому альтернативы нет и выбирать не из чего. Банковские реквизиты выше
+  // остаются — они нужны фискальной части (чек, отчёт агента) и ручной выплате,
+  // пока сплит не подключён.
+  robokassaAccount    String?      @map("robokassa_account")
+  robokassaVerifiedAt DateTime?    @map("robokassa_verified_at")
+  kycStatus           String       @default("NOT_REQUIRED") @map("kyc_status") // NOT_REQUIRED | PENDING | VERIFIED
+  kycVerifiedAt       DateTime?    @map("kyc_verified_at")
+  updatedAt           DateTime     @updatedAt
 
   @@map("payout_details")
 }

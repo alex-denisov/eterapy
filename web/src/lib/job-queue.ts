@@ -205,7 +205,13 @@ export async function releaseStaleJobs(olderThanMs: number, requestId?: string) 
       runAfter: new Date(),
     },
   });
-  log.warn("jobs-stale-released", { requestId, count: result.count, olderThanMs });
+  // Молчим, когда освобождать было нечего. Воркер зовёт это каждые 2 секунды,
+  // и безусловный warn давал запись раз в 2 секунды с `count: 0` — то есть
+  // предупреждение о том, что ничего не произошло. Такой поток не читают, а в
+  // нём тонут настоящие warn'ы.
+  if (result.count > 0) {
+    log.warn("jobs-stale-released", { requestId, count: result.count, olderThanMs });
+  }
   return result.count;
 }
 

@@ -144,7 +144,10 @@ export function AdminHero({
 }) {
   return (
     <>
-      {actions ? <div className="soft-admin-sticky-controls mb-3 ml-auto flex w-fit flex-wrap items-center gap-1.5">{actions}</div> : null}
+      {/* B581: `w-fit`/`ml-auto` только от `md` — там, где у shell есть сайдбар.
+          На мобильном панель занимает всю ширину и переносится по строкам, а не
+          прижимается вправо в столбик шириной в одну кнопку. */}
+      {actions ? <div className="soft-admin-sticky-controls mb-3 flex w-full flex-wrap items-center gap-1.5 md:ml-auto md:w-fit">{actions}</div> : null}
       <div className="mb-6 min-w-0">
         <p className="premium-eyebrow">{eyebrow}</p>
         <h1 className="premium-title mt-2 text-3xl md:text-4xl">{title}</h1>

@@ -22,6 +22,11 @@ export type ClarifierRegister = "symbolic" | "decision" | "psychological";
 
 export interface ClarifierPromptInput {
   originalQuestion?: string | null;
+  /**
+   * B582: последующие реплики ЧЕЛОВЕКА. Регистр часто проступает не в первом
+   * сообщении, а на втором-третьем ходе («а можете по картам посмотреть?»).
+   */
+  followUpAnswers?: Array<string | null | undefined>;
   topic?: string | null;
   difficulty?: string | null;
   previousPairsCount: number;
@@ -38,14 +43,76 @@ export interface ClarifierPromptInput {
 const SYMBOLIC_MARKERS = /(карт[ыау]|таро|расклад|гада|астролог|гороскоп|натальн|матриц[аеуы] судьбы|аркан|нумеролог|порч|сглаз|карм|судьб|знак[иов]?\b|вселенн|энергет|предназначен|род[а]? прокляти|венец безбрачи)/i;
 const DECISION_MARKERS = /(выбира|выбор|решить|решен|определиться|стоит ли|что лучше|два вариант|оффер|переезд|уволит|уходить или|или остат)/i;
 
-export function detectClarifierRegister(question: string | null | undefined): ClarifierRegister {
-  const text = (question ?? "").toLowerCase();
-  if (!text) return "psychological";
+/**
+ * B582 (owner 2026-07-26). Разбор отвечал эзотерическому запросу как психолог.
+ *
+ * Живой случай (прод, диалог `cms07v38r00370kwka6eiy6to`): вопрос «Буду ли я
+ * жить в этой стране» → регистр `psychological` → ответ «Интересно, какие
+ * факторы влияют на ваше решение?». Человек ушёл после первого хода.
+ *
+ * Причина: словарь ловил эзотерические ИНСТРУМЕНТЫ (карты, таро, порча), а
+ * запрос на ПРОГНОЗ инструментов не называет вовсе. «Буду ли я…», «вернётся
+ * ли он», «выйду ли замуж», «что меня ждёт», «когда я…» — это тот же контракт
+ * («скажите, что будет»), только без единого эзотерического слова. Целый класс
+ * запросов проваливался в психологический регистр.
+ *
+ * Такие вопросы уходят в `symbolic`: тамошняя инструкция уже написана ровно под
+ * них — читать конфигурацию, не гадать в диалоге и честно говорить, что
+ * определённости у тебя нет. Отдельный регистр не нужен, нужен был маршрут.
+ */
+// Готча: `\b` в JS определён по ASCII-словам, а кириллица в `\w` не входит —
+// поэтому `\bбуду` НЕ совпадает никогда (между пробелом и «б» границы нет).
+// Границы слова здесь строятся через lookaround по буквам явно.
+const RU_START = "(?<![а-яёa-z])";
+const RU_END = "(?![а-яёa-z])";
+
+const PREDICTIVE_MARKERS = new RegExp(
+  [
+    // Частица «ли» при глаголе будущего времени — так звучит просьба о прогнозе:
+    // «буду ли я жить», «вернётся ли он», «получится ли у нас».
+    //
+    // Исключение — состояние самого человека: «будет ли легче», «станет ли
+    // лучше». Формально это тоже вопрос о будущем, но человек спрашивает про
+    // свою боль, а не про судьбу, и символический регистр (циклы, расстановка
+    // сил) там читается как уход от разговора.
+    `${RU_START}(буд(у|ет|ем|ешь|ут)|станет|ста(н|)нет) ли(?! (легче|лучше|хуже|проще|спокойнее|нормально|больно|плохо|тяжело|страшно))${RU_END}`,
+    `${RU_START}(верн[её]тся|вернутся|встречу|встречусь|вы[йи]ду|жен(ю|им)ся|получится|сложится|сбудется|наладится|помиримся|расстанемся|уеду|перееду|найд[уё]м?|устроюсь|забеременею|поступлю|разведусь|полюбит|позвонит|напишет|останусь|уволят|возьмут) ли${RU_END}`,
+    // Обратный порядок: «ли» после подлежащего — «есть ли у нас будущее».
+    `${RU_START}есть ли (у нас|у меня|у него|у не[её]) (будущее|шанс|шансы|перспектив)`,
+    // Прямые формулы запроса на предсказание.
+    `${RU_START}что (меня|нас|его|е[её]) жд[её]т`,
+    `${RU_START}что (будет|ждать) (дальше|впереди|в этом году|со мной|с нами|с ним|с ней)`,
+    `${RU_START}когда (я|мы|он|она) (встречу|встречусь|найду|вы[йи]ду|жен(ю|им)ся|перееду|получу|забеременею)`,
+    `${RU_START}(предсказ|прогноз|пророч|нагада)`,
+    `${RU_START}(суждено|сужден[оаы]|на роду написано)`,
+  ].join("|"),
+  "i",
+);
+
+/**
+ * Регистр берётся по ВСЕМУ сказанному человеком, а не только по первой реплике:
+ * намерение часто проступает на втором-третьем ходе («а можете по картам
+ * посмотреть?»). `followUps` — последующие реплики ЧЕЛОВЕКА, без реплик практика.
+ */
+export function detectClarifierRegister(
+  question: string | null | undefined,
+  followUps: Array<string | null | undefined> = [],
+): ClarifierRegister {
+  const first = (question ?? "").toLowerCase();
+  const rest = followUps.map((m) => (m ?? "").toLowerCase()).filter(Boolean);
+  const all = [first, ...rest].filter(Boolean).join("\n");
+  if (!all) return "psychological";
   // Порядок важен: «выбираю между городами, может карты подскажут?» — это
   // решение, а не символический запрос. Эксперт-эзотерик прямо запрещает
   // предлагать карты там, где у человека известные ему критерии выбора.
-  if (DECISION_MARKERS.test(text)) return "decision";
-  if (SYMBOLIC_MARKERS.test(text)) return "symbolic";
+  //
+  // Но решение опознаётся по ПЕРВОЙ реплике: человек, который начал с выбора,
+  // остаётся в структурном регистре, даже если потом помянул карты. Обратное
+  // («буду ли я жить в этой стране» → потом «а стоит ли переезжать») не должно
+  // выкидывать его из символического регистра, куда он сам себя поставил.
+  if (DECISION_MARKERS.test(first)) return "decision";
+  if (SYMBOLIC_MARKERS.test(all) || PREDICTIVE_MARKERS.test(all)) return "symbolic";
+  if (DECISION_MARKERS.test(all)) return "decision";
   return "psychological";
 }
 
@@ -147,7 +214,7 @@ const SAFETY_RULE = [
 ].join("\n");
 
 export function buildClarifierSystemPrompt(input: ClarifierPromptInput): string {
-  const register = detectClarifierRegister(input.originalQuestion);
+  const register = detectClarifierRegister(input.originalQuestion, input.followUpAnswers);
 
   const turnNumber = input.previousPairsCount + 1;
   const readyInstruction = input.canBeReady
@@ -205,8 +272,10 @@ export function buildPrimaryAnswerSystemPrompt(input: {
   difficulty?: string | null;
   safetyLevel?: string | null;
   originalQuestion?: string | null;
+  /** B582: последующие реплики человека — регистр берётся по всему сказанному. */
+  followUpAnswers?: Array<string | null | undefined>;
 }): string {
-  const register = detectClarifierRegister(input.originalQuestion);
+  const register = detectClarifierRegister(input.originalQuestion, input.followUpAnswers);
 
   return [
     "Ты пишешь бесплатный первичный разбор ETerapy после короткого уточняющего диалога. Пиши по-русски, живо и конкретно, обращаясь к ситуации ИМЕННО этого человека.",

@@ -14,6 +14,8 @@ import {
   TOPIC_CATEGORIES,
   hashString,
 } from "@/lib/dialogue-recommendations";
+import type { RecommendationRegister } from "@/lib/product-format-recommendations";
+import { detectClarifierRegister } from "@/lib/dialogue-clarifier-prompt";
 
 function ownerWhere(userId: string | null, guestSessionId: string | null) {
   if (userId) return { userId };
@@ -55,7 +57,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const dialogue = await db.dialogue.findFirst({
     where: { id, ...whereOwner, deletedAt: null },
-    select: { id: true, topic: true, title: true, status: true },
+    select: {
+      id: true, topic: true, title: true, status: true,
+      // B582: рекомендации обязаны знать регистр запроса, а не только тему.
+      // Тема одна и та же у «он меня не слышит» и у «вернётся ли он», а
+      // подходящие форматы — разные.
+      messages: {
+        where: { role: "USER" },
+        orderBy: { createdAt: "asc" },
+        select: { content: true },
+        take: 12,
+      },
+    },
   });
 
   if (!dialogue) {
@@ -151,8 +164,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     matchedTags,
   }));
 
-  const productRecommendation = recommendPrimaryProduct(dialogue.topic);
-  const secondaryProducts = recommendSecondaryProducts(dialogue.topic, productRecommendation.slug);
+  // B582: «decision» — человек со своими критериями выбора; ему нужна
+  // структура, а не символы, поэтому в подборе форматов он идёт по
+  // психологической полке вместе с «psychological».
+  const [firstUserMessage, ...laterUserMessages] = dialogue.messages.map((m) => m.content);
+  const clarifierRegister = detectClarifierRegister(firstUserMessage, laterUserMessages);
+  const register: RecommendationRegister = clarifierRegister === "symbolic" ? "symbolic" : "psychological";
+
+  const productRecommendation = recommendPrimaryProduct(dialogue.topic, register);
+  const secondaryProducts = recommendSecondaryProducts(dialogue.topic, productRecommendation.slug, 3, register);
 
   // Suppress the subscription nudge for users who already have one.
   const hasActiveSubscription = userId

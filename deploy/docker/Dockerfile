@@ -31,8 +31,10 @@ ARG NEXT_PUBLIC_LIVEKIT_URL=wss://app.eterapy.com
 ARG NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=eterapy_bot
 # B548: analytics counter ids are public by nature (visible in page source);
 # empty default keeps staging/local builds silent.
+# B579: NEXT_PUBLIC_GA_MEASUREMENT_ID удалён — Google Analytics снят целиком
+# (передача данных в GA в РФ под запретом). Переменной больше нет ни здесь, ни
+# в workflow: вернуть счётчик одной правкой окружения нельзя по замыслу.
 ARG NEXT_PUBLIC_YANDEX_METRIKA_ID=
-ARG NEXT_PUBLIC_GA_MEASUREMENT_ID=
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
   NEXT_PUBLIC_USE_SUBDOMAINS=$NEXT_PUBLIC_USE_SUBDOMAINS \
   NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY=$NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY \
@@ -42,7 +44,6 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
   NEXT_PUBLIC_LIVEKIT_URL=$NEXT_PUBLIC_LIVEKIT_URL \
   NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=$NEXT_PUBLIC_TELEGRAM_BOT_USERNAME \
   NEXT_PUBLIC_YANDEX_METRIKA_ID=$NEXT_PUBLIC_YANDEX_METRIKA_ID \
-  NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID \
   NODE_ENV=production \
   DATABASE_URL=postgresql://build:build@localhost:5432/build
 WORKDIR /app/web

@@ -3,11 +3,13 @@ export interface SecurityHeader {
   value: string;
 }
 
+// B579: `googletagmanager.com` убран вместе с Google Analytics. Оставленный
+// хост означал бы, что счётчик возвращается одной переменной сборки, а запрет
+// на передачу данных в GA — не про переменную.
 const SCRIPT_HOSTS = [
   "https://vk.com",
   "https://*.vk.com",
   "https://id.vk.com",
-  "https://www.googletagmanager.com",
   "https://mc.yandex.ru",
   "https://telegram.org",
   "https://oauth.telegram.org",
