@@ -17,7 +17,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { ANALYTICS_EVENT, ANALYTICS_IDENTIFY_EVENT, SIGNUP_GOAL, identifyAnalyticsUser, reportAnalyticsGoal } from "@/lib/analytics-events";
+import { ANALYTICS_EVENT, ANALYTICS_IDENTIFY_EVENT, ANALYTICS_USER_ID_KEY, SIGNUP_GOAL, identifyAnalyticsUser, readAnalyticsUserId, reportAnalyticsGoal } from "@/lib/analytics-events";
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 
@@ -45,6 +45,23 @@ describe("B586 — цель регистрации и идентификатор
     window.removeEventListener(ANALYTICS_IDENTIFY_EVENT, listener);
 
     expect(detail).toEqual([{ userId: "cms1lpzsm00040kt76vcj4dbp" }]);
+  });
+
+  it("личность не зависит от порядка подписки: значение лежит на window", () => {
+    // ⚠ Найдено на живом проде: эффекты React идут снизу вверх, поэтому
+    // <AnalyticsIdentity> (ребёнок) отправляет событие ДО того, как счётчик
+    // (родитель в корневом layout) на него подпишется. Первая версия правки
+    // из-за этого не вызывала setUserID ни разу. Событие осталось, но
+    // источником истины стало значение.
+    identifyAnalyticsUser("cms1lpzsm00040kt76vcj4dbp");
+    expect(readAnalyticsUserId()).toBe("cms1lpzsm00040kt76vcj4dbp");
+    expect((window as unknown as Record<string, string>)[ANALYTICS_USER_ID_KEY])
+      .toBe("cms1lpzsm00040kt76vcj4dbp");
+  });
+
+  it("счётчик читает личность значением, а не только событием", () => {
+    const analytics = read("src/components/analytics.tsx");
+    expect(analytics).toContain("readAnalyticsUserId()");
   });
 
   it("счётчик вызывает setUserID и помнит id, пришедший до согласия на cookies", () => {
