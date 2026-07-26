@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { getCookieConsent } from "./cookie-banner";
 import { track } from "@/lib/analytics";
-import { ANALYTICS_EVENT, ANALYTICS_IDENTIFY_EVENT } from "@/lib/analytics-events";
+import { ANALYTICS_EVENT, ANALYTICS_IDENTIFY_EVENT, readAnalyticsUserId } from "@/lib/analytics-events";
 import { ADMIN_DOMAIN, APP_DOMAIN } from "@/lib/env";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
@@ -173,11 +173,14 @@ export function Analytics() {
     window.addEventListener(ANALYTICS_IDENTIFY_EVENT, onIdentify);
     document.addEventListener("click", onClick);
 
-    // Согласие часто даётся ПОСЛЕ того, как страница уже сообщила, кто вошёл:
-    // счётчика в тот момент не было, событие ушло в пустоту. Повторяем его сами,
-    // как только счётчик поднялся.
-    if (identifiedUserId.current) {
-      onIdentify(new CustomEvent(ANALYTICS_IDENTIFY_EVENT, { detail: { userId: identifiedUserId.current } }));
+    // Личность почти всегда объявлена ДО этого момента, и события для неё
+    // недостаточно: эффекты React идут снизу вверх, поэтому страница успевает
+    // отправить событие раньше, чем счётчик на него подпишется (проверено на
+    // проде: `setUserID` не вызывался ни разу). Поэтому читаем значение, а не
+    // ждём событие.
+    const knownUserId = identifiedUserId.current ?? readAnalyticsUserId();
+    if (knownUserId) {
+      onIdentify(new CustomEvent(ANALYTICS_IDENTIFY_EVENT, { detail: { userId: knownUserId } }));
     }
 
     return () => {
