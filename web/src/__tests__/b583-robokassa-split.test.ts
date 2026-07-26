@@ -10,12 +10,14 @@
  * API сплита/выплат нет, и провайдер по-прежнему падает закрыто (B562 шаг 2).
  */
 import {
+  latestSessionStartCoveredByHold,
   ROBOKASSA_HOLD_MAX_DAYS,
   evaluateSplitReadiness,
   holdCoversBooking,
   normalizeRobokassaAccount,
 } from "@/lib/payments/robokassa-split";
 import { robokassaPayoutProvider } from "@/lib/payments/payout-provider";
+import { AGENT_OFFER_VERSION, evaluatePractitionerCommercialGate } from "@/lib/practitioner-compliance";
 
 describe("B583 — идентификатор аккаунта Robokassa", () => {
   it("принимает обычные идентификаторы", () => {
@@ -71,21 +73,36 @@ describe("B583 — готовность специалиста к сплиту",
   });
 });
 
-describe("B583 — граница применимости холда", () => {
+describe("B583 — граница применимости холда (решение владельца 2026-07-26)", () => {
   const paidAt = new Date("2026-07-26T10:00:00Z");
   const plusDays = (days: number) => new Date(paidAt.getTime() + days * 86_400_000);
 
-  it("покрывает сессию в пределах недели от оплаты", () => {
+  it("покрывает бронь, у которой в семь суток влезает и сессия, и окно диспута", () => {
     expect(holdCoversBooking(paidAt, plusDays(0))).toBe(true);
     expect(holdCoversBooking(paidAt, plusDays(3))).toBe(true);
-    expect(holdCoversBooking(paidAt, plusDays(ROBOKASSA_HOLD_MAX_DAYS))).toBe(true);
+    expect(holdCoversBooking(paidAt, plusDays(5))).toBe(true);
   });
 
-  it("не покрывает бронь дальше недели — холд истечёт раньше сессии", () => {
-    // Это и есть разрыв модели: такие брони обязаны идти прежним путём,
-    // а не проваливаться молча.
-    expect(holdCoversBooking(paidAt, plusDays(8))).toBe(false);
-    expect(holdCoversBooking(paidAt, plusDays(30))).toBe(false);
+  it("НЕ покрывает бронь ровно на седьмые сутки: окно диспута выпадает за холд", () => {
+    // Владелец решил держать холд до конца окна диспута (24 ч после сессии) —
+    // именно из холда делается возврат. Значит «в пределах недели» больше не
+    // критерий: сессия на 7-е сутки закрывается диспутом на 8-е.
+    expect(holdCoversBooking(paidAt, plusDays(ROBOKASSA_HOLD_MAX_DAYS))).toBe(false);
+    expect(holdCoversBooking(paidAt, plusDays(6))).toBe(false);
+  });
+
+  it("учитывает длительность сессии — у длинной сессии горизонт короче", () => {
+    const edge = latestSessionStartCoveredByHold(paidAt, 60);
+    expect(holdCoversBooking(paidAt, edge, 60)).toBe(true);
+    expect(holdCoversBooking(paidAt, new Date(edge.getTime() + 60_000), 60)).toBe(false);
+    // Та же дата, но сессия на 90 минут — уже не покрывается.
+    expect(holdCoversBooking(paidAt, edge, 90)).toBe(false);
+  });
+
+  it("крайняя дата — 7 суток минус окно диспута минус длительность сессии", () => {
+    const edge = latestSessionStartCoveredByHold(paidAt, 60);
+    const expected = new Date(paidAt.getTime() + 7 * 86_400_000 - 24 * 3_600_000 - 60 * 60_000);
+    expect(edge.toISOString()).toBe(expected.toISOString());
   });
 
   it("не покрывает сессию в прошлом", () => {
@@ -107,5 +124,48 @@ describe("B583 — исполнение по-прежнему падает за�
     });
     expect(result.status).toBe("FAILED");
     expect(result.status === "FAILED" && result.error).toContain("вручную");
+  });
+});
+
+describe("B583 — аккаунт Robokassa обязателен (решение владельца)", () => {
+  const compliant = {
+    id: "p1",
+    status: "ACTIVE" as const,
+    demoAccount: false,
+    bookingOverrideEnabled: false,
+    agentOfferAcceptedAt: new Date("2026-07-20T10:00:00.000Z"),
+    agentOfferVersion: AGENT_OFFER_VERSION,
+    taxStatus: "SELF_EMPLOYED" as const,
+    taxReviewStatus: "VERIFIED" as const,
+    taxStatusVerifiedAt: new Date("2026-07-20T10:05:00.000Z"),
+    payoutDetails: {
+      type: "CARD",
+      inn: "123456789012",
+      kycStatus: "NOT_REQUIRED",
+      robokassaAccount: "eterapy-spec-01",
+    },
+  };
+
+  it("специалист без аккаунта Robokassa не открывается для записи", () => {
+    // Продавать сессию, за которую мы физически не можем заплатить, нельзя:
+    // Robokassa переводит долю только на аккаунт Robokassa получателя.
+    const gate = evaluatePractitionerCommercialGate({
+      ...compliant,
+      payoutDetails: { ...compliant.payoutDetails, robokassaAccount: null },
+    });
+    expect(gate.allowed).toBe(false);
+    expect(gate.reasons).toEqual(["robokassa_account_required"]);
+  });
+
+  it("мусор вместо аккаунта не считается указанным аккаунтом", () => {
+    const gate = evaluatePractitionerCommercialGate({
+      ...compliant,
+      payoutDetails: { ...compliant.payoutDetails, robokassaAccount: "  " },
+    });
+    expect(gate.reasons).toContain("robokassa_account_required");
+  });
+
+  it("с аккаунтом гейт открыт", () => {
+    expect(evaluatePractitionerCommercialGate(compliant).allowed).toBe(true);
   });
 });

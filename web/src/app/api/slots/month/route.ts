@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { dayHasAvailability, calendarDateStr, type SlotInterval } from "@/lib/slot-availability";
+import { isDemoPractitioner } from "@/lib/practitioner-compliance";
 
 /**
  * GET /api/slots/month?practitionerId=xxx&year=2026&month=5&durationMin=60
@@ -37,6 +38,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // B584: демо-профиль не отдаёт ни одного доступного дня — календарь
+    // остаётся пустым, а не «подсвечивает ближайшую дату» к специалисту,
+    // которого не существует.
+    if (await isDemoPractitioner(practitionerId)) {
+      return NextResponse.json({
+        year,
+        month,
+        durationMin,
+        availableDates: [],
+        earliestAvailableDate: null,
+        reason: "demo_account",
+      });
+    }
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 

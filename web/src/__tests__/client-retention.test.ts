@@ -177,7 +177,11 @@ describe("M11 client retention surfaces", () => {
     const map = source("src/app/cabinet/diary/page.tsx");
 
     expect(analytics).toContain("[data-analytics-event]");
-    expect(analytics).toContain("eterapy:analytics");
+    // B586: имя события уехало в константу (`lib/analytics-events.ts`) — его
+    // слушает счётчик, а отправляют страницы, и строковый литерал в двух местах
+    // однажды уже разъехался. Проверяем и подписку, и само имя в его источнике.
+    expect(analytics).toContain("window.addEventListener(ANALYTICS_EVENT");
+    expect(source("src/lib/analytics-events.ts")).toContain('"eterapy:analytics"');
     expect(analytics).toContain("track({");
     expect(analytics).toContain("analyticsDialogueId");
     expect(analytics).toContain("analyticsOfferReason");
