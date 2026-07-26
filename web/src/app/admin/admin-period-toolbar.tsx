@@ -22,6 +22,19 @@ import {
 
 type PickerMode = "day" | "week" | "quarter" | null;
 
+/**
+ * Порядок — от короткого к длинному. `all` считается от даты первой выкатки
+ * платформы (`ADMIN_PLATFORM_FIRST_DEPLOY_ISO`), а не от «начала времён»: до неё
+ * данных не существует, и пустой хвост графика читался бы как провал.
+ */
+const PERIOD_PRESETS = [
+  { key: "day", label: "День", hint: "Сегодня, с 00:00 по московскому времени" },
+  { key: "week", label: "Неделя", hint: "С понедельника этой недели" },
+  { key: "month", label: "Месяц", hint: "С первого числа этого месяца" },
+  { key: "quarter", label: "Квартал", hint: "С первого дня текущего квартала" },
+  { key: "all", label: "Всё время", hint: "С первой выкатки платформы" },
+] as const;
+
 export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string; start: string; end: string }) {
   return <AdminPeriodToolbarInner key={`${start}:${end}`} basePath={basePath} start={start} end={end} />;
 }
@@ -38,6 +51,19 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   const [dayIso, setDayIso] = useState(start);
   const [weekInput, setWeekInput] = useState(adminWeekInputFromIso(start));
   const [quarterInput, setQuarterInput] = useState(adminQuarterInputFromIso(start));
+
+  // Подсветка идёт не по нажатой кнопке, а по тому, что реально на экране:
+  // период переживает переход между страницами админки и восстанавливается из
+  // сохранённого предпочтения — кнопка, помнящая только свой клик, врала бы.
+  const activePeriod = useMemo(() => {
+    const declared = searchParams.get("period");
+    if (declared === "today") return "day";
+    if (declared && PERIOD_PRESETS.some((preset) => preset.key === declared)) return declared;
+    return PERIOD_PRESETS.find((preset) => {
+      const range = adminPresetRange(preset.key);
+      return range.start === startIso && range.end === endIso;
+    })?.key ?? null;
+  }, [searchParams, startIso, endIso]);
 
   const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
   const quarterOptions = useMemo(() => adminQuarterOptions(), []);
@@ -155,50 +181,35 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
 
   return (
     <div className="relative flex flex-wrap items-center gap-2 text-xs" data-testid="admin-period-toolbar">
-      <button
-        type="button"
-        className="soft-admin-action"
-        data-variant="subtle"
-        data-testid="admin-period-mode-today"
-        onClick={() => applyPreset("today")}
-      >
-        Сегодня
-      </button>
+      {/* Владелец 2026-07-27: кнопки периода ПРИМЕНЯЮТ период, а не открывают
+          календарь. Прежнее поведение требовало трёх действий там, где нужен
+          был один щелчок: нажать «Неделя» → выбрать неделю → «Применить», и
+          при этом «текущая неделя» — ровно то, что нужно в 9 случаях из 10.
+          Календарь никуда не делся: он под кнопкой «Выбрать даты» и в двух
+          полях справа. Активный период подсвечен — раньше по кнопкам нельзя
+          было понять, какой период сейчас на экране. */}
+      {PERIOD_PRESETS.map((preset) => (
+        <button
+          key={preset.key}
+          type="button"
+          className="soft-admin-action"
+          data-variant={activePeriod === preset.key ? "primary" : "subtle"}
+          aria-pressed={activePeriod === preset.key}
+          data-testid={`admin-period-mode-${preset.key}`}
+          title={preset.hint}
+          onClick={() => applyPreset(preset.key)}
+        >
+          {preset.label}
+        </button>
+      ))}
       <button
         type="button"
         className="soft-admin-action"
         data-variant={pickerMode === "day" ? "primary" : "subtle"}
-        data-testid="admin-period-mode-day"
+        data-testid="admin-period-mode-calendar"
         onClick={() => openPicker("day")}
       >
-        День
-      </button>
-      <button
-        type="button"
-        className="soft-admin-action"
-        data-variant={pickerMode === "week" ? "primary" : "subtle"}
-        data-testid="admin-period-mode-week"
-        onClick={() => openPicker("week")}
-      >
-        Неделя
-      </button>
-      <button
-        type="button"
-        className="soft-admin-action"
-        data-variant={pickerMode === "quarter" ? "primary" : "subtle"}
-        data-testid="admin-period-mode-quarter"
-        onClick={() => openPicker("quarter")}
-      >
-        Квартал
-      </button>
-      <button
-        type="button"
-        className="soft-admin-action"
-        data-variant="subtle"
-        data-testid="admin-period-mode-all"
-        onClick={() => applyPreset("all")}
-      >
-        Все время
+        Выбрать даты
       </button>
       <div className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="start" value={startIso} />

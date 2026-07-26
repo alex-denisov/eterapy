@@ -24,6 +24,7 @@ import {
   statusOf,
 } from "./user-display";
 import { UserEditModal } from "./user-edit-modal";
+import { adminDateTime } from "@/app/admin/admin-period-utils";
 import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
 import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
 
@@ -902,8 +903,8 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 <td className={`${COMPACT_CELL_CLASS} ${channelColor(row.provider)}`}>{channelLabel(row.provider)}</td>
                 <td className={`${COMPACT_CELL_CLASS} font-medium ${status.className}`}>{status.label}</td>
                 <td className={NUM_CELL}>{row.role === "CLIENT" ? row.clarityCredits : "—"}</td>
-                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
-                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastLogin ? new Date(row.lastLogin.at).toLocaleDateString("ru-RU") : "—"}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{adminDateTime(row.createdAt)}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastLogin ? adminDateTime(row.lastLogin.at) : "—"}</td>
                 <td className={NUM_CELL}>{row.bookingsCount}</td>
                 <td className={NUM_CELL}>{row.entitlementsCount}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{row.subscriptionLabel}</td>

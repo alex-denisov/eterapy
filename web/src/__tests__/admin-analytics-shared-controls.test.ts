@@ -101,11 +101,18 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(shell).toContain("ADMIN_CURRENCY_STORAGE_KEY");
     expect(periodToolbar).toContain("saveAdminPeriodPreference");
     expect(periodToolbar).toContain("restoreAdminPeriodPreference");
-    expect(periodToolbar).toContain('data-testid="admin-period-mode-today"');
-    expect(periodToolbar).toContain('data-testid="admin-period-mode-day"');
-    expect(periodToolbar).toContain('data-testid="admin-period-mode-week"');
-    expect(periodToolbar).toContain('data-testid="admin-period-mode-quarter"');
-    expect(periodToolbar).toContain('data-testid="admin-period-mode-all"');
+    // Владелец 2026-07-27: кнопки периода применяют период сразу, а не
+    // открывают календарь; «Сегодня» стало «День», добавился «Месяц»,
+    // календарь переехал под отдельную кнопку. Идентификаторы собираются из
+    // одного списка PERIOD_PRESETS — здесь проверяем сам список и то, что
+    // подсветка идёт по активному периоду, а не по последнему клику.
+    expect(periodToolbar).toContain('data-testid={`admin-period-mode-${preset.key}`}');
+    for (const key of ["day", "week", "month", "quarter", "all"]) {
+      expect(periodToolbar).toContain(`key: "${key}"`);
+    }
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-calendar"');
+    expect(periodToolbar).toContain('data-variant={activePeriod === preset.key ? "primary" : "subtle"}');
+    expect(periodToolbar).not.toContain('data-testid="admin-period-mode-today"');
     expect(periodToolbar).toContain('type="week"');
     expect(periodToolbar).toContain("adminQuarterOptions");
     expect(periodToolbar).toContain("adminPlatformWeekInputMin");

@@ -87,6 +87,11 @@ docs/**/*.xlsx
 .playwright-mcp/
 .jest-cache/
 *.png
+# B592: правило выше держит вне репозитория макеты и скриншоты. Но знак бренда
+# в письмах — не картинка для обсуждения, а ресурс, который отдаётся людям:
+# почтовые клиенты не рисуют CSS-градиенты и не показывают SVG, поэтому PNG
+# обязан ехать выкаткой вместе с кодом.
+!web/public/brand/*.png
 data/
 
 # ── B340: public repo holds ONLY the product. Docs, AI-agent system files, and
