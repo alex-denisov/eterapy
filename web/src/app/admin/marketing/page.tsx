@@ -176,8 +176,15 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
                       <td className="px-3 py-2.5 text-slate-600">{item.cluster}</td>
                       <td className="max-w-xs px-3 py-2.5"><Link href={`https://eterapy.com${item.landing}`} target="_blank" rel="noreferrer" className="break-all text-xs font-medium text-blue-700 hover:underline">{item.landing}</Link></td>
                       <td className="px-3 py-2.5 text-right tabular-nums">
-                        {item.monthlyDemand === null ? "—" : formatNumber(item.monthlyDemand)}
-                        {item.demandSource === "baseline" ? <span className="ml-1 text-[0.6rem] text-slate-400" title="Проверено 22 июля 2026">22.07</span> : null}
+                        {/* B598: «не измеряли» и «спроса нет» — разные вещи, а
+                            выглядели одинаково («—»). Живой Wordstat вызывается
+                            только для головных фраз, поэтому у остальных ячейка
+                            была пустой по построению, и это читалось как
+                            «нерелевантный запрос». */}
+                        {item.monthlyDemand === null
+                          ? <span className="text-slate-400" title="Живой Wordstat вызывается только для головных фраз; спрос по этой фразе не замерялся">не замеряли</span>
+                          : formatNumber(item.monthlyDemand)}
+                        {item.demandSource === "baseline" ? <span className="ml-1 text-[0.6rem] text-slate-400" title="Значение из проверки Wordstat, а не из живого вызова">замер</span> : null}
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{formatPosition(item.position)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(item.impressions)}</td>

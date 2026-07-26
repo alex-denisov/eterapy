@@ -26,33 +26,60 @@ export type StrategicKeyword = {
   verifiedDemand?: number;
 };
 
-// B578: one owned semantic core. The verifiedDemand values are retained only
-// where the 2026-07-22 Wordstat check is documented; all other demand cells are
-// populated by the live API or remain explicitly unknown.
+// B578: one owned semantic core.
+//
+// B598 (владелец 2026-07-27): «напротив части запросов стоит "—" в графе спрос
+// — если они нерелевантны, зачем мы на них ориентируемся?»
+//
+// Вопрос вскрыл две РАЗНЫЕ вещи, и их важно не перепутать.
+//
+// 1. Прочерк не означал нулевой спрос. Живой Wordstat вызывался только для
+//    первых двенадцати P1-фраз (`SEARCH_WATCHLIST`), у всех остальных ячейка
+//    была пустой ПО ПОСТРОЕНИЮ. Панель показывала «не измеряли» и «ноль»
+//    одинаково — теперь это разные состояния (`demandSource: "unmeasured"`).
+//
+// 2. После замера двенадцати неизмеренных фраз (Wordstat, 2026-07-27) две
+//    оказались действительно мёртвыми, и одна — хуже чем мёртвой:
+//
+//    • «разбор переписки» — 323 показа, и это НЕ наша аудитория: в топе запросов
+//      «разбор слова переписка», «переписка разбор по составу», «переписка
+//      морфемный разбор». Это школьный морфемный разбор. Фраза стояла P1 на
+//      коммерческой странице продукта и вела бы на неё школьников.
+//    • «какой расклад таро выбрать» — 64 показа. Мертва.
+//    • «арканы рождения» — 41 683, но так почти никто не пишет: реальные формы —
+//      «аркан по дате рождения» (36 246) и «арканов дата рождения» (38 627).
+//
+// Замеренные значения записаны в `verifiedDemand`, чтобы следующий вопрос
+// «а сколько тут на самом деле» не требовал повторного похода в API.
 export const STRATEGIC_KEYWORDS: readonly StrategicKeyword[] = [
   { phrase: "психолог онлайн", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий", verifiedDemand: 61_264 },
   { phrase: "ии психолог", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий", verifiedDemand: 12_312 },
-  { phrase: "ии психолог онлайн", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий" },
-  { phrase: "вопрос психологу", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P2", intent: "смешанный" },
-  { phrase: "разбор переписки", cluster: "Отношения", landing: "/products/chat-analysis", priority: "P1", intent: "коммерческий" },
-  { phrase: "почему он перестал писать", cluster: "Отношения", landing: "/library/on-perestayal-pisat-i-ya-ne-znayu-pochemu", priority: "P1", intent: "информационный" },
-  { phrase: "признаки измены", cluster: "Отношения", landing: "/library/revnuyu-bez-povoda-i-ustala", priority: "P2", intent: "информационный" },
+  { phrase: "ии психолог онлайн", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P1", intent: "коммерческий", verifiedDemand: 3_162 },
+  { phrase: "вопрос психологу", cluster: "Ясность и поддержка", landing: "/ai-psychologist", priority: "P2", intent: "смешанный", verifiedDemand: 30_365 },
+  // Заменяет «разбор переписки» (323, школьный морфемный разбор — чужая аудитория).
+  { phrase: "как понять что муж изменяет", cluster: "Отношения", landing: "/products/chat-analysis", priority: "P1", intent: "информационный", verifiedDemand: 1_597 },
+  { phrase: "почему он перестал писать", cluster: "Отношения", landing: "/library/on-perestayal-pisat-i-ya-ne-znayu-pochemu", priority: "P1", intent: "информационный", verifiedDemand: 449 },
+  { phrase: "признаки измены", cluster: "Отношения", landing: "/library/revnuyu-bez-povoda-i-ustala", priority: "P2", intent: "информационный", verifiedDemand: 3_271 },
   { phrase: "таро онлайн", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "коммерческий", verifiedDemand: 299_945 },
-  { phrase: "расклад таро онлайн", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "коммерческий" },
-  { phrase: "какой расклад таро выбрать", cluster: "Таро", landing: "/library/kakoy-rasklad-taro-vybrat-dlya-slozhnogo-resheniya", priority: "P2", intent: "информационный" },
-  { phrase: "арканы рождения", cluster: "Таро", landing: "/products/tarot-numerology", priority: "P2", intent: "коммерческий" },
-  { phrase: "матрица судьбы", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный" },
-  { phrase: "матрица судьбы рассчитать", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "коммерческий", verifiedDemand: 180_466 },
-  { phrase: "матрица судьбы расшифровка", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный" },
-  { phrase: "натальная карта онлайн", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий" },
-  { phrase: "натальная карта рассчитать", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий" },
+  { phrase: "расклад таро онлайн", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "коммерческий", verifiedDemand: 59_720 },
+  // Заменяет «какой расклад таро выбрать» (64).
+  { phrase: "гадание таро", cluster: "Таро", landing: "/products/tarot", priority: "P1", intent: "смешанный", verifiedDemand: 275_015 },
+  // Была «арканы рождения»: спрос тот же, но так почти никто не формулирует.
+  { phrase: "аркан по дате рождения", cluster: "Таро", landing: "/products/tarot-numerology", priority: "P1", intent: "коммерческий", verifiedDemand: 36_246 },
+  { phrase: "матрица судьбы", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный", verifiedDemand: 1_042_657 },
+  { phrase: "матрица судьбы рассчитать", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "коммерческий", verifiedDemand: 195_730 },
+  { phrase: "матрица судьбы расшифровка", cluster: "Матрица судьбы", landing: "/products/numerology", priority: "P1", intent: "смешанный", verifiedDemand: 28_019 },
+  { phrase: "натальная карта онлайн", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий", verifiedDemand: 186_482 },
+  { phrase: "натальная карта рассчитать", cluster: "Астрология", landing: "/products/natal-chart", priority: "P1", intent: "коммерческий", verifiedDemand: 74_533 },
   { phrase: "совместимость по дате рождения", cluster: "Астрология", landing: "/products/synastry", priority: "P1", intent: "коммерческий" },
   { phrase: "синастрия", cluster: "Астрология", landing: "/products/synastry", priority: "P1", intent: "смешанный" },
   { phrase: "хорарная астрология", cluster: "Астрология", landing: "/products/horary", priority: "P2", intent: "смешанный" },
   { phrase: "дизайн человека рассчитать", cluster: "Самопознание", landing: "/products/human-design", priority: "P1", intent: "коммерческий" },
   { phrase: "значение фамилии", cluster: "Имя и род", landing: "/products/surname-story", priority: "P2", intent: "смешанный" },
   { phrase: "кармический код фамилии", cluster: "Имя и род", landing: "/products/surname-story", priority: "P2", intent: "коммерческий" },
-  { phrase: "сонник", cluster: "Сны", landing: "/library?direction=symbolic&topic=Сны+и+символы", priority: "P1", intent: "информационный" },
+  // B596: разделов библиотеки больше нет, `?direction=` не существовал вовсе —
+  // ссылка вела на нефильтрованный список.
+  { phrase: "сонник", cluster: "Сны", landing: "/library?topic=%D0%A1%D0%BD%D1%8B+%D0%B8+%D1%81%D0%B8%D0%BC%D0%B2%D0%BE%D0%BB%D1%8B", priority: "P1", intent: "информационный" },
   { phrase: "к чему снится что выпадают зубы", cluster: "Сны", landing: "/library/snitsya-chto-vypadayut-zuby-pered-vazhnymi-sobytiyami", priority: "P1", intent: "информационный" },
 ] as const;
 
