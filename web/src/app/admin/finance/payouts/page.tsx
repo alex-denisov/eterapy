@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
+import { evaluateSplitReadiness } from "@/lib/payments/robokassa-split";
 import { AdminHero, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
@@ -34,7 +35,9 @@ export default async function FinancePayoutsPage({ searchParams }: PageProps) {
         orderBy: { processedAt: "desc" },
         take: 1,
       },
-      payoutDetails: { select: { type: true, kycStatus: true } },
+      // B583: адресат сплита. Остальное, от чего зависит его исполнимость
+      // (`inn`, `taxReviewStatus`, `status`), приходит скалярами через `include`.
+      payoutDetails: { select: { type: true, kycStatus: true, robokassaAccount: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -67,6 +70,16 @@ export default async function FinancePayoutsPage({ searchParams }: PageProps) {
       reservePayout: Math.max(0, balance?.reservePayout ?? 0),
       payoutDetailsType: p.payoutDetails?.type ?? null,
       kycStatus: p.payoutDetails?.kycStatus ?? null,
+      // B583: почему сплит по этому специалисту нельзя исполнить автоматически.
+      // Показываем ПРИЧИНУ, а не «нельзя»: без неё администратор не знает,
+      // что именно просить у специалиста.
+      splitReadiness: evaluateSplitReadiness({
+        robokassaAccount: p.payoutDetails?.robokassaAccount,
+        taxVerified: Boolean(p.inn) && p.taxReviewStatus === "VERIFIED",
+        // Выборка выше уже ограничена ACTIVE.
+        practitionerActive: true,
+      }),
+      robokassaAccount: p.payoutDetails?.robokassaAccount ?? null,
       lastPayout: p.payouts[0]?.processedAt?.toISOString() ?? null,
     };
   });

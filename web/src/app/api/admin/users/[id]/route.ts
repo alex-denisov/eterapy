@@ -3,10 +3,11 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
 import { getClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { getSubscriptionPlan } from "@/lib/entitlements";
+import { log } from "@/lib/logger";
 
 function isAdminOrSuper(role?: string) {
   return role === "ADMIN" || role === "SUPERADMIN";
@@ -28,6 +29,12 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   set_test_payments: "SUPERADMIN_ONLY",
   soft_delete:      "clients.delete",
   restore:          "clients.delete",
+  // B580: два разных по смыслу действия, поэтому и полномочия разные.
+  // «Выслать письмо заново» — обычная поддержка: подтверждение по-прежнему даёт
+  // сам человек, нажав ссылку. «Подтвердить вручную» — обход доказательства
+  // владения ящиком, и потому только суперадмин.
+  resend_verification: "clients.edit",
+  verify_email:        "SUPERADMIN_ONLY",
 };
 
 type Params = { params: Promise<{ id: string }> };
@@ -137,6 +144,61 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       );
       return NextResponse.json({ ok: true, testPaymentsEnabled: enabled });
     }
+    // B580 (owner 2026-07-26): человек зарегистрировался с опечаткой в адресе
+    // (`mail.ry` вместо `mail.ru`) и не смог подтвердить почту. Сам исправить
+    // адрес он не может — поле недоступно в кабинете, — а после правки адреса
+    // администратором ему НЕ уходит ничего: письма ушли на несуществующий ящик,
+    // а токен из регистрации живёт 24 часа и к этому моменту истёк.
+    //
+    // Штатный путь — выслать письмо заново: токен перевыпускается, срок
+    // отсчитывается заново, подтверждение по-прежнему даёт сам человек.
+    case "resend_verification": {
+      if (targetUser.emailVerified) {
+        return NextResponse.json({ error: "Email уже подтверждён" }, { status: 400 });
+      }
+      const token = crypto.randomUUID().replace(/-/g, "");
+      await db.user.update({
+        where: { id },
+        data: {
+          verificationToken: token,
+          verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+      try {
+        await sendVerificationEmail(targetUser.email, targetUser.name, token);
+      } catch (err) {
+        // Токен уже перевыпущен, но письмо не ушло — молчать нельзя: админ
+        // решит, что человек его получил, и будет ждать.
+        log.error("admin.resend_verification.send_failed", { userId: id, err });
+        return NextResponse.json(
+          { error: "Токен обновлён, но письмо не отправилось. Проверьте почтовый провайдер." },
+          { status: 502 },
+        );
+      }
+      await logAudit(adminId, "PROFILE_UPDATE", id, `resend_verification → ${targetUser.email}`);
+      return NextResponse.json({ ok: true, sentTo: targetUser.email });
+    }
+    // Аварийный путь: признак ставится руками. Это ОБХОД доказательства
+    // владения ящиком — платформа больше не знает, что письма доходят. Поэтому
+    // только суперадмин и обязательный след в аудите с указанием адреса,
+    // который приняли на доверии.
+    case "verify_email": {
+      if (targetUser.emailVerified) {
+        return NextResponse.json({ error: "Email уже подтверждён" }, { status: 400 });
+      }
+      await db.user.update({
+        where: { id },
+        data: { emailVerified: true, verificationToken: null, verificationExpires: null },
+      });
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      await logAudit(
+        adminId,
+        "PROFILE_UPDATE",
+        id,
+        `email_verified=manual (${targetUser.email})${reason ? ` — ${reason}` : ""}`,
+      );
+      return NextResponse.json({ ok: true });
+    }
     case "update_profile": {
       const { email, birthDate, birthTime, birthPlace, timezone, telegramUsername } = body;
       const data: Record<string, unknown> = {};
@@ -149,6 +211,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             return NextResponse.json({ error: "Email уже используется" }, { status: 409 });
           }
           data.email = trimmedEmail;
+          // B580: смена адреса СБРАСЫВАЕТ подтверждение. Иначе у подтверждённого
+          // пользователя после правки адреса остаётся признак «почта проверена»
+          // на ящик, который никто не проверял, — и восстановление пароля
+          // уходит туда же. Подтверждение относится к адресу, а не к аккаунту.
+          if (targetUser.emailVerified) {
+            data.emailVerified = false;
+            data.verificationToken = null;
+            data.verificationExpires = null;
+          }
         }
       }
       if (birthDate !== undefined) {

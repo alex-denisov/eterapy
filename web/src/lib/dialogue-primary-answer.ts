@@ -68,6 +68,9 @@ export async function generateDialoguePrimaryAnswer(input: {
             // Первое сообщение диалога — исходный вопрос человека; по нему
             // определяется регистр ответа.
             originalQuestion: input.messages.find((m) => m.role === "USER")?.content,
+            // B582: и по остальным его репликам тоже — эзотерический запрос
+            // часто проступает не в первом сообщении, а на втором-третьем ходе.
+            followUpAnswers: input.messages.filter((m) => m.role === "USER").slice(1).map((m) => m.content),
           }),
         },
         {

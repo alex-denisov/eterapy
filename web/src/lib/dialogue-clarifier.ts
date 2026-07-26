@@ -398,6 +398,9 @@ async function attemptLlmTurn(input: {
 }): Promise<{ result: ConversationalTurnResult; provider?: string; model?: string; degraded?: boolean } | null> {
   const systemContent = buildClarifierSystemPrompt({
     originalQuestion: input.originalQuestion,
+    // B582: ответы человека на уточняющие вопросы — там регистр проступает
+    // чаще всего («а можете по картам посмотреть?»).
+    followUpAnswers: input.previousPairs.map((pair) => pair.answer),
     topic: input.topic,
     difficulty: input.difficulty,
     previousPairsCount: input.previousPairs.length,

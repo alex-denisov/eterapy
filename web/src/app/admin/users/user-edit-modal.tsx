@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, KeyRound, LogIn, RotateCcw, Trash2, X } from "lucide-react";
+import { Ban, KeyRound, LogIn, MailCheck, RotateCcw, ShieldCheck, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -310,12 +310,39 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
     }
   }
 
-  async function runAction(action: "reset_password" | "block" | "unblock" | "soft_delete" | "restore", confirmText?: string) {
+  async function runAction(
+    action: "reset_password" | "block" | "unblock" | "soft_delete" | "restore" | "resend_verification",
+    confirmText?: string,
+  ) {
     if (confirmText && !window.confirm(confirmText)) return;
     setBusy(true);
     try {
       await patchJson(`/api/admin/users/${row.id}`, { action, comment: "admin user modal" });
       toast.success("Готово");
+      onSaved();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Действие не выполнено");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // B580: подтверждение руками — обход доказательства владения ящиком, поэтому
+  // отдельный обработчик с причиной в аудит, а не общий `runAction`.
+  async function verifyEmailManually() {
+    const reason = window.prompt(
+      `Подтвердить email ${row.email} без письма?\n\n`
+      + "Платформа перестанет знать, что письма на этот адрес доходят: восстановление "
+      + "пароля и уведомления уйдут туда же. Штатный путь — «Выслать письмо заново».\n\n"
+      + "Причина (попадёт в аудит):",
+      "",
+    );
+    if (reason === null) return;
+    setBusy(true);
+    try {
+      await patchJson(`/api/admin/users/${row.id}`, { action: "verify_email", reason });
+      toast.success("Email отмечен подтверждённым");
       onSaved();
       onClose();
     } catch (error) {
@@ -410,6 +437,48 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                 <Input className={FIELD} type="email" value={email} disabled={!canEditName} onChange={(e) => setEmail(e.target.value)} />
               </label>
             </div>
+            {/* B580: опечатка в адресе при регистрации была тупиком. Человек не
+                может исправить адрес сам, а после правки администратором ему
+                ничего не уходит: письма ушли в несуществующий ящик, а токен из
+                регистрации живёт 24 часа и к этому моменту истёк. */}
+            {!row.emailVerified && !row.deletedAt && (
+              <div className="mt-3 rounded-md border border-amber-300/60 bg-amber-50/50 p-3">
+                <p className="text-xs font-semibold text-amber-700">Email не подтверждён</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--soft-ink-soft)]">
+                  Если адрес был с опечаткой — сначала исправьте его выше и сохраните,
+                  затем вышлите письмо заново: ссылка перевыпускается на новые 24 часа.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {permissions.canEdit && (
+                    <button
+                      type="button"
+                      className="soft-admin-action"
+                      data-variant="subtle"
+                      disabled={busy}
+                      onClick={() => runAction(
+                        "resend_verification",
+                        `Выслать письмо подтверждения на ${row.email}?`,
+                      )}
+                    >
+                      <MailCheck className="size-3.5" aria-hidden="true" />
+                      Выслать письмо заново
+                    </button>
+                  )}
+                  {permissions.canManageRoles && (
+                    <button
+                      type="button"
+                      className="soft-admin-action"
+                      data-variant="danger"
+                      disabled={busy}
+                      onClick={verifyEmailManually}
+                    >
+                      <ShieldCheck className="size-3.5" aria-hidden="true" />
+                      Подтвердить вручную
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           {row.role === "CLIENT" && (

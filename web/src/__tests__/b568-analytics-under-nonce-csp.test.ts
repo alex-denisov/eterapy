@@ -39,14 +39,12 @@ describe("B568 — счётчики поднимаются без инлайна
     expect(analytics).not.toContain("__html");
   });
 
-  it("грузит оба счётчика файлами со своего origin", () => {
+  it("грузит счётчик файлом со своего origin", () => {
     expect(analytics).toContain("/analytics/metrika.js");
-    expect(analytics).toContain("/analytics/ga.js");
   });
 
-  it("держит эти файлы в public — иначе они не отдадутся", () => {
+  it("держит этот файл в public — иначе он не отдастся", () => {
     expect(fs.existsSync(path.join(process.cwd(), "public/analytics/metrika.js"))).toBe(true);
-    expect(fs.existsSync(path.join(process.cwd(), "public/analytics/ga.js"))).toBe(true);
   });
 
   it("поднимает аналитику в кабинете — там она и нужна", () => {
@@ -94,13 +92,53 @@ describe("B568 — во внешние счётчики не уходят иде
 });
 
 describe("B568 — правило вычистки одно на клиент и сервер", () => {
-  it("файлы в public зовут общий сборщик, а не свою копию правила", () => {
+  it("файл в public зовёт общий сборщик, а не свою копию правила", () => {
     // Копия правила в public/ разошлась бы с модулем на первой же правке.
-    const metrika = read("public/analytics/metrika.js");
-    const ga = read("public/analytics/ga.js");
-    for (const source of [metrika, ga]) {
-      expect(source).toContain("eterapyScrubAnalyticsUrl");
-    }
+    expect(read("public/analytics/metrika.js")).toContain("eterapyScrubAnalyticsUrl");
     expect(read("public/analytics/scrub.js")).toContain("eterapyScrubAnalyticsUrl");
+  });
+});
+
+/**
+ * B579 (owner 2026-07-26): Google Analytics снят — передача данных в GA в РФ
+ * под запретом. Тест держит запрет на уровне артефактов, а не намерения: нет
+ * тега, нет загрузчика, нет переменной сборки и нет хоста в `script-src`.
+ * Проверяется именно последнее — оставленный хост означал бы, что счётчик
+ * возвращается одной правкой окружения.
+ */
+describe("B579 — Google Analytics снят целиком", () => {
+  // Комментарии выброшены: они ОБЪЯСНЯЮТ снятие и потому содержат те же слова.
+  // Тест на «в файле нет строки X» без этого падал бы от собственной пояснялки —
+  // третий класс ложных падений на тестах-по-подстроке за две сессии.
+  const code = read("src/components/analytics.tsx")
+    .split("\n")
+    .filter((line) => !/^\s*(\/\/|\/\*|\*)/.test(line))
+    .join("\n");
+
+  it("не поднимает тег GA и не зовёт gtag", () => {
+    expect(code).not.toContain("googletagmanager");
+    expect(code).not.toContain("gtag");
+  });
+
+  it("не читает переменную измерителя GA", () => {
+    expect(code).not.toContain("NEXT_PUBLIC_GA_MEASUREMENT_ID");
+  });
+
+  it("не отдаёт загрузчик GA из public", () => {
+    expect(fs.existsSync(path.join(process.cwd(), "public/analytics/ga.js"))).toBe(false);
+  });
+
+  it("не разрешает хост GA в script-src", () => {
+    expect(read("src/lib/security-headers.ts")).not.toContain("https://www.googletagmanager.com");
+  });
+
+  it("не передаёт измеритель GA в сборку образа", () => {
+    // Переменная в Dockerfile/workflow вернула бы счётчик, даже если тег в
+    // коде остался снятым — поэтому запрет проверяется и в артефактах деплоя.
+    const repoRoot = path.join(process.cwd(), "..");
+    for (const file of ["deploy/docker/Dockerfile", ".github/workflows/deploy.yml"]) {
+      const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
+      expect(source).not.toMatch(/^[^#\n]*NEXT_PUBLIC_GA_MEASUREMENT_ID/m);
+    }
   });
 });

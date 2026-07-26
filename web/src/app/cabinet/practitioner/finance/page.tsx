@@ -58,6 +58,8 @@ export default async function PractitionerFinancePage({
           bankName: true,
           legalName: true,
           kycStatus: true,
+          // B583: адресат сплита Robokassa.
+          robokassaAccount: true,
         },
       },
     },

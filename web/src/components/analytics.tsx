@@ -1,6 +1,12 @@
 /**
- * Внешняя аналитика: Яндекс.Метрика + Google Analytics.
+ * Внешняя аналитика: Яндекс.Метрика.
  * Скрипты загружаются только после согласия пользователя (GDPR/ФЗ-152).
+ *
+ * B579 (owner 2026-07-26): Google Analytics снят целиком — передача данных
+ * пользователей в GA в РФ под запретом. Снят не только тег: убраны переменная
+ * сборки, загрузчик `public/analytics/ga.js` и хост `googletagmanager.com` из
+ * `script-src`. Оставленный хост в CSP означал бы, что счётчик можно вернуть
+ * одной переменной окружения, а запрет — не про переменную.
  */
 "use client";
 
@@ -11,7 +17,6 @@ import { track } from "@/lib/analytics";
 import { ADMIN_DOMAIN, APP_DOMAIN } from "@/lib/env";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
-const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 /**
  * Админская поверхность — отдельный поддомен в проде и путь `/admin` там, где
@@ -110,10 +115,8 @@ export function Analytics() {
 
     function send(eventName: string, params: Record<string, string>) {
       const win = window as typeof window & {
-        gtag?: (...args: unknown[]) => void;
         ym?: (id: string, method: string, event: string, params?: Record<string, string>) => void;
       };
-      win.gtag?.("event", eventName, params);
       if (YANDEX_ID) win.ym?.(YANDEX_ID, "reachGoal", eventName, params);
     }
 
@@ -150,9 +153,9 @@ export function Analytics() {
 
   return (
     <>
-      {/* B568: правило вычистки адреса нужно обоим счётчикам, поэтому грузится
-          первым и отдельно. */}
-      {(YANDEX_ID || GA_ID) && (
+      {/* B568: правило вычистки адреса грузится первым и отдельно — счётчик
+          читает его через `window.eterapyScrubAnalyticsUrl`. */}
+      {YANDEX_ID && (
         <Script id="eterapy-analytics-scrub" src="/analytics/scrub.js" strategy="afterInteractive" />
       )}
 
@@ -176,22 +179,6 @@ export function Analytics() {
               />
             </div>
           </noscript>
-        </>
-      )}
-
-      {/* Google Analytics 4 */}
-      {GA_ID && (
-        <>
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-            strategy="afterInteractive"
-          />
-          <Script
-            id="google-analytics"
-            src="/analytics/ga.js"
-            strategy="afterInteractive"
-            data-eterapy-ga-id={GA_ID}
-          />
         </>
       )}
     </>
