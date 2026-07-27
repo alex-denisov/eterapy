@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Совместимость по дате» — 140 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const SYNASTRY_PHRASES: readonly SemanticPhrase[] = [
+export const COMPATIBILITY_BY_DATE_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "совместимость", demand: 2553561, priority: "P1", intent: "смешанный" },
   { phrase: "совместимость мужчина", demand: 298866, priority: "P1", intent: "смешанный" },
   { phrase: "матрица совместимости", demand: 274370, priority: "P1", intent: "смешанный" },

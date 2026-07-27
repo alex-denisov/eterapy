@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Натальная карта» — 150 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const NATALCHART_PHRASES: readonly SemanticPhrase[] = [
+export const NATAL_CHART_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "натальная карта", demand: 840340, priority: "P1", intent: "смешанный" },
   { phrase: "астрология", demand: 210780, priority: "P1", intent: "смешанный" },
   { phrase: "натальная карта онлайн", demand: 176523, priority: "P1", intent: "коммерческий" },

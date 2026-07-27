@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Арканы судьбы» — 148 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const TAROTNUMEROLOGY_PHRASES: readonly SemanticPhrase[] = [
+export const ARCANA_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "аркан", demand: 1225355, priority: "P1", intent: "смешанный" },
   { phrase: "арканов", demand: 1225321, priority: "P1", intent: "смешанный" },
   { phrase: "аркан арканов", demand: 1218861, priority: "P1", intent: "смешанный" },

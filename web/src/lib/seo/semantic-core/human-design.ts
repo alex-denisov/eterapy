@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Дизайн человека» — 106 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const HUMANDESIGN_PHRASES: readonly SemanticPhrase[] = [
+export const HUMAN_DESIGN_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "дизайн человека", demand: 49871, priority: "P1", intent: "смешанный" },
   { phrase: "дизайн человека бесплатно", demand: 4988, priority: "P1", intent: "коммерческий" },
   { phrase: "human design", demand: 3312, priority: "P1", intent: "смешанный" },

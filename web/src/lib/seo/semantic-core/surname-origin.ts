@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Происхождение фамилии» — 150 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const SURNAMESTORY_PHRASES: readonly SemanticPhrase[] = [
+export const SURNAME_ORIGIN_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "происхождение фамилии", demand: 375376, priority: "P1", intent: "информационный" },
   { phrase: "суть фамилии", demand: 159902, priority: "P1", intent: "информационный" },
   { phrase: "родословная", demand: 146484, priority: "P1", intent: "смешанный" },

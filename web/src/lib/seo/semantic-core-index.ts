@@ -1,16 +1,16 @@
 import { TAROT_PHRASES } from "./semantic-core/tarot";
 import { NUMEROLOGY_PHRASES } from "./semantic-core/numerology";
-import { NATALCHART_PHRASES } from "./semantic-core/natal-chart";
-import { SYNASTRY_PHRASES } from "./semantic-core/synastry";
-import { HORARY_PHRASES } from "./semantic-core/horary";
-import { TAROTNUMEROLOGY_PHRASES } from "./semantic-core/tarot-numerology";
-import { HUMANDESIGN_PHRASES } from "./semantic-core/human-design";
-import { SURNAMESTORY_PHRASES } from "./semantic-core/surname-story";
-import { FAMILYSCENARIOS_PHRASES } from "./semantic-core/family-scenarios";
+import { NATAL_CHART_PHRASES } from "./semantic-core/natal-chart";
+import { COMPATIBILITY_BY_DATE_PHRASES } from "./semantic-core/compatibility-by-date";
+import { HOROSCOPE_PHRASES } from "./semantic-core/horoscope";
+import { ARCANA_PHRASES } from "./semantic-core/arcana";
+import { HUMAN_DESIGN_PHRASES } from "./semantic-core/human-design";
+import { SURNAME_ORIGIN_PHRASES } from "./semantic-core/surname-origin";
+import { FAMILY_QUESTIONS_PHRASES } from "./semantic-core/family-questions";
 import { REFRAME_PHRASES } from "./semantic-core/reframe";
-import { CHATANALYSIS_PHRASES } from "./semantic-core/chat-analysis";
+import { CHAT_ANALYSIS_PHRASES } from "./semantic-core/chat-analysis";
 import { PAIR_PHRASES } from "./semantic-core/pair";
-import { DEEPREPORT_PHRASES } from "./semantic-core/deep-report";
+import { DEEP_REPORT_PHRASES } from "./semantic-core/deep-report";
 import type { SemanticCluster, SemanticCoreRow } from "./semantic-core-types";
 
 export const SEMANTIC_CORE: readonly SemanticCluster[] = [
@@ -33,49 +33,49 @@ export const SEMANTIC_CORE: readonly SemanticCluster[] = [
     name: "Натальная карта",
     cluster: "Астрология",
     landing: "/products/natal-chart",
-    phrases: NATALCHART_PHRASES,
+    phrases: NATAL_CHART_PHRASES,
   },
   {
-    service: "compatibility",
+    service: "compatibility-by-date",
     name: "Совместимость по дате",
     cluster: "Совместимость",
-    landing: "/products/compatibility",
-    phrases: SYNASTRY_PHRASES,
+    landing: "/products/compatibility-by-date",
+    phrases: COMPATIBILITY_BY_DATE_PHRASES,
   },
   {
     service: "horoscope",
     name: "Гороскоп",
     cluster: "Прямой ответ",
     landing: "/products/horoscope",
-    phrases: HORARY_PHRASES,
+    phrases: HOROSCOPE_PHRASES,
   },
   {
     service: "arcana",
     name: "Арканы судьбы",
     cluster: "Арканы",
     landing: "/products/arcana",
-    phrases: TAROTNUMEROLOGY_PHRASES,
+    phrases: ARCANA_PHRASES,
   },
   {
     service: "human-design",
     name: "Дизайн человека",
     cluster: "Дизайн человека",
     landing: "/products/human-design",
-    phrases: HUMANDESIGN_PHRASES,
+    phrases: HUMAN_DESIGN_PHRASES,
   },
   {
     service: "surname-origin",
     name: "Происхождение фамилии",
     cluster: "Имя и род",
     landing: "/products/surname-origin",
-    phrases: SURNAMESTORY_PHRASES,
+    phrases: SURNAME_ORIGIN_PHRASES,
   },
   {
     service: "family-questions",
     name: "Семейные вопросы",
     cluster: "Семья и род",
     landing: "/products/family-questions",
-    phrases: FAMILYSCENARIOS_PHRASES,
+    phrases: FAMILY_QUESTIONS_PHRASES,
   },
   {
     service: "reframe",
@@ -89,7 +89,7 @@ export const SEMANTIC_CORE: readonly SemanticCluster[] = [
     name: "Разбор переписки",
     cluster: "Отношения",
     landing: "/products/chat-analysis",
-    phrases: CHATANALYSIS_PHRASES,
+    phrases: CHAT_ANALYSIS_PHRASES,
   },
   {
     service: "pair",
@@ -103,7 +103,7 @@ export const SEMANTIC_CORE: readonly SemanticCluster[] = [
     name: "Подробный разбор",
     cluster: "Ясность и поддержка",
     landing: "/ai-psychologist",
-    phrases: DEEPREPORT_PHRASES,
+    phrases: DEEP_REPORT_PHRASES,
   },
 ] as const;
 
