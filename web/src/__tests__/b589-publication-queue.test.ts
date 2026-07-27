@@ -14,6 +14,9 @@
  *   — в тексте поста есть ссылка с UTM, и наружу в этой фазе не уходит ничего.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { approvedLibraryEntries } from "@/data/anonymous-library";
 import {
   CONTENT_PLAN,
@@ -22,6 +25,27 @@ import {
 } from "@/lib/marketing/content-plan";
 import { destinationUrlFor, generatePost } from "@/lib/marketing/post-generator";
 import { CRON_SCHEDULES } from "@/lib/cron-scheduler";
+
+/**
+ * Сторож против .gitignore. Глобальное правило `data/` уже дважды съедало
+ * боевые файлы (halo-mark.png в B592, макеты VK в B603) и съело
+ * `library-cards-b601.ts` в этом батче: локально всё зелёное, в CI шестнадцать
+ * упавших сьютов «модуль не найден». Проверка через файловую систему, а не
+ * через импорт: импорт в рабочей копии пройдёт и с невыгруженным файлом.
+ */
+describe("каталог библиотеки доезжает до репозитория", () => {
+  it("файлы карточек лежат на диске, а не только в рабочей копии", () => {
+    const dataDir = path.join(process.cwd(), "src", "data");
+    for (const file of [
+      "library-cards-b383.ts",
+      "library-cards-b601.ts",
+      "symbolic-library-cards.ts",
+      "anonymous-library.ts",
+    ]) {
+      expect(fs.existsSync(path.join(dataDir, file))).toBe(true);
+    }
+  });
+});
 
 describe("B589 · контент-план", () => {
   it("каждый слот ведёт на существующую опубликованную карточку", () => {
