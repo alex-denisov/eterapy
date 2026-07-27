@@ -23,7 +23,13 @@
     --soft-paper-card: #fffcf5;
     --soft-ink: #2a2422;
     --soft-ink-soft: #5b514c;
-    --soft-ink-faint: #8a7e76;
+    /* INC-086: было #8a7e76 — 3.66:1 на бумаге и 3.85:1 на карточке, ниже
+       порога AA (4.5:1) для обычного текста. Этим токеном покрашен ВЕСЬ футер
+       (все навигационные ссылки) и подписи карточек — то есть замечание
+       внешнего аудита про мобильную юзабилити упиралось в один токен.
+       #796f68 — минимальное затемнение того же оттенка, дающее 4.55 / 4.78:1;
+       измерено, а не подобрано на глаз. */
+    --soft-ink-faint: #796f68;
     /* X6: these two tokens were referenced across the cabinet + admin surfaces
        (filter tabs, table rows, status tints) but never defined — so those
        backgrounds rendered transparent ("white on white"). Define them once. */
@@ -691,6 +697,45 @@
 
   .soft-header-cta:active {
     transform: scale(0.96);
+  }
+
+  /* B604 — три состояния шапки вместо двух: гость / «ещё не знаю» / вошёл.
+     Шапка живёт в корневом layout, который обязан собираться заранее
+     (INC-080), поэтому сессии в первом кадре нет ни у кого. Если браузер уже
+     был авторизован, пре-paint скрипт ставит data-auth-hint на <html>, и мы
+     показываем заглушку ВМЕСТО кнопки «Войти» — не утверждаем состояние,
+     которое может оказаться ложью. У гостя (метки нет) всё как было: готовый
+     HTML сразу содержит правильные кнопки, никакой заглушки. */
+  .soft-header-guest {
+    display: contents;
+  }
+
+  .soft-header-auth-skeleton {
+    display: none;
+  }
+
+  [data-auth-hint="1"] .soft-header-guest {
+    display: none;
+  }
+
+  [data-auth-hint="1"] .soft-header-auth-skeleton {
+    display: inline-block;
+    width: 5.5rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--soft-ink-faint) 18%, transparent);
+    animation: soft-header-auth-skeleton-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes soft-header-auth-skeleton-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.85; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-auth-hint="1"] .soft-header-auth-skeleton {
+      animation: none;
+    }
   }
 
   .soft-header-cta-primary {

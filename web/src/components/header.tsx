@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, getSubdomain, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
+import { syncAuthHint } from "@/lib/auth-hint";
 import { useClarityCreditBalance } from "@/components/use-clarity-credit-balance";
 import { NotificationBell } from "@/components/notification-bell";
 import { useMiniApp } from "@/components/miniapp-provider";
@@ -392,6 +393,14 @@ export function Header() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // B604: метка следует за правдой, а не наоборот. Пока статус «loading» — не
+  // трогаем её вовсе, иначе каждый заход снимал бы подсказку в тот самый
+  // момент, ради которого она заведена.
+  useEffect(() => {
+    if (status === "loading") return;
+    syncAuthHint(status === "authenticated");
+  }, [status]);
+
   // B381: inside a messenger mini-app the shell draws its own native header —
   // hiding the site header avoids the "double header". The pre-paint inline
   // script (data-miniapp) hides it via CSS before this unmount lands.
@@ -648,17 +657,28 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link href={mainUrl("/login")}
-                prefetch={false}
-                className="soft-header-cta soft-header-cta-ghost hidden md:inline-flex">
-                Войти
-              </Link>
-              <Link
-                href={mainUrl("/checkin")}
-                className="soft-header-cta soft-header-cta-primary"
-              >
-                Задать вопрос
-              </Link>
+              {/* B604: «на секунду вылогинивает» — это не сброс сессии, а первый
+                  кадр без данных: шапка живёт в корневом layout, а он обязан
+                  собираться заранее (INC-080), поэтому сессии там нет вовсе.
+                  Если браузер уже был авторизован, пре-paint скрипт ставит
+                  data-auth-hint, и CSS показывает заглушку ВМЕСТО гостевого
+                  блока: не утверждаем «вы гость», пока не знаем. Заглушка
+                  исчезает сама — как только `useSession()` ответит, эта ветка
+                  либо сменится на пользовательскую, либо метка снимется. */}
+              <span className="soft-header-auth-skeleton" aria-hidden="true" />
+              <span className="soft-header-guest">
+                <Link href={mainUrl("/login")}
+                  prefetch={false}
+                  className="soft-header-cta soft-header-cta-ghost hidden md:inline-flex">
+                  Войти
+                </Link>
+                <Link
+                  href={mainUrl("/checkin")}
+                  className="soft-header-cta soft-header-cta-primary"
+                >
+                  Задать вопрос
+                </Link>
+              </span>
             </>
           )}
         </div>

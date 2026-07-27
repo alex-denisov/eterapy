@@ -62,3 +62,41 @@ describe("INC-080 · публичное дерево остаётся собир
     expect(read("src/components/library/library-search.tsx")).not.toContain("useSearchParams");
   });
 });
+
+/**
+ * Пятая причина жила не в приложении, а в балансировщике: вставленная cookie
+ * привязки к ноде тянет за собой `Cache-Control: private`, и заранее собранный
+ * HTML всё равно нельзя положить в общий кеш. Публичный трафик разведён на пул
+ * без cookie — сторож следит, чтобы разведение не схлопнулось обратно.
+ */
+describe("INC-080 · балансировщик не клеит cookie на публичные ответы", () => {
+  const cfg = fs.readFileSync(
+    path.join(process.cwd(), "..", "deploy", "lb", "haproxy.cfg"),
+    "utf8",
+  );
+  const backend = (name: string) => {
+    const body = cfg.split(new RegExp(`^backend ${name}$`, "m"))[1] ?? "";
+    return body.split(/^(?:backend|frontend|listen) /m)[0];
+  };
+
+  it("публичный пул существует и НЕ вставляет cookie", () => {
+    const publicBackend = backend("app_nodes_public");
+    expect(publicBackend).toContain("server node-a");
+    expect(publicBackend).not.toContain("cookie");
+  });
+
+  it("аутентифицированный пул cookie по-прежнему вставляет", () => {
+    expect(backend("app_nodes")).toContain("cookie SRVID insert indirect nocache");
+  });
+
+  it("на публичный пул уходят только GET/HEAD вне кабинета, админки и API", () => {
+    expect(cfg).toContain("acl lb_path_private path_beg /api /cabinet /admin /login /register /rtc");
+    expect(cfg).toContain(
+      "use_backend app_nodes_public if lb_cacheable_method !lb_host_app !lb_host_admin !lb_path_private",
+    );
+  });
+
+  it("здоровье публичного пула трекается у основного, а не считается заново", () => {
+    expect(backend("app_nodes_public")).toContain("track app_nodes/node-a");
+  });
+});
