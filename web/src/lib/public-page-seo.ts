@@ -59,7 +59,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/pair": {
-    title: "Вместе — ETerapy",
+    title: "Тест для двоих: отвечают оба, сравнение взглядов | ETerapy",
     description: "Три формата разобраться вместе: взгляд со стороны от близкого по ссылке, сверить взгляды по согласию или посмотреть на совместимость. Начало бесплатно.",
     schemaKind: "Product",
   },
@@ -79,7 +79,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/reframe": {
-    title: "Переосмысление — ETerapy",
+    title: "Как отпустить ситуацию: разобрать и сделать первый шаг | ETerapy",
     description: "Когнитивный рефрейминг одной ситуации: мысли против фактов, чувства, другой взгляд и первый шаг — все четыре угла под ваш запрос.",
     schemaKind: "Product",
   },

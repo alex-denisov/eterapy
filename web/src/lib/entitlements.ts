@@ -437,7 +437,10 @@ export async function recordCreditLedgerEntry(
       amountKopecks: input.amountKopecks,
       balanceAfterKopecks: input.balanceAfterKopecks ?? null,
       type: input.type,
-      source: input.source ?? "yookassa",
+      // B591 фаза 3: значение по умолчанию не должно называть рельс, которого
+      // не существует. Источник, который не передали, — «неизвестен», а не
+      // «ЮKassa»: иначе история снова начнёт врать о происхождении денег.
+      source: input.source ?? "unknown",
       transactionId: input.transactionId ?? null,
       description: input.description ?? null,
       ...(input.metadata === undefined ? {} : { metadata: input.metadata }),
@@ -714,7 +717,8 @@ export async function grantEntitlementForTransaction(
         userId: transaction.userId,
         planKey: metadata.planKey,
         status: plan.trialDays > 0 ? "TRIALING" : "ACTIVE",
-        provider: "yookassa",
+        // Источник подписки — тот рельс, по которому пришли деньги.
+        provider: transaction.provider,
         providerSubscriptionId: transaction.id,
         trialEndsAt,
         currentPeriodStart: now,
@@ -863,7 +867,8 @@ export async function revokeEntitlementsForTransaction(
       userId: transaction.userId,
       amountKopecks: Math.abs(transaction.amount),
       type: "REFUND",
-      source: "yookassa_refund",
+      // Возврат помечается рельсом самого платежа, а не зашитым провайдером.
+      source: `${transaction.provider || "unknown"}_refund`,
       transactionId: transaction.id,
       description: reason || transaction.description,
       metadata: {

@@ -384,7 +384,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 69000,
         type: "REFUND",
-        source: "yookassa_refund",
+        source: "unknown_refund",
         transactionId: "tx-1",
       }),
     }));
@@ -428,7 +428,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 89000,
         type: "REFUND",
-        source: "yookassa_refund",
+        source: "unknown_refund",
         transactionId: "tx-bundle",
       }),
     }));
@@ -476,7 +476,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 139000,
         type: "REFUND",
-        source: "yookassa_refund",
+        source: "unknown_refund",
         transactionId: "tx-pack",
       }),
     }));
