@@ -28,7 +28,7 @@ export const practitionerComplianceSelect = {
       inn: true,
       kycStatus: true,
       // B583 (решение владельца 2026-07-26): выплата специалисту идёт сплитом
-      // Robokassa, а сплит адресуется ТОЛЬКО на аккаунт Robokassa. Без него
+      // Robokassa, а сплит адресуется ТОЛЬКО на магазин Robokassa. Без него
       // выплату отправить некуда, поэтому аккаунт обязателен — продавать
       // сессию, за которую мы не можем заплатить, нельзя.
       robokassaAccount: true,
@@ -105,7 +105,7 @@ export function evaluatePractitionerCommercialGate(practitioner: PractitionerCom
   if (details?.type === "ENTITY" && details.kycStatus !== "VERIFIED") {
     reasons.push("entity_kyc_required");
   }
-  // B583: аккаунт Robokassa специалист заводит сам — платформа его не создаёт и
+  // B583: магазин Robokassa специалист заводит сам — платформа его не создаёт и
   // по банковским реквизитам через Robokassa платить не может. Банковские
   // реквизиты остаются: они нужны фискальной части и ручной выплате.
   if (!normalizeRobokassaAccount(details?.robokassaAccount)) {

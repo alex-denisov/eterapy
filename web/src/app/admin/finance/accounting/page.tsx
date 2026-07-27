@@ -148,6 +148,16 @@ export default async function FinanceAccountingPage() {
             <a className="soft-button-ghost px-3 py-1.5" href={`/api/admin/finance/income-book?year=${year}&format=csv`}>
               CSV
             </a>
+            {/* B591 фаза 4: годовой пакет — другой документ, а не другой формат
+                той же книги. Книга отвечает «откуда сумма», пакет — «сходится
+                ли год»: месяцы, чеки, возвраты, доля комиссии и сроки. */}
+            <a
+              className="soft-button soft-button-primary px-3 py-1.5"
+              href={`/api/admin/finance/annual-package?year=${year}`}
+              data-testid="accounting-annual-package"
+            >
+              Годовой пакет за {year}
+            </a>
           </div>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">

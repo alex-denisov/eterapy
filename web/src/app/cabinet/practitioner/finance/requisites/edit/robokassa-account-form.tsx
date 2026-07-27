@@ -6,12 +6,17 @@ import { toast } from "sonner";
 import { normalizeRobokassaAccount } from "@/lib/payments/robokassa-split";
 
 /**
- * B583 — аккаунт Robokassa специалиста.
+ * B583 — магазин Robokassa специалиста.
  *
  * Отдельная форма, а не поле в форме реквизитов: это не «ещё один способ
  * выплаты» в ряду карта/СБП/счёт, а адресат сплита. Robokassa переводит долю
- * специалиста ТОЛЬКО на аккаунт Robokassa, поэтому выбирать не из чего, и
- * указать аккаунт нужно уметь, не переоформляя банковские реквизиты заново.
+ * специалиста ТОЛЬКО сплитом, поэтому выбирать не из чего, и указать
+ * идентификатор нужно уметь, не переоформляя банковские реквизиты заново.
+ *
+ * Поддержка Robokassa уточнила 2026-07-27, ЧТО именно здесь вводится: для
+ * интеграции берётся **идентификатор магазина** («Мои магазины → Настройка»),
+ * а не ID аккаунта из шапки кабинета. Разница не косметическая: ID аккаунта
+ * подставится молча и сплит уйдёт в никуда.
  */
 export function RobokassaAccountForm({
   initialAccount,
@@ -40,7 +45,7 @@ export function RobokassaAccountForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.error) throw new Error(data?.error ?? "Не удалось сохранить");
-      toast.success(trimmed ? "Аккаунт Robokassa сохранён" : "Аккаунт Robokassa отвязан");
+      toast.success(trimmed ? "Магазин Robokassa сохранён" : "Магазин Robokassa отвязан");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось сохранить");
     } finally {
@@ -51,16 +56,16 @@ export function RobokassaAccountForm({
   return (
     <form onSubmit={submit} data-testid="practitioner-robokassa-account-form" className={pcab ? undefined : "mt-8 border-t border-[var(--soft-paper-edge)] pt-6"}>
       <p className={pcab ? "pcab-eyebrow" : "soft-eyebrow"} style={pcab ? { marginTop: 22 } : undefined}>
-        Аккаунт Robokassa
+        Магазин Robokassa
       </p>
       <p className={`mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)] ${pcab ? "" : ""}`}>
-        Ваша доля переводится на аккаунт Robokassa — другого адресата платёжная система
-        не поддерживает. Деньги приходят после того, как снимется холд с оплаты клиента:
-        отдельного дня выплат ждать не нужно.
+        Ваша доля переводится сплитом на ваш магазин Robokassa — другого адресата
+        платёжная система не поддерживает: выплат по банковским реквизитам у неё нет.
+        Деньги делятся в момент оплаты клиентом, отдельного дня выплат ждать не нужно.
       </p>
       <label className="mt-3 block">
         <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
-          Идентификатор аккаунта
+          Идентификатор магазина
         </span>
         <input
           className={pcab
@@ -75,8 +80,9 @@ export function RobokassaAccountForm({
         />
       </label>
       <p className="mt-1.5 text-xs text-[var(--soft-ink-faint)]">
-        Пока аккаунт не указан, выплата проводится вручную и занимает больше времени.
-        Пустое поле отвязывает аккаунт.
+        Идентификатор магазина виден в кабинете Robokassa: «Мои магазины» → «Настройка».
+        Это не ID аккаунта из шапки кабинета. Пока магазин не указан, выплата
+        проводится вручную и занимает больше времени. Пустое поле отвязывает магазин.
       </p>
       <button
         type="submit"
@@ -86,7 +92,7 @@ export function RobokassaAccountForm({
         data-testid="practitioner-robokassa-account-save"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : pcab ? <Wallet className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-        Сохранить аккаунт
+        Сохранить магазин
       </button>
     </form>
   );
