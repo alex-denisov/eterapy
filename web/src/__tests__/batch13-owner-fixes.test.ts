@@ -143,3 +143,48 @@ describe("B602 — Главная и Кошелёк ровно по ТЗ вла�
     expect(read("src/app/api/admin/entitlements/route.ts")).toContain("awaitingUse");
   });
 });
+
+describe("B606 — «Разобрать» читается как действие, а не как ещё одна ссылка", () => {
+  const header = read("src/components/header.tsx");
+  const css = read("src/app/v4-soft.css");
+
+  it("акцент навешивается по адресу, а не по подписи", () => {
+    // Иначе следующее переименование снимет выделение молча.
+    expect(header).toContain('item.href.includes("/products")');
+    expect(header).not.toContain('item.label === "Услуги"');
+  });
+
+  it("выделен и в мосту кабинета, и на лендинге — раньше на лендинге не был", () => {
+    expect(header.match(/soft-nav-cta ml-1\.5/g)?.length).toBe(2);
+  });
+
+  it("плоской заливки без глубины больше нет", () => {
+    expect(header).not.toContain('bg-[var(--soft-terracotta)] font-semibold text-white shadow-sm');
+    // Тень тёплая и цветная, а не серая; блик по верхней кромке даёт
+    // освещённую поверхность вместо залитого прямоугольника.
+    expect(css).toContain("inset 0 1px 0 rgba(255, 248, 241, 0.16)");
+    expect(css).toContain("rgba(92, 42, 44, 0.55)");
+  });
+
+  it("движение уважает prefers-reduced-motion", () => {
+    const block = css.slice(css.indexOf(".soft-nav-cta {"));
+    expect(block).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("под курсором сдвигается стрелка, а не сама надпись", () => {
+    // Смещать цель из-под пальца — способ промахнуться мимо кнопки.
+    expect(css).toContain(".soft-nav-cta:hover .soft-nav-cta-arrow");
+    expect(css).not.toContain(".soft-nav-cta:hover {\n    transform:");
+  });
+
+  it("подпись одна на всех поверхностях, включая мини-апп", () => {
+    expect(read("src/lib/nav-model.ts")).not.toContain('label: "Услуги"');
+    expect(read("src/lib/miniapp/registry.ts")).toContain('label: "Разобрать"');
+    expect(read("src/components/miniapp/screens/services-screen.tsx")).toContain("<h2>Разобрать</h2>");
+  });
+
+  it("в нижнем баре освещён глиф, а не вся вкладка из пяти", () => {
+    expect(header).toContain("soft-tab-cta-glyph");
+    expect(css).toContain(".soft-tab-cta-glyph {");
+  });
+});

@@ -5840,3 +5840,95 @@
     font-style: italic;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* B606 — «Разобрать»: единственное действие в шапке.                  */
+/*                                                                     */
+/* Владелец 2026-07-27: «сейчас это просто устаревший формат какой-то». */
+/* Было по-разному на двух поверхностях: в мосту кабинета — плоская     */
+/* терракотовая заливка, на лендинге — такая же серая ссылка, как       */
+/* «Тарифы» и «Библиотека», то есть выделения не было вовсе.           */
+/*                                                                     */
+/* Сцена: человек читает тёплую бумажную страницу под вечерней лампой  */
+/* и ищет, с чего начать. Значит действие должно быть единственным      */
+/* освещённым предметом, а не громкой кнопкой. Отсюда бордо (по B512    */
+/* — единый цвет первичных действий платформы), тёплая цветная тень     */
+/* вместо серой и внутренний блик по верхней кромке: поверхность        */
+/* читается освещённой, а не залитой. При наведении фон становится      */
+/* СВЕТЛЕЕ, а тень длиннее — «ближе к лампе»; при нажатии тень          */
+/* схлопывается.                                                        */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .soft-nav-cta {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.875rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: #fbf1e4;
+    background: var(--soft-bordeaux);
+    box-shadow:
+      0 10px 22px -12px rgba(92, 42, 44, 0.55),
+      inset 0 1px 0 rgba(255, 248, 241, 0.16);
+    transition-property: background-color, box-shadow, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .soft-nav-cta:hover {
+    background: color-mix(in srgb, var(--soft-bordeaux) 88%, var(--soft-terracotta));
+    box-shadow:
+      0 14px 28px -12px rgba(92, 42, 44, 0.62),
+      inset 0 1px 0 rgba(255, 248, 241, 0.2);
+  }
+
+  .soft-nav-cta:active {
+    transform: translateY(1px);
+    box-shadow:
+      0 4px 10px -8px rgba(92, 42, 44, 0.6),
+      inset 0 1px 0 rgba(255, 248, 241, 0.12);
+  }
+
+  /* Стрелка сдвигается, а не сама кнопка: смещать надпись под курсором */
+  /* значит уводить цель из-под пальца. */
+  .soft-nav-cta-arrow {
+    display: inline-block;
+    transition: transform var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-nav-cta:hover .soft-nav-cta-arrow {
+    transform: translateX(2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .soft-nav-cta,
+    .soft-nav-cta-arrow {
+      transition: none;
+    }
+
+    .soft-nav-cta:hover .soft-nav-cta-arrow,
+    .soft-nav-cta:active {
+      transform: none;
+    }
+  }
+
+  /* Нижний бар и мини-апп: заливка в пятиместном ряду была бы тяжёлой, */
+  /* поэтому освещается только глиф — тот же бордо, тот же смысл.       */
+  .soft-tab-cta-glyph {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    color: #fbf1e4;
+    background: var(--soft-bordeaux);
+    box-shadow:
+      0 6px 14px -8px rgba(92, 42, 44, 0.6),
+      inset 0 1px 0 rgba(255, 248, 241, 0.16);
+  }
+}

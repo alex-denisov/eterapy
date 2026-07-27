@@ -514,26 +514,48 @@ export function Header() {
           </nav>
         ) : showCabinetBridge ? (
           <nav data-testid="cabinet-service-bridge" className="hidden items-center justify-center gap-1 md:flex">
-            {CABINET_BRIDGE.map((item, i) => (
-              <Link key={item.href} href={item.href} prefetch={false}
-                data-soft-nav="link"
-                className={cn("rounded-full px-3 py-2 text-sm transition-colors",
-                  i === 0
-                    ? "inline-flex items-center gap-1 text-[var(--soft-ink-soft)] hover:text-foreground"
-                    : item.href.includes("/products")
-                      ? "bg-[var(--soft-terracotta)] font-semibold text-white shadow-sm hover:brightness-105"
+            {CABINET_BRIDGE.map((item, i) => {
+              // B594/B606: акцент навешивается ПО АДРЕСУ, а не по подписи —
+              // иначе следующее переименование молча снимет выделение.
+              const isPrimary = item.href.includes("/products");
+              if (isPrimary) {
+                return (
+                  <Link key={item.href} href={item.href} prefetch={false} data-soft-nav="cta" className="soft-nav-cta ml-1.5">
+                    {item.label}
+                    <span className="soft-nav-cta-arrow" aria-hidden="true">→</span>
+                  </Link>
+                );
+              }
+              return (
+                <Link key={item.href} href={item.href} prefetch={false}
+                  data-soft-nav="link"
+                  className={cn("rounded-full px-3 py-2 text-sm transition-colors",
+                    i === 0
+                      ? "inline-flex items-center gap-1 text-[var(--soft-ink-soft)] hover:text-foreground"
                       : "text-[var(--soft-ink-soft)] hover:bg-white/5 hover:text-foreground",
-                )}>
-                {i === 0 && <ArrowLeft className="size-3.5" aria-hidden="true" />}
-                {item.label}
-              </Link>
-            ))}
+                  )}>
+                  {i === 0 && <ArrowLeft className="size-3.5" aria-hidden="true" />}
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         ) : (
           <nav className="hidden items-center justify-center gap-1 md:flex">
             {nav.map((item) => {
               const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
               const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
+              // B606: на лендинге «Разобрать» ничем не отличалось от «Тарифов»
+              // и «Библиотеки» — четыре одинаково серые ссылки, и ни одна не
+              // называла себя действием.
+              if (item.href.includes("/products")) {
+                return (
+                  <Link key={item.href} href={item.href} data-soft-nav="cta" data-active={active ? "true" : undefined} className="soft-nav-cta ml-1.5">
+                    {item.label}
+                    <span className="soft-nav-cta-arrow" aria-hidden="true">→</span>
+                  </Link>
+                );
+              }
               return (
                 <Link key={item.href} href={item.href}
                   data-soft-nav="link"
@@ -722,6 +744,11 @@ export function Header() {
                   </button>
                 );
               }
+              // B594/B606: вход в каталог — единственная коммерческая вкладка
+              // бара, и он терялся среди четырёх одинаково серых. Заливка целой
+              // вкладки в ряду из пяти была бы тяжёлой, поэтому освещается
+              // только глиф — тот же бордо, что и в шапке.
+              const isPrimaryTab = item.href.includes("/products");
               return (
                 <Link
                   key={item.href}
@@ -730,17 +757,20 @@ export function Header() {
                   onClick={() => setMobileOpen(false)}
                   className={cn(
                     base,
-                    // B594: вход в каталог — единственная коммерческая вкладка
-                    // бара, и он терялся среди четырёх одинаково серых. Терракот
-                    // здесь не «активное состояние», а постоянный акцент.
-                    item.href.includes("/products")
-                      ? "font-semibold text-[var(--soft-terracotta-dark)]"
+                    isPrimaryTab
+                      ? "font-semibold text-[var(--soft-bordeaux)]"
                       : tabActive(item.href)
                         ? "text-[var(--soft-bordeaux)]"
                         : "text-[var(--soft-ink-soft)]",
                   )}
                 >
-                  <Icon className="size-5" aria-hidden="true" />
+                  {isPrimaryTab ? (
+                    <span className="soft-tab-cta-glyph">
+                      <Icon className="size-[1.125rem]" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <Icon className="size-5" aria-hidden="true" />
+                  )}
                   {item.label}
                 </Link>
               );

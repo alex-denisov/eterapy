@@ -3,7 +3,9 @@ import type { MiniAppFeature, MiniAppViewId } from "@/lib/miniapp/types";
 export const MINIAPP_FEATURES: readonly MiniAppFeature[] = [
   { id: "home", label: "Главная", route: "/miniapp" },
   { id: "dialogues", label: "Диалоги", route: "/miniapp/dialogues" },
-  { id: "services", label: "Услуги", route: "/miniapp/services", central: true },
+  // B594/B606: одно название входа в каталог на всех поверхностях — глагол,
+  // называющий действие. «Услуги» читалось как «мои услуги» и ничего не обещало.
+  { id: "services", label: "Разобрать", route: "/miniapp/services", central: true },
   { id: "diary", label: "Дневник", route: "/miniapp/diary", protected: true },
   { id: "profile", label: "Профиль", route: "/miniapp/profile" },
 ] as const;
