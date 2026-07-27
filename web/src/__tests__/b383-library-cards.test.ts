@@ -2,15 +2,21 @@ import { approvedLibraryEntries } from "@/data/anonymous-library";
 import { b383LibraryCards } from "@/data/library-cards-b383";
 import { LIFE_LIBRARY_TOPICS, isLibraryTopic, type LifeLibraryTopic } from "@/lib/library-cta";
 
-// Appendix A target distribution for the published catalogue (120 cards).
+// Appendix A target distribution + 14 карточек B601 части 3 (батч №20).
+//
+// Пропорции Приложения A были расчётными; замер Wordstat 2026-07-28 показал,
+// где реальный спрос, и он не совпал с расчётом: восемь из четырнадцати
+// добавленных карточек — про расставание и возврат, потому что «вернётся ли
+// бывший» (17 235) и «как пережить расставание» (14 199) в библиотеке не
+// были представлены вовсе. Числа ниже — факт каталога, а не новая догадка.
 const TARGET_DISTRIBUTION: Record<LifeLibraryTopic, number> = {
-  "Отношения": 30,
-  "Повторяется одно и то же": 18,
+  "Отношения": 30 + 8,
+  "Повторяется одно и то же": 18 + 1,
   "Тревога и состояние": 18,
-  "Работа и деньги": 16,
-  "Одиночество": 14,
-  "Выбор и решения": 14,
-  "Про себя": 10,
+  "Работа и деньги": 16 + 1,
+  "Одиночество": 14 + 1,
+  "Выбор и решения": 14 + 2,
+  "Про себя": 10 + 1,
 };
 
 // Tone bans from Appendix A (matched case-insensitively, stem-level).
@@ -19,8 +25,10 @@ const FORBIDDEN_WORDS = ["ясност", "ракурс", "паттерн", "тр
 describe("B383 — published library catalogue", () => {
   const approved = approvedLibraryEntries("life");
 
-  it("publishes ~120 approved & indexable cards (Appendix A target)", () => {
-    expect(approved.length).toBe(120);
+  it("publishes the full approved & indexable catalogue", () => {
+    expect(approved.length).toBe(
+      Object.values(TARGET_DISTRIBUTION).reduce((sum, count) => sum + count, 0),
+    );
   });
 
   it("matches the Appendix A theme distribution exactly", () => {
