@@ -19,6 +19,7 @@ import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 import { cleanupExpiredMiniAppAuthGrants } from "@/lib/miniapp/telegram/auth";
 import { reconcileRobokassaBacklog } from "@/lib/payments/reconcile-robokassa";
+import { runIpObligationReminders } from "@/lib/ip-obligation-reminders";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -445,6 +446,21 @@ export async function runBillingReconcilePendingJob(job: Job): Promise<JobResult
   return result;
 }
 
+/**
+ * B591 фаза 4 — сроки ИП за 10 и за 3 дня.
+ *
+ * Календарь на экране закрывает вопрос «когда», но не вопрос «вспомнить».
+ * Отправка идёт суперадминам со связанным Telegram; отсутствие получателей —
+ * это НЕ успех, а `ok: false`: «напоминания работают» при нулевой доставке
+ * было бы ровно тем сюрпризом, который контур убирает.
+ */
+export async function runIpObligationRemindersJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const result = await runIpObligationReminders(now);
+  log.info("cron-ip-obligation-reminders-completed", { jobId: job.id, ...result });
+  return { ...result, timestamp: now.toISOString() };
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.billing-reconcile-pending": runBillingReconcilePendingJob as JobHandler,
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
@@ -456,4 +472,5 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.moment-of-need": runMomentOfNeedJob as JobHandler,
   "cron.subscription-renewal": runSubscriptionRenewalRemindersJob as JobHandler,
   "cron.session-escrow-capture": runSessionEscrowCaptureJob as JobHandler,
+  "cron.ip-obligation-reminders": runIpObligationRemindersJob as JobHandler,
 };

@@ -61,6 +61,10 @@ export const CRON_SCHEDULES: CronSchedule[] = [
   { type: "cron.streak-at-risk", cadence: "daily", keyPrefix: "streak-at-risk" },
   { type: "cron.moment-of-need", cadence: "daily", keyPrefix: "moment-of-need" },
   { type: "cron.subscription-renewal", cadence: "daily", keyPrefix: "subscription-renewal" },
+  // B591 фаза 4: сроки ИП за 10 и за 3 дня. Ежедневно и НЕ financial — джоб
+  // ничего не двигает, он только пишет владельцу в Telegram. Под финансовым
+  // гейтом напоминания молчали бы ровно там, где нужны.
+  { type: "cron.ip-obligation-reminders", cadence: "daily", keyPrefix: "ip-obligation-reminders" },
   {
     type: "cron.session-escrow-capture",
     cadence: "hourly",

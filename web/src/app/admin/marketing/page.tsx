@@ -63,7 +63,7 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
         title="Поиск и маркетинг"
         actions={<PeriodToolbar basePath="/admin/marketing" start={period.startInput} end={period.endInput} />}
       >
-        Позиции считаются по запросам, по которым сайт уже показался в Яндексе. Wordstat показывает спрос рынка, а не позицию ETerapy. <Link className="font-semibold text-blue-700 hover:underline" href="/admin/marketing/publications">Открыть реестр внешних публикаций</Link>.
+        Позиции считаются по запросам, по которым сайт уже показался в Яндексе. Wordstat показывает спрос рынка, а не позицию ETerapy. <Link className="font-semibold text-blue-700 hover:underline" href="/admin/marketing/publications">Открыть реестр внешних публикаций</Link> · <Link className="font-semibold text-blue-700 hover:underline" href="/admin/marketing/urls">Реестр URL и контроль ссылок</Link>.
       </AdminHero>
 
       <MetricGrid>
