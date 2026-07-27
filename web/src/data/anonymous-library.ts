@@ -1,5 +1,6 @@
 import { LIBRARY_TOPICS, type LibraryTopic, type LibraryCtaProduct } from "@/lib/library-cta";
 import { b383LibraryCards } from "@/data/library-cards-b383";
+import { b601LibraryCards } from "@/data/library-cards-b601";
 import { symbolicLibraryCards } from "@/data/symbolic-library-cards";
 
 export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
@@ -930,6 +931,7 @@ const baseLibraryEntries: AnonymousLibraryEntry[] = [
 export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   ...baseLibraryEntries,
   ...b383LibraryCards,
+  ...b601LibraryCards,
   ...symbolicLibraryCards,
 ];
 

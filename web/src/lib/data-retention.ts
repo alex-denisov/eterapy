@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { ACCOUNT_SOFT_DELETE_GRACE_DAYS } from "@/lib/account-deletion-policy";
 import { cleanupExpiredGuestDialogues } from "@/lib/guest-dialogue-retention";
 
 export const RETENTION_POLICY = {
@@ -10,7 +11,9 @@ export const RETENTION_POLICY = {
   accountProfile: {
     category: "account_profile",
     retention: "while_active",
-    softDeleteGraceDays: 7,
+    // Число живёт в `account-deletion-policy.ts`: его же читают настройки
+    // кабинета и письмо о деактивации. Раньше их было три разных.
+    softDeleteGraceDays: ACCOUNT_SOFT_DELETE_GRACE_DAYS,
   },
   dialogues: {
     category: "dialogues",

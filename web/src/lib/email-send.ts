@@ -316,15 +316,32 @@ export function subjectFor(event: NotifEvent, data: Record<string, string>): str
   return SUBJECTS[event];
 }
 
-export async function sendEmail({ to, event, name, data }: EmailPayload): Promise<void> {
+/**
+ * Отправка + возврат ТОГО, ЧТО УШЛО.
+ *
+ * Снимок возвращается наружу, а не собирается заново для журнала (B599, батч
+ * №20): пересобранное сегодняшним шаблоном тело — это не то письмо, которое
+ * получил человек, а сегодняшняя догадка о нём. Ровно ради этого различия
+ * журнал и заводился.
+ *
+ * `delivered: false` при отсутствующем ключе — не мелочь: без него «письмо не
+ * настроено» неотличимо от «письмо ушло».
+ */
+export interface SentEmailSnapshot {
+  subject: string;
+  html: string;
+  delivered: boolean;
+}
+
+export async function sendEmail({ to, event, name, data }: EmailPayload): Promise<SentEmailSnapshot> {
+  const html = emailWrapper(buildBody(event, name, data));
+  const subject = subjectFor(event, data);
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     log.warn("email.resend_api_key_missing");
-    return;
+    return { subject, html, delivered: false };
   }
-
-  const html = emailWrapper(buildBody(event, name, data));
-  const subject = subjectFor(event, data);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -335,5 +352,8 @@ export async function sendEmail({ to, event, name, data }: EmailPayload): Promis
   if (!res.ok) {
     const err = await res.text();
     log.error("email.resend_failed", { err });
+    return { subject, html, delivered: false };
   }
+
+  return { subject, html, delivered: true };
 }

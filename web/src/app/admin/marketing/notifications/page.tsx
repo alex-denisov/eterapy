@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { Megaphone, PauseCircle, ShieldAlert } from "lucide-react";
+import { Bell, Megaphone, PauseCircle, ShieldAlert } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -9,8 +9,13 @@ import { marketingNotificationsEnabled } from "@/lib/marketing/dispatch";
 import {
   MARKETING_CATEGORY_LABELS,
   MARKETING_EVENTS,
+  MARKETING_FIRE_LABELS,
 } from "@/lib/marketing/events";
 import { MARKETING_BLOCK_LABELS } from "@/lib/marketing/gates";
+import {
+  SYSTEM_CATEGORY_LABELS,
+  systemEventCatalog,
+} from "@/lib/notifications/system-catalog";
 import {
   AdminHero,
   AnalyticsSection,
@@ -19,18 +24,30 @@ import {
   formatNumber,
 } from "../../admin-analytics-ui";
 import { DispatchJournal, type DispatchRow } from "./dispatch-journal";
+import {
+  MarketingMatrixTable,
+  SystemCatalogTable,
+  type MatrixRow,
+  type SystemRow,
+} from "./event-tables";
 
 /**
  * B599 · «Кому, когда, куда и что было отправлено».
  *
- * На экране две разные вещи, и их важно не перепутать:
- *   — МАТРИЦА: что платформа имеет право отправить. Приезжает выкаткой, здесь
- *     только показывается — редактирование рекламы через админку означало бы
- *     необратимую отправку без ревью.
- *   — ЖУРНАЛ: что реально произошло, включая НЕотправленное с причиной.
+ * На экране три разные вещи, и их важно не перепутать:
+ *   — МАРКЕТИНГОВАЯ МАТРИЦА: что платформа имеет право отправить как рекламу.
+ *     Приезжает выкаткой, здесь только показывается — редактирование рекламы
+ *     через админку означало бы необратимую отправку без ревью.
+ *   — СЛУЖЕБНЫЙ КАТАЛОГ: что уходит ВСЕГДА, потому что сообщает человеку факт
+ *     о его деньгах, доступе или встрече. Согласия не спрашивает, отпиской от
+ *     рекламы не выключается.
+ *   — ЖУРНАЛ: что реально произошло по обеим линиям, включая НЕотправленное с
+ *     причиной.
  *
- * Пока выключатель выключен, журнал заполняется только записями «заблокировано»
- * — и это правильное состояние приёмки: видно, кому бы ушло, до того как ушло.
+ * Журнал сводит две таблицы (`marketing_dispatches` и `notification_dispatches`)
+ * в один список. Два отдельных журнала означали бы, что на вопрос «получал ли
+ * этот человек от нас что-нибудь вчера» надо смотреть в два места и помнить про
+ * оба.
  */
 export default async function MarketingNotificationsPage() {
   const session = await auth();
@@ -38,8 +55,13 @@ export default async function MarketingNotificationsPage() {
 
   const enabled = marketingNotificationsEnabled();
 
-  const [dispatches, sentCount, blockedCount, consented] = await Promise.all([
+  const [marketing, system, sentCount, blockedCount, consented, systemSentCount] = await Promise.all([
     db.marketingDispatch.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      include: { user: { select: { email: true, name: true } } },
+    }),
+    db.notificationDispatch.findMany({
       orderBy: { createdAt: "desc" },
       take: 500,
       include: { user: { select: { email: true, name: true } } },
@@ -47,10 +69,12 @@ export default async function MarketingNotificationsPage() {
     db.marketingDispatch.count({ where: { status: "sent" } }),
     db.marketingDispatch.count({ where: { status: "blocked" } }),
     db.user.count({ where: { marketingConsentAt: { not: null }, marketingOptOutAt: null } }),
+    db.notificationDispatch.count({ where: { status: "sent" } }),
   ]);
 
-  const rows: DispatchRow[] = dispatches.map((dispatch) => ({
-    id: dispatch.id,
+  const marketingRows: DispatchRow[] = marketing.map((dispatch) => ({
+    id: `m-${dispatch.id}`,
+    kind: "Маркетинг",
     recipient: dispatch.user?.email ?? dispatch.user?.name ?? "—",
     eventKey: dispatch.eventKey,
     category:
@@ -66,32 +90,90 @@ export default async function MarketingNotificationsPage() {
     body: dispatch.body,
     error: dispatch.error,
     createdAt: dispatch.createdAt.toISOString(),
-    sentAt: dispatch.sentAt?.toISOString() ?? null,
   }));
+
+  const systemRows: DispatchRow[] = system.map((dispatch) => ({
+    id: `s-${dispatch.id}`,
+    kind: dispatch.kind === "account" ? "Аккаунт" : "Служебное",
+    // Для аккаунтных писем адресат — сам email: аккаунта за ним может ещё не быть.
+    recipient: dispatch.user?.email ?? dispatch.recipient,
+    eventKey: dispatch.event,
+    category: dispatch.kind === "account" ? "Доступ к аккаунту" : "Транзакционное",
+    channel: dispatch.channel.toLowerCase(),
+    status: dispatch.status,
+    blockedBy: null,
+    subject: dispatch.subject,
+    body: dispatch.body,
+    error: dispatch.error,
+    createdAt: dispatch.createdAt.toISOString(),
+  }));
+
+  const journalRows = [...marketingRows, ...systemRows].sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
+  );
+
+  const matrixRows: MatrixRow[] = MARKETING_EVENTS.map((event) => ({
+    key: event.key,
+    category: MARKETING_CATEGORY_LABELS[event.category],
+    audience: event.audience,
+    fire: MARKETING_FIRE_LABELS[event.fire],
+    trigger: event.trigger,
+    channels: event.channels.join(" → "),
+    cooldown: `раз в ${event.minDaysBetween} дн.`,
+    subject: event.subject,
+    body: event.body,
+    rationale: event.rationale,
+  }));
+
+  const catalog = systemEventCatalog();
+  const systemCatalogRows: SystemRow[] = catalog.map((row) => ({
+    key: row.key,
+    label: row.label,
+    kind: row.kind === "account" ? "Письмо аккаунта" : "Настройки кабинета",
+    category: SYSTEM_CATEGORY_LABELS[row.category] ?? row.category,
+    audience: row.audience,
+    trigger: row.trigger,
+    channels: row.channels.join(", "),
+    optional: row.optional ? "Можно отключить" : "Нельзя отключить",
+  }));
+
+  const marketingCategoryOptions = Object.entries(MARKETING_CATEGORY_LABELS).map(([value, label]) => ({
+    value: label,
+    label,
+  }));
+  const systemCategoryOptions = Array.from(
+    new Set(systemCatalogRows.map((row) => row.category)),
+  ).map((label) => ({ value: label, label }));
 
   return (
     <div className="space-y-8">
-      <AdminHero eyebrow="поиск и маркетинг" title="Маркетинговые уведомления">
+      <AdminHero eyebrow="поиск и маркетинг" title="Уведомления: что уходит и что ушло">
         <p>
           {enabled
-            ? "Рассылка ВКЛЮЧЕНА. Каждое сообщение — в журнале ниже вместе с текстом, который получил человек."
-            : "Рассылка выключена. Ни одно сообщение из матрицы наружу не уходит; в журнал пишутся попытки с причиной отказа."}
+            ? "Рекламная рассылка ВКЛЮЧЕНА. Каждое сообщение — в журнале ниже вместе с текстом, который получил человек."
+            : "Рекламная рассылка выключена: ни одно сообщение из матрицы наружу не уходит, в журнал пишутся попытки с причиной отказа. Служебные уведомления от этого выключателя не зависят и уходят как обычно."}
         </p>
       </AdminHero>
 
       <MetricGrid>
         <MetricCard
           icon={enabled ? <Megaphone className="size-4" /> : <PauseCircle className="size-4" />}
-          label="Состояние рассылки"
+          label="Рекламная рассылка"
           value={enabled ? "Включена" : "Выключена"}
           hint="Переключается переменной MARKETING_NOTIFICATIONS через выкатку, а не из админки"
         />
-        <MetricCard label="Отправлено" value={formatNumber(sentCount)} hint="всего за историю" />
+        <MetricCard label="Рекламных отправлено" value={formatNumber(sentCount)} hint="всего за историю" />
         <MetricCard
           icon={<ShieldAlert className="size-4" />}
-          label="Не отправлено"
+          label="Реклама не отправлена"
           value={formatNumber(blockedCount)}
           hint="каждая попытка — с причиной отказа"
+        />
+        <MetricCard
+          icon={<Bell className="size-4" />}
+          label="Служебных отправлено"
+          value={formatNumber(systemSentCount)}
+          hint="письма, Telegram и колокольчик; согласия не требуют"
         />
         <MetricCard
           label="Согласились на рекламу"
@@ -100,57 +182,51 @@ export default async function MarketingNotificationsPage() {
         />
       </MetricGrid>
 
-      <AnalyticsSection title="Матрица событий">
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Что платформа имеет право отправить. Список приезжает выкаткой: рекламу
-          нельзя править между делом — она уходит наружу и необратима.
+      <AnalyticsSection title={`Маркетинговая матрица — ${MARKETING_EVENTS.length} событий`}>
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Что платформа имеет право отправить как рекламу. Список приезжает
+          выкаткой: рекламу нельзя править между делом — она уходит наружу и
+          необратима. Каждое из этих сообщений требует согласия, подчиняется
+          отписке, кризисному гейту, ночному окну и общему потолку в два касания
+          на неделю.
         </p>
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
           В текстах ниже ссылки отписки нет — её приклеивает отправитель к
           каждому сообщению, поэтому забыть её в шаблоне невозможно. Отписка
           выполняется на <code>/unsubscribe</code> нажатием кнопки, а не
           переходом по ссылке: по ссылкам из писем ходят почтовые сканеры сами.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] table-fixed text-left text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-neutral-500">
-                <th className="w-[16%] py-2 pr-4 text-left">Событие</th>
-                <th className="w-[9%] py-2 pr-4 text-left">Категория</th>
-                <th className="w-[22%] py-2 pr-4 text-left">Когда уходит</th>
-                <th className="w-[11%] py-2 pr-4 text-left">Канал</th>
-                <th className="w-[9%] py-2 pr-4 text-left">Не чаще</th>
-                <th className="py-2 text-left">Текст</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MARKETING_EVENTS.map((event) => (
-                <tr key={event.key} className="border-t border-neutral-200 align-top dark:border-neutral-800">
-                  <td className="py-3 pr-4 text-left font-mono text-xs break-words">{event.key}</td>
-                  <td className="py-3 pr-4 text-left">{MARKETING_CATEGORY_LABELS[event.category]}</td>
-                  <td className="py-3 pr-4 text-left text-neutral-600 dark:text-neutral-400">{event.trigger}</td>
-                  <td className="py-3 pr-4 text-left">{event.channels.join(" → ")}</td>
-                  <td className="py-3 pr-4 text-left whitespace-nowrap">раз в {event.minDaysBetween} дн.</td>
-                  <td className="py-3 text-left">
-                    <div className="font-medium">{event.subject}</div>
-                    <pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-neutral-600 dark:text-neutral-400">
-                      {event.body}
-                    </pre>
-                    <p className="mt-2 text-xs italic text-neutral-500">{event.rationale}</p>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <MarketingMatrixTable rows={matrixRows} categories={marketingCategoryOptions} />
+      </AnalyticsSection>
+
+      <AnalyticsSection title={`Служебные события — ${systemCatalogRows.length}`}>
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Уходят всегда: это факты о деньгах, доступе и встречах человека.
+          Согласия на рекламу не спрашивают и отпиской от рекламы не
+          выключаются — иначе нажатие «отписаться» в письме об акции отключило бы
+          чек об оплате и напоминание о сессии.
+        </p>
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          «Настройки кабинета» — события с переключателем у человека («Настройки»
+          → «Уведомления»). «Письмо аккаунта» — уходит мимо переключателей:
+          выключить себе письмо для сброса пароля значит потерять доступ.
+        </p>
+        <SystemCatalogTable rows={systemCatalogRows} categories={systemCategoryOptions} />
       </AnalyticsSection>
 
       <AnalyticsSection title="Журнал отправок">
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Кому, когда, куда, по какому событию и что именно ушло. Тело письма —
-          снимок на момент отправки, а не пересборка сегодняшним шаблоном.
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Кому, когда, куда, по какому событию и что именно ушло — реклама и
+          служебные в одном списке. Тело сообщения — снимок на момент отправки, а
+          не пересборка сегодняшним шаблоном.
         </p>
-        <DispatchJournal rows={rows} />
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          У писем сброса пароля и подтверждения почты тело намеренно не
+          сохраняется: в нём рабочая одноразовая ссылка, а журнал читает
+          суперадмин. Тема, адресат и время сохранены — этого хватает, чтобы
+          ответить на вопрос «письмо уходило?».
+        </p>
+        <DispatchJournal rows={journalRows} />
       </AnalyticsSection>
     </div>
   );

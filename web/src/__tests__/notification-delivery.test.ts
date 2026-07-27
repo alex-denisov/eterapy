@@ -36,14 +36,18 @@ jest.mock("@/lib/telegram", () => ({
   sendTelegram: jest.fn(),
 }));
 
-jest.mock("@/lib/db", () => ({
-  __esModule: true,
-  default: {
+// `db` экспортируется и по умолчанию, и по имени: журнал отправок (B599)
+// импортирует именованный. Один объект на оба экспорта — иначе тест проверял
+// бы не тот клиент, которым пользуется код.
+jest.mock("@/lib/db", () => {
+  const client = {
     notification: { create: jest.fn() },
+    notificationDispatch: { create: jest.fn() },
     notificationPreference: { findUnique: jest.fn(), findMany: jest.fn() },
     user: { findUnique: jest.fn() },
-  },
-}));
+  };
+  return { __esModule: true, default: client, db: client };
+});
 
 jest.mock("@/lib/platform-settings", () => ({
   __esModule: true,
@@ -81,9 +85,10 @@ describe("notification delivery jobs", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEnqueueJob.mockResolvedValue({ id: "job-1" } as never);
-    mockSendEmail.mockResolvedValue(undefined);
+    mockSendEmail.mockResolvedValue({ subject: "тема", html: "<p>тело</p>", delivered: true });
     mockSendTelegram.mockResolvedValue(undefined);
     (db.notification.create as jest.Mock).mockResolvedValue({});
+    (db.notificationDispatch.create as jest.Mock).mockResolvedValue({});
   });
 
   afterEach(() => {
