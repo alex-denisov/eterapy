@@ -7,15 +7,16 @@
 # аватар 400×400, обложка 1590×400 с содержимым внутри центральной безопасной
 # зоны 1196×400 (иначе мобильный кроп VK срежет знак и подпись).
 #
-# ⚠ Скрипту нужен ТОКЕН СООБЩЕСТВА со scope `photos`. `VK_SERVICE_TOKEN`,
-#   который лежит в прод-окружении, не подойдёт: сервисный токен не имеет права
-#   менять оформление сообщества.
+# ⚠ ДВА РАЗНЫХ ТОКЕНА. Проверено на живом API 27.07.2026:
 #
-#   Токен ожидается в `~/.eterapy/infra-credentials.env` строкой
-#       VK_COMMUNITY_TOKEN=vk1.a....
-#   На 27.07.2026 его там НЕТ — ни в этом файле, ни в GitHub-секретах, ни в
-#   `/opt/eterapy/.env` на проде. Поэтому загрузка не выполнена, а вынесена
-#   сюда: одна команда после того, как токен появится.
+#   ОБЛОЖКА — работает токеном СООБЩЕСТВА (`VK_COMMUNITY_TOKEN`).
+#   АВАТАР   — НЕ работает: `photos.getOwnerPhotoUploadServer` отвечает
+#              error_code 27 «method is unavailable with group auth». Этому
+#              методу нужен ПОЛЬЗОВАТЕЛЬСКИЙ токен администратора сообщества
+#              со scope `photos`. Тем же ограничением закрыт `status.set`.
+#
+#   Поэтому скрипт всегда ставит обложку, а аватар — только если задан
+#   `VK_USER_TOKEN`. Оба ключа читаются из `~/.eterapy/infra-credentials.env`.
 #
 # Запуск:
 #   ./deploy/vk-community-assets.sh
@@ -32,9 +33,10 @@ readonly CREDS="$HOME/.eterapy/infra-credentials.env"
 
 # Файл кредов ведётся человеком и содержит комментарии-предложения без `#`,
 # поэтому `source` целиком на нём падает. Берём ровно одну нужную строку.
-if [[ -z "${VK_COMMUNITY_TOKEN:-}" && -r "$CREDS" ]]; then
-  VK_COMMUNITY_TOKEN=$(sed -n 's/^VK_COMMUNITY_TOKEN=//p' "$CREDS" | tail -n 1)
-  export VK_COMMUNITY_TOKEN
+if [[ -r "$CREDS" ]]; then
+  [[ -z "${VK_COMMUNITY_TOKEN:-}" ]] && VK_COMMUNITY_TOKEN=$(sed -n 's/^VK_COMMUNITY_TOKEN=//p' "$CREDS" | tail -n 1)
+  [[ -z "${VK_USER_TOKEN:-}" ]] && VK_USER_TOKEN=$(sed -n 's/^VK_USER_TOKEN=//p' "$CREDS" | tail -n 1)
+  export VK_COMMUNITY_TOKEN VK_USER_TOKEN
 fi
 
 if [[ -z "${VK_COMMUNITY_TOKEN:-}" ]]; then
@@ -64,10 +66,14 @@ vk_check() {
   fi
 }
 
+if [[ -z "${VK_USER_TOKEN:-}" ]]; then
+  printf 'Аватар: пропущен — нужен VK_USER_TOKEN (пользовательский токен админа сообщества, scope photos).\n'
+  printf '        Токен сообщества этот метод не принимает: error_code 27.\n'
+else
 printf 'Аватар…\n'
 UPLOAD=$(curl -sS -G "$API/photos.getOwnerPhotoUploadServer" \
   --data-urlencode "owner_id=-$GROUP_ID" \
-  --data-urlencode "access_token=$VK_COMMUNITY_TOKEN" \
+  --data-urlencode "access_token=$VK_USER_TOKEN" \
   --data-urlencode "v=$API_VERSION")
 vk_check "$UPLOAD" "photos.getOwnerPhotoUploadServer"
 UPLOAD_URL=$(printf '%s' "$UPLOAD" | python3 -c 'import json,sys; print(json.load(sys.stdin)["response"]["upload_url"])')
@@ -81,10 +87,11 @@ SAVED=$(curl -sS -X POST "$API/photos.saveOwnerPhoto" \
   --data-urlencode "server=$SERVER" \
   --data-urlencode "photo=$PHOTO" \
   --data-urlencode "hash=$HASH" \
-  --data-urlencode "access_token=$VK_COMMUNITY_TOKEN" \
+  --data-urlencode "access_token=$VK_USER_TOKEN" \
   --data-urlencode "v=$API_VERSION")
 vk_check "$SAVED" "photos.saveOwnerPhoto"
 printf '  готово\n'
+fi
 
 printf 'Обложка…\n'
 COVER_UPLOAD=$(curl -sS -G "$API/photos.getOwnerCoverPhotoUploadServer" \
