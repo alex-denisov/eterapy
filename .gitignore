@@ -96,6 +96,12 @@ docs/**/*.xlsx
 # оставит макеты вне репозитория — ровно как в B592 с halo-mark.png.
 !web/public/brand/vk/*.png
 data/
+# B589/B601 (батч №20): исходники каталога — это КОД, а не выгрузка данных.
+# Глобальное `data/` молча оставило `library-cards-b601.ts` вне репозитория:
+# локально всё зелёное, в CI 16 упавших сьютов «модуль не найден». Тот же
+# дефект, что с halo-mark.png (B592) и с макетами VK (B603).
+!web/src/data/
+!web/src/data/**
 
 # ── B340: public repo holds ONLY the product. Docs, AI-agent system files, and
 # local-only infra are kept on the owner's machine, never committed. ──
