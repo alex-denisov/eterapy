@@ -17,15 +17,12 @@ describe("R7 item 1 — home result feed: right link + reversible hide", () => {
     expect(home).not.toContain('appUrl("/questions")');
   });
 
-  it("hiding a разбор collapses to a reversible «Вернуть» row instead of vanishing", () => {
-    const row = read("components/cabinet/cabinet-result-row.tsx");
-    const css = read("app/v4-soft.css");
-    expect(row).toContain('data-testid="cabinet-result-undo"');
-    expect(row).toContain("Вернуть");
-    expect(row).toContain("setVisibility(false)");
-    // the row no longer silently returns null on hide
-    expect(row).not.toContain("if (hidden) return null;");
-    expect(css).toContain(".soft-result-undo {");
+  it("hiding a разбор stays reversible", () => {
+    // B602: строки разборов сняты с Главной. Обратимость скрытия живёт в
+    // «Дневнике»: скрытые не исчезают, их видно по «Показать скрытые (N)».
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("Показать скрытые");
+    expect(diary).toContain("Показать активные");
   });
 });
 
@@ -99,8 +96,8 @@ describe("R7 item 5 — cabinet heading hierarchy is consistent", () => {
     // «Дозаправить кошелёк» demoted from soft-h2 to soft-h3
     expect(wallet).toContain('<h2 className="soft-h3 mt-1">Дозаправить кошелёк</h2>');
     expect(wallet).not.toContain("soft-h2");
-    // billing bare-eyebrow section heads promoted to real soft-h3 headings
-    expect(billing).toContain('<h3 className="soft-h3">Карты</h3>');
+    // B602: блок «Карты» удалён владельцем; заголовок истории остался soft-h3.
+    expect(billing).not.toContain('<h3 className="soft-h3">Карты</h3>');
     expect(billing).toContain('<h3 className="soft-h3">История платежей</h3>');
     // plan name no longer an ad-hoc inline 28px size
     expect(billing).not.toContain("fontSize: 28");
@@ -151,13 +148,11 @@ describe("R7 item 7 — «О себе» is a hub row with a conditional nudge", 
 describe("R7 audit polish — B9 padding rhythm + B10 tap targets", () => {
   it("client home primary links carry a 44px (min-h-11) tap target", () => {
     const home = read("app/cabinet/page.tsx");
-    // «Все разборы», «Сравнить тарифы», «Управлять» links
-    expect(home).toContain("inline-flex min-h-11 items-center text-sm font-semibold");
-    expect(home).toContain('className="soft-chip mt-4 min-h-11"');
-    // B512: the greeting wrapper card is flattened (topbar); the balance pill
-    // keeps a 44px tap target.
+    // B602: пилюля баланса снята с Главной (владелец), «Все разборы» уехали в
+    // «Дневник». Оставшиеся ссылки-действия держат 44 px.
     expect(home).toContain('<section data-testid="client-primary-action">');
-    expect(home).toContain("inline-flex min-h-11 items-center gap-2 rounded-full");
+    expect(home).toContain("soft-chip mt-auto min-h-11");
+    expect(home).toContain("inline-flex min-h-11 w-fit items-center gap-2 rounded-full");
   });
 
   it("billing cards use p-5 md:p-6 and «Сравнить тарифы» is 44px", () => {

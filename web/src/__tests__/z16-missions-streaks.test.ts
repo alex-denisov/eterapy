@@ -319,7 +319,9 @@ describe("Y10 Z16 missions and streaks", () => {
 
     expect(cabinet).toContain("listMissionChecklist");
     expect(cabinet).toContain('data-testid="client-first-steps"');
-    expect(cabinet).toContain('data-testid="client-streak-badge"');
+    // B602: «вопрос дня» и бейдж серии целиком переехали на «Дневник» — на
+    // Главной они были второй копией того же ритуала.
+    expect(cabinet).not.toContain('data-testid="client-streak-badge"');
     expect(practice).toContain("getPracticeStreakSnapshot");
     expect(practice).toContain('data-testid="diary-streak-ring"');
     expect(missionsApi).toContain("listMissionChecklist");

@@ -47,21 +47,18 @@ describe("G13 — spending moved to the landing catalog (B464 round-4 #13)", () 
   });
 });
 
-describe("G15 — billing card faces, top-up, and history", () => {
-  it("darkens the card gradient and shadows the number for legibility", () => {
+describe("G15 → B602 — billing: тариф и история, без блока карт", () => {
+  it("рисованных карт в биллинге больше нет", () => {
     const page = source("src/components/cabinet/billing-panel.tsx");
-    expect(page).toContain("linear-gradient(135deg, #4a2122");
-    expect(page).toContain("textShadow");
+    expect(page).not.toContain("linear-gradient(135deg, #4a2122");
   });
 
-  it("Z1-Ф1: drops the ₽ top-up field — billing manages cards + subscription only", () => {
+  it("Z1-Ф1: нет поля пополнения в ₽; B602: нет и блока карт", () => {
     const page = source("src/components/cabinet/billing-panel.tsx");
-    // The client ₽ balance rail is removed: no top-up input, no balance state.
     expect(page).not.toContain("topUpRaw");
     expect(page).not.toContain('data-testid="client-topup-amount"');
-    // Saved-card management stays — it's the card rail for sessions/subscriptions.
-    expect(page).toContain('data-testid="client-saved-cards"');
-    expect(page).toContain("handleSetDefaultCard");
+    expect(page).not.toContain('data-testid="client-saved-cards"');
+    expect(page).not.toContain("handleSetDefaultCard");
   });
 
   it("drops the confusing up/down arrows from history for a colored dot", () => {

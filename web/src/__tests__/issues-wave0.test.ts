@@ -4,11 +4,9 @@ import path from "node:path";
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 describe("Issues 30.05 — Wave 0 quick fixes", () => {
-  it("Баг 8: billing renders compact cards (short tail), 3 per row", () => {
+  it("B602: карточек карт в биллинге больше нет (блок удалён владельцем)", () => {
     const page = source("src/components/cabinet/billing-panel.tsx");
-    // compact card faces so three fit per row (was a full 4-group mask)
-    expect(page).toContain("•••• {card.last4}");
-    expect(page).toContain("sm:grid-cols-3");
+    expect(page).not.toContain("•••• {card.last4}");
   });
 
   it("Z1-Ф1: the ₽ top-up field is removed from billing (no client balance rail)", () => {

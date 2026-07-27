@@ -143,13 +143,13 @@ describe("R4 items 9·10 — diary PIN control", () => {
 
 // ── R5 · items 6·11 — вопрос дня is the full ritual on Главная + Дневник ──
 describe("R5 items 6·11 — functional вопрос дня", () => {
-  it("Главная renders the full ritual (textarea → взгляд+шаг), not a bare mark-done", () => {
+  it("B602: ритуал остался ровно в одном месте — на «Дневнике»", () => {
+    // До B602 полный ритуал рендерился и на Главной, и на «Дневнике» — одним и
+    // тем же компонентом. Владелец перестроил Главную в четыре ряда, где для
+    // второй копии места нет; на «Дневнике» ритуал полный, ничего не потеряно.
     const home = read("app/cabinet/page.tsx");
-    expect(home).toContain('variant="full"');
-    expect(home).toContain("initialReflection={dailyCard.reflectionText}");
-    expect(home).toContain("dailyCardBeats");
-    // The lifecycle is explained: stored in the diary + weekly summary.
-    expect(home).toContain("итог недели");
+    expect(home).not.toContain("<DailyPracticeActions");
+    expect(home).not.toContain("dailyCardBeats");
   });
 
   it("Дневник habit hero renders the same full ritual", () => {
@@ -169,7 +169,8 @@ describe("R5 items 6·11 — functional вопрос дня", () => {
 describe("R6 items 2-5 — engine-driven Главная", () => {
   it("hero, nudge, diary card and practitioner plan come from cabinet-recommendations", () => {
     const home = read("app/cabinet/page.tsx");
-    expect(home).toContain("buildHeroAction(signals, seed)");
+    // B602: hero заменён блоком «Рекомендуем вам» по использованным разборам.
+    expect(home).toContain("buildUsageRecommendations(signals, seed)");
     expect(home).toContain("buildServiceNudge(signals, seed)");
     expect(home).toContain("buildDiaryCard(signals, seed)");
     expect(home).toContain("planPractitionerCard(signals)");
@@ -179,18 +180,15 @@ describe("R6 items 2-5 — engine-driven Главная", () => {
     expect(home).toContain("Записаться снова");
   });
 
-  it("«ваши результаты» merge dialogues + product разборы, meta = datetime → category", () => {
+  it("B602: «ваши результаты» сняты с Главной — полный список живёт в «Дневнике»", () => {
     const home = read("app/cabinet/page.tsx");
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(home).not.toContain('data-testid="client-recent-questions"');
+    expect(home).not.toContain("CabinetResultRow");
+    // Данные никуда не делись: страница по-прежнему читает разборы — они
+    // питают рекомендации, — а показывает их «Дневник».
     expect(home).toContain("db.productResult.findMany");
-    expect(home).toContain("resultWhen(item.when)");
-    expect(home).toContain("PRODUCT_LABELS[r.productKey]");
-    // datetime carries minutes and comes BEFORE the category label.
-    expect(home).toContain('hour: "2-digit", minute: "2-digit"');
-    // Round-6 #6: rows render through CabinetResultRow (topic-chip + card-row);
-    // the datetime feeds `when` and the category label feeds `topicLabel`.
-    expect(home).toContain("CabinetResultRow");
-    expect(home).toContain("when: resultWhen(item.when)");
-    expect(home).toContain("topicLabel: item.label");
+    expect(diary).toContain("diary-items-section");
   });
 
   it("the self topic label reads «Про себя», not «Я и опоры»", () => {
@@ -289,7 +287,8 @@ describe("R9 item 13 — wallet money hub", () => {
     expect(wallet).not.toContain("credits-paid-recommendations");
     expect(wallet).not.toContain("ProductPurchaseControls");
     expect(wallet).toContain('data-testid="wallet-spend-bridge"');
-    expect(wallet).toContain("Открыть каталог услуг");
+    // B602: карточка ряда 2 стала компактнее — подпись «Открыть каталог».
+    expect(wallet).toContain("Открыть каталог");
   });
 
   it("histories render as calm rows, recent 4 + показать ещё", () => {

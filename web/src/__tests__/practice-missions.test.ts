@@ -28,15 +28,19 @@ describe("B203 Practice and missions", () => {
     expect(streaks).toContain("existingCreditReward");
   });
 
-  it("surfaces practice, balance, and gentle rhythm in the client cabinet", () => {
+  it("B602: ритуал живёт на «Дневнике», баланс — в карточке «Кошелёк»", () => {
     const dashboard = source("src/app/cabinet/page.tsx");
+    const diary = source("src/app/cabinet/diary/page.tsx");
     const actions = source("src/components/cabinet/daily-practice-actions.tsx");
 
+    // Баланс на Главной остался, но одной копией — в карточке «Кошелёк»
+    // первого ряда. Пилюлю `client-dashboard-balance` владелец просил убрать.
     expect(dashboard).toContain("getClarityCreditBalance");
-    expect(dashboard).toContain("<DailyPracticeActions");
-    expect(dashboard).toContain('data-testid="client-dashboard-balance"');
-    // B464 IB1: balance reframed as *spendable* («N баллов · на что потратить»).
-    expect(dashboard).toContain("на что потратить");
+    expect(dashboard).toContain('data-testid="client-home-wallet-card"');
+    expect(dashboard).not.toContain('data-testid="client-dashboard-balance"');
+    // «Вопрос дня» — только на «Дневнике».
+    expect(dashboard).not.toContain("<DailyPracticeActions");
+    expect(diary).toContain("<DailyPracticeActions");
     expect(actions).toContain('action: "complete"');
     expect(actions).toContain("+1 балл");
   });

@@ -18,7 +18,6 @@ const APP_VISIBLE_PATHS = [
   "/bookings",
   "/wallet",
   "/credits",
-  "/practice",
   "/billing",
   "/settings",
   "/practitioner",

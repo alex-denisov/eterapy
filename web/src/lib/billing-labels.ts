@@ -71,15 +71,49 @@ export function getSubscriptionStatusLabel(status: string | null | undefined): s
   return status ? SUBSCRIPTION_STATUS_LABELS[status] ?? status : "Нет активной подписки";
 }
 
-export function getProductLabel(productKey: string): string {
-  const normalized = productKey
+function normalizeProductKey(productKey: string): string {
+  return productKey
     .trim()
     .replace(/^product[-_\s]+/i, "")
     .replaceAll("_", "-")
     .replace(/\s+/g, "-")
     .replace(/[-\s]?v\d+$/i, "")
     .toLowerCase();
-  return PRODUCT_LABELS[normalized] ?? productKey;
+}
+
+export function getProductLabel(productKey: string): string {
+  return PRODUCT_LABELS[normalizeProductKey(productKey)] ?? productKey;
+}
+
+/**
+ * Публичные страницы услуг, на которых оплаченный доступ можно израсходовать.
+ *
+ * INC-087: письмо о покупке вело в «Кошелёк». В кошельке разбора нет и быть не
+ * может — там баланс и платежи. Человек, заплативший за «Переосмысление»,
+ * должен попасть туда, где он его получит, а не туда, где увидит, что деньги
+ * списаны. Ключи, которых здесь нет (пакеты баллов, подписки), кошелька и
+ * заслуживают — у них нет своей страницы выдачи.
+ */
+const PRODUCT_ROUTES: Record<string, string> = {
+  reframe: "/products/reframe",
+  "deep-report": "/products/deep-report",
+  "chat-analysis": "/products/chat-analysis",
+  pair: "/products/pair",
+  tarot: "/products/tarot",
+  "natal-chart": "/products/natal-chart",
+  synastry: "/products/synastry",
+  horary: "/products/horary",
+  "tarot-numerology": "/products/tarot-numerology",
+  numerology: "/products/numerology",
+  "family-scenarios": "/products/family-scenarios",
+  "human-design": "/products/human-design",
+  "surname-story": "/products/surname-story",
+  perspectives: "/products/reframe",
+};
+
+/** Куда вести человека за уже оплаченным доступом. `null` — своей страницы нет. */
+export function getProductRoute(productKey: string): string | null {
+  return PRODUCT_ROUTES[normalizeProductKey(productKey)] ?? null;
 }
 
 export function getLedgerTypeLabel(type: string): string {

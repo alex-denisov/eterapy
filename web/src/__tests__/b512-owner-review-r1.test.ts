@@ -71,13 +71,12 @@ describe("R1-4 — клиентский сайдбар sticky как у прак
 describe("R1-5/6/10 — Главная: реордер, PIN-strip, CTA «первых шагов»", () => {
   const home = source("src/app/cabinet/page.tsx");
 
-  it("trust strip is the clickable PIN control (same modal as Дневник)", () => {
-    expect(home).toContain("HomePinStrip");
-    const strip = source("src/components/cabinet/home-pin-strip.tsx");
-    expect(strip).toContain("DiaryPinControl");
-    expect(strip).toContain('data-testid="client-trust-strip"');
+  it("B602: управление PIN осталось только в «Дневнике»", () => {
+    // Владелец 2026-07-27 снял строку с Главной вместе с приватными блоками.
+    expect(home).not.toContain("HomePinStrip");
     const control = source("src/components/cabinet/diary-pin-control.tsx");
     expect(control).toContain("renderTrigger");
+    expect(source("src/app/cabinet/diary/page.tsx")).toContain("DiaryPinControl");
   });
 
   it("«первые шаги» carries an explicit expand CTA", () => {
@@ -179,9 +178,12 @@ describe("R1-12 — поблочный PIN-blur на Главной", () => {
     expect(gate).not.toContain("sessionStorage.setItem");
   });
 
-  it("wraps the four private blocks on Главная", () => {
+  it("wraps the private blocks that remain on Главная", () => {
+    // B602: «Ваши результаты» сняты с Главной, поэтому и гейта на них нет.
+    // Оставшиеся приватные блоки по-прежнему за PIN — снятие строки управления
+    // приватность не ослабило.
     const home = source("src/app/cabinet/page.tsx");
-    expect(home).toContain('<PinBlurGate label="Ваши результаты">');
+    expect(home).not.toContain('<PinBlurGate label="Ваши результаты">');
     expect(home).toContain('<PinBlurGate label="Ваш дневник">');
     expect(home).toContain('<PinBlurGate label="Что дальше по вашей теме">');
     expect(home).toContain('<PinBlurGate label="Работа со специалистом">');

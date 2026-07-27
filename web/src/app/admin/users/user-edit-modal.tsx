@@ -63,6 +63,22 @@ type AttributionRow = {
   conversionAt: string | null;
 };
 
+/** INC-087 — строка `product_entitlements` в человеческом виде. */
+type EntitlementRow = {
+  id: string;
+  productKey: string;
+  label: string;
+  route: string | null;
+  source: string;
+  status: string;
+  transactionId: string | null;
+  validUntil: string | null;
+  consumedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  awaitingUse: boolean;
+};
+
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
   const response = await fetch(url, {
     method: "PATCH",
@@ -129,6 +145,10 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [loadingClientSessions, setLoadingClientSessions] = useState(false);
   const [loadingClientEvents, setLoadingClientEvents] = useState(false);
   const [attribution, setAttribution] = useState<AttributionRow | null | "none">(null);
+  // INC-087: выданные доступы. Загружаются по кнопке, как источник и события —
+  // карточка не должна тянуть пять запросов на каждое открытие.
+  const [entitlements, setEntitlements] = useState<EntitlementRow[] | null>(null);
+  const [loadingEntitlements, setLoadingEntitlements] = useState(false);
   // W1: render the modal in a portal at document.body so it escapes the admin
   // shell's stacking context (the sticky sidebar + the backdrop-blur header both
   // create one) — otherwise z-[100] still loses to the header's z-50.
@@ -174,6 +194,19 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       setAttribution((data.attribution as AttributionRow | null) ?? "none");
     } catch {
       toast.error("Не удалось загрузить источник регистрации");
+    }
+  }
+
+  async function loadEntitlements() {
+    setLoadingEntitlements(true);
+    try {
+      const response = await fetch(`/api/admin/entitlements?userId=${row.id}`);
+      const data = await response.json().catch(() => ({}));
+      setEntitlements(Array.isArray(data.entitlements) ? (data.entitlements as EntitlementRow[]) : []);
+    } catch {
+      toast.error("Не удалось загрузить оплаченные доступы");
+    } finally {
+      setLoadingEntitlements(false);
     }
   }
 
@@ -630,6 +663,49 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                       <dd className="break-all text-[var(--soft-ink-strong)]">{attribution.firstEntryPath}</dd>
                     </div>
                   </dl>
+                )}
+              </div>
+            </section>
+
+            {/* INC-087: оплаченные доступы. Владелец заплатил за «Переосмысление»,
+                доступ был выдан — и не был виден ни здесь, ни в кабинете, потому
+                что карточка показывала баллы и подписку, но не выданные услуги.
+                «Оплачено, разбор ещё не сделан» — нормальное состояние, а не
+                сбой, и отличать его от израсходованного надо без запроса в базу. */}
+            <section data-testid="admin-user-entitlements">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className={LABEL}>Оплаченные доступы</h3>
+                <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void loadEntitlements()} disabled={loadingEntitlements}>
+                  {loadingEntitlements ? "Загрузка..." : entitlements ? "Обновить" : "Загрузить"}
+                </button>
+              </div>
+              <div className="rounded-md border border-[var(--soft-paper-edge)] p-3 text-xs">
+                {entitlements === null ? (
+                  <p className="text-[var(--soft-ink-faint)]">Нажмите «Загрузить», чтобы увидеть, какие услуги человеку выданы и какие из них ещё не израсходованы.</p>
+                ) : entitlements.length === 0 ? (
+                  <p className="text-[var(--soft-ink-faint)]">Выданных доступов нет.</p>
+                ) : (
+                  <div className="max-h-60 space-y-1.5 overflow-y-auto">
+                    {entitlements.map((item) => (
+                      <div key={item.id} className="rounded border border-[var(--soft-paper-edge)] px-2 py-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-medium text-[var(--soft-ink-strong)]" title={item.productKey}>{item.label}</span>
+                          <span
+                            className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] ${item.awaitingUse
+                              ? "bg-[var(--soft-terracotta)]/12 text-[var(--soft-terracotta)]"
+                              : "text-[var(--soft-ink-faint)]"}`}
+                          >
+                            {item.revokedAt ? "отозван" : item.consumedAt ? "израсходован" : item.awaitingUse ? "ждёт использования" : item.status}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[10px] text-[var(--soft-ink-faint)]">
+                          {item.source} · выдан {adminDateTime(item.createdAt)}
+                          {item.consumedAt ? ` · использован ${adminDateTime(item.consumedAt)}` : ""}
+                          {item.validUntil ? ` · до ${adminDateTime(item.validUntil)}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </section>

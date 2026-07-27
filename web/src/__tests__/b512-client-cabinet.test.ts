@@ -91,13 +91,21 @@ describe("B512 §3.3 — mobile top bar + services icon + «Ещё» hub", () =>
 describe("B512 — Главная (client-desktop-home-v2 / client-mobile-home-v2)", () => {
   const home = source("src/app/cabinet/page.tsx");
 
-  it("flattens the greeting (no wrapper card) and desktop-only balance pill", () => {
+  it("B602: приветствие без карточки-обёртки и без третьей копии баланса", () => {
     expect(home).toContain('<section data-testid="client-primary-action">');
-    expect(home).toContain('className="mt-4 hidden md:block" data-testid="client-dashboard-balance"');
+    // Владелец: убрать `client-dashboard-balance`. Баланс остаётся в карточке
+    // «Кошелёк» первого ряда и в верхнем баре мобильного.
+    expect(home).not.toContain('data-testid="client-dashboard-balance"');
   });
 
-  it("lays the dash out as two desktop columns", () => {
-    expect(home).toContain("md:grid-cols-[1.55fr_1fr]");
+  it("B602: четыре ряда вместо двух колонок с «мозаикой»", () => {
+    // `items-start` в старой сетке и был той самой мозаикой: карточки в одной
+    // строке имели разную высоту.
+    expect(home).not.toContain("md:grid-cols-[1.55fr_1fr]");
+    expect(home).not.toContain("grid items-start");
+    for (const row of ["client-home-row-1", "client-home-row-3", "client-home-row-4"]) {
+      expect(home).toContain(`data-testid="${row}"`);
+    }
   });
 
   it("adds the rail Кошелёк card with the warm expiry line (P6, no countdown)", () => {
@@ -109,25 +117,22 @@ describe("B512 — Главная (client-desktop-home-v2 / client-mobile-home-v
     expect(home).not.toContain("осталось дней");
   });
 
-  it("renders the privacy trust strip (R1-6: clickable PIN control)", () => {
-    expect(home).toContain("HomePinStrip");
-    const strip = source("src/components/cabinet/home-pin-strip.tsx");
-    expect(strip).toContain('data-testid="client-trust-strip"');
-    expect(strip).toContain("152-ФЗ");
+  it("B602: строка PIN снята с Главной — PIN живёт только в «Дневнике»", () => {
+    // Владелец: «если мы убираем с главной все разделы, ориентированные на
+    // приватные данные, то и кнопка эта не нужна». Приватность при этом не
+    // ослабла: сам `PinBlurGate` рисует замок с подписью и открывает ввод PIN,
+    // так что размытый блок не выглядит поломкой и без отдельной строки.
+    expect(home).not.toContain("HomePinStrip");
+    expect(home).toContain("PinBlurGate");
+    const diary = source("src/app/cabinet/diary/page.tsx");
+    expect(diary).toContain("DiaryPinControl");
   });
 
   it("keeps crisis-guard and the B464 mechanics intact", () => {
     expect(home).toContain("client-crisis-continuity");
     expect(home).toContain("client-referral-card");
-    expect(home).toContain("client-daily-card");
     expect(home).toContain("client-first-steps");
     expect(home).toContain("crisisGuard");
-  });
-
-  it("passes shareTopic to the result rows (result-moment share, M4)", () => {
-    expect(home).toContain("shareTopic: item.shareTopic");
-    expect(home).toContain('shareTopic: d.topic ?? "dialogue"');
-    expect(home).toContain("shareTopic: r.productKey");
   });
 });
 
@@ -141,10 +146,11 @@ describe("B512 §3.5 — result-moment share/gift (M4, ethical)", () => {
     expect(action).toContain("soft-result-act-share");
   });
 
-  it("mounts the share action on every Главная result row", () => {
-    const row = source("src/components/cabinet/cabinet-result-row.tsx");
-    expect(row).toContain("ResultShareAction");
-    expect(row).toContain('surface="cabinet_home"');
+  it("mounts the share action on every разбор row", () => {
+    // B602: строки разборов сняты с Главной вместе с блоком «ваши результаты».
+    // Поделиться по-прежнему можно из «Дневника», где живёт полный список.
+    const diary = source("src/app/cabinet/diary/page.tsx");
+    expect(diary).toContain("ResultShareAction");
   });
 
   it("styles the share action lilac (services bridge colour)", () => {

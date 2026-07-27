@@ -13,18 +13,21 @@ describe("W12/Z1-Ф1 — billing saved-card wallet (no ₽ balance rail)", () =>
     expect(page).not.toContain("handlePayWithSavedCard");
   });
 
-  it("keeps the saved-card management block (the card rail for sessions/subscriptions)", () => {
-    expect(page).toContain('data-testid="client-saved-cards"');
-    expect(page).toContain('data-testid="client-saved-card"');
-    expect(page).toContain("handleSetDefaultCard");
+  it("B602: блока «Карты» больше нет — ни блока, ни заглушки", () => {
+    // Владелец 2026-07-27: «можешь убрать тогда блок "Карты", а не оставлять
+    // заглушку». Блок и не мог работать: привязка снята в INC-084, а Robokassa
+    // токена карты не отдаёт — показывать в нём нечего.
+    expect(page).not.toContain('data-testid="client-saved-cards"');
+    expect(page).not.toContain('data-testid="client-saved-card"');
+    expect(page).not.toContain("handleSetDefaultCard");
+    expect(page).not.toContain("Сохранённых карт нет");
+    expect(page).not.toContain("/api/billing/save-card");
   });
 
-  it("the add-card tile says «Привязать карту» when empty, «Ещё карта» otherwise (Баг 8)", () => {
-    // INC-084: плитка «Привязать карту» вела в ЮKassa — к провайдеру, с которым
-    // платформа больше не работает. Снята до рекуррентных платежей Robokassa.
-    expect(page).not.toContain("Ещё карта");
-    expect(page).toContain("Сохранённых карт нет");
-    expect(page).not.toContain('linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"');
-    expect(page).not.toContain("/api/billing/save-card");
+  it("B602: подписка не списывается сохранённой картой без экрана суммы", () => {
+    // Красный флаг проекта B602: один клик по «Оформить картой» уводил деньги
+    // через `pay-with-saved-card` — без подтверждения суммы.
+    expect(page).not.toContain("/api/billing/pay-with-saved-card");
+    expect(page).toContain("/api/billing/create-payment");
   });
 });

@@ -15,11 +15,13 @@ describe("B206 client billing v4.1 cabinet", () => {
     const entitlementsRoute = source("src/app/api/billing/entitlements/route.ts");
 
     expect(page).toContain('client-billing-subscription');
-    expect(page).toContain('data-testid="client-saved-cards"');
+    // B602: блок «Карты» удалён по требованию владельца — панель больше не
+    // ходит за картами и не рендерит их.
+    expect(page).not.toContain('data-testid="client-saved-cards"');
     expect(page).toContain('data-testid="client-billing-history"');
     expect(page).toContain("fetch(\"/api/billing/entitlements\")");
     expect(page).toContain("fetch(\"/api/billing/transactions\")");
-    expect(page).toContain("fetch(\"/api/billing/cards\")");
+    expect(page).not.toContain("fetch(\"/api/billing/cards\")");
     // Z1-Ф1: the client ₽ balance rail is removed — no balance fetch/display.
     expect(page).not.toContain("fetch(\"/api/billing/balance\")");
     // T21: "открытые продукты" entitlements block was removed from billing.
@@ -40,12 +42,11 @@ describe("B206 client billing v4.1 cabinet", () => {
     // subscription + saved-card management only.
     expect(page).not.toContain('data-testid="client-topup-amount"');
     expect(page).not.toContain('data-testid="client-wallet-balance"');
-    // Баг 8: subscriptions ARE paid one-tap via the saved card.
-    expect(page).toContain("/api/billing/pay-with-saved-card");
-    // Saved cards rendered as visual faces with set-primary action.
-    expect(page).toContain("async function handleSetDefaultCard");
-    expect(page).toContain('data-testid="client-set-default-card"');
-    expect(page).toContain('action: "set_default"');
+    // B602: «оплата в один тап» снята — она списывала деньги без экрана суммы,
+    // и списывать по этим картам всё равно нечем (у Robokassa нет токена).
+    expect(page).not.toContain("/api/billing/pay-with-saved-card");
+    expect(page).not.toContain("async function handleSetDefaultCard");
+    expect(page).not.toContain('data-testid="client-set-default-card"');
     // Dead stepper chips removed.
     expect(page).not.toContain('"1. Проверка"');
     // Unified deposits + spends history — calm rows, recent 4 + «показать ещё»

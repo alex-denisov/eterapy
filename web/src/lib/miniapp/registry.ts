@@ -17,7 +17,6 @@ export function miniAppFeatureForPath(pathname: string): MiniAppFeature {
     "/miniapp/checkin": "dialogues",
     "/miniapp/products": "services",
     "/miniapp/results": "diary",
-    "/miniapp/practice": "diary",
     "/miniapp/materials": "profile",
     "/miniapp/session": "profile",
     "/miniapp/library": "dialogues",

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Shield, Trash2, Check } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { mainUrl } from "@/lib/subdomain";
@@ -27,17 +27,6 @@ const PLAN_CARDS: Array<{
   { key: "premium", name: "Premium", eyebrow: "расширенная подписка", amountKopecks: 149000, perMonth: true, summary: "+20 баллов каждый месяц · 2 цифровых продукта включено · 7 дней пробно." },
 ];
 
-interface SavedCard {
-  id: string;
-  paymentMethodId: string;
-  last4: string;
-  brand: string;
-  expiryMonth: string;
-  expiryYear: string;
-  cardholderName: string | null;
-  isDefault: boolean;
-  createdAt: string;
-}
 
 interface BillingTransaction {
   id: string;
@@ -65,15 +54,18 @@ interface BillingSubscription {
   cancelAtPeriodEnd: boolean;
 }
 
-function getBrandLabel(brand: string) {
-  const b = brand.toLowerCase();
-  if (b.includes("visa")) return "VISA";
-  if (b.includes("master")) return "MC";
-  if (b.includes("mir")) return "МИР";
-  return "CARD";
-}
 
-export function BillingPanel() {
+/**
+ * B602: страница «Кошелёк» перестроена в четыре ряда по ТЗ владельца, и три
+ * блока этой панели встают в РАЗНЫЕ ряды. Поэтому панель рендерит один блок за
+ * раз, а не всё сразу.
+ *
+ * Блока «Карты» больше нет: владелец просил не оставлять заглушку. Он и не мог
+ * работать — Robokassa не отдаёт токен карты, привязка снята ещё в INC-084, а
+ * на проде в таблице лежат две тестовые записи `MasterCard ···4444` без
+ * реального платёжного средства за ними. Удаление карты остаётся в API.
+ */
+export function BillingPanel({ section = "all" }: { section?: "all" | "plans" | "history" } = {}) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -82,18 +74,9 @@ export function BillingPanel() {
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
   const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
-  const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
-  const [loadingCards, setLoadingCards] = useState(true);
-  const [settingDefaultCardId, setSettingDefaultCardId] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     if (!session) return;
-
-    fetch("/api/billing/cards")
-      .then(r => r.json())
-      .then(d => { setLinkedCards(d.cards ?? []); })
-      .catch(() => {})
-      .finally(() => { setLoadingCards(false); });
 
     fetch("/api/billing/transactions")
       .then(r => r.json())
@@ -105,7 +88,6 @@ export function BillingPanel() {
           fetch("/api/billing/reconcile", { method: "POST" })
             .then(() => {
               fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); }).catch(() => {});
-              fetch("/api/billing/cards").then(r2 => r2.json()).then(d2 => { setLinkedCards(d2.cards ?? []); }).catch(() => {});
             })
             .catch(() => {});
         }
@@ -138,14 +120,12 @@ export function BillingPanel() {
 
       if (cancelled) return;
 
-      const [cardsRes, txRes, entRes] = await Promise.all([
-        fetch("/api/billing/cards").then(r => r.json()).catch(() => null),
+      const [txRes, entRes] = await Promise.all([
         fetch("/api/billing/transactions").then(r => r.json()).catch(() => null),
         fetch("/api/billing/entitlements").then(r => r.json()).catch(() => null),
       ]);
       if (cancelled) return;
 
-      if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
       if (txRes?.ledger) setLedger(txRes.ledger);
       if (entRes?.subscriptions) setSubscriptions(entRes.subscriptions);
@@ -158,7 +138,6 @@ export function BillingPanel() {
           if (reconcileOk) toast.success("Оплата подтверждена!");
           else toast.error("Не удалось подтвердить платёж. Обновите страницу или обратитесь в поддержку.");
         }
-        if (payment === "card-saved" && !stillPending) toast.success("Карта успешно привязана!");
       }
 
       if (stillPending && attempts < maxAttempts && !cancelled) {
@@ -173,57 +152,14 @@ export function BillingPanel() {
     return () => { cancelled = true; };
   }, [searchParams, router]);
 
-  async function handleRemoveCard(cardId: string) {
-    try {
-      const res = await fetch(`/api/billing/cards?cardId=${cardId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.ok) {
-        setLinkedCards(prev => prev.filter(c => c.id !== cardId));
-        toast.success("Карта удалена");
-      } else {
-        toast.error(data.error || "Ошибка удаления карты");
-      }
-    } catch {
-      toast.error("Ошибка сети");
-    }
-  }
-
-  async function handleSetDefaultCard(cardId: string) {
-    setSettingDefaultCardId(cardId);
-    setLinkedCards(prev => prev.map(c => ({ ...c, isDefault: c.id === cardId })));
-    try {
-      const res = await fetch("/api/billing/cards", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId, action: "set_default" }),
-      });
-      const data = await res.json();
-      if (data.ok) toast.success("Основная карта обновлена");
-      else { toast.error(data.error || "Не удалось назначить основную карту"); loadData(); }
-    } catch {
-      toast.error("Ошибка сети");
-      loadData();
-    } finally {
-      setSettingDefaultCardId(null);
-    }
-  }
-
   async function handleStartSubscription(planKey: string) {
     setCreatingPayment(true);
     try {
-      const defaultCard = linkedCards.find((c) => c.isDefault) ?? linkedCards[0];
-      if (defaultCard) {
-        const res = await fetch("/api/billing/pay-with-saved-card", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cardId: defaultCard.id, planKey, checkoutSource: "client_billing" }),
-        });
-        const data = await res.json();
-        if (data.confirmationUrl) window.location.assign(data.confirmationUrl);
-        else if (data.ok) { toast.success("Подписка оформлена!"); loadData(); }
-        else toast.error(data.error || "Не удалось оформить подписку");
-        return;
-      }
+      // B602 (красный флаг проекта): здесь стояла ветка «есть сохранённая
+      // карта → списать сразу». Один клик по «Оформить картой» уводил деньги
+      // без экрана подтверждения суммы. Плюс сами карты — наследие ЮKassa:
+      // Robokassa токена карты не отдаёт, списывать по ним нечем. Оформление
+      // всегда идёт через страницу оплаты, где видна сумма.
       const res = await fetch("/api/billing/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -279,9 +215,7 @@ export function BillingPanel() {
       : getSubscriptionStatusLabel(activeSub.status)
     : "Базовый доступ";
 
-  return (
-    <div className="space-y-6">
-      {/* Подписка — 3 fixed plan cards, current highlighted (round-2 #2 / round-3 #2) */}
+  const plansBlock = (
       <div>
         {/* Round-5 #9: ONE heading per block — the wallet wrapper eyebrow/h2 and
             the panel's «подписка» eyebrow collapsed into this single line. */}
@@ -349,87 +283,9 @@ export function BillingPanel() {
           Подписочные баллы сгорают в конце периода. Купленные пакеты баллов действуют 12 месяцев.
         </p>
       </div>
+  );
 
-      {/* Карты и платежи — saved cards (delete bottom-right) + history (round-3 #3) */}
-      <div className="soft-card p-5 md:p-6" data-testid="client-saved-cards">
-        <div className="mb-3">
-          <h3 className="soft-h3">Карты</h3>
-        </div>
-
-        {loadingCards ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {linkedCards.map((card) => (
-              <div
-                key={card.id}
-                className="relative flex aspect-[1.6/1] w-full flex-col justify-between overflow-hidden rounded-[0.9rem] p-3 text-white shadow-md"
-                style={{ background: card.isDefault ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)" : "linear-gradient(135deg, #2f2b29 0%, #4a423d 100%)" }}
-                data-testid="client-saved-card"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
-                  {card.isDefault && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-white/25 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                      <Check className="h-2.5 w-2.5" /> основная
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-end justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-heading text-sm font-semibold tracking-[0.12em] text-white" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>•••• {card.last4}</div>
-                    <div className="mt-1 flex items-center gap-2 text-[10px] text-white/85">
-                      <span className="truncate">{card.cardholderName || "—"}</span>
-                      <span className="shrink-0 tabular-nums">{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
-                    </div>
-                  </div>
-                  {/* round-3 #3: delete icon bottom-right, next to the number */}
-                  <button
-                    onClick={() => handleRemoveCard(card.id)}
-                    className="shrink-0 rounded-full bg-white/15 p-1 transition-opacity hover:opacity-80"
-                    title="Удалить карту"
-                    aria-label="Удалить карту"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                {!card.isDefault && (
-                  <button
-                    onClick={() => handleSetDefaultCard(card.id)}
-                    disabled={settingDefaultCardId === card.id}
-                    className="absolute left-3 top-3 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-                    data-testid="client-set-default-card"
-                  >
-                    {settingDefaultCardId === card.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Основной"}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {!loadingCards && linkedCards.length === 0 && (
-          <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-            Сохранённых карт нет. Реквизиты вводятся на защищённой странице банка
-            при каждой оплате — на нашей стороне их нет и не появляется.
-          </p>
-        )}
-
-        {/* INC-084: кнопка «Привязать карту» уводила в ЮKassa — к провайдеру, с
-            которым платформа больше не работает (B570, 22.07). Она списывала 1 ₽
-            на верификацию через чужой кабинет и обещала «оплату в один тап»,
-            которой на боевом рельсе нет: Robokassa не отдаёт токен карты, её
-            последние четыре цифры и срок — показывать в этом блоке было бы
-            нечего. Кнопка снята до подключения рекуррентных платежей (B593);
-            удалить уже сохранённую карту по-прежнему можно. */}
-        <div className="mt-4 flex items-start gap-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-          <Shield className="mt-0.5 h-3 w-3 shrink-0" />
-          <span>Оплата проходит на стороне Robokassa · данные карты к нам не попадают</span>
-        </div>
-      </div>
-
-      {/* Payment history */}
+  const historyBlock = (
       <div className="soft-card p-5 md:p-6" data-testid="client-billing-history">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="soft-h3">История платежей</h3>
@@ -450,6 +306,9 @@ export function BillingPanel() {
         </div>
         <BillingHistoryTable transactions={transactions} ledger={ledger} />
       </div>
-    </div>
   );
+
+  if (section === "plans") return plansBlock;
+  if (section === "history") return historyBlock;
+  return <div className="space-y-6">{plansBlock}{historyBlock}</div>;
 }

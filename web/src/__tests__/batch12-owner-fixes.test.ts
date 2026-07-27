@@ -87,9 +87,11 @@ describe("INC-084 · привязка карты не ведёт к чужому
     expect(panel).not.toContain("защищён через ЮKassa");
   });
 
-  it("удалить уже сохранённую карту по-прежнему можно", () => {
-    // Снятие привязки не должно запирать данные, которые пользователь уже дал.
-    expect(read("src/components/cabinet/billing-panel.tsx")).toContain("handleRemoveCard");
+  it("B602: блока карт больше нет, а сам эндпоинт удаления остался", () => {
+    // Владелец 2026-07-27 просил убрать блок целиком, а не оставлять заглушку.
+    // Право удалить сохранённое при этом не пропало — DELETE на месте.
+    expect(read("src/components/cabinet/billing-panel.tsx")).not.toContain("handleRemoveCard");
+    expect(read("src/app/api/billing/cards/route.ts")).toContain("export async function DELETE");
   });
 });
 
@@ -119,16 +121,13 @@ describe("B592 · письма выглядят как продукт, в кот
   });
 });
 
-describe("B593 · «Ежедневная практика» не живёт вторым экраном", () => {
-  it("старые URL переадресуются, а не исчезают", () => {
-    // На /practice ведут уже разосланные письма, push и ссылки Telegram-бота.
-    for (const file of [
-      "src/app/cabinet/practice/page.tsx",
-      "src/app/miniapp/practice/page.tsx",
-      "src/app/cabinet/modalities/page.tsx",
-    ]) {
-      expect(read(file)).toContain("permanentRedirect");
-    }
+describe("B593 → B605 · «Ежедневная практика» не живёт вторым экраном", () => {
+  it("старый /cabinet/modalities всё ещё переадресуется", () => {
+    // B605 (владелец 2026-07-27): «/practice удаляй, у нас до этого нет ни
+    // одного живого клиента, который мог бы воспользоваться этой страницей».
+    // Заботиться о разосланных ссылках было не о ком — переадресации сняты.
+    // /cabinet/modalities владелец удалить не просил, он и остался.
+    expect(read("src/app/cabinet/modalities/page.tsx")).toContain("permanentRedirect");
   });
 
   it("внутренние ссылки ведут туда, где ритуал действительно есть", () => {

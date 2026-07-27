@@ -37,14 +37,15 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     // B593: реквизиты вводятся у провайдера, и провайдер теперь Robokassa —
     // прежняя строка обещала защиту «через ЮKassa», с которой платформа не
     // работает с 22.07.
-    expect(billing).toContain("данные карты к нам не попадают");
+    // B602: строка жила в удалённом блоке «Карты»; обещание про ЮKassa не
+    // должно вернуться ни в каком виде.
     // Слово остаётся только в комментарии, объясняющем, почему привязки больше
     // нет; в тексте для человека его быть не должно.
     expect(billing).not.toContain("защищён через ЮKassa");
-    // Баг 8: subscriptions are paid one-tap via the saved card, with the fresh
-    // YooKassa checkout (create-payment) as the no-card fallback.
+    // B602: единственный путь оформления — страница оплаты, где видна сумма.
+    // «Один тап сохранённой картой» снят: он списывал деньги без подтверждения.
     expect(billing).toContain("/api/billing/create-payment");
-    expect(billing).toContain("/api/billing/pay-with-saved-card");
+    expect(billing).not.toContain("/api/billing/pay-with-saved-card");
   });
 
   it("surfaces complaint/support and safety interrupt extensions without paid CTAs", () => {

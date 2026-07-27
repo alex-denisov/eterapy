@@ -7,6 +7,8 @@ import { log, serializeError } from "@/lib/logger";
 import { getTelegramRuntimeConfig, sendTelegram } from "@/lib/telegram";
 import type { NotifEvent } from "@/lib/notification-events";
 import { APP_URL } from "@/lib/env";
+import { getProductLabel, getProductRoute } from "@/lib/billing-labels";
+import { absoluteMainUrl } from "@/lib/subdomain";
 
 export const NOTIFICATION_DELIVERY_JOB_TYPE = "notification.delivery";
 export const NOTIFICATION_DELIVERY_MAX_ATTEMPTS = 3;
@@ -190,7 +192,12 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "BALANCE_TOPUP":
       return { title: "Баланс пополнен", body: `+${data.amountRub} ₽`, href: "/cabinet/billing" };
     case "PRODUCT_UNLOCKED":
-      return { title: "Продукт открыт", body: data.productKey, href: "/cabinet/billing" };
+      // INC-087: машинный ключ и ссылка в кошелёк — см. email-send.ts.
+      return {
+        title: "Доступ открыт",
+        body: getProductLabel(String(data.productKey ?? "")),
+        href: getProductRoute(String(data.productKey ?? "")) ?? "/cabinet/wallet",
+      };
     case "SUBSCRIPTION_STARTED":
       return { title: "Подписка активна", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
     case "SUBSCRIPTION_RENEWAL":
@@ -273,8 +280,11 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `🏦 Запланированная выплата\n${data.date}: ${data.totalRub} ₽ для ${data.practitionerCount} практиков.`;
     case "BALANCE_TOPUP":
       return `💳 Баланс пополнен\nНа ваш счёт зачислено ${data.amountRub} ₽.\n<a href="${baseUrl}/cabinet/billing">Открыть кошелёк →</a>`;
-    case "PRODUCT_UNLOCKED":
-      return `✨ Продукт открыт\nДоступ к ${data.productKey} активен.\n<a href="${baseUrl}/cabinet/billing">Открыть доступы →</a>`;
+    case "PRODUCT_UNLOCKED": {
+      const label = getProductLabel(String(data.productKey ?? ""));
+      const route = getProductRoute(String(data.productKey ?? ""));
+      return `✨ Доступ открыт\n«${label}» оплачено${route ? " — разбор ещё не сделан" : ""}.\n<a href="${route ? absoluteMainUrl(route) : `${baseUrl}/cabinet/wallet`}">${route ? `Открыть «${label}» →` : "Открыть кошелёк →"}</a>`;
+    }
     case "SUBSCRIPTION_STARTED":
       return `✨ Подписка активна\nТариф ${data.planKey} подключён.\n<a href="${baseUrl}/cabinet/billing">Управлять подпиской →</a>`;
     case "SUBSCRIPTION_RENEWAL":

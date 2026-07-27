@@ -110,27 +110,30 @@ describe("R22 item 4 — referral backend", () => {
 
 // ── #6 · разбор-list redesign (topic-chip + card rows + icon actions) ─────────
 describe("R23 item 6 — «ваши результаты» redesigned per the mockup", () => {
-  it("home renders CabinetResultRow instead of flat hairline rows", () => {
+  it("B602: строки разборов остались в «Дневнике», с Главной блок снят", () => {
     const home = read("app/cabinet/page.tsx");
-    expect(home).toContain("CabinetResultRow");
-    expect(home).not.toContain('borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none"');
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(home).not.toContain("CabinetResultRow");
+    expect(diary).toContain('data-testid="diary-items-section"');
   });
 
   it("the row has a topic-chip, card-row styling and an icon-action cluster", () => {
-    const row = read("components/cabinet/cabinet-result-row.tsx");
-    expect(row).toContain("soft-result-chip");
-    expect(row).toContain("soft-result-row");
-    expect(row).toContain("soft-result-acts");
-    expect(row).toContain('data-testid="cabinet-result-hide"');
+    // B602: клиентский `CabinetResultRow` жил только в блоке «ваши результаты»
+    // на Главной и умер вместе с ним. Та же визуальная строка — на «Дневнике»,
+    // и там она серверная (form action вместо fetch).
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("soft-result-chip");
+    expect(diary).toContain("soft-result-acts");
+    expect(diary).toContain("soft-result-act");
     const css = read("app/v4-soft.css");
     expect(css).toContain(".soft-result-row {");
     expect(css).toContain(".soft-result-chip {");
     expect(css).toContain(".soft-result-act {");
   });
 
-  it("hide action posts to the reversible diary-visibility endpoint", () => {
-    const row = read("components/cabinet/cabinet-result-row.tsx");
-    expect(row).toContain("/api/cabinet/diary/visibility");
+  it("hide action stays reversible", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("Показать скрытые");
     const route = read("app/api/cabinet/diary/visibility/route.ts");
     expect(route).toContain("hiddenFromMap");
     expect(route).toContain("mergeDiaryMetadata");
