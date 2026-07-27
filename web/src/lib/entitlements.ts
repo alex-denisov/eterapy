@@ -633,7 +633,7 @@ async function grantBundleEntitlements(
 
 export async function grantEntitlementForTransaction(
   tx: Prisma.TransactionClient,
-  transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata">,
+  transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata" | "provider">,
 ) {
   const metadata = getBillingTransactionMetadata(transaction);
   if (metadata.purchaseKind === "product" && metadata.productKey && isKnownBundleProduct(metadata.productKey)) {
@@ -781,7 +781,7 @@ export async function grantEntitlementForTransaction(
 
 export async function revokeEntitlementsForTransaction(
   tx: Prisma.TransactionClient,
-  transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata">,
+  transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata" | "provider">,
   reason: string,
 ) {
   const metadata = getBillingTransactionMetadata(transaction);
