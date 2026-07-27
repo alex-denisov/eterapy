@@ -151,8 +151,12 @@ describe("R7 audit polish — B9 padding rhythm + B10 tap targets", () => {
     // B602: пилюля баланса снята с Главной (владелец), «Все разборы» уехали в
     // «Дневник». Оставшиеся ссылки-действия держат 44 px.
     expect(home).toContain('<section data-testid="client-primary-action">');
-    expect(home).toContain("soft-chip mt-auto min-h-11");
+    expect(home).toContain("soft-chip min-h-11 w-fit");
     expect(home).toContain("inline-flex min-h-11 w-fit items-center gap-2 rounded-full");
+    // B602: кнопку ко дну карточки прижимает ОБЁРТКА, а не марджин на самой
+    // кнопке — иначе `pt-4` раздувает пилюлю, а инлайновый marginTop молча
+    // перебивает `mt-auto` и оставляет дыру под кнопкой.
+    expect(home).toContain('<div className="mt-auto pt-4">');
   });
 
   it("billing cards use p-5 md:p-6 and «Сравнить тарифы» is 44px", () => {

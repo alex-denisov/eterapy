@@ -318,13 +318,15 @@ export default async function ClientCabinetPage() {
             <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: "rgba(251, 241, 228, 0.84)" }}>
               Pro — <b style={{ color: "#F1D9A6", fontWeight: 600 }}>20 разборов в месяц</b> и расширенный дневник.
             </p>
-            <Link
-              href={appUrl("/wallet")}
-              className="mt-auto inline-flex min-h-11 w-fit items-center gap-2 rounded-full px-4 pt-0 text-[13px] font-semibold"
-              style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)", marginTop: 16 }}
-            >
-              Сравнить тарифы <ArrowRight className="size-3.5" aria-hidden="true" />
-            </Link>
+            <div className="mt-auto pt-4">
+              <Link
+                href={appUrl("/wallet")}
+                className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full px-4 text-[13px] font-semibold"
+                style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }}
+              >
+                Сравнить тарифы <ArrowRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            </div>
             <p className="mt-3 text-[11px]" style={{ color: "rgba(251, 241, 228, 0.6)" }}>
               Сейчас: {subscriptionLabel}
             </p>
@@ -339,7 +341,7 @@ export default async function ClientCabinetPage() {
                 ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
                 : ""}
             </p>
-            <Link href={appUrl("/wallet")} className="soft-chip mt-auto min-h-11 w-fit" style={{ marginTop: 16 }}>Управлять →</Link>
+            <div className="mt-auto pt-4"><Link href={appUrl("/wallet")} className="soft-chip min-h-11 w-fit">Управлять →</Link></div>
           </section>
         ))}
 
@@ -379,14 +381,16 @@ export default async function ClientCabinetPage() {
               Баллы действуют до {creditExpiryLabel}
             </p>
           )}
-          <Link
-            href={appUrl("/wallet")}
-            className="mt-auto flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[var(--soft-terracotta)] px-4 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[#F6E7DD]"
-            style={{ background: "#FBF3EC", color: "var(--soft-bordeaux)", marginTop: 16 }}
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            Пополнить баллы
-          </Link>
+          <div className="mt-auto pt-4">
+            <Link
+              href={appUrl("/wallet")}
+              className="flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[var(--soft-terracotta)] px-4 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[#F6E7DD]"
+              style={{ background: "#FBF3EC", color: "var(--soft-bordeaux)" }}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Пополнить баллы
+            </Link>
+          </div>
         </section>
 
         {/* Подарите разбор — ТЗ владельца: «только этот блок нужно сделать очень
@@ -410,9 +414,11 @@ export default async function ClientCabinetPage() {
                 </div>
               ))}
             </div>
-            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>
-              <Gift className="size-4" aria-hidden="true" /> Пригласить друга
-            </Link>
+            <div className="mt-auto pt-4">
+              <Link href={appUrl("/invite")} className="soft-button soft-button-primary w-fit shrink-0">
+                <Gift className="size-4" aria-hidden="true" /> Пригласить друга
+              </Link>
+            </div>
           </section>
         )}
       </div>
@@ -557,7 +563,7 @@ export default async function ClientCabinetPage() {
                 : ""}
               {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
             </p>
-            <Link href={appUrl("/bookings")} className="soft-button soft-button-ghost mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>К записи</Link>
+            <div className="mt-auto pt-4"><Link href={appUrl("/bookings")} className="soft-button soft-button-ghost w-fit shrink-0">К записи</Link></div>
           </section>
         ) : practitionerPlan?.mode === "continue" && practitionerPlan.continueWith && showMonetization ? (
           <section className="soft-card flex h-full flex-col p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode="continue">
@@ -571,7 +577,7 @@ export default async function ClientCabinetPage() {
                 ? `Тема «${practitionerPlan.topicLabel}» всё ещё рядом — регулярные встречи помогают удержать найденное.`
                 : "Регулярные встречи помогают удержать найденное."}
             </p>
-            <Link href={mainUrl(`/practitioners/${practitionerPlan.continueWith.slug}`)} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Записаться снова</Link>
+            <div className="mt-auto pt-4"><Link href={mainUrl(`/practitioners/${practitionerPlan.continueWith.slug}`)} className="soft-button soft-button-primary w-fit shrink-0">Записаться снова</Link></div>
           </section>
         ) : recommendedPractitioner && showMonetization ? (
           <section className="soft-card flex h-full flex-col p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode={practitionerPlan?.mode ?? "explore"}>
@@ -586,13 +592,13 @@ export default async function ClientCabinetPage() {
             <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
               {recommendedPractitioner.name} · {recommendedPractitioner.title} · от {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
             </p>
-            <Link href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Записаться</Link>
+            <div className="mt-auto pt-4"><Link href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)} className="soft-button soft-button-primary w-fit shrink-0">Записаться</Link></div>
           </section>
         ) : (
           <section className="soft-card flex h-full flex-col p-5" data-testid="client-support-card">
             <p className="soft-eyebrow">рядом, если нужно</p>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Живой разговор со специалистом всегда доступен — спокойно, в своём темпе.</p>
-            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Посмотреть специалистов</Link>
+            <div className="mt-auto pt-4"><Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost w-fit shrink-0">Посмотреть специалистов</Link></div>
           </section>
         )}
         </PinBlurGate>
@@ -602,14 +608,14 @@ export default async function ClientCabinetPage() {
           ТЗ владельца, п. 9.5: «в один ряд одной высоты». */}
       <div className="mt-4 grid gap-4 md:grid-cols-2" data-testid="client-home-row-4">
         <PinBlurGate label="Ваш дневник">
-        <div className="soft-card flex h-full flex-col justify-between gap-4 p-5" data-testid="client-map-preview">
+        <div className="soft-card flex h-full flex-col p-5" data-testid="client-map-preview">
           <div className="min-w-0">
             <p className="soft-eyebrow mb-2">ваш дневник</p>
             <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
               {diaryCardReco.text}
             </p>
           </div>
-          <Link href={appUrl("/diary")} className="soft-button soft-button-ghost w-fit shrink-0">{diaryCardReco.ctaLabel}</Link>
+          <div className="pt-4"><Link href={appUrl("/diary")} className="soft-button soft-button-ghost w-fit shrink-0">{diaryCardReco.ctaLabel}</Link></div>
         </div>
         </PinBlurGate>
 
@@ -625,7 +631,7 @@ export default async function ClientCabinetPage() {
             <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
               {serviceNudge.body}
             </p>
-            <div className="flex flex-wrap items-center gap-3" style={{ marginTop: "auto", paddingTop: 16 }}>
+            <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
               <Link href={serviceNudgeHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
                 {serviceNudge.ctaLabel}
               </Link>
