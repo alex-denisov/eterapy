@@ -302,8 +302,16 @@ jobs:
           #   2. проверяем его `haproxy -c` в ОДНОРАЗОВОМ контейнере с тем же
           #      образом и тем же .env ноды — битый конфиг не доживает до
           #      живого LB, цена ошибки здесь весь контур;
-          #   3. перезапускаем ТОЛЬКО если файл реально изменился: обычная
-          #      выкатка кода не должна ронять балансировщик даже на секунду.
+          #   3. кладём файл, только если он ОТЛИЧАЕТСЯ — иначе не трогаем даже
+          #      его mtime;
+          #   4. перезапускаем, если конфиг НОВЕЕ запущенного процесса.
+          # Пункт 4 — не педантизм. Первый заход (батч №19) сравнивал файлы и
+          # звал `compose up -d`: compose увидел ту же картинку, тот же compose
+          # и те же переменные и ничего не сделал — конфиг лежит bind-mount'ом,
+          # про его содержимое compose не знает вовсе. Выкатка отрапортовала
+          # «перезапущен», а HAProxy восемь дней держал старый разбор. Сравнение
+          # mtime файла со временем старта контейнера чинит и это, и правку
+          # конфига руками на ноде.
           # Нода без /opt/eterapy/lb/.env — не LB-нода: файлы просто лежат.
           # Все значения здесь — из репозитория и из .env ноды; ничего из
           # события GitHub в шелл не подставляется.
@@ -323,17 +331,21 @@ jobs:
               -e LB_LIVEKIT_PORT -e LB_LIVEKIT_NODE_A -e LB_LIVEKIT_NODE_B \
               -v /tmp/haproxy.cfg:/tmp/candidate.cfg:ro \
               haproxy:2.9-alpine haproxy -c -f /tmp/candidate.cfg
-            CHANGED=0
-            sudo cmp -s /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg || CHANGED=1
-            sudo cmp -s /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml || CHANGED=1
-            sudo install -m 0644 /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg
-            sudo install -m 0644 /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml
+            sudo cmp -s /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg \
+              || sudo install -m 0644 /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg
+            sudo cmp -s /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml \
+              || sudo install -m 0644 /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml
             rm -f /tmp/haproxy.cfg /tmp/docker-compose.lb.yml
-            if [ \"\$CHANGED\" = 1 ]; then
-              cd /opt/eterapy/lb && sudo docker compose -f docker-compose.lb.yml --profile lb up -d
-              echo 'LB: конфиг изменился — балансировщик перезапущен'
+            cd /opt/eterapy/lb
+            sudo docker compose -f docker-compose.lb.yml --profile lb up -d
+            CFG_AT=\$(stat -c %Y haproxy.cfg)
+            STARTED=\$(sudo docker inspect -f '{{.State.StartedAt}}' eterapy-lb-haproxy-1 2>/dev/null || echo '')
+            STARTED_AT=\$([ -n \"\$STARTED\" ] && date -d \"\$STARTED\" +%s || echo 0)
+            if [ \"\$CFG_AT\" -gt \"\$STARTED_AT\" ]; then
+              sudo docker compose -f docker-compose.lb.yml --profile lb restart haproxy
+              echo 'LB: конфиг новее процесса — балансировщик перезапущен'
             else
-              echo 'LB: конфиг не менялся — перезапуск не нужен'
+              echo 'LB: процесс уже с этим конфигом — перезапуск не нужен'
             fi"
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
