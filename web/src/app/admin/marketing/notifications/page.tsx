@@ -105,6 +105,12 @@ export default async function MarketingNotificationsPage() {
           Что платформа имеет право отправить. Список приезжает выкаткой: рекламу
           нельзя править между делом — она уходит наружу и необратима.
         </p>
+        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+          В текстах ниже ссылки отписки нет — её приклеивает отправитель к
+          каждому сообщению, поэтому забыть её в шаблоне невозможно. Отписка
+          выполняется на <code>/unsubscribe</code> нажатием кнопки, а не
+          переходом по ссылке: по ссылкам из писем ходят почтовые сканеры сами.
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] table-fixed text-left text-sm">
             <thead>

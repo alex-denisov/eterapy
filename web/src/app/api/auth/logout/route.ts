@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 import { mainUrl } from "@/lib/subdomain";
+import { AUTH_HINT_COOKIE } from "@/lib/auth-hint";
 
 const BASE_EXPIRED = {
   httpOnly: true,
@@ -86,6 +87,10 @@ export async function GET(request: Request) {
     // INC-080: и видимая метка вместе с ним — плашку теперь рисует клиент по
     // ней, и пережившая выход метка врала бы про чужой аккаунт.
     "eterapy-imp-on",
+    // B604: подсказка «этот браузер был авторизован». Пережив выход, она
+    // заставила бы шапку рисовать заглушку вместо кнопки «Войти» — и человек
+    // на секунду видел бы, что вход как будто ещё есть.
+    AUTH_HINT_COOKIE,
   ];
 
   for (const name of names) {

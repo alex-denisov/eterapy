@@ -8,7 +8,7 @@ import { AppMain } from "@/components/app-main";
 import { FooterConditional } from "@/components/footer-conditional";
 import { MiniAppProvider } from "@/components/miniapp-provider";
 import { Providers } from "@/components/providers";
-import { MINIAPP_INLINE_SCRIPT } from "@/lib/miniapp";
+import { PRE_PAINT_INLINE_SCRIPT } from "@/lib/prepaint-script";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
@@ -85,10 +85,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {/* B381: set data-miniapp before hydration so the lean mini-app layout
-            (CSS hides site header/footer) has no flash-of-chrome. Trusted
-            compile-time constant — no user input is interpolated. */}
-        <Script id="miniapp-detect" strategy="beforeInteractive">
-          {MINIAPP_INLINE_SCRIPT}
+            (CSS hides site header/footer) has no flash-of-chrome. B604 adds
+            data-auth-hint from the visible marker cookie so the header does not
+            claim «гость», пока не знает. Trusted compile-time constant — no
+            user input is interpolated. */}
+        <Script id="pre-paint" strategy="beforeInteractive">
+          {PRE_PAINT_INLINE_SCRIPT}
         </Script>
         <Providers>
           <MiniAppProvider>

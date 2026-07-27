@@ -16,7 +16,8 @@ const SCRIPT_HOSTS = [
 ];
 
 /**
- * INC-069: хеш inline-скрипта `miniapp-detect` из `MINIAPP_INLINE_SCRIPT`.
+ * INC-069: хеш пре-paint инлайн-скрипта из `PRE_PAINT_INLINE_SCRIPT` (детект
+ * mini-app + подсказка состояния шапки, B604 — одна строка, один хеш).
  *
  * ПОЧЕМУ ХЕШ, А НЕ НОНС. Next выводит `<Script strategy="beforeInteractive">` в
  * документ дважды: копию через `__next_s` — с нонсом, и сырой `<script>` — без
@@ -29,7 +30,7 @@ const SCRIPT_HOSTS = [
  * следит прогон `inc069-miniapp-script-hash`, который считает sha256 от самой
  * константы и падает при расхождении.
  */
-export const MINIAPP_SCRIPT_CSP_HASH = "'sha256-oS+NSRNmjiVrM3AmrGVvCrl1oJrsexuoDJCFIFdPnz4='";
+export const PRE_PAINT_SCRIPT_CSP_HASH = "'sha256-pLyIPT6DwVpD/+z4wxjUjs3AD1+tPNhTD+QwjajYvXo='";
 
 export function cspValue(options: { production: boolean; reportOnly?: boolean; nonce?: string }) {
   // B523: с nonce (аутентифицированные /cabinet и /admin — всегда динамический
@@ -43,7 +44,7 @@ export function cspValue(options: { production: boolean; reportOnly?: boolean; n
     ...(options.nonce ? [`'nonce-${options.nonce}'`] : []),
     // INC-069: сырая копия `miniapp-detect` нонса не получает — разрешаем её
     // по хешу там, где 'unsafe-inline' нет (nonce-политика и report-only).
-    ...(options.nonce || options.reportOnly ? [MINIAPP_SCRIPT_CSP_HASH] : []),
+    ...(options.nonce || options.reportOnly ? [PRE_PAINT_SCRIPT_CSP_HASH] : []),
     ...(!options.reportOnly && !options.nonce ? ["'unsafe-inline'"] : []),
     ...(!options.production && !options.reportOnly ? ["'unsafe-eval'"] : []),
     ...SCRIPT_HOSTS,

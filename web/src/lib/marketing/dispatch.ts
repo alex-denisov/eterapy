@@ -14,6 +14,8 @@ import { db } from "@/lib/db";
 import { log } from "@/lib/logger";
 import { findMarketingEvent, type MarketingChannel } from "@/lib/marketing/events";
 import { marketingDecision, type MarketingRecipientState } from "@/lib/marketing/gates";
+import { unsubscribeUrl, withUnsubscribeFooter } from "@/lib/marketing/unsubscribe";
+import { absoluteMainUrl } from "@/lib/subdomain";
 
 /**
  * Выключатель. По умолчанию ВЫКЛЮЧЕН: матрица едет на прод раньше, чем владелец
@@ -144,7 +146,13 @@ export async function sendMarketingMessage(input: SendMarketingInput): Promise<S
   }
 
   const subject = renderTemplate(event.subject, input.values);
-  const body = renderTemplate(event.body, input.values);
+  // Ссылку отписки клеит отправитель, а не шаблон: шаблон без неё — это письмо,
+  // которое уйдёт без неё, и заметят это снаружи, а не у нас. В журнал тело
+  // попадает уже со ссылкой — снимок должен совпадать с отправленным.
+  const body = withUnsubscribeFooter(
+    renderTemplate(event.body, input.values),
+    unsubscribeUrl(input.userId, absoluteMainUrl("")),
+  );
 
   try {
     if (input.deliver) await input.deliver(channel, subject, body);

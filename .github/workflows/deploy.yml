@@ -294,6 +294,47 @@ jobs:
             $SSH "sudo systemctl disable --now eterapy-seo-report.timer >/dev/null 2>&1 || true"
             echo "▶ SEO-отчёт: не primary — таймер выключен"
           fi
+          # INC-080: конфиг контурного балансировщика тоже едет выкаткой. До
+          # сих пор haproxy.cfg ставился руками (deploy/lb/README.md) — то есть
+          # правка в репозитории могла молча не доехать до ноды, ровно как это
+          # было с offhost-backup.sh. Порядок здесь важнее краткости:
+          #   1. кладём кандидат во временный файл, живой конфиг не трогаем;
+          #   2. проверяем его `haproxy -c` в ОДНОРАЗОВОМ контейнере с тем же
+          #      образом и тем же .env ноды — битый конфиг не доживает до
+          #      живого LB, цена ошибки здесь весь контур;
+          #   3. перезапускаем ТОЛЬКО если файл реально изменился: обычная
+          #      выкатка кода не должна ронять балансировщик даже на секунду.
+          # Нода без /opt/eterapy/lb/.env — не LB-нода: файлы просто лежат.
+          # Все значения здесь — из репозитория и из .env ноды; ничего из
+          # события GitHub в шелл не подставляется.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/lb/haproxy.cfg \
+            deploy/lb/docker-compose.lb.yml \
+            "$VM_USER@$VM_HOST:/tmp/"
+          $SSH "set -e
+            if [ ! -f /opt/eterapy/lb/.env ]; then
+              rm -f /tmp/haproxy.cfg /tmp/docker-compose.lb.yml
+              echo 'LB: нода не балансировщик — пропуск'
+              exit 0
+            fi
+            set -a; . /opt/eterapy/lb/.env; set +a
+            sudo -E docker run --rm \
+              -e LB_NODE_A -e LB_NODE_B -e LB_BIND_PORT -e LB_STATS_PORT \
+              -e LB_LIVEKIT_PORT -e LB_LIVEKIT_NODE_A -e LB_LIVEKIT_NODE_B \
+              -v /tmp/haproxy.cfg:/tmp/candidate.cfg:ro \
+              haproxy:2.9-alpine haproxy -c -f /tmp/candidate.cfg
+            CHANGED=0
+            sudo cmp -s /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg || CHANGED=1
+            sudo cmp -s /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml || CHANGED=1
+            sudo install -m 0644 /tmp/haproxy.cfg /opt/eterapy/lb/haproxy.cfg
+            sudo install -m 0644 /tmp/docker-compose.lb.yml /opt/eterapy/lb/docker-compose.lb.yml
+            rm -f /tmp/haproxy.cfg /tmp/docker-compose.lb.yml
+            if [ \"\$CHANGED\" = 1 ]; then
+              cd /opt/eterapy/lb && sudo docker compose -f docker-compose.lb.yml --profile lb up -d
+              echo 'LB: конфиг изменился — балансировщик перезапущен'
+            else
+              echo 'LB: конфиг не менялся — перезапуск не нужен'
+            fi"
           # Reclaim space BEFORE loading: each release image is ~2.6GB and the
           # old `docker image prune -f` only removes dangling layers, so tagged
           # releases piled up until the disk filled and `docker load` failed.
