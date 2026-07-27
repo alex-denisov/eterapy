@@ -394,6 +394,28 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
     }
   }
 
+  // INC-088: снимает ОБЕ записи разом — адрес доставки уведомлений и identity
+  // входа из Mini App. Раньше они жили порознь, и один Telegram оказывался
+  // разведён по разным аккаунтам.
+  async function unlinkTelegram() {
+    if (!window.confirm(
+      `Отвязать Telegram от ${row.email}?\n\n`
+      + "Уведомления в Telegram перестанут доходить, вход из Mini App с этого аккаунта — тоже. "
+      + "Привязать обратно человек сможет сам: «Уведомления» → «Подключить Telegram».",
+    )) return;
+    setBusy(true);
+    try {
+      await patchJson(`/api/admin/users/${row.id}`, { action: "unlink_telegram" });
+      toast.success("Telegram отвязан");
+      onSaved();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Действие не выполнено");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // B580: подтверждение руками — обход доказательства владения ящиком, поэтому
   // отдельный обработчик с причиной в аудит, а не общий `runAction`.
   async function verifyEmailManually() {
@@ -573,45 +595,67 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                 </label>
               </div>
 
-              {/* B585: привязка Telegram, а не адрес для уведомлений. Пишется
-                  входом в Mini App после проверки подписи Telegram, поэтому
-                  редактировать её нельзя — только смотреть. Раньше карточка её
-                  не показывала вовсе: клиент, зашедший из Telegram и связавший
-                  аккаунт, выглядел непривязанным. */}
-              <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3" data-testid="user-modal-platform-identities">
-                <span className={LABEL}>Привязанные входы</span>
-                {row.platformIdentities.length === 0 ? (
-                  <p className="mt-1 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
-                    Привязок нет — вход в Mini App с этого аккаунта не подтверждался.
-                    {row.telegramId ? ` Легаси-id уведомлений: ${row.telegramId}.` : ""}
-                  </p>
-                ) : (
-                  <ul className="mt-1.5 space-y-1.5 text-[11px] text-[var(--soft-ink-soft)]">
-                    {row.platformIdentities.map((identity) => (
-                      <li
-                        key={`${identity.provider}-${identity.subjectId}`}
-                        className="rounded border border-[var(--soft-paper-edge)] px-2 py-1.5"
-                      >
-                        <span className="font-semibold text-[var(--soft-ink-strong)]">
-                          {identity.provider === "telegram" ? "Telegram" : identity.provider}
-                        </span>
-                        {" · id "}
-                        <span className="tabular-nums">{identity.subjectId}</span>
-                        {identity.username ? ` · @${identity.username}` : ""}
-                        {identity.displayName ? ` · ${identity.displayName}` : ""}
-                        <span className="mt-0.5 block text-[var(--soft-ink-faint)]">
-                          привязан {new Date(identity.linkedAt).toLocaleString("ru-RU")}
-                          {identity.lastSeenAt
-                            ? ` · последний вход ${new Date(identity.lastSeenAt).toLocaleString("ru-RU")}`
-                            : " · входов после привязки не было"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
             </section>
           )}
+
+          {/* INC-088: «Привязанные входы» больше не только для клиентов.
+              Уведомления по срокам ИП уходят суперадмину, и увидеть/снять
+              его привязку надо здесь же. */}
+          <section>
+            {/* B585: привязка Telegram, а не адрес для уведомлений. Пишется
+                входом в Mini App после проверки подписи Telegram, поэтому
+                редактировать её нельзя — только смотреть. Раньше карточка её
+                не показывала вовсе: клиент, зашедший из Telegram и связавший
+                аккаунт, выглядел непривязанным. */}
+            <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3" data-testid="user-modal-platform-identities">
+              <span className={LABEL}>Привязанные входы</span>
+              {row.platformIdentities.length === 0 ? (
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
+                  Привязок нет — вход в Mini App с этого аккаунта не подтверждался.
+                  {row.telegramId ? ` Id уведомлений: ${row.telegramId}.` : ""}
+                </p>
+              ) : (
+                <ul className="mt-1.5 space-y-1.5 text-[11px] text-[var(--soft-ink-soft)]">
+                  {row.platformIdentities.map((identity) => (
+                    <li
+                      key={`${identity.provider}-${identity.subjectId}`}
+                      className="rounded border border-[var(--soft-paper-edge)] px-2 py-1.5"
+                    >
+                      <span className="font-semibold text-[var(--soft-ink-strong)]">
+                        {identity.provider === "telegram" ? "Telegram" : identity.provider}
+                      </span>
+                      {" · id "}
+                      <span className="tabular-nums">{identity.subjectId}</span>
+                      {identity.username ? ` · @${identity.username}` : ""}
+                      {identity.displayName ? ` · ${identity.displayName}` : ""}
+                      <span className="mt-0.5 block text-[var(--soft-ink-faint)]">
+                        привязан {new Date(identity.linkedAt).toLocaleString("ru-RU")}
+                        {identity.lastSeenAt
+                          ? ` · последний вход ${new Date(identity.lastSeenAt).toLocaleString("ru-RU")}`
+                          : " · входов после привязки не было"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* INC-088: перенести Telegram на другой аккаунт можно только
+                  отвязав его здесь — chat_id уникален, и без этой кнопки
+                  оператор упирался в «уже привязан к другому аккаунту».
+                  Привязка обратно — действием самого человека в Telegram. */}
+              {permissions.canManageRoles && (row.telegramId || row.platformIdentities.length > 0) && (
+                <button
+                  type="button"
+                  className="soft-admin-action mt-2"
+                  data-variant="danger"
+                  data-testid="user-modal-unlink-telegram"
+                  disabled={busy}
+                  onClick={() => void unlinkTelegram()}
+                >
+                  Отвязать Telegram
+                </button>
+              )}
+            </div>
+          </section>
 
             {/* B597: «откуда он взялся». Данные писались с самого начала
                 (первое касание, UTM, реферальный токен, практик, партнёр), но

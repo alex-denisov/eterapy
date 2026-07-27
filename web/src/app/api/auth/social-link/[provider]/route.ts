@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { canUnlinkLoginProvider, type LoginProvider } from "@/lib/auth-access";
 import { logAudit } from "@/lib/audit";
+import { unbindTelegramFromUser } from "@/lib/telegram-binding";
 
 const SUPPORTED = new Set<LoginProvider>(["google", "vk", "telegram", "apple"]);
 
@@ -35,8 +36,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   if (provider === "telegram") {
-    await db.telegramLinkToken.deleteMany({ where: { userId: user.id } });
-    await db.user.update({ where: { id: user.id }, data: { telegramId: null, telegramUsername: null } });
+    // INC-088: identity входа снимается вместе с адресом доставки — иначе
+    // «отвязал» на экране, а вход из Mini App продолжает работать.
+    await unbindTelegramFromUser(user.id);
   } else {
     await db.user.update({ where: { id: user.id }, data: { provider: "web", providerId: null } });
   }

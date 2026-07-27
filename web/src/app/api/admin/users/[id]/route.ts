@@ -8,6 +8,7 @@ import { getUserPermissions, type Permission } from "@/lib/moderator-permissions
 import { getClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { getSubscriptionPlan } from "@/lib/entitlements";
 import { log } from "@/lib/logger";
+import { unbindTelegramFromUser } from "@/lib/telegram-binding";
 
 function isAdminOrSuper(role?: string) {
   return role === "ADMIN" || role === "SUPERADMIN";
@@ -35,6 +36,8 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   // владения ящиком, и потому только суперадмин.
   resend_verification: "clients.edit",
   verify_email:        "SUPERADMIN_ONLY",
+  // INC-088: снятие способа входа и адреса доставки — только суперадмин.
+  unlink_telegram:     "SUPERADMIN_ONLY",
 };
 
 type Params = { params: Promise<{ id: string }> };
@@ -198,6 +201,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         `email_verified=manual (${targetUser.email})${reason ? ` — ${reason}` : ""}`,
       );
       return NextResponse.json({ ok: true });
+    }
+    // INC-088: перенести Telegram с одного аккаунта на другой можно только
+    // отвязав его от прежнего — chat_id уникален. Привязать за человека нельзя
+    // (это подтверждается его собственным действием в Telegram), а отвязать —
+    // операторское действие: без него владелец упирался в «уже привязан к
+    // другому аккаунту» и правил бы базу руками.
+    case "unlink_telegram": {
+      const result = await unbindTelegramFromUser(id);
+      if (!result.unlinked) {
+        return NextResponse.json({ error: "Telegram к этому аккаунту не привязан" }, { status: 400 });
+      }
+      await logAudit(adminId, "LOGIN_METHOD_UNLINK", id, JSON.stringify({ provider: "telegram", subjectId: result.subjectId }));
+      return NextResponse.json({ ok: true, subjectId: result.subjectId });
     }
     case "update_profile": {
       const { email, birthDate, birthTime, birthPlace, timezone, telegramUsername } = body;
