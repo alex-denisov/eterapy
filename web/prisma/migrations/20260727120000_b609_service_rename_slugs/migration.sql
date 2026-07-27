@@ -29,11 +29,10 @@ UPDATE product_results SET product_key = 'family-questions'      WHERE product_k
 UPDATE product_results SET product_key = 'compatibility-by-date' WHERE product_key = 'synastry';
 UPDATE product_results SET product_key = 'arcana'                WHERE product_key = 'tarot-numerology';
 
-UPDATE transactions SET "productKey" = 'horoscope'             WHERE "productKey" = 'horary';
-UPDATE transactions SET "productKey" = 'surname-origin'        WHERE "productKey" = 'surname-story';
-UPDATE transactions SET "productKey" = 'family-questions'      WHERE "productKey" = 'family-scenarios';
-UPDATE transactions SET "productKey" = 'compatibility-by-date' WHERE "productKey" = 'synastry';
-UPDATE transactions SET "productKey" = 'arcana'                WHERE "productKey" = 'tarot-numerology';
+-- В `transactions` ключа продукта НЕТ: продукт там записан в описании
+-- («ETerapy: surname-story»), а описание проведённого платежа — финансовая
+-- история, её не переписывают. Читаемость старых ключей обеспечена в коде
+-- (PRODUCT_LABELS/PRODUCT_ROUTES), а не переписыванием строк.
 
 -- Промты продуктов: строка редактируется владельцем в суперадминке, поэтому
 -- переименовывается, а не пересоздаётся — правки промта переезжают вместе с ней.

@@ -76,9 +76,12 @@ describe("B609 — переименование услуг вместе со с�
       expect(migration).toContain(`WHERE product_key = '${old}'`);
       expect(migration).toContain(`'${next}'`);
     }
-    for (const table of ["product_entitlements", "product_results", "transactions", "ai_prompt_configs", "platform_settings"]) {
+    for (const table of ["product_entitlements", "product_results", "ai_prompt_configs", "platform_settings"]) {
       expect(migration).toContain(table);
     }
+    // В `transactions` ключа продукта нет — там описание платежа, и его не
+    // переписывают. Проверка держит это решение явным.
+    expect(migration).not.toContain('UPDATE transactions');
   });
 
   it("публичные заголовки услуг переписаны на язык запроса", () => {
