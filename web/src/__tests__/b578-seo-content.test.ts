@@ -45,3 +45,44 @@ describe("B578 — SEO/GEO content operations", () => {
     expect(sitemap).toContain('"/pricing.md"');
   });
 });
+
+describe("B607 — ядро из 50 замеренных запросов, без прочерков", () => {
+  it("ровно 50 фраз, и у каждой есть живой замер", () => {
+    // Владелец 2026-07-27: «я хочу чтобы там были только запросы, которые ты
+    // проанализировал через yandex-mcp и у которых реальный спрос есть …
+    // топ-50 запросов нашего направления». Фраза без замера в ядро не
+    // попадает — прочерков в графе спроса больше не бывает по построению.
+    expect(STRATEGIC_KEYWORDS).toHaveLength(50);
+    for (const keyword of STRATEGIC_KEYWORDS) {
+      expect(keyword.verifiedDemand).toBeGreaterThan(0);
+    }
+  });
+
+  it("мёртвые и чужие фразы прошлого ядра не вернулись", () => {
+    const phrases = STRATEGIC_KEYWORDS.map((keyword) => keyword.phrase);
+    // «кармический код фамилии» — ровно 0 показов.
+    // «разбор переписки» — 323, и это школьный морфемный разбор.
+    // «какой расклад таро выбрать» — 64.
+    // «хорарная астрология» — 5 492, в топе «фроули/учебник/скачать»: студенты.
+    for (const dead of [
+      "кармический код фамилии",
+      "разбор переписки",
+      "какой расклад таро выбрать",
+      "хорарная астрология",
+    ]) {
+      expect(phrases).not.toContain(dead);
+    }
+  });
+
+  it("нижняя граница спроса поднята: ядро не держит фразы мельче тысячи", () => {
+    const weakest = Math.min(...STRATEGIC_KEYWORDS.map((k) => k.verifiedDemand ?? 0));
+    expect(weakest).toBeGreaterThanOrEqual(1_000);
+  });
+
+  it("каждая фраза ведёт на существующий раздел, а не в никуда", () => {
+    const allowedPrefixes = ["/products/", "/library", "/ai-psychologist", "/checkin"];
+    for (const keyword of STRATEGIC_KEYWORDS) {
+      expect(allowedPrefixes.some((prefix) => keyword.landing.startsWith(prefix))).toBe(true);
+    }
+  });
+});
