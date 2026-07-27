@@ -48,6 +48,14 @@ model User {
   telegramId       String? @unique // Telegram chat_id (set via bot)
   telegramUsername String? // @username
 
+  // B599: согласие на РЕКЛАМНЫЕ рассылки. Отдельно от транзакционных настроек
+  // намеренно: по 38-ФЗ ст. 18 реклама требует предварительного согласия, и
+  // переиспользовать под неё галочку «присылать уведомления о записи» нельзя.
+  // Отписка хранится своим полем и всегда сильнее согласия — см. lib/marketing/gates.ts.
+  marketingConsentAt     DateTime? @map("marketing_consent_at")
+  marketingConsentSource String?   @map("marketing_consent_source") // где именно человек согласился
+  marketingOptOutAt      DateTime? @map("marketing_opt_out_at")
+
   // Extended profile (for AI personalization)
   birthDate       DateTime?
   birthDateSource String?   @map("birth_date_source")
@@ -66,6 +74,7 @@ model User {
   storedFiles                     StoredFile[]
   chatMessages                    ChatMessage[]
   notificationPrefs               NotificationPreference[]
+  marketingDispatches             MarketingDispatch[]
   notifications                   Notification[]
   complaints                      Complaint[]                 @relation("ComplaintReporter")
   aiSessionLogs                   AISessionLog[]
@@ -883,6 +892,40 @@ enum ComplaintReason {
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 // Какие уведомления получать и через какой канал
+/**
+ * B599 · Журнал маркетинговых отправок.
+ *
+ * Владелец: «где будет видно кому, когда, куда и что было отправлено… и чтобы я
+ * видел текст, который ушел пользователю».
+ *
+ * Тело хранится СНИМКОМ на момент отправки, а не собирается заново при
+ * просмотре: шаблон правится, а вопрос «что ушло» — про прошлое. Пересборка при
+ * открытии показывала бы сегодняшний текст под вчерашней датой.
+ *
+ * Заблокированные попытки пишутся сюда ТОЖЕ, с причиной. «Не ушло» без записи —
+ * это молчание, из-за которого полгода не замечали неработающий cron.
+ */
+model MarketingDispatch {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey  String   @map("event_key") // ключ из lib/marketing/events.ts
+  category  String // категория оттуда же — по ней владелец фильтрует
+  channel   String // email / telegram / push
+  status    String // sent | blocked | failed
+  blockedBy String?  @map("blocked_by") // причина отказа, если status = blocked
+  subject   String?
+  body      String? // отрендеренное тело КАК ОНО УШЛО
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+
+  @@index([userId, createdAt])
+  @@index([eventKey, createdAt])
+  @@index([status, createdAt])
+  @@map("marketing_dispatches")
+}
+
 model NotificationPreference {
   id                String              @id @default(cuid())
   userId            String

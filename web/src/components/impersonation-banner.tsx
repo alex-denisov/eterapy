@@ -1,19 +1,37 @@
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { IMPERSONATION_MARKER_COOKIE } from "@/lib/impersonation.shared";
 import { mainUrl } from "@/lib/subdomain";
 
 /**
- * X2: global impersonation banner. Rendered at the very top of the document
- * (as the first child of Providers, right under the email-verification banner
- * and ABOVE the public-shell-header) in normal flow — both banners are static
- * so the sticky header pins below them and never slides underneath.
+ * X2: глобальная плашка имперсонации. Стоит первым ребёнком Providers, сразу
+ * под плашкой подтверждения почты и НАД шапкой, в обычном потоке — обе плашки
+ * статичны, поэтому липкая шапка прижимается под ними, а не уезжает под них.
  *
- * Impersonation is detected server-side: `session.user.impersonatedBy` is set
- * by the host-aware `auth()` wrapper, not the NextAuth session callback, so a
- * client `useSession()` cannot see it — hence this async server component.
+ * INC-080 — ПОЧЕМУ ЭТО КЛИЕНТ. Раньше компонент был серверным и звал `auth()`.
+ * Один такой вызов в корневом layout читает куки, а чтение кук в корне
+ * переводит в динамический рендер ВЕСЬ сайт: в prerender-манифесте прода лежало
+ * 14 адресов вместо четырёх сотен, каждая статья библиотеки собиралась заново на
+ * каждый заход робота, и Cloudflare не мог закешировать HTML в принципе.
+ *
+ * Признак имперсонации берём из видимой метки (`eterapy-imp-on`), а не из
+ * подписанного кука: плашка — это оформление, а не полномочие. Полномочия
+ * остаются в httpOnly-куке и проверяются на сервере, как и раньше.
  */
-export async function ImpersonationBanner() {
-  const session = await auth();
-  if (!session?.user?.impersonatedBy) return null;
+export function ImpersonationBanner() {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    setActive(
+      document.cookie
+        .split("; ")
+        .some((entry) => entry.startsWith(`${IMPERSONATION_MARKER_COOKIE}=1`)),
+    );
+  }, []);
+
+  if (!active) return null;
 
   return (
     <div className="flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-black">

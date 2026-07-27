@@ -18,7 +18,25 @@ import { encode, decode } from "next-auth/jwt";
 import type { NextRequest, NextResponse } from "next/server";
 import { SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 
-export const IMPERSONATION_COOKIE = "eterapy-imp";
+/**
+ * Имена куков живут в `impersonation.shared.ts` — их читает и клиентская плашка
+ * (INC-080), а серверный модуль в браузерный бандл тащить нельзя.
+ *
+ * `IMPERSONATION_MARKER_COOKIE` — видимая браузеру метка «идёт имперсонация».
+ * Полномочия по-прежнему ТОЛЬКО в подписанном httpOnly-куке: метка ничего не
+ * разрешает и ничего не подтверждает. Она нужна ровно для плашки — без неё
+ * корневой layout был вынужден звать `auth()`, а одно чтение кук в корне
+ * переводит в динамический рендер ВЕСЬ сайт, включая сотни статических страниц
+ * библиотеки. Подделка метки даёт ровно одну возможность: показать самому себе
+ * жёлтую полоску.
+ */
+export { IMPERSONATION_COOKIE, IMPERSONATION_MARKER_COOKIE } from "@/lib/impersonation.shared";
+
+import {
+  IMPERSONATION_COOKIE,
+  IMPERSONATION_MARKER_COOKIE,
+} from "@/lib/impersonation.shared";
+
 const TTL_SECONDS = 60 * 60 * 2; // 2 hours
 
 export interface ImpersonationToken {
@@ -86,10 +104,22 @@ export async function getImpersonationFromRequest(
 
 export function setImpersonationCookie(res: NextResponse, token: string): void {
   res.cookies.set(IMPERSONATION_COOKIE, token, { ...cookieOptions(), maxAge: TTL_SECONDS });
+  // Метка ставится и снимается ВМЕСТЕ с подписанным куком — иначе плашка
+  // переживёт выход из имперсонации и будет врать про чужой аккаунт.
+  res.cookies.set(IMPERSONATION_MARKER_COOKIE, "1", {
+    ...cookieOptions(),
+    httpOnly: false,
+    maxAge: TTL_SECONDS,
+  });
 }
 
 export function clearImpersonationCookie(res: NextResponse): void {
   res.cookies.set(IMPERSONATION_COOKIE, "", { ...cookieOptions(), maxAge: 0 });
+  res.cookies.set(IMPERSONATION_MARKER_COOKIE, "", {
+    ...cookieOptions(),
+    httpOnly: false,
+    maxAge: 0,
+  });
 }
 
 /** Read + verify the impersonation cookie from the current request. */

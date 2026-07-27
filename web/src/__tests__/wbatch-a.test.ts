@@ -33,14 +33,28 @@ describe("X2 — impersonation banner is a global component above the header", (
 });
 
 describe("W5 — impersonation banner only shows when actually impersonating + cookie cleared on logout", () => {
-  it("the global impersonation banner keys off session.user.impersonatedBy, not raw cookies", () => {
-    // X2: the banner moved to a global server component (above the header).
+  it("плашка рисуется по видимой метке, а НЕ по подписанному куку полномочий", () => {
+    // X2 → INC-080: плашка была серверной и звала `auth()`; один такой вызов в
+    // корневом дереве держал весь сайт в динамическом рендере. Теперь это
+    // клиент, читающий метку `eterapy-imp-on`. Подписанный `eterapy-imp` в
+    // браузер не попадает вовсе — он httpOnly, и плашка его не видит.
     const banner = read("src/components/impersonation-banner.tsx");
-    expect(banner).toContain("session?.user?.impersonatedBy");
-    expect(banner).not.toContain('cookieStore.has("eterapy-imp")');
+    expect(banner).toContain("IMPERSONATION_MARKER_COOKIE");
+    expect(banner).not.toContain("await auth()");
+    expect(banner).not.toContain('document.cookie.includes("eterapy-imp=")');
+  });
+  it("метка ставится и снимается ВМЕСТЕ с подписанным куком", () => {
+    const lib = read("src/lib/impersonation.ts");
+    const setBlock = lib.slice(lib.indexOf("export function setImpersonationCookie"));
+    expect(setBlock.slice(0, setBlock.indexOf("export function clearImpersonationCookie")))
+      .toContain("IMPERSONATION_MARKER_COOKIE");
+    expect(setBlock.slice(setBlock.indexOf("export function clearImpersonationCookie")))
+      .toContain("IMPERSONATION_MARKER_COOKIE");
   });
   it("logout clears the eterapy-imp cookie", () => {
-    expect(read("src/app/api/auth/logout/route.ts")).toContain('"eterapy-imp"');
+    const route = read("src/app/api/auth/logout/route.ts");
+    expect(route).toContain('"eterapy-imp"');
+    expect(route).toContain('"eterapy-imp-on"');
   });
 });
 

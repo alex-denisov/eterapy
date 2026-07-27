@@ -5,8 +5,14 @@ const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd()
 
 describe("B1 — no-swap impersonation keeps the superadmin session intact", () => {
   it("uses a separate impersonation cookie, not the session cookie", () => {
+    // INC-080: имена куков переехали в `impersonation.shared.ts` — их читает и
+    // клиентская плашка, а серверный модуль в браузерный бандл тащить нельзя.
+    // Полномочия остались здесь: отдельный подписанный кук, а не сессионный.
+    const shared = source("src/lib/impersonation.shared.ts");
+    expect(shared).toContain('IMPERSONATION_COOKIE = "eterapy-imp"');
+
     const lib = source("src/lib/impersonation.ts");
-    expect(lib).toContain('IMPERSONATION_COOKIE = "eterapy-imp"');
+    expect(lib).toContain('from "@/lib/impersonation.shared"');
     expect(lib).toContain("export async function readImpersonation");
     expect(lib).toContain("export function setImpersonationCookie");
     expect(lib).toContain("export function clearImpersonationCookie");

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { approvedLibraryEntries, libraryTopics } from "@/data/anonymous-library";
-import { resolveLibraryTopic } from "@/lib/library-cta";
 import { LibrarySearch } from "@/components/library/library-search";
 
 export const metadata = createPublicPageMetadata("/library");
@@ -30,12 +29,11 @@ const SYMBOLIC_FAQS = [
   },
 ] as const;
 
-export default async function LibraryPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ topic?: string; section?: string }>;
-}) {
-  const params = await searchParams;
+// INC-080: страница больше не принимает `searchParams`. Чтение адреса на
+// сервере — единственное, что держало библиотеку в динамическом рендере; фильтр
+// по теме переехал в клиентский `LibrarySearch` (подробности там). Робот теперь
+// получает готовый HTML со ВСЕМИ карточками, а не пересобранный на каждый заход.
+export default function LibraryPage() {
   // B596 (владелец 2026-07-27): переключателя «Жизненные ситуации /
   // Символические практики» больше нет. Он делил библиотеку по НАШЕЙ
   // таксономии, а человек ищет свою ситуацию, а не раздел: пришедший за
@@ -45,7 +43,6 @@ export default async function LibraryPage({
   //
   // `?section=` принимается молча ради уже разосланных ссылок: раздел просто
   // больше ничего не сужает.
-  const activeTopic = resolveLibraryTopic(params?.topic);
   const topics = libraryTopics();
   const entries = approvedLibraryEntries();
   const symbolicFaqJsonLd = JSON.stringify({
@@ -92,12 +89,7 @@ export default async function LibraryPage({
       </section>
 
       <section className="soft-shell" style={{ paddingBottom: 80 }}>
-        <LibrarySearch
-          entries={entries}
-          topics={topics}
-          activeTopic={activeTopic}
-          cardLabel="вопрос"
-        />
+        <LibrarySearch entries={entries} topics={topics} cardLabel="вопрос" />
         <section className="mx-auto mt-12 max-w-4xl" aria-labelledby="symbolic-library-faq-title">
             <p className="soft-eyebrow">для первого знакомства</p>
             <h2 id="symbolic-library-faq-title" className="soft-h2 mt-2">Как устроены символические практики</h2>

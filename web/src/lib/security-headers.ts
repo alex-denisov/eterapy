@@ -15,6 +15,22 @@ const SCRIPT_HOSTS = [
   "https://oauth.telegram.org",
 ];
 
+/**
+ * INC-069: хеш inline-скрипта `miniapp-detect` из `MINIAPP_INLINE_SCRIPT`.
+ *
+ * ПОЧЕМУ ХЕШ, А НЕ НОНС. Next выводит `<Script strategy="beforeInteractive">` в
+ * документ дважды: копию через `__next_s` — с нонсом, и сырой `<script>` — без
+ * нонса. Сырую копию enforce-политика режет. Пробросить нонс в layout нельзя
+ * даром: чтобы его прочитать, корневой layout должен позвать `headers()`, а это
+ * переводит В ДИНАМИКУ ВСЁ дерево — включая 397 статических страниц библиотеки
+ * (ровно то, что чинит INC-080). Хеш такой цены не имеет.
+ *
+ * ⚠ Хеш обязан совпадать со скриптом. Забыть обновить его нельзя: за этим
+ * следит прогон `inc069-miniapp-script-hash`, который считает sha256 от самой
+ * константы и падает при расхождении.
+ */
+export const MINIAPP_SCRIPT_CSP_HASH = "'sha256-oS+NSRNmjiVrM3AmrGVvCrl1oJrsexuoDJCFIFdPnz4='";
+
 export function cspValue(options: { production: boolean; reportOnly?: boolean; nonce?: string }) {
   // B523: с nonce (аутентифицированные /cabinet и /admin — всегда динамический
   // рендер) script-src живёт БЕЗ 'unsafe-inline'; Next подхватывает nonce из
@@ -25,6 +41,9 @@ export function cspValue(options: { production: boolean; reportOnly?: boolean; n
   const scriptSources = [
     "'self'",
     ...(options.nonce ? [`'nonce-${options.nonce}'`] : []),
+    // INC-069: сырая копия `miniapp-detect` нонса не получает — разрешаем её
+    // по хешу там, где 'unsafe-inline' нет (nonce-политика и report-only).
+    ...(options.nonce || options.reportOnly ? [MINIAPP_SCRIPT_CSP_HASH] : []),
     ...(!options.reportOnly && !options.nonce ? ["'unsafe-inline'"] : []),
     ...(!options.production && !options.reportOnly ? ["'unsafe-eval'"] : []),
     ...SCRIPT_HOSTS,

@@ -1,5 +1,7 @@
-export const dynamic = "force-dynamic";
-
+// INC-080: `force-dynamic` остался от версии страницы, которая ходила в базу за
+// нижней границей цены живой сессии. Ходить перестала ещё в B396 (комментарий
+// ниже), а флаг остался — и заставлял пересобирать статический прайс на каждый
+// заход. Снят.
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { PricingPlans } from "./pricing-plans";
