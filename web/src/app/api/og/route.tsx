@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 const KIND_TAG: Record<string, string> = {
   library: "library",
   "human-design": "human design",
-  "surname-story": "surname story",
+  "surname-origin": "surname story",
   "weekly-summary": "weekly",
   insight: "insight",
 };
@@ -82,7 +82,7 @@ function LineageSeal() {
 
 function motifFor(kind: string) {
   if (kind === "human-design") return <Bodygraph />;
-  if (kind === "surname-story") return <LineageSeal />;
+  if (kind === "surname-origin") return <LineageSeal />;
   if (kind === "weekly-summary") return <Week />;
   if (kind === "insight") return <Quote />;
   return <Wheel />;

@@ -79,7 +79,7 @@ function placementFor(wheel: NatalWheel, planet: TraditionalPlanet) {
 }
 
 export function computeHoraryFacts(wheel: NatalWheel, input: string, futureWheel?: NatalWheel | null): HoraryJudgementFacts {
-  if (typeof wheel.ascendantDegree !== "number" || !wheel.houses?.length) throw new Error("Для хорарной карты нужны точное время и координаты места");
+  if (typeof wheel.ascendantDegree !== "number" || !wheel.houses?.length) throw new Error("Для гороскопа нужны точное время и координаты места");
   const ascendantDegree = wheel.ascendantDegree;
   const house = subjectHouse(input);
   const ascendantSign = wheel.ascendant?.key ?? wheel.houses[0].signName;
@@ -91,9 +91,9 @@ export function computeHoraryFacts(wheel: NatalWheel, input: string, futureWheel
   const quesitedPlanet = RULER_BY_SIGN[houseSign];
   const querentPlacement = placementFor(wheel, querentPlanet);
   const quesitedPlacement = placementFor(wheel, quesitedPlanet);
-  const contact = querentPlanet === quesitedPlanet ? { kind: "общий сигнификатор", orb: 0, phase: "unknown" as const } : calculateAstrologyAspect(querentPlacement.angle, quesitedPlacement.angle, "synastry");
+  const contact = querentPlanet === quesitedPlanet ? { kind: "общий сигнификатор", orb: 0, phase: "unknown" as const } : calculateAstrologyAspect(querentPlacement.angle, quesitedPlacement.angle, "compatibility-by-date");
   const futureContact = futureWheel && querentPlanet !== quesitedPlanet
-    ? calculateAstrologyAspect(placementFor(futureWheel, querentPlanet).angle, placementFor(futureWheel, quesitedPlanet).angle, "synastry")
+    ? calculateAstrologyAspect(placementFor(futureWheel, querentPlanet).angle, placementFor(futureWheel, quesitedPlanet).angle, "compatibility-by-date")
     : null;
   const receptions: string[] = [];
   if (RULER_BY_SIGN[querentPlacement.signKey] === quesitedPlanet) receptions.push(`${PLANET_LABEL[querentPlanet]} находится в знаке ${PLANET_LABEL[quesitedPlanet]}: кверент ориентирован на предмет вопроса.`);
@@ -101,9 +101,9 @@ export function computeHoraryFacts(wheel: NatalWheel, input: string, futureWheel
   if (!receptions.length) receptions.push("Взаимной рецепции по обители между главными сигнификаторами нет.");
   const moon = placementFor(wheel, "moon");
   const moonContacts = (["sun", "mercury", "venus", "mars", "jupiter", "saturn"] as TraditionalPlanet[]).flatMap((planet) => {
-    const aspect = calculateAstrologyAspect(moon.angle, placementFor(wheel, planet).angle, "synastry");
+    const aspect = calculateAstrologyAspect(moon.angle, placementFor(wheel, planet).angle, "compatibility-by-date");
     if (!aspect) return [];
-    const futureAspect = futureWheel ? calculateAstrologyAspect(placementFor(futureWheel, "moon").angle, placementFor(futureWheel, planet).angle, "synastry") : null;
+    const futureAspect = futureWheel ? calculateAstrologyAspect(placementFor(futureWheel, "moon").angle, placementFor(futureWheel, planet).angle, "compatibility-by-date") : null;
     const phase: "applying" | "separating" | "unknown" = futureAspect?.kind === aspect.kind ? (futureAspect.orb < aspect.orb ? "applying" : "separating") : "unknown";
     return [{ planet: PLANET_LABEL[planet], kind: aspect.label.toLowerCase(), orb: Number(aspect.orb.toFixed(2)), phase }];
   }).sort((a, b) => a.orb - b.orb);

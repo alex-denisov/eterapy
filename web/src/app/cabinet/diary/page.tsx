@@ -550,7 +550,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
               Можно собрать это в один разбор — спокойно рассмотреть, как складываются отношения с родителями и близкими и какие сценарии в них повторяются.
             </p>
           </div>
-          <Link href={mainUrl("/products/family-scenarios")} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #9B86C9)", color: "#fff" }}>
+          <Link href={mainUrl("/products/family-questions")} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #9B86C9)", color: "#fff" }}>
             Разбор рода
           </Link>
         </section>

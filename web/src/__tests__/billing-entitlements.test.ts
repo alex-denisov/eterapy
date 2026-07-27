@@ -553,7 +553,7 @@ describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () =>
       "src/app/api/products/reframe/route.ts",
       "src/app/api/products/deep-report/route.ts",
       "src/app/api/products/symbolic/route.ts",
-      "src/app/api/products/synastry/route.ts",
+      "src/app/api/products/compatibility-by-date/route.ts",
       "src/app/api/products/circle/[id]/generate/route.ts",
       "src/app/api/products/compatibility/[id]/generate/route.ts",
     ];

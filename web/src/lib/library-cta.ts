@@ -62,9 +62,9 @@ export type LibraryCtaProduct =
   | "Расклад Таро"
   | "Натальная карта"
   | "Матрица судьбы"
-  | "Совместимость по звёздам"
-  | "Арканы рождения"
-  | "Кармический код фамилии";
+  | "Совместимость по дате"
+  | "Арканы судьбы"
+  | "Происхождение фамилии";
 
 const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
   "Разбор переписки": "chat-analysis",
@@ -74,9 +74,9 @@ const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
   "Расклад Таро": "tarot",
   "Натальная карта": "natal-chart",
   "Матрица судьбы": "numerology",
-  "Совместимость по звёздам": "synastry",
-  "Арканы рождения": "tarot-numerology",
-  "Кармический код фамилии": "surname-story",
+  "Совместимость по дате": "compatibility-by-date",
+  "Арканы судьбы": "arcana",
+  "Происхождение фамилии": "surname-origin",
 };
 
 // Default service per theme (spec П.4 funnel). A card may override via `ctaProduct`
@@ -93,8 +93,8 @@ const TOPIC_DEFAULT_PRODUCT: Record<LibraryTopic, LibraryCtaProduct> = {
   "Таро": "Расклад Таро",
   "Матрица судьбы": "Матрица судьбы",
   "Натальная карта": "Натальная карта",
-  "Совместимость": "Совместимость по звёздам",
-  "Имя и фамилия": "Кармический код фамилии",
+  "Совместимость": "Совместимость по дате",
+  "Имя и фамилия": "Происхождение фамилии",
 };
 
 export function topicDefaultProduct(topic: LibraryTopic): LibraryCtaProduct {

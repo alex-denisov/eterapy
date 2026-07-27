@@ -29,28 +29,28 @@ describe("Z14 synastry product", () => {
 
   it("registers synastry pricing, credits, product metadata, and SEO route", () => {
     // B366: 890 ₽ / 3 балла (≈297 ₽/балл).
-    expect(getProductPriceKopecks("synastry")).toBe(89_000);
-    expect(getProductCreditCost("synastry")).toBe(3);
+    expect(getProductPriceKopecks("compatibility-by-date")).toBe(89_000);
+    expect(getProductCreditCost("compatibility-by-date")).toBe(3);
 
-    const product = v5Products.find((item) => item.slug === "synastry");
+    const product = v5Products.find((item) => item.slug === "compatibility-by-date");
     expect(product).toEqual(expect.objectContaining({
-      slug: "synastry",
-      route: "/products/synastry",
-      name: "Совместимость по звёздам",
+      slug: "compatibility-by-date",
+      route: "/products/compatibility-by-date",
+      name: "Совместимость по дате",
       price: "890 ₽",
       creditCost: 3,
-      productKey: "synastry",
+      productKey: "compatibility-by-date",
     }));
-    expect(publicSeoRoutes).toContain("/products/synastry");
-    expect(publicPageSeo["/products/synastry"].title).toContain("Совместимость по дате рождения");
-    expect(publicPageSeo["/products/synastry"].title).toContain("синастрия");
+    expect(publicSeoRoutes).toContain("/products/compatibility-by-date");
+    expect(publicPageSeo["/products/compatibility-by-date"].title).toContain("Совместимость по дате рождения");
+    expect(publicPageSeo["/products/compatibility-by-date"].title).toContain("синастрия");
   });
 
   it("wires the public page, action component, API route, and catalogue surfaces", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
-    const actions = source("src/components/products/synastry-actions.tsx");
-    const route = source("src/app/api/products/synastry/route.ts");
-    const saveRoute = source("src/app/api/products/synastry/[id]/route.ts");
+    const actions = source("src/components/products/compatibility-by-date-actions.tsx");
+    const route = source("src/app/api/products/compatibility-by-date/route.ts");
+    const saveRoute = source("src/app/api/products/compatibility-by-date/[id]/route.ts");
     const products = source("src/lib/v5-products.ts");
     const serviceCatalog = source("src/components/products/service-catalog.tsx");
     const footer = source("src/components/footer.tsx");
@@ -62,29 +62,29 @@ describe("Z14 synastry product", () => {
     const shell = source("src/components/products/product-page-shell.tsx");
 
     expect(detailPage).toContain("<SynastryActions");
-    expect(detailPage).toContain('product.slug === "synastry"');
+    expect(detailPage).toContain('product.slug === "compatibility-by-date"');
     // B395: decorative <SynastrySide> removed — the tool-first hero renders the
     // action component directly, no side preview panel.
     expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="synastry-relationship-map"');
-    expect(actions).toContain("/api/products/synastry");
+    expect(actions).toContain("/api/products/compatibility-by-date");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain("partnerBirthData");
-    expect(route).toContain('const PRODUCT_KEY = "synastry"');
+    expect(route).toContain('const PRODUCT_KEY = "compatibility-by-date"');
     expect(route).toContain("userHasActiveEntitlement");
     expect(route).toContain("generateSynastryResult");
     expect(route).toContain("buildSynastryTeaser");
-    expect(saveRoute).toContain('productKey: "synastry"');
-    expect(products).toContain('slug: "synastry"');
-    expect(serviceCatalog).toContain("/products/synastry");
+    expect(saveRoute).toContain('productKey: "compatibility-by-date"');
+    expect(products).toContain('slug: "compatibility-by-date"');
+    expect(serviceCatalog).toContain("/products/compatibility-by-date");
     // B374/B396: synastry surfaces via the /products catalog + footer — the
     // /pricing «разовые форматы» list that used to link it was removed in B396.
-    expect(footer).toContain("/products/synastry");
-    expect(map).toContain('synastry: "Совместимость по звёздам"');
+    expect(footer).toContain("/products/compatibility-by-date");
+    expect(map).toContain('"compatibility-by-date": "Совместимость по дате"');
     expect(resultPage).toContain("getProductLabel(result.productKey)");
-    expect(billingLabels).toContain('synastry: "Совместимость по звёздам"');
-    expect(taskPolicy).toContain('feature: "product-synastry"');
-    expect(prompts).toContain('"product-synastry"');
+    expect(billingLabels).toContain('"compatibility-by-date": "Совместимость по дате"');
+    expect(taskPolicy).toContain('feature: "product-compatibility-by-date"');
+    expect(prompts).toContain('"product-compatibility-by-date"');
   });
 
   it("generates a non-fatalistic synastry result through AI with a safe fallback", async () => {
@@ -112,7 +112,7 @@ describe("Z14 synastry product", () => {
     expect(generated.text).toContain("Прямой ответ");
     expect(generated.metadata).toEqual(expect.objectContaining({ source: "ai", provider: "openai" }));
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
-      feature: "product-synastry",
+      feature: "product-compatibility-by-date",
       userId: "user-1",
     }));
 
@@ -121,7 +121,7 @@ describe("Z14 synastry product", () => {
       partnerBirthData: "09.11.1990, 08:10, Санкт-Петербург",
       generatedText: generated.text,
     });
-    expect(teaser).toContain("Один акцент совместимости по звёздам");
-    expect(teaser).toContain("Полная совместимость по звёздам");
+    expect(teaser).toContain("Один акцент совместимости по дате");
+    expect(teaser).toContain("Полная совместимость по дате");
   });
 });

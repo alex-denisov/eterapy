@@ -5,7 +5,7 @@ const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd()
 
 describe("B503–B507 local visual cleanup", () => {
   it("removes obsolete captions and uses one interactive surname detail panel", () => {
-    const surname = source("src/components/products/surname-story-actions.tsx");
+    const surname = source("src/components/products/surname-origin-actions.tsx");
     const numerology = source("src/components/products/numerology-actions.tsx");
 
     expect(surname).not.toContain("форма, версия, география и проверка");

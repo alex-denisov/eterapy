@@ -82,9 +82,9 @@ const FAMILY_MIN = 3;
 export function deepeningForTopic(topic: string, familyCount: number): DeepeningOffer {
   if (topic === "family" && familyCount >= FAMILY_MIN) {
     return {
-      productKey: "family-scenarios",
-      route: "/products/family-scenarios",
-      title: "Собрать семейные сценарии — как складываются отношения с близкими",
+      productKey: "family-questions",
+      route: "/products/family-questions",
+      title: "Собрать семейные вопросы — как складываются отношения с близкими",
       cta: "Собрать сценарии",
     };
   }
@@ -262,7 +262,7 @@ export function buildHeroAction(signals: CabinetSignals, seed: number): HeroActi
 // ── «что дальше по вашей теме» service-nudge (item 4) ───────────────────────
 
 export interface ServiceNudge {
-  key: "family-scenarios" | "together" | "deep-report" | "daily-question";
+  key: "family-questions" | "together" | "deep-report" | "daily-question";
   body: string;
   ctaLabel: string;
   route: string;
@@ -280,20 +280,20 @@ export function buildServiceNudge(signals: CabinetSignals, seed: number): Servic
   const recent = signals.recentProductKeys;
   const candidates: ServiceNudge[] = [];
 
-  // 1) Тема семьи в ≥3 разборах → «Семейные сценарии». The copy is about YOUR
+  // 1) Тема семьи в ≥3 разборах → «Семейные вопросы». The copy is about YOUR
   //    relationships with родители/близкие — NOT ancestry «из поколения в
   //    поколение» (owner item 4).
   if (family >= FAMILY_MIN) {
     candidates.push({
-      key: "family-scenarios",
+      key: "family-questions",
       body: pickBy(seed, 3, [
-        `Тема семьи и близких повторяется в ваших разборах (${family}). «Семейные сценарии» помогут спокойно рассмотреть, как складываются ваши отношения с родителями и родными — и какие роли в них закрепились.`,
+        `Тема семьи и близких повторяется в ваших разборах (${family}). «Семейные вопросы» помогут спокойно рассмотреть, как складываются ваши отношения с родителями и родными — и какие роли в них закрепились.`,
         `Вы уже не раз возвращались к теме семьи. Можно собрать эти наблюдения в один разбор — про отношения с близкими и сценарии, которые в них повторяются, — и наметить, что хочется изменить.`,
       ]),
-      ctaLabel: "Собрать семейные сценарии",
-      route: "/products/family-scenarios",
+      ctaLabel: "Собрать семейные вопросы",
+      route: "/products/family-questions",
       surface: "main",
-      productKey: "family-scenarios",
+      productKey: "family-questions",
     });
   }
 
@@ -501,18 +501,18 @@ export interface UsageRecommendation {
  */
 const ADJACENT_SERVICES: Record<string, readonly string[]> = {
   reframe: ["deep-report", "chat-analysis"],
-  "deep-report": ["pair", "family-scenarios"],
+  "deep-report": ["pair", "family-questions"],
   "chat-analysis": ["reframe", "pair"],
-  pair: ["synastry", "family-scenarios"],
-  tarot: ["horary", "numerology"],
-  "natal-chart": ["synastry", "human-design"],
-  synastry: ["pair", "natal-chart"],
-  horary: ["tarot", "natal-chart"],
-  "tarot-numerology": ["numerology", "natal-chart"],
-  numerology: ["tarot-numerology", "human-design"],
-  "family-scenarios": ["surname-story", "deep-report"],
+  pair: ["compatibility-by-date", "family-questions"],
+  tarot: ["horoscope", "numerology"],
+  "natal-chart": ["compatibility-by-date", "human-design"],
+  "compatibility-by-date": ["pair", "natal-chart"],
+  horoscope: ["tarot", "natal-chart"],
+  "arcana": ["numerology", "natal-chart"],
+  numerology: ["arcana", "human-design"],
+  "family-questions": ["surname-origin", "deep-report"],
   "human-design": ["natal-chart", "numerology"],
-  "surname-story": ["family-scenarios", "numerology"],
+  "surname-origin": ["family-questions", "numerology"],
 };
 
 /** Названия и адреса — те же, что на лендинге, без второй копии каталога. */
@@ -523,13 +523,13 @@ const SERVICE_TITLES: Record<string, { title: string; cta: string; route: string
   pair: { title: "Разобраться вдвоём", cta: "Открыть «Вместе»", route: "/products/pair" },
   tarot: { title: "Расклад Таро", cta: "Сделать расклад", route: "/products/tarot" },
   "natal-chart": { title: "Натальная карта", cta: "Построить карту", route: "/products/natal-chart" },
-  synastry: { title: "Совместимость по звёздам", cta: "Проверить совместимость", route: "/products/synastry" },
-  horary: { title: "Ответ на один вопрос", cta: "Задать вопрос картам", route: "/products/horary" },
-  "tarot-numerology": { title: "Арканы рождения", cta: "Узнать свои арканы", route: "/products/tarot-numerology" },
+  "compatibility-by-date": { title: "Совместимость по дате", cta: "Проверить совместимость", route: "/products/compatibility-by-date" },
+  horoscope: { title: "Ответ на один вопрос", cta: "Задать вопрос картам", route: "/products/horoscope" },
+  "arcana": { title: "Арканы судьбы", cta: "Узнать свои арканы", route: "/products/arcana" },
   numerology: { title: "Матрица судьбы", cta: "Рассчитать матрицу", route: "/products/numerology" },
-  "family-scenarios": { title: "Семейные сценарии", cta: "Собрать сценарии", route: "/products/family-scenarios" },
+  "family-questions": { title: "Семейные вопросы", cta: "Собрать сценарии", route: "/products/family-questions" },
   "human-design": { title: "Дизайн человека", cta: "Построить бодиграф", route: "/products/human-design" },
-  "surname-story": { title: "Кармический код фамилии", cta: "Разобрать фамилию", route: "/products/surname-story" },
+  "surname-origin": { title: "Происхождение фамилии", cta: "Разобрать фамилию", route: "/products/surname-origin" },
 };
 
 const USAGE_RECOMMENDATION_LIMIT = 3;

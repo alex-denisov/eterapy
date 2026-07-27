@@ -23,7 +23,7 @@ describe("B527 — Mini App v2.1 product contract", () => {
   });
 
   it("derives the visible digital catalogue from the production product registry", () => {
-    const productionProducts = v5Products.filter((product) => product.slug !== "family-scenarios");
+    const productionProducts = v5Products.filter((product) => product.slug !== "family-questions");
     for (const product of productionProducts) {
       expect(MINIAPP_SERVICES).toContainEqual(expect.objectContaining({
         slug: product.slug,
@@ -35,8 +35,8 @@ describe("B527 — Mini App v2.1 product contract", () => {
   });
 
   it("keeps the diary-only family mechanic out of the Services catalogue", () => {
-    expect(MINIAPP_DIARY_SERVICE?.slug).toBe("family-scenarios");
-    expect(MINIAPP_SERVICES.some((service) => service.slug === "family-scenarios")).toBe(false);
+    expect(MINIAPP_DIARY_SERVICE?.slug).toBe("family-questions");
+    expect(MINIAPP_SERVICES.some((service) => service.slug === "family-questions")).toBe(false);
   });
 
   it("does not position catalogue entries as AI services", () => {

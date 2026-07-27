@@ -44,7 +44,7 @@ describe("B377 flat product service pages", () => {
       "src/components/products/chat-analysis-actions.tsx",
       "src/components/products/compatibility-actions.tsx",
       "src/components/products/symbolic-product-actions.tsx",
-      "src/components/products/synastry-actions.tsx",
+      "src/components/products/compatibility-by-date-actions.tsx",
     ];
 
     expect(productPage).toContain("<ProductActionSurface");

@@ -31,7 +31,7 @@ describe("B367 (M26) — переименования услуг и выпил �
     // B441 (M28): «Полная картина» → «Переосмысление» (когнитивный рефрейминг).
     expect(products).toContain('name: "Переосмысление"');
     expect(products).toContain('name: "Подробный разбор"');
-    expect(products).toContain('name: "Совместимость по звёздам"');
+    expect(products).toContain('name: "Совместимость по дате"');
     expect(products).not.toContain("joint-session\":");
 
     const labels = source("src/lib/billing-labels.ts");

@@ -17,8 +17,8 @@ const PRODUCT_ROUTE_ALIASES: Record<string, string> = {
 
 const MINIAPP_PRODUCT_SLUGS = new Set([
   "reframe", "deep-report", "chat-analysis", "pair", "tarot",
-  "natal-chart", "synastry", "horary", "tarot-numerology",
-  "numerology", "family-scenarios", "human-design", "surname-story",
+  "natal-chart", "compatibility-by-date", "horoscope", "arcana",
+  "numerology", "family-questions", "human-design", "surname-origin",
 ]);
 
 function withSearchAndHash(pathname: string, source: URL): string {

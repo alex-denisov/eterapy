@@ -10,7 +10,7 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { buildSynastryTeaser, generateSynastryResult } from "@/lib/synastry";
 import { classifyProductSafety } from "@/lib/product-safety";
 
-const PRODUCT_KEY = "synastry";
+const PRODUCT_KEY = "compatibility-by-date";
 
 const postSchema = z.object({
   userBirthData: z.string().min(4).max(1200),
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         productKey: PRODUCT_KEY,
-        title: "Совместимость по звёздам как карта пары",
+        title: "Совместимость по дате как карта пары",
         status: "READY",
         previewText,
         resultText: generated.text,

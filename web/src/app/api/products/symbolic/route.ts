@@ -25,17 +25,17 @@ const PRODUCT_KEYS = [
   { productKey: "tarot" },
   { productKey: "natal-chart" },
   { productKey: "numerology" },
-  { productKey: "family-scenarios" },
+  { productKey: "family-questions" },
   { productKey: "human-design" },
-  { productKey: "surname-story" },
-  { productKey: "horary" },
-  { productKey: "tarot-numerology" },
+  { productKey: "surname-origin" },
+  { productKey: "horoscope" },
+  { productKey: "arcana" },
 ] as const;
 
 // B387/B389: family-scenarios и human-design тоже идут через этот эндпоинт.
 // Раньше их не было в enum — генерация платного разбора падала на валидации.
 const postSchema = z.object({
-  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story", "horary", "tarot-numerology"]),
+  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-questions", "human-design", "surname-origin", "horoscope", "arcana"]),
   userInput: z.string().max(4000).optional(),
   tarotSpread: z.enum(["one", "three", "celtic"]).optional(),
   tarotTheme: z.string().max(80).optional(),
@@ -44,9 +44,9 @@ const postSchema = z.object({
 // B450: натальная карта переведена на платный-только флоу (нет бесплатного
 // фрагмента), с автосейвом результата в Дневник и обязательным LLM-результатом.
 // Наборы расширяются по мере миграции остальных символических услуг на паттерн Таро.
-const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
-const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
-const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "horary", "tarot-numerology"]);
+const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
+const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
+const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
 
 function serializeResult(result: {
   id: string;
@@ -75,7 +75,7 @@ function parseProductKey(value: string | null): SymbolicProductKey | null {
   return value;
 }
 
-// B512 R1-11 — компактная история тем клиента для «Семейных сценариев»:
+// B512 R1-11 — компактная история тем клиента для «Семейных вопросов»:
 // доминирующие темы его вопросов + заголовки последних готовых разборов.
 // Только первопартийные данные самого клиента; ошибки БД не валят генерацию.
 async function buildFamilyClientContext(userId: string): Promise<string | undefined> {
@@ -87,7 +87,7 @@ async function buildFamilyClientContext(userId: string): Promise<string | undefi
         _count: { _all: true },
       }),
       db.productResult.findMany({
-        where: { userId, deletedAt: null, status: "READY", productKey: { not: "family-scenarios" } },
+        where: { userId, deletedAt: null, status: "READY", productKey: { not: "family-questions" } },
         orderBy: { updatedAt: "desc" },
         take: 5,
         select: { title: true, productKey: true },
@@ -160,13 +160,13 @@ export async function POST(request: NextRequest) {
 
   const { productKey } = parsed.data;
   const rawInput = parsed.data.userInput?.trim() ?? "";
-  if ((productKey === "numerology" || productKey === "tarot-numerology") && !parseStrictBirthDate(rawInput)) {
+  if ((productKey === "numerology" || productKey === "arcana") && !parseStrictBirthDate(rawInput)) {
     return errorWithRequestContext("VALIDATION_ERROR", "Укажите полную корректную дату рождения в формате ДД.ММ.ГГГГ", 400, context);
   }
-  if (productKey === "horary" && (!/Вопрос:\s*\S/iu.test(rawInput) || !/Место:\s*\S/iu.test(rawInput))) {
-    return errorWithRequestContext("VALIDATION_ERROR", "Для хорарной карты нужны один точный вопрос и текущее место", 400, context);
+  if (productKey === "horoscope" && (!/Вопрос:\s*\S/iu.test(rawInput) || !/Место:\s*\S/iu.test(rawInput))) {
+    return errorWithRequestContext("VALIDATION_ERROR", "Для гороскопа нужны один точный вопрос и текущее место", 400, context);
   }
-  if (productKey === "horary" && !canResolveAstrologicalLocation(rawInput)) {
+  if (productKey === "horoscope" && !canResolveAstrologicalLocation(rawInput)) {
     return errorWithRequestContext(
       "LOCATION_NOT_RESOLVED",
       "Не удалось однозначно определить место. Выберите населённый пункт из подсказок «город, регион» или укажите координаты в формате 55.7558, 37.6173.",
@@ -205,8 +205,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const fixedAt = productKey === "horary" ? new Date() : null;
-  const userInput = productKey === "horary"
+  const fixedAt = productKey === "horoscope" ? new Date() : null;
+  const userInput = productKey === "horoscope"
     ? `${rawInput}\nМомент фиксации UTC: ${fixedAt!.toISOString()}`
     : rawInput || definition?.promptLabel || productKey;
   const tarotRequestMeta: Prisma.InputJsonObject = {
@@ -214,10 +214,10 @@ export async function POST(request: NextRequest) {
     ...(productKey === "tarot" && parsed.data.tarotTheme ? { tarotTheme: parsed.data.tarotTheme } : {}),
     ...(fixedAt ? { fixedAt: fixedAt.toISOString() } : {}),
   };
-  // B512 R1-11 — «Семейные сценарии» активируются платформой по истории тем
+  // B512 R1-11 — «Семейные вопросы» активируются платформой по истории тем
   // клиента, поэтому карта рода ОБЯЗАНА опираться на его прошлые вопросы и
   // разборы. Передаём компактную первопартийную сводку в системный промт.
-  const clientContextNote = productKey === "family-scenarios"
+  const clientContextNote = productKey === "family-questions"
     ? await buildFamilyClientContext(userId)
     : undefined;
 

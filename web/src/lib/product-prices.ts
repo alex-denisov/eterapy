@@ -25,19 +25,19 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "pair": 89000,
   "tarot": 59000,
   "natal-chart": 59000,
-  "synastry": 89000,
+  "compatibility-by-date": 89000,
   "numerology": 89000,
-  "horary": 59000,
-  "tarot-numerology": 89000,
-  // B389 (M26): genogram-разбор «Семейные сценарии», рекомендуется в Дневнике.
+  "horoscope": 59000,
+  "arcana": 89000,
+  // B389 (M26): genogram-разбор «Семейные вопросы», рекомендуется в Дневнике.
   // 4 балла = 1090 ₽ (272.5 ₽/балл, в полосе ладдера).
-  "family-scenarios": 109000,
+  "family-questions": 109000,
   // B387 (M26): «Дизайн человека» — тип/бодиграф бесплатно, платный глубокий разбор.
   // 2 балла = 590 ₽ (295 ₽/балл), тариф уровня натальной карты (личный «чертёж»).
   "human-design": 59000,
   // B391 (M26): «История фамилии» — короткая история фамилии бесплатно (магнит),
   // платный «родовой разбор». 2 балла = 590 ₽ (295 ₽/балл), уровень натальной карты.
-  "surname-story": 59000,
+  "surname-origin": 59000,
   // B386 (M26): платный чат-сеанс 45 мин. Цена утверждена владельцем: 790 ₽ / 4 балла
   // (197.5 ₽/балл — НАМЕРЕННО вне ладдера услуг: это «время в разговоре», другой
   // рычаг, не разовый разбор). НЕ в V5_LADDER_ACTIVE_PRODUCTS.
@@ -54,13 +54,13 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "pair": 3,
   "tarot": 2,
   "natal-chart": 2,
-  "synastry": 3,
+  "compatibility-by-date": 3,
   "numerology": 3,
-  "horary": 2,
-  "tarot-numerology": 3,
-  "family-scenarios": 4,
+  "horoscope": 2,
+  "arcana": 3,
+  "family-questions": 4,
   "human-design": 2,
-  "surname-story": 2,
+  "surname-origin": 2,
   // B386 (M26): сеанс чата 45 мин = 4 балла; продление +30 мин = 2 балла.
   "chat-session": 4,
   "chat-extension": 2,
@@ -70,8 +70,8 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
 // band. (Retired services were fully removed in B373.)
 export const V5_LADDER_ACTIVE_PRODUCTS = [
   "reframe", "deep-report", "full-question", "chat-analysis",
-  "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology", "horary", "tarot-numerology",
-  "family-scenarios", "human-design", "surname-story",
+  "compatibility", "circle", "pair", "tarot", "natal-chart", "compatibility-by-date", "numerology", "horoscope", "arcana",
+  "family-questions", "human-design", "surname-origin",
 ] as const;
 
 export function getProductPriceKopecks(productKey: string): number | null {

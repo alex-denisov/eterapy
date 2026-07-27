@@ -17,7 +17,7 @@ export default function TarotBirthCardsPreviewPage() {
   return (
     <main className="mx-auto w-full max-w-[1120px] px-5 pb-20 pt-10">
       <p className="soft-eyebrow">локальный макет · B511</p>
-      <h1 className="soft-h1 mt-2">Арканы рождения</h1>
+      <h1 className="soft-h1 mt-2">Арканы судьбы</h1>
       <p className="soft-body mt-2 max-w-2xl">Ваши карты рождения Таро по дате: постоянная пара по системе Tarot Birth Cards, без случайной вытяжки.</p>
       <section className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,.75fr)_minmax(360px,1.25fr)]">
         <div className="grid grid-cols-2 gap-4 rounded-[24px] bg-[var(--soft-paper-card)] p-5 shadow-[0_20px_60px_rgba(91,64,45,.10)]">

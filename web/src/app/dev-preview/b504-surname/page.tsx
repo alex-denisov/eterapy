@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { SurnameLineageVisual } from "@/components/products/surname-story-actions";
+import { SurnameLineageVisual } from "@/components/products/surname-origin-actions";
 import { analyzeSurname, computeSurnameCode } from "@/lib/surname-story";
 
 export const dynamic = "force-dynamic";

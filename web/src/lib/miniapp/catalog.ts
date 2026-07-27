@@ -31,13 +31,13 @@ const MINIAPP_SUMMARY: Partial<Record<V5ProductSlug, string>> = {
   "pair": "Один вопрос — несколько взглядов",
   "tarot": "Чтение расклада: позиции и вывод",
   "natal-chart": "Карта неба как язык ваших тем",
-  "synastry": "Две карты рядом: сходства и споры",
-  "horary": "Точный вопрос — прямой ответ",
-  "tarot-numerology": "Арканы вашей даты рождения",
+  "compatibility-by-date": "Две карты рядом: сходства и споры",
+  "horoscope": "Точный вопрос — прямой ответ",
+  "arcana": "Арканы вашей даты рождения",
   "numerology": "Матрица 22 энергий по дате рождения",
-  "family-scenarios": "Что повторяется в роду",
+  "family-questions": "Что повторяется в роду",
   "human-design": "Ваш тип и стратегия решений",
-  "surname-story": "След рода в вашей фамилии",
+  "surname-origin": "След рода в вашей фамилии",
 };
 
 function compactSummary(slug: V5ProductSlug, summary: string): string {
@@ -61,7 +61,7 @@ function compactSummary(slug: V5ProductSlug, summary: string): string {
  */
 const MINIAPP_FREE_NOTE: Partial<Record<V5ProductSlug, string>> = {
   "human-design": "Тип, стратегия и бодиграф — бесплатно",
-  "surname-story": "Формула фамилии и Аркан — сразу, без оплаты",
+  "surname-origin": "Формула фамилии и Аркан — сразу, без оплаты",
   "pair": "Начало разбора — бесплатно",
   "deep-report": "Входит в подписку Premium",
 };
@@ -89,7 +89,7 @@ const digitalServices: MiniAppService[] = v5Products.map((product) => ({
   format: "digital",
   featured: product.slug === "reframe",
   shareable: product.slug === "pair",
-  diaryOnly: product.slug === "family-scenarios",
+  diaryOnly: product.slug === "family-questions",
 }));
 
 const primaryService: MiniAppService = {
@@ -144,7 +144,7 @@ export const MINIAPP_SERVICES: readonly MiniAppService[] = [
 ];
 
 export const MINIAPP_DIARY_SERVICE = digitalServices.find(
-  (service) => service.slug === "family-scenarios",
+  (service) => service.slug === "family-questions",
 ) ?? null;
 
 export function miniAppService(id: string): MiniAppService | null {

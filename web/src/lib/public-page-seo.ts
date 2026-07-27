@@ -108,7 +108,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Рассчитайте натальную карту по дате, времени и месту рождения и получите понятную расшифровку ключевых тем. Символический портрет, не прогноз.",
     schemaKind: "Product",
   },
-  "/products/synastry": {
+  "/products/compatibility-by-date": {
     title: "Совместимость по дате рождения: синастрия онлайн | ETerapy",
     description: "Сравните две натальные карты: ресурсы пары, разные ритмы, точки напряжения и вопросы для разговора. Синастрия без процента любви и приговоров.",
     schemaKind: "Product",
@@ -118,18 +118,18 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Рассчитайте Матрицу судьбы по дате рождения: 22 энергии, ключевые позиции, отношения, деньги и периоды с понятной расшифровкой без фатализма.",
     schemaKind: "Product",
   },
-  "/products/horary": {
-    title: "Хорарная астрология — ответ на вопрос — ETerapy",
+  "/products/horoscope": {
+    title: "Гороскоп на вопрос: точный ответ да или нет | ETerapy",
     description: "Карта момента для одного точного вопроса: прямой эзотерический ответ, сигнификаторы, Луна, аспекты и противоречия.",
     schemaKind: "Product",
   },
-  "/products/tarot-numerology": {
-    title: "Арканы рождения по дате — карты Таро — ETerapy",
+  "/products/arcana": {
+    title: "Аркан по дате рождения: арканы судьбы онлайн | ETerapy",
     description: "Карты рождения Таро по дате: постоянная пара Старших арканов — карта рождения и карта души — без случайной вытяжки.",
     schemaKind: "Product",
   },
-  "/products/family-scenarios": {
-    title: "Семейные сценарии — продукт ETerapy",
+  "/products/family-questions": {
+    title: "Семейные вопросы: родовые программы и повторы в семье | ETerapy",
     description: "Бережная карта повторов рода: какие роли и темы передаются по семье и что можно мягко прервать. Без приговоров и диагнозов.",
     schemaKind: "Product",
   },
@@ -138,8 +138,8 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Ваш тип, стратегия, авторитет и бодиграф по реальным данным рождения — бесплатно. Полный разбор каналов и профиля за баллы. Без фатализма и приговоров.",
     schemaKind: "Product",
   },
-  "/products/surname-story": {
-    title: "Кармический код фамилии — число рода и Аркан — ETerapy",
+  "/products/surname-origin": {
+    title: "Происхождение фамилии: значение, история и число рода | ETerapy",
     description: "Рассчитайте число фамилии и Старший Аркан, разберите родовой ресурс, тень, деньги и отношения или сравните код до и после смены фамилии.",
     schemaKind: "Product",
   },
@@ -182,8 +182,8 @@ export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
   // человека» — отдельный мотив (бодиграф), остальные публичные страницы — общий.
   const ogKind = route === "/products/human-design"
     ? "human-design"
-    : route === "/products/surname-story"
-      ? "surname-story"
+    : route === "/products/surname-origin"
+      ? "surname-origin"
       : "library";
   const ogImage = canonicalUrl(`/api/og?kind=${ogKind}`);
 

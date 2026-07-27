@@ -59,7 +59,7 @@ const PERSON_B = [
 ];
 
 export const SYNASTRY_PREVIEW: SynastryWheel = {
-  kind: "synastry",
+  kind: "compatibility-by-date",
   a: { sunSign: { key: "pisces", name: "Рыбы", glyph: "♓", element: "вода" }, placements: PERSON_A },
   b: { sunSign: { key: "cancer", name: "Рак", glyph: "♋", element: "вода" }, placements: PERSON_B },
   aspects: [

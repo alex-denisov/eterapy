@@ -92,7 +92,7 @@ describe("Superadmin redesign regression guardrails", () => {
     const data = source("src/app/admin/admin-analytics-data.ts");
     const unitEconomics = source("src/app/admin/finance/unit-economics/page.tsx");
 
-    for (const product of ["tarot", "natal-chart", "synastry", "numerology", "family-scenarios", "human-design", "surname-story"]) {
+    for (const product of ["tarot", "natal-chart", "compatibility-by-date", "numerology", "family-questions", "human-design", "surname-origin"]) {
       expect(pricing).toContain(`product.${product}.price`);
     }
     expect(data).toContain('"seven-days-report": "weekly-summary"');

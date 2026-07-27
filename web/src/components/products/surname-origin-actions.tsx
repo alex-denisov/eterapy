@@ -304,7 +304,7 @@ export function SurnameStoryResultView({ result, recap, onStartNew, creditCost }
   return (
     <SymbolicResultScaffold
       resultId={result.id}
-      productKey="surname-story"
+      productKey="surname-origin"
       eyebrow="число фамилии · Старший Аркан · родовой сценарий"
       heading="Кармический аудит рода"
       recapSummary="Источник расчёта"
@@ -328,10 +328,10 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
   const contextPlaceholder = useRotatingPlaceholder(CONTEXT_EXAMPLES[modeKey], `surname-context-${modeKey}`);
   const setField = <K extends keyof AuditRecap>(key: K, value: AuditRecap[K]) => setAudit((current) => ({ ...current, [key]: value }));
 
-  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("surname-story", (userInput) => {
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("surname-origin", (userInput) => {
     setAudit(parseSurnameAuditInput(userInput));
   });
-  const { clear: clearDraft } = useInputDraft("surname-story", audit, (draft) => {
+  const { clear: clearDraft } = useInputDraft("surname-origin", audit, (draft) => {
     const mode = draft.mode === "change" || draft.mode === "name" || draft.mode === "alias" ? draft.mode : "resource";
     setAudit({
       mode,
@@ -379,7 +379,7 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
   const primaryLabel = audit.mode === "alias" ? "как вас знают сейчас" : audit.mode === "change" ? "фамилия сейчас или при рождении" : "ваша фамилия";
   return (
     <div className="soft-card product-order-surface lineage-audit-intake" data-testid="surname-story-actions">
-      <div className="product-order-head"><p className="soft-eyebrow">кармический код фамилии · число · Аркан · сценарий рода</p></div>
+      <div className="product-order-head"><p className="soft-eyebrow">происхождение фамилии · число рода · Аркан</p></div>
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
       <div className="product-controls">
         <OptionScrollStrip ariaLabel="Сценарий кармического кода" label="что вы хотите рассчитать" hint="Режим меняет поля и сравнение, но формула букв остаётся одной.">
@@ -403,7 +403,7 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
         <SurnameTeaser surname={audit.surname} comparison={audit.comparison} mode={audit.mode} />
 
         <div className="product-action-row">
-          {hasEntitlement ? <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="surname-start">{status === "loading" ? "Соединяем код с контекстом…" : "Открыть кармический аудит"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="surname-story" label="Открыть кармический аудит" checkoutSource="surname-story-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (audit.surname.trim() && audit.focus) handleGenerate(); else setMessage("Доступ открыт. Заполните фамилию и выберите фокус аудита."); }} />}
+          {hasEntitlement ? <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="surname-start">{status === "loading" ? "Соединяем код с контекстом…" : "Открыть кармический аудит"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="surname-origin" label="Открыть кармический аудит" checkoutSource="surname-story-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (audit.surname.trim() && audit.focus) handleGenerate(); else setMessage("Доступ открыт. Заполните фамилию и выберите фокус аудита."); }} />}
         </div>
       </div>
     </div>

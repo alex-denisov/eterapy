@@ -198,7 +198,7 @@ export function buildNatalWheel(birthData: string): NatalWheel {
 }
 
 export type SynastryWheel = {
-  kind: "synastry";
+  kind: "compatibility-by-date";
   a: { sunSign: ZodiacSign; placements: ChartPlacement[] };
   b: { sunSign: ZodiacSign; placements: ChartPlacement[] };
   aspects: Array<{
@@ -222,7 +222,7 @@ export function buildSynastryWheel(aData: string, bData: string): SynastryWheel 
     harmony: (rng() < 0.5 ? "flow" : "tension") as "flow" | "tension",
   }));
   return {
-    kind: "synastry",
+    kind: "compatibility-by-date",
     a: { sunSign: a.sunSign, placements: a.placements },
     b: { sunSign: b.sunSign, placements: b.placements },
     aspects,

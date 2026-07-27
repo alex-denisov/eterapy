@@ -9,7 +9,7 @@ import { SymbolicResultScaffold } from "@/components/products/symbolic-result-sc
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 
-// B451: «Семейные сценарии» — самодостаточная услуга по паттерну Таро/reframe.
+// B451: «Семейные вопросы» — самодостаточная услуга по паттерну Таро/reframe.
 // Genogram-разбор повторов рода (без детерминированного расчёта — это карта-метафора);
 // нет бесплатного фрагмента; автосейв; сессии по ?reading=.
 
@@ -99,8 +99,8 @@ export function FamilyScenariosResultView({
   return (
     <SymbolicResultScaffold
       resultId={result.id}
-      productKey="family-scenarios"
-      eyebrow="семейные сценарии"
+      productKey="family-questions"
+      eyebrow="семейные вопросы"
       heading="Карта повторов вашего рода"
       recapSummary={recap.pattern.trim() ? `Что повторяется: ${recap.pattern.trim()}` : "Ваше описание и вопрос"}
       recapRows={recapRows}
@@ -126,7 +126,7 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
   const [exampleIdx, setExampleIdx] = useState(0);
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
-    useSymbolicService("family-scenarios", (userInput) => {
+    useSymbolicService("family-questions", (userInput) => {
       const parsed = parseInput(userInput);
       setPattern(parsed.pattern);
       setQuestion(parsed.question);
@@ -135,7 +135,7 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
 
   // #3: ввод переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
-    "family-scenarios",
+    "family-questions",
     { pattern, question, topic },
     (draft) => {
       if (typeof draft.pattern === "string") setPattern(draft.pattern);
@@ -191,7 +191,7 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
   return (
     <div className="soft-card product-order-surface" data-testid="family-scenarios-actions">
       <div className="product-order-head">
-        <p className="soft-eyebrow">род · семейные сценарии</p>
+        <p className="soft-eyebrow">род · семейные вопросы</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
@@ -237,13 +237,13 @@ export function FamilyScenariosActions({ creditCost }: { creditCost: number }) {
         <div className="product-action-row">
           {hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="family-start">
-              {status === "loading" ? "Собираем карту…" : "Открыть семейные сценарии"}
+              {status === "loading" ? "Собираем карту…" : "Открыть семейные вопросы"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (
             <ProductPurchaseControls
-              productKey="family-scenarios"
-              label="Открыть семейные сценарии"
+              productKey="family-questions"
+              label="Открыть семейные вопросы"
               checkoutSource="family-scenarios-direct"
               creditCost={creditCost}
               beforePay={missingInput}

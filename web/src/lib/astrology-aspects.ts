@@ -37,7 +37,7 @@ export function astrologyAngleDelta(a: number, b: number) {
   return raw > 180 ? 360 - raw : raw;
 }
 
-export function calculateAstrologyAspect(a: number, b: number, mode: "natal" | "synastry") {
+export function calculateAstrologyAspect(a: number, b: number, mode: "natal" | "compatibility-by-date") {
   const separation = astrologyAngleDelta(a, b);
   return MAJOR_ASTROLOGY_ASPECTS
     .map((definition): CalculatedAstrologyAspect => ({
@@ -72,7 +72,7 @@ export function calculateSynastryAspectLines(a: ChartPlacement[], b: ChartPlacem
   const lines: AstrologyAspectLine[] = [];
   for (const from of a) {
     for (const to of b) {
-      const aspect = calculateAstrologyAspect(from.angle, to.angle, "synastry");
+      const aspect = calculateAstrologyAspect(from.angle, to.angle, "compatibility-by-date");
       if (aspect) lines.push({ from, to, aspect });
     }
   }

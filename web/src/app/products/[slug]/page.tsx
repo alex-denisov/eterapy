@@ -7,13 +7,13 @@ import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/pr
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { ReframeActions } from "@/components/products/reframe-actions";
-import { SynastryActions } from "@/components/products/synastry-actions";
+import { SynastryActions } from "@/components/products/compatibility-by-date-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { HumanDesignActions } from "@/components/products/human-design-actions";
-import { SurnameStoryActions } from "@/components/products/surname-story-actions";
+import { SurnameStoryActions } from "@/components/products/surname-origin-actions";
 import { NatalChartActions } from "@/components/products/natal-chart-actions";
 import { NumerologyActions } from "@/components/products/numerology-actions";
-import { FamilyScenariosActions } from "@/components/products/family-scenarios-actions";
+import { FamilyScenariosActions } from "@/components/products/family-questions-actions";
 import { HoraryActions, TarotNumerologyActions } from "@/components/products/new-symbolic-product-actions";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
@@ -102,19 +102,19 @@ function ProductActionSurface({
   if (product.slug === "natal-chart") {
     return <NatalChartActions creditCost={product.creditCost ?? 2} />;
   }
-  if (product.slug === "synastry") return <SynastryActions creditCost={product.creditCost ?? 3} />;
+  if (product.slug === "compatibility-by-date") return <SynastryActions creditCost={product.creditCost ?? 3} />;
   if (product.slug === "numerology") {
     return <NumerologyActions creditCost={product.creditCost ?? 3} />;
   }
-  if (product.slug === "horary") return <HoraryActions creditCost={product.creditCost ?? 2} />;
-  if (product.slug === "tarot-numerology") return <TarotNumerologyActions creditCost={product.creditCost ?? 3} />;
-  if (product.slug === "family-scenarios") {
+  if (product.slug === "horoscope") return <HoraryActions creditCost={product.creditCost ?? 2} />;
+  if (product.slug === "arcana") return <TarotNumerologyActions creditCost={product.creditCost ?? 3} />;
+  if (product.slug === "family-questions") {
     return <FamilyScenariosActions creditCost={product.creditCost ?? 4} />;
   }
   if (product.slug === "human-design") {
     return <HumanDesignActions creditCost={product.creditCost ?? 2} />;
   }
-  if (product.slug === "surname-story") {
+  if (product.slug === "surname-origin") {
     return <SurnameStoryActions creditCost={product.creditCost ?? 2} />;
   }
   return null;
@@ -126,7 +126,7 @@ function ProductActionSurface({
 // B441/B442 (M28): «Переосмысление» и «Подробный разбор» переработаны под этот же
 // компактный hero (CTA + инструмент на первом экране, переиспользуют ценник/
 // дисклеймер/приватность), как просил владелец — тот же метод, что у chat-analysis/tarot.
-const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "synastry", "horary", "tarot-numerology"]);
+const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report", "natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "compatibility-by-date", "horoscope", "arcana"]);
 
 export default async function ProductPage({
   params,

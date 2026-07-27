@@ -14,8 +14,8 @@ import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 import { maskLeadingDateInput } from "@/lib/date-input-mask";
 
-// B451: «Совместимость по звёздам» — самодостаточная парная услуга по паттерну
-// Таро/reframe (свой роут /api/products/synastry, двое участников). Колесо пары
+// B451: «Совместимость по дате» — самодостаточная парная услуга по паттерну
+// Таро/reframe (свой роут /api/products/compatibility-by-date, двое участников). Колесо пары
 // считается детерминированно; нет бесплатного фрагмента; автосейв; сессии по ?reading=.
 
 export type SynastryResult = SymbolicResult;
@@ -67,7 +67,7 @@ function extractSynastryWheel(result: SymbolicResult | null): SynastryWheelData 
   const nested = (meta.generationMetadata ?? meta.previewGenerationMetadata) as Record<string, unknown> | undefined;
   const raw = (nested?.wheel ?? meta.wheel) as unknown;
   if (!raw || typeof raw !== "object") return null;
-  if ((raw as { kind?: unknown }).kind !== "synastry") return null;
+  if ((raw as { kind?: unknown }).kind !== "compatibility-by-date") return null;
   return raw as SynastryWheelData;
 }
 
@@ -125,8 +125,8 @@ export function SynastryResultView({
   return (
     <SymbolicResultScaffold
       resultId={result.id}
-      productKey="synastry"
-      eyebrow="совместимость по звёздам"
+      productKey="compatibility-by-date"
+      eyebrow="совместимость по дате"
       heading="Ваша карта пары"
       recapSummary="Данные вашей пары"
       recapRows={recapRows}
@@ -158,7 +158,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
 
   // #3: ввод обоих участников переживает переход на /login.
   const { clear: clearDraft } = useInputDraft(
-    "synastry",
+    "compatibility-by-date",
     { userBirth, partnerBirth, topic, relationshipLayer },
     (draft) => {
       if (typeof draft.userBirth === "string") setUserBirth(draft.userBirth);
@@ -185,7 +185,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
         setMessage(null);
       }
     });
-    jsonRequest<{ result?: SymbolicResult }>(`/api/products/synastry/${readingId}`)
+    jsonRequest<{ result?: SymbolicResult }>(`/api/products/compatibility-by-date/${readingId}`)
       .then((payload) => {
         if (cancelled || !payload.result) return;
         setResult(payload.result);
@@ -212,7 +212,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
   useEffect(() => {
     if (authStatus !== "authenticated" || readingIdFromUrl()) return;
     let cancelled = false;
-    jsonRequest<ApiPayload>("/api/products/synastry")
+    jsonRequest<ApiPayload>("/api/products/compatibility-by-date")
       .then((payload) => { if (!cancelled) setHasEntitlement(Boolean(payload.hasEntitlement)); })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -231,7 +231,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
     setStatus("loading");
     setMessage(null);
     try {
-      const payload = await jsonRequest<ApiPayload>("/api/products/synastry", {
+      const payload = await jsonRequest<ApiPayload>("/api/products/compatibility-by-date", {
         method: "POST",
         body: JSON.stringify({ userBirthData: userBirth, partnerBirthData: partnerBirth, topic: topic ?? undefined, relationshipLayer }),
       });
@@ -291,7 +291,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
   return (
     <div className="soft-card product-order-surface" data-testid="synastry-actions">
       <div className="product-order-head">
-        <p className="soft-eyebrow">совместимость по звёздам · язык пары</p>
+        <p className="soft-eyebrow">совместимость по дате · язык пары</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
@@ -355,7 +355,7 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
             </Button>
           ) : (
             <ProductPurchaseControls
-              productKey="synastry"
+              productKey="compatibility-by-date"
               label="Открыть совместимость"
               checkoutSource="synastry-direct"
               creditCost={creditCost}

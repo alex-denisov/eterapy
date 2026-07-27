@@ -138,7 +138,7 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
   });
 
   it("free teaser exposes the code and Arcana before purchase", () => {
-    const teaser = buildSymbolicProductTeaser({ productKey: "surname-story", userInput: "Кузнецов", generatedText: "" });
+    const teaser = buildSymbolicProductTeaser({ productKey: "surname-origin", userInput: "Кузнецов", generatedText: "" });
     expect(teaser).toContain("Код фамилии");
     expect(teaser).toContain("Аркан");
   });
@@ -146,39 +146,39 @@ describe("B391 AI facts injection (paid разбор grounds on recognized form)
 
 describe("B391 product registration & pricing", () => {
   it("surname-story is a symbolic product with a definition", () => {
-    expect(isSymbolicProductKey("surname-story")).toBe(true);
-    expect(getSymbolicProductDefinition("surname-story")?.title).toBe("Кармический код фамилии");
+    expect(isSymbolicProductKey("surname-origin")).toBe(true);
+    expect(getSymbolicProductDefinition("surname-origin")?.title).toBe("Происхождение фамилии");
   });
 
   it("is a known paid product priced 590 ₽ / 2 балла", () => {
-    expect(isKnownPaidProduct("surname-story")).toBe(true);
-    expect(V5_PRODUCT_PRICES_KOPECKS["surname-story"]).toBe(59000);
-    expect(V5_PRODUCT_CREDIT_COSTS["surname-story"]).toBe(2);
-    expect(getProductPriceLabel("surname-story")).toBe("590 ₽");
+    expect(isKnownPaidProduct("surname-origin")).toBe(true);
+    expect(V5_PRODUCT_PRICES_KOPECKS["surname-origin"]).toBe(59000);
+    expect(V5_PRODUCT_CREDIT_COSTS["surname-origin"]).toBe(2);
+    expect(getProductPriceLabel("surname-origin")).toBe("590 ₽");
   });
 
   it("stays inside the B366 ₽/балл ladder band", () => {
-    expect(V5_LADDER_ACTIVE_PRODUCTS).toContain("surname-story");
-    const rubPerCredit = V5_PRODUCT_PRICES_KOPECKS["surname-story"] / 100 / V5_PRODUCT_CREDIT_COSTS["surname-story"];
+    expect(V5_LADDER_ACTIVE_PRODUCTS).toContain("surname-origin");
+    const rubPerCredit = V5_PRODUCT_PRICES_KOPECKS["surname-origin"] / 100 / V5_PRODUCT_CREDIT_COSTS["surname-origin"];
     expect(rubPerCredit).toBeGreaterThanOrEqual(250);
     expect(rubPerCredit).toBeLessThanOrEqual(300);
   });
 
   it("has a catalog product entry deriving price from the single source", () => {
-    const product = getV5Product("surname-story")!;
-    expect(product.route).toBe("/products/surname-story");
+    const product = getV5Product("surname-origin")!;
+    expect(product.route).toBe("/products/surname-origin");
     expect(product.price).toBe("590 ₽");
     expect(product.creditCost).toBe(2);
   });
 
   it("is a public, indexable route", () => {
-    expect(publicSeoRoutes).toContain("/products/surname-story");
+    expect(publicSeoRoutes).toContain("/products/surname-origin");
   });
 });
 
 describe("B391 viral surfaces", () => {
   it("share text + OG image cover the surname-story kind", () => {
-    expect(shareText("surname-story", "Кузнецов — код 4")).toContain("кармический код своей фамилии");
-    expect(ogImageUrl("surname-story")).toBe("/api/og?kind=surname-story");
+    expect(shareText("surname-origin", "Кузнецов — код 4")).toContain("происхождение своей фамилии");
+    expect(ogImageUrl("surname-origin")).toBe("/api/og?kind=surname-origin");
   });
 });

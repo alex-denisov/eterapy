@@ -11,7 +11,7 @@ describe("B502 shared digital-product intake quality", () => {
       "src/components/products/reframe-actions.tsx",
       "src/components/products/deep-report-actions.tsx",
       "src/components/products/natal-chart-actions.tsx",
-      "src/components/products/synastry-actions.tsx",
+      "src/components/products/compatibility-by-date-actions.tsx",
       "src/components/products/numerology-actions.tsx",
       "src/components/products/option-scroll-strip.tsx",
     ].map(source).join("\n");
@@ -25,12 +25,12 @@ describe("B502 shared digital-product intake quality", () => {
     expect(source("src/components/products/reframe-actions.tsx")).toContain('label="сфера ситуации"');
     expect(source("src/components/products/deep-report-actions.tsx")).toContain('label="результат разбора"');
     expect(source("src/components/products/natal-chart-actions.tsx")).toContain('label="фокус натальной карты"');
-    expect(source("src/components/products/synastry-actions.tsx")).toContain('label="фокус совместимости"');
+    expect(source("src/components/products/compatibility-by-date-actions.tsx")).toContain('label="фокус совместимости"');
     expect(source("src/components/products/numerology-actions.tsx")).toContain('label="что разобрать глубже"');
   });
 
   it("removes the unnecessary optional question from deterministic esoteric products", () => {
-    for (const file of ["natal-chart-actions.tsx", "synastry-actions.tsx", "numerology-actions.tsx", "human-design-actions.tsx", "surname-story-actions.tsx"]) {
+    for (const file of ["natal-chart-actions.tsx", "compatibility-by-date-actions.tsx", "numerology-actions.tsx", "human-design-actions.tsx", "surname-origin-actions.tsx"]) {
       const contents = source(`src/components/products/${file}`);
       expect(contents).not.toContain("ваш вопрос (необязательно)");
       expect(contents).not.toContain("вопрос пары (необязательно)");

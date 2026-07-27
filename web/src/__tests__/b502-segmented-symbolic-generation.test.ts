@@ -293,7 +293,7 @@ describe("B502 segmented symbolic generation", () => {
     });
 
     const result = await generateSymbolicProductResult({
-      productKey: "surname-story",
+      productKey: "surname-origin",
       userInput: [
         "Режим: change",
         "Фамилия: Романова",

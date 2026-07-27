@@ -223,7 +223,7 @@ export function buildSynastryEphemerisWheel(aData: string, bData: string): Synas
   }));
 
   return {
-    kind: "synastry",
+    kind: "compatibility-by-date",
     a: { sunSign: a.sunSign, placements: a.placements },
     b: { sunSign: b.sunSign, placements: b.placements },
     aspects: aspects.sort((left, right) => (left.orb ?? 99) - (right.orb ?? 99)).slice(0, 28),
