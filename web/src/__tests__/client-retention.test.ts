@@ -13,7 +13,8 @@ describe("M11 client retention surfaces", () => {
 
     expect(page).toContain('data-testid="client-map-preview"');
     expect(page).toContain('data-testid="client-primary-action"');
-    expect(page).toContain('data-testid="client-recent-questions"');
+    // B602: блок «ваши результаты» снят с Главной — полный список в «Дневнике».
+    expect(page).not.toContain('data-testid="client-recent-questions"');
     expect(page).toContain("db.dialogue.count");
     expect(page).toContain("db.productResult.count");
     expect(page).toContain("db.userSubscription.findFirst");
@@ -23,14 +24,12 @@ describe("M11 client retention surfaces", () => {
     // B464 item 1: «Все разборы» now points at /diary (the full разборы list +
     // hidden-item restore live there), not the orphan /questions page.
     expect(page).toContain('appUrl("/diary")');
-    // B464 IB1: the cabinet home shows a single «ваши результаты» block with an
-    // "Все разборы →" link to the history page. The previously duplicated
-    // in-page "История разборов" card was removed (the sidebar nav keeps that
-    // label — see the cabinet-shell assertion below).
-    expect(page).toContain("ваши результаты");
-    expect(page).toContain("Все разборы");
+    // B602: список разборов целиком уехал в «Дневник» — на Главной его нет
+    // ни под каким заголовком. Вход в незаконченный разговор при этом остался:
+    // кризисная карточка ведёт обратно в последний диалог.
+    expect(page).not.toContain("ваши результаты");
     expect(page).not.toContain("История разборов");
-    expect(page).toContain("mainUrl(`/checkin?dialogueId=${d.id}`)");
+    expect(page).toContain("mainUrl(`/checkin?dialogueId=${lastDialogue.id}`)");
   });
 
   it("adds v4.1 history navigation to the cabinet", () => {
@@ -126,7 +125,9 @@ describe("M11 client retention surfaces", () => {
     expect(route).toContain("event: \"DAILY_CARD\"");
     expect(route).toContain("action === \"notify\"");
     expect(route).toContain("action === \"share\"");
-    expect(dashboard).toContain('data-testid="client-daily-card"');
+    // B602: «вопрос дня» — только на «Дневнике».
+    expect(dashboard).not.toContain('data-testid="client-daily-card"');
+    expect(source("src/app/cabinet/diary/page.tsx")).toContain('data-testid="diary-habit-hero"');
     expect(events).toContain("Ежедневная практика");
     expect(delivery).toContain("case \"DAILY_CARD\"");
   });
@@ -134,10 +135,9 @@ describe("M11 client retention surfaces", () => {
   it("keeps milestones gentle and non-coercive", () => {
     const dashboard = source("src/app/cabinet/page.tsx");
 
-    // B464 IB1: vanity «Мягкий ритм» counts folded into a single non-shaming
-    // streak badge; the daily ritual stays free and pressure-free.
-    expect(dashboard).toContain('data-testid="client-streak-badge"');
-    expect(dashboard).toContain("их видите только вы");
+    // B464 IB1 → B602: бейдж серии уехал на «Дневник» вместе с ритуалом; ни
+    // на одной из поверхностей нет счётчиков-пристыжений.
+    expect(source("src/app/cabinet/diary/page.tsx")).toContain('data-testid="diary-streak-ring"');
     expect(dashboard).not.toContain("Мягкий ритм");
     expect(dashboard).not.toContain('data-testid="client-gentle-milestones"');
   });
@@ -149,8 +149,9 @@ describe("M11 client retention surfaces", () => {
     expect(dashboard.indexOf('data-testid="client-primary-action"')).toBeLessThan(
       dashboard.indexOf('data-testid="client-map-preview"'),
     );
-    expect(dashboard).toContain('data-testid="client-dashboard-balance"');
-    expect(dashboard).toContain('<details className="soft-card mb-4 p-5" data-testid="client-first-steps"');
+    // B602: пилюля баланса убрана владельцем; баланс в карточке «Кошелёк».
+    expect(dashboard).not.toContain('data-testid="client-dashboard-balance"');
+    expect(dashboard).toContain('<details className="soft-card mt-4 p-5" data-testid="client-first-steps"');
     expect(dashboard).toContain("open={false}");
     expect(dashboard).not.toContain('data-testid="client-clarity-credits"');
     expect(dashboard).not.toContain("<p className=\"font-heading text-3xl\" style={{ color: \"var(--soft-bordeaux)\" }}>{clarityCredits}</p>");

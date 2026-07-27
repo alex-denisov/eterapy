@@ -13,7 +13,8 @@ describe("B527 — Mini App v2.1 product contract", () => {
     ]);
     expect(MINIAPP_FEATURES[2]).toMatchObject({
       id: "services",
-      label: "Услуги",
+      // B606: одно название входа в каталог на всех поверхностях.
+      label: "Разобрать",
       route: "/miniapp/services",
       central: true,
     });

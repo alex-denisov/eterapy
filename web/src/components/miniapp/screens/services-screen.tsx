@@ -157,7 +157,7 @@ export function ServicesScreen({ practitioners }: { practitioners: MiniAppPracti
 
         {services.length ? (
           <section className={styles["catalog-section"]} data-group-id="services">
-            <header><h2>Услуги</h2><p>Разборы, которые можно пройти самостоятельно</p></header>
+            <header><h2>Разобрать</h2><p>Разборы, которые можно пройти самостоятельно</p></header>
             <div className={styles["service-rows"]}>
               {services.map((service) => <ServiceCard key={service.id} service={service} />)}
             </div>

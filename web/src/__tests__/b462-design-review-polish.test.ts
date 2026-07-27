@@ -23,11 +23,11 @@ function source(relativePath: string): string {
 }
 
 describe("B462 — deep design-review polish batch", () => {
-  // B464 round-6 #6 superseded the flat rows with the redesigned CabinetResultRow
-  // (topic-chip + card-row + icon actions). The overflow guard now lives in that
-  // component + its CSS, not in the page markup.
-  describe("§3.1 cabinet dashboard «ваши результаты» mobile overflow (HIGH)", () => {
-    const row = source("components/cabinet/cabinet-result-row.tsx");
+  // B464 round-6 #6 → B602: строки разборов сняты с Главной вместе с блоком
+  // «ваши результаты» и живут теперь в «Дневнике». Защита от переполнения на
+  // 390 px — там же и в тех же CSS-правилах.
+  describe("§3.1 «ваши разборы» mobile overflow (HIGH)", () => {
+    const row = source("app/cabinet/diary/page.tsx");
     const css = source("app/v4-soft.css");
 
     it("lets the text column shrink and wrap instead of clipping", () => {

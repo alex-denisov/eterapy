@@ -83,10 +83,10 @@ export function EsotericServicePage({
 
         <section className="soft-card mt-12 bg-[var(--soft-paper-deep)] p-6 md:p-8">
           <p className="soft-eyebrow text-[var(--soft-bordeaux)]">принцип ETerapy</p>
-          <h2 className="soft-h3 mt-3">Мы относимся к этому как к языку метафор, не как к предсказанию</h2>
+          <h2 className="soft-h3 mt-3">Разбор отвечает на ваш вопрос прямо</h2>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Эзотерические форматы помогают говорить о себе и важных решениях другим словарём. Мы не обещаем точных
-            прогнозов, не заменяем психолога или врача и не используем страх как способ продажи.
+            Расклад и расчёт дают вывод по заданному вопросу, а не набор оговорок. Гарантией события такой ответ
+            не является, психолога или врача мы не заменяем и страх как способ продажи не используем.
           </p>
         </section>
 

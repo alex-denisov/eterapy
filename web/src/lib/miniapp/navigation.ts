@@ -112,7 +112,6 @@ export function toMiniAppPath(href: string): string {
   if (pathname.startsWith("/cabinet/results/")) {
     return withSearchAndHash(pathname.replace("/cabinet/results/", "/miniapp/results/"), source);
   }
-  if (pathname === "/cabinet/practice") return withSearchAndHash("/miniapp/diary", source);
   if (pathname === "/cabinet" || pathname.startsWith("/cabinet/")) {
     return withSearchAndHash("/miniapp/profile", source);
   }

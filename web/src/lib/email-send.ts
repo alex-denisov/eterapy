@@ -5,6 +5,8 @@
 import type { NotifEvent } from "@/lib/notification-events";
 import { log } from "@/lib/logger";
 import { EMAIL_FROM as FROM } from "@/lib/env";
+import { getProductLabel, getProductRoute } from "@/lib/billing-labels";
+import { absoluteMainUrl } from "@/lib/subdomain";
 import {
   EMAIL_BORDEAUX as BORDEAUX,
   EMAIL_INK_SOFT as INK_SOFT,
@@ -169,17 +171,26 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
         )}
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
       `;
-    case "PRODUCT_UNLOCKED":
+    case "PRODUCT_UNLOCKED": {
+      // INC-087. Здесь стоял машинный ключ (`reframe`) и кнопка в кошелёк.
+      // Владелец заплатил, получил письмо на английском о том, чего не заказывал
+      // под таким именем, нажал кнопку и попал на страницу баланса — где
+      // никакого разбора нет и не будет.
+      const label = getProductLabel(String(data.productKey ?? ""));
+      const route = getProductRoute(String(data.productKey ?? ""));
       return `
-        ${heading("Продукт открыт")}
+        ${heading("Доступ открыт")}
         ${greeting}
         ${infoBox(
-          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Доступ</p>
-           <p style="margin:0;color:${TERRACOTTA};font-weight:700;font-size:18px">${data.productKey}</p>`
+          `<p style="margin:0 0 8px;color:${INK_SOFT};font-size:13px">Оплачено</p>
+           <p style="margin:0;color:${TERRACOTTA};font-weight:700;font-size:18px">${label}</p>`
         )}
-        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Результат уже доступен в вашем кабинете. Если страница была открыта во время оплаты, обновите её.</p>
-        ${btn(`${BASE_URL}/cabinet/billing`, "Открыть доступы")}
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${route
+          ? "Разбор ещё не сделан — доступ ждёт вас. Откройте услугу, опишите ситуацию, и результат сохранится в «Дневнике»."
+          : "Доступ активен и виден в вашем кабинете."}</p>
+        ${route ? btn(absoluteMainUrl(route), `Открыть «${label}»`) : btn(`${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}
       `;
+    }
     case "SUBSCRIPTION_STARTED":
       return `
         ${heading("Подписка активна")}
@@ -293,6 +304,18 @@ interface EmailPayload {
   data: Record<string, string>;
 }
 
+/**
+ * Тема письма. По умолчанию — фиксированная строка события; для покупки услуги
+ * в неё подставляется название с лендинга: во входящих человек должен узнать
+ * то, что заказал, не открывая письмо (INC-087).
+ */
+export function subjectFor(event: NotifEvent, data: Record<string, string>): string {
+  if (event === "PRODUCT_UNLOCKED" && data.productKey) {
+    return `«${getProductLabel(String(data.productKey))}» — доступ открыт · ETerapy`;
+  }
+  return SUBJECTS[event];
+}
+
 export async function sendEmail({ to, event, name, data }: EmailPayload): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -301,7 +324,7 @@ export async function sendEmail({ to, event, name, data }: EmailPayload): Promis
   }
 
   const html = emailWrapper(buildBody(event, name, data));
-  const subject = SUBJECTS[event];
+  const subject = subjectFor(event, data);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

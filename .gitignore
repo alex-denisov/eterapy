@@ -92,6 +92,9 @@ docs/**/*.xlsx
 # почтовые клиенты не рисуют CSS-градиенты и не показывают SVG, поэтому PNG
 # обязан ехать выкаткой вместе с кодом.
 !web/public/brand/*.png
+# B603: оформление сообщества VK. Без этой строки глобальный `*.png` молча
+# оставит макеты вне репозитория — ровно как в B592 с halo-mark.png.
+!web/public/brand/vk/*.png
 data/
 
 # ── B340: public repo holds ONLY the product. Docs, AI-agent system files, and

@@ -4,29 +4,28 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, ChevronDown, Clock, Gift, LifeBuoy, Plus, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
-import { CabinetResultRow } from "@/components/cabinet/cabinet-result-row";
-import { HomePinStrip } from "@/components/cabinet/home-pin-strip";
 import { PinBlurGate } from "@/components/cabinet/pin-blur-gate";
 import db from "@/lib/db";
-import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { pointsWord } from "@/lib/points";
 import { listMissionChecklist } from "@/lib/missions";
-import { getPracticeStreakSnapshot, STREAK_REWARDS } from "@/lib/streaks";
-import { daysWord, effectivePracticeStreak } from "@/lib/streak-display";
-import { practiceWeekDays, startOfPracticeWeek, WEEKLY_SUMMARY_PRODUCT_KEY } from "@/lib/weekly-summary";
-import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
+import { getPracticeStreakSnapshot } from "@/lib/streaks";
+import { effectivePracticeStreak } from "@/lib/streak-display";
 import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import {
   buildDiaryCard,
-  buildHeroAction,
   buildServiceNudge,
+  buildUsageRecommendations,
   daySeed,
   planPractitionerCard,
   type CabinetSignals,
 } from "@/lib/cabinet-recommendations";
-import { isHiddenFromDiary, PRODUCT_LABELS } from "@/lib/diary";
+import {
+  getProductLabel,
+  getProductRoute,
+  getSubscriptionPlanLabel,
+  getSubscriptionStatusLabel,
+} from "@/lib/billing-labels";
 import { getReferralStats } from "@/lib/referral-stats";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
@@ -71,12 +70,6 @@ async function loadRecommendedPractitioner(categories: string[] = []): Promise<R
   }
 }
 
-// B464 round-4 #3: «ваши результаты» meta — date+time (to the minute) FIRST,
-// then the category: «2 июля, 14:32 · Отношения».
-function resultWhen(date: Date): string {
-  return `${date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, ${date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
-}
-
 export default async function ClientCabinetPage() {
   const session = await auth();
   if (!session) redirect(loginUrl());
@@ -89,15 +82,15 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, weekCards, weeklySummary, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats, nearestCreditExpiry] = await Promise.all([
+  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, todayCard, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats, nearestCreditExpiry, awaitingEntitlements] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
       take: 6,
       select: { id: true, title: true, status: true, topic: true, updatedAt: true, safetyLevel: true, metadata: true },
     }),
-    // B464 round-4 #3: «ваши результаты» include product разборы too, not only
-    // checkin dialogues.
+    // Готовые разборы нужны рекомендательному движку: он предлагает то, что
+    // примыкает к уже пройденному. Показывает их «Дневник» (B602).
     db.productResult.findMany({
       where: { userId, deletedAt: null, status: "READY" },
       orderBy: { updatedAt: "desc" },
@@ -146,16 +139,15 @@ export default async function ClientCabinetPage() {
       take: 2,
       select: { id: true, title: true, status: true, currentDay: true },
     }),
-    getOrCreateDailyCard(userId),
-    // B375: прогресс пн–вс и готовый «итог недели» для блока «Вопрос дня».
-    db.dailyCard.findMany({
-      where: { userId, completedAt: { not: null }, cardDate: { gte: startOfPracticeWeek() } },
-      select: { cardDate: true },
-    }),
-    db.productResult.findFirst({
-      where: { userId, productKey: WEEKLY_SUMMARY_PRODUCT_KEY, createdAt: { gte: startOfPracticeWeek() }, status: "READY" },
-      select: { id: true },
-    }),
+    // B602: «вопрос дня» целиком переехал на «Дневник» (тот же
+    // `DailyPracticeActions`, полоса недели и кольцо серии) — на Главной он был
+    // второй копией. Здесь остаётся только признак «сегодня уже отвечено»,
+    // который нужен рекомендательному движку. Карточку дня создаёт «Дневник»,
+    // Главная её только читает — открытие Главной не должно ничего заводить.
+    db.dailyCard.findFirst({
+      where: { userId, cardDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      select: { completedAt: true },
+    }).catch(() => null),
     getClarityCreditBalance(userId),
     // Count dialogues per topic across ALL history so the service-nudge can key
     // off the dominant theme.
@@ -175,6 +167,15 @@ export default async function ClientCabinetPage() {
       orderBy: { expiresAt: "asc" },
       select: { expiresAt: true },
     }).catch(() => null),
+    // INC-087: оплаченные и ещё НЕ израсходованные доступы. Владелец заплатил
+    // 299 ₽ за «Переосмысление», доступ был выдан — и не был виден нигде: ни в
+    // кабинете, ни в админке. С его стороны это выглядело как пропавшие деньги.
+    db.productEntitlement.findMany({
+      where: { userId, status: "ACTIVE", consumedAt: null, revokedAt: null, source: "purchase" },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      select: { id: true, productKey: true },
+    }).catch(() => []),
   ]);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
@@ -195,9 +196,6 @@ export default async function ClientCabinetPage() {
 
   const currentTopicKey = [...topicGroups].sort((a, b) => b._count._all - a._count._all)[0]?.topic ?? null;
   const currentTheme = currentTopicKey ? dialogueTopicLabelRu(currentTopicKey) : null;
-
-  const dailyCard = dailyCardResult.card;
-  const dailyBeats = dailyCardBeats(dailyCard.metadata);
 
   // B464 round-4 (items 2·4·5): the deterministic, day-seeded recommendation
   // engine — see lib/cabinet-recommendations.ts. Every block below derives from
@@ -239,15 +237,15 @@ export default async function ClientCabinetPage() {
       : null,
     journal: {
       total: journalTotal,
-      entryToday: Boolean(dailyCard.completedAt),
+      entryToday: Boolean(todayCard?.completedAt),
       streak: liveStreak,
     },
     crisisGuard,
   };
   const seed = daySeed(userId, now);
 
-  const hero = buildHeroAction(signals, seed);
-  const heroHref = hero.surface === "app" ? appUrl(hero.route) : mainUrl(hero.route);
+  // B602 ряд 3 слева: «Рекомендуем вам» — по УЖЕ ПРОЙДЕННЫМ разборам.
+  const usageRecommendations = buildUsageRecommendations(signals, seed);
   const serviceNudge = buildServiceNudge(signals, seed);
   const serviceNudgeHref = serviceNudge
     ? serviceNudge.surface === "app" ? appUrl(serviceNudge.route) : mainUrl(serviceNudge.route)
@@ -259,37 +257,6 @@ export default async function ClientCabinetPage() {
     ? await loadRecommendedPractitioner(practitionerPlan.mode === "theme-match" ? practitionerPlan.categories : [])
     : null;
 
-  // B464 round-4 #3: unified «ваши результаты» — dialogues + READY product
-  // разборы, hidden-in-diary respected, newest first.
-  const resultItems = [
-    ...recentDialogues
-      .filter((d) => !isHiddenFromDiary(d.metadata))
-      .map((d) => ({
-        key: `dialogue:${d.id}`,
-        kind: "dialogue" as const,
-        id: d.id,
-        title: d.title,
-        when: d.updatedAt,
-        label: dialogueTopicLabelRu(d.topic),
-        shareTopic: d.topic ?? "dialogue",
-        href: mainUrl(`/checkin?dialogueId=${d.id}`),
-      })),
-    ...recentResults
-      .filter((r) => !isHiddenFromDiary(r.metadata))
-      .map((r) => ({
-        key: `product:${r.id}`,
-        kind: "product" as const,
-        id: r.id,
-        title: r.title,
-        when: r.updatedAt,
-        label: PRODUCT_LABELS[r.productKey] ?? "Разбор",
-        shareTopic: r.productKey,
-        href: appUrl(`/cabinet/results/${r.id}`),
-      })),
-  ]
-    .sort((a, b) => b.when.getTime() - a.when.getTime())
-    .slice(0, 4);
-
   const missionHref = (href: string) => (
     href.startsWith("/cabinet") ? appUrl(href.replace(/^\/cabinet/, "")) : mainUrl(href)
   );
@@ -299,360 +266,87 @@ export default async function ClientCabinetPage() {
   // just states the current plan.
   const subscriptionQualified = showMonetization && !activeSubscription && (dialogueCount >= 2 || productCount >= 2);
 
+  // INC-087: оплаченный, но ещё не сделанный разбор. «Оплачено, ждёт вас» —
+  // это состояние товара, а не сбой, и человек должен видеть его там же, где
+  // видит баланс, а не искать в письмах.
+  const awaitingAccess = awaitingEntitlements
+    .map((row) => ({ id: row.id, label: getProductLabel(row.productKey), route: getProductRoute(row.productKey) }))
+    .filter((row): row is { id: string; label: string; route: string } => Boolean(row.route));
+
   // B512 (P6): warm expiry line for the Home wallet cue.
   const creditExpiryLabel = clarityCredits > 0 && nearestCreditExpiry?.expiresAt
     ? nearestCreditExpiry.expiresAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
-  // B512 — the lilac service-nudge renders in TWO slots (mobile: between
-  // результаты and вопрос дня; desktop: top of the right rail) per the
-  // approved mockups. One node, two responsive wrappers.
-  const serviceNudgeCard = showMonetization && serviceNudge && serviceNudgeHref ? (
-    <PinBlurGate label="Что дальше по вашей теме">
-    <div
-      className="soft-card p-5"
-      data-testid="diary-recommendation"
-      data-nudge-key={serviceNudge.key}
-      style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
-    >
-      <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>что дальше по вашей теме</p>
-      <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
-        {serviceNudge.body}
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link href={serviceNudgeHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
-          {serviceNudge.ctaLabel}
-        </Link>
-        <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost shrink-0" style={{ fontSize: 13 }}>
-          Подобрать специалиста
-        </Link>
-      </div>
-    </div>
-    </PinBlurGate>
-  ) : null;
-
   return (
     <div className="max-w-6xl px-4 py-6 sm:px-6 md:py-8" style={{ paddingBottom: 80 }}>
 
-      {/* ═══════ ZONE 1 · ACT — flattened greeting topbar (B512: no wrapper
-          card; the hero lives as its own card in the primary column). ═══════ */}
+      {/* ─── Приветствие. B602: пилюля баланса `client-dashboard-balance` снята
+          по прямому указанию владельца — баланс живёт в карточке «Кошелёк»
+          первого ряда и в верхнем баре мобильного, третья копия не нужна. ─── */}
       <section data-testid="client-primary-action">
         <p className="soft-eyebrow">с возвращением</p>
         <h1 className="soft-h1 mt-2">
           <span className="soft-italic">{firstName}</span>, ваша работа продолжается
         </h1>
-
-        {/* Spendable-balance pill (A3 reframed as spendable). B512: desktop
-            only — the mobile top bar carries the persistent balance chip, so
-            the in-hero pill would duplicate it. */}
-        <div className="mt-4 hidden md:block" data-testid="client-dashboard-balance">
-          <Link
-            href={appUrl("/wallet")}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-2 text-sm font-semibold"
-            style={{ color: "var(--soft-bordeaux)" }}
-          >
-            <Sparkles className="size-4" aria-hidden="true" />
-            {clarityCredits} {pointsWord(clarityCredits)} · на что потратить
-          </Link>
-        </div>
       </section>
 
-      {/* ═══════ DASH — two columns on desktop (mockup client-desktop-home-v2):
-          primary = hero · результаты · вопрос дня; rail = nudge · встреча ·
-          кошелёк · приглашения · подписка. Mobile stacks primary first. ═══════ */}
-      <div className="mt-5 grid items-start gap-4 md:grid-cols-[1.55fr_1fr]">
-
-      {/* ── primary column ── */}
-      <div className="grid min-w-0 gap-4">
-        {crisisGuard ? (
-          /* Crisis-guard: calm continuity + support, no offers. */
-          <section className="soft-card p-5" data-testid="client-crisis-continuity">
-            <h2 className="soft-h3">Вы можете вернуться к этому в своём темпе</h2>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-              Здесь нет спешки. Если сейчас тяжело — рядом есть живая поддержка.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link href={appUrl("/support")} className="soft-button soft-button-primary shrink-0">
-                <LifeBuoy className="size-4" aria-hidden="true" /> Поддержка
-              </Link>
-              {lastDialogue && (
-                <Link href={mainUrl(`/checkin?dialogueId=${lastDialogue.id}`)} className="soft-button soft-button-ghost shrink-0">
-                  Вернуться к разговору
-                </Link>
-              )}
-            </div>
-          </section>
-        ) : (
+      {/* ═══════ РЯД 1 — подписка · кошелёк · подарите разбор ═══════
+          ТЗ владельца, п. 9.1. Сетка без `items-start`: именно она делала
+          «мозаику» — карточки разной высоты в одной строке. Здесь высоты
+          выравниваются по ряду.
+          Кризис: ряд схлопывается до «Кошелька». Баланс — факт, а подписка и
+          приглашение — предложения; человеку в кризисе платформа не продаёт. */}
+      <div
+        className={`mt-5 grid gap-4 ${showMonetization ? "md:grid-cols-3" : ""}`}
+        data-testid="client-home-row-1"
+      >
+        {/* Подписка */}
+        {showMonetization && (subscriptionQualified ? (
           <section
-            className="soft-card p-5"
-            data-hero-kind={hero.kind}
-            style={{ background: "linear-gradient(155deg, var(--soft-paper-card) 0%, #FBEEDF 100%)", borderLeft: "3px solid var(--soft-terracotta)" }}
+            className="soft-card relative flex flex-col overflow-hidden p-5"
+            data-testid="client-subscription-status"
+            style={{ background: "linear-gradient(155deg, #6B3030, var(--soft-bordeaux) 70%)", border: "1px solid transparent", boxShadow: "0 18px 40px -22px rgba(92, 42, 44, 0.9)" }}
           >
-            <p className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{hero.eyebrow}</p>
-            <p className="soft-italic mt-1.5" style={{ fontSize: 18, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>
-              {hero.title}
+            <p className="soft-eyebrow flex items-center gap-1.5" style={{ color: "#E9C9B6" }}>
+              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+              подписка
             </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link href={heroHref} className="soft-button soft-button-primary shrink-0">
-                {hero.cta} <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-              <span className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{hero.hint}</span>
-            </div>
+            <h2 className="mt-2.5 font-heading text-lg font-semibold" style={{ color: "#FBF1E4" }}>
+              В подписке — больше баллов каждый месяц
+            </h2>
+            <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: "rgba(251, 241, 228, 0.84)" }}>
+              Pro — <b style={{ color: "#F1D9A6", fontWeight: 600 }}>20 разборов в месяц</b> и расширенный дневник.
+            </p>
+            <Link
+              href={appUrl("/wallet")}
+              className="mt-auto inline-flex min-h-11 w-fit items-center gap-2 rounded-full px-4 pt-0 text-[13px] font-semibold"
+              style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)", marginTop: 16 }}
+            >
+              Сравнить тарифы <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
+            <p className="mt-3 text-[11px]" style={{ color: "rgba(251, 241, 228, 0.6)" }}>
+              Сейчас: {subscriptionLabel}
+            </p>
           </section>
-        )}
-
-      {/* ═══════ ZONE 2 · RESULTS + SERVICES ═══════ */}
-
-      {/* «ваши результаты» — dialogues + product разборы merged (round-4 #3),
-          recent 4, meta = «дата, время · категория», «все» → /diary (the full
-          разборы list + hidden-item restore live in the Дневник). */}
-      {/* B512 R1-12: приватный блок — под PIN Дневника блюрится по-блочно. */}
-      <PinBlurGate label="Ваши результаты">
-      <div className="soft-card p-5" data-testid="client-recent-questions">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="soft-eyebrow">ваши результаты</p>
-          {resultItems.length > 0 && (
-            <Link href={appUrl("/diary")} className="inline-flex min-h-11 items-center text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
-              Все разборы →
-            </Link>
-          )}
-        </div>
-        {/* Round-6 #6: redesigned разбор-list per the recovered b464-home
-            mockup — topic-chip anchor + bordered card-rows + icon-action
-            cluster (Открыть · Скрыть). Replaces the flat hairline rows. */}
-        {resultItems.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся ваши разборы.</p>
         ) : (
-          <div>
-            {resultItems.map((item) => (
-              <CabinetResultRow
-                key={item.key}
-                item={{
-                  kind: item.kind,
-                  id: item.id,
-                  title: item.title,
-                  topicLabel: item.label,
-                  shareTopic: item.shareTopic,
-                  when: resultWhen(item.when),
-                  href: item.href,
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      </PinBlurGate>
-
-        {/* Lilac service-nudge — MOBILE slot (между результатами и вопросом
-            дня, mockup client-mobile-home-v2). Desktop slot lives in the rail. */}
-        {serviceNudgeCard && <div className="md:hidden">{serviceNudgeCard}</div>}
-
-        {/* Daily-Q «по вашим разборам» — the FULL ritual right here (round-4 #6):
-            the client writes their answer/question, gets взгляд+шаг immediately,
-            and the entry lands in «ваши записи» Дневника. NOT /checkin. */}
-        <section className="soft-card p-5" data-testid="client-daily-card">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="soft-eyebrow">вопрос дня · по вашим разборам</p>
-            </div>
-            {/* Round-5 #6a: бейдж серии виден только при ЖИВОЙ серии ≥ 1. */}
-            {liveStreak > 0 && (
-              <div
-                className="grid size-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
-                data-testid="client-streak-badge"
-                style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
-                aria-label={`Серия: ${liveStreak} ${daysWord(liveStreak)} подряд`}
-                title={`Серия: ${liveStreak} ${daysWord(liveStreak)} подряд`}
-              >
-                {liveStreak}
-              </div>
-            )}
-          </div>
-          <DailyPracticeActions
-            completed={Boolean(dailyCard.completedAt)}
-            variant="full"
-            prompt={dailyCard.prompt}
-            perspective={dailyBeats.perspective}
-            step={dailyBeats.step}
-            initialReflection={dailyCard.reflectionText}
-          />
-          <div className="mt-4 flex items-center gap-2" data-testid="practice-week-progress" aria-label="Прогресс недели">
-            {practiceWeekDays(weekCards.map((card) => card.cardDate)).map((day) => (
-              <span key={day.label} className="flex flex-col items-center gap-1">
-                <span
-                  className="grid size-6 place-items-center rounded-full text-[10px] font-semibold"
-                  style={{
-                    background: day.done ? "var(--soft-terracotta-dark)" : "var(--soft-paper-deep)",
-                    color: day.done ? "#FFFCF5" : "var(--soft-ink-faint)",
-                    outline: day.isToday ? "2px solid var(--soft-bordeaux)" : "none",
-                    outlineOffset: 2,
-                  }}
-                  data-done={day.done ? "1" : "0"}
-                >
-                  {day.done ? "✓" : ""}
-                </span>
-                <span className="text-[10px] text-[var(--soft-ink-faint)]">{day.label}</span>
-              </span>
-            ))}
-          </div>
-          {/* Round-5 #6c: без жаргона «вехи» — два коротких понятных предложения. */}
-          <div className="mt-3 grid gap-1 text-[11.5px] leading-relaxed" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
-            <p>Ответы сохраняются в Дневнике — их видите только вы.</p>
-            <p>
-              За регулярность приходят баллы: {Object.entries(STREAK_REWARDS)
-                .map(([d, r], index) => `${index === 0 ? `${d} ${daysWord(Number(d))} подряд` : `${d} ${daysWord(Number(d))}`} — +${r.creditAmount} ${pointsWord(r.creditAmount ?? 0)}`)
-                .join(", ")}. На 7-й день подряд дополнительно придёт «итог недели».
-            </p>
-          </div>
-          {weeklySummary && (
-            <Link href={appUrl("/diary")} className="soft-chip mt-3 inline-flex items-center gap-2" data-testid="weekly-summary-link">
-              <CheckCircle2 className="size-3.5" aria-hidden="true" />
-              Итог недели готов — открыть в Дневнике
-            </Link>
-          )}
-        </section>
-
-        {/* warm diary preview — rotating self-noticing the user owns (un-quoted,
-            no «дневник заметил» surveillance framing; round-4 #5): observation /
-            streak echo / entry-count invite, varies by day. R1-12: приватный. */}
-        <PinBlurGate label="Ваш дневник">
-        <div className="soft-card flex items-center gap-4 p-5" data-testid="client-map-preview">
-          <div className="min-w-0 flex-1">
-            <p className="soft-eyebrow mb-2">ваш дневник</p>
-            <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
-              {diaryCardReco.text}
-            </p>
-          </div>
-          <Link href={appUrl("/diary")} className="soft-button soft-button-ghost shrink-0">{diaryCardReco.ctaLabel}</Link>
-        </div>
-        </PinBlurGate>
-
-        {/* B512 R1-6 — кликабельный trust-strip: управление PIN-кодом Дневника
-            прямо с Главной (та же модалка, что в разделе «Дневник»). R1-5: блок
-            переехал в ЛЕВУЮ колонку, чтобы rail не оставлял пустоту слева. */}
-        <HomePinStrip />
-
-        {/* Time-boxed onboarding «первые шаги» — auto-hides once every reward
-            is granted; collapsed by default. R1-5: в левой колонке. R1-10:
-            явный CTA-призыв развернуть блок. */}
-        {missionChecklist.completedCount < missionChecklist.totalCount && (
-          <details className="soft-card mb-4 p-5" data-testid="client-first-steps" open={false}>
-            <summary className="group flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
-              <div className="min-w-0">
-                <p className="soft-eyebrow">первые шаги</p>
-                <h2 className="soft-h3 mt-2">
-                  {missionChecklist.completedCount} из {missionChecklist.totalCount} — осталось немного
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                  Награды начисляются за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)}. Блок исчезнет, когда закончите.
-                </p>
-                <span
-                  className="soft-chip mt-3 inline-flex items-center gap-1.5"
-                  data-testid="client-first-steps-cta"
-                >
-                  <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
-                  <span className="group-open:hidden">Показать шаги</span>
-                  <span className="hidden group-open:inline">Свернуть</span>
-                </span>
-              </div>
-            </summary>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {missionChecklist.items.map((mission) => (
-                <Link
-                  key={mission.key}
-                  href={missionHref(mission.actionHref)}
-                  className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
-                  data-testid={`client-mission-${mission.key}`}
-                  style={{ background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)", color: "var(--soft-ink)" }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
-                      +{mission.rewardCredits} {pointsWord(mission.rewardCredits)}
-                    </span>
-                    {mission.completed ? (
-                      <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
-                    ) : (
-                      <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                    )}
-                  </div>
-                  <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
-                  <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                    {mission.completed ? "получено" : mission.description}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </details>
-        )}
-      </div>
-
-      {/* ── rail (right column on desktop, mockup order: nudge · встреча ·
-          кошелёк · приглашения · подписка) ── */}
-      <div className="grid min-w-0 gap-4">
-        {/* Lilac service-nudge — DESKTOP slot (top of the rail). */}
-        {serviceNudgeCard && <div className="hidden md:block">{serviceNudgeCard}</div>}
-
-        {/* Next meeting / continue-with-specialist / explore.
-            R1-12: приватный блок — работа со специалистом видна только после PIN. */}
-        <PinBlurGate label="Работа со специалистом">
-        {upcomingBooking ? (
-          <section className="soft-card p-5" style={{ borderLeft: "3px solid var(--soft-bordeaux)" }} data-testid="client-next-meeting">
-            <p className="soft-eyebrow">ближайшая встреча</p>
-            <p className="mt-2" style={{ fontSize: 15, fontWeight: 600, color: "var(--soft-ink)" }}>{upcomingBooking.practitioner.user.name}</p>
+          <section className="soft-card flex flex-col p-5" data-testid="client-subscription-status">
+            <p className="soft-eyebrow">подписка</p>
+            <p className="mt-2" style={{ fontFamily: "var(--font-heading-v4, serif)", fontSize: 22, color: "var(--soft-bordeaux)", fontWeight: 500 }}>{subscriptionLabel}</p>
             <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-              {upcomingBooking.slot
-                ? `${upcomingBooking.slot.startAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, ${upcomingBooking.slot.startAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })} · `
+              {subscriptionStatus}
+              {activeSubscription?.currentPeriodEnd
+                ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
                 : ""}
-              {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
             </p>
-            <Link href={appUrl("/bookings")} className="soft-button soft-button-ghost mt-4 shrink-0">К записи</Link>
+            <Link href={appUrl("/wallet")} className="soft-chip mt-auto min-h-11 w-fit" style={{ marginTop: 16 }}>Управлять →</Link>
           </section>
-        ) : practitionerPlan?.mode === "continue" && practitionerPlan.continueWith && showMonetization ? (
-          /* round-4 #5: the client already met this specialist and the theme
-             still matches — continuing beats a cold new pick. */
-          <section className="soft-card p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode="continue">
-            <p className="soft-eyebrow">продолжить работу со специалистом</p>
-            {/* Имя в именительном падеже — произвольные ФИО нельзя надёжно
-                склонять («встречались с Ирина…»). */}
-            <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
-              {practitionerPlan.continueWith.name} уже знает вашу историю — можно продолжить в своём темпе
-            </p>
-            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-              {practitionerPlan.topicLabel
-                ? `Тема «${practitionerPlan.topicLabel}» всё ещё рядом — регулярные встречи помогают удержать найденное.`
-                : "Регулярные встречи помогают удержать найденное."}
-            </p>
-            <Link href={mainUrl(`/practitioners/${practitionerPlan.continueWith.slug}`)} className="soft-button soft-button-primary mt-4 shrink-0">Записаться снова</Link>
-          </section>
-        ) : recommendedPractitioner && showMonetization ? (
-          <section className="soft-card p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode={practitionerPlan?.mode ?? "explore"}>
-            <p className="soft-eyebrow">если хочется живого разговора</p>
-            <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
-              {practitionerPlan?.mode === "theme-match" && practitionerPlan.topicLabel
-                ? `Тема «${practitionerPlan.topicLabel}» — можно обсудить со специалистом этого направления`
-                : currentTheme
-                  ? `Тема «${currentTheme}» возвращается — может, обсудить с человеком?`
-                  : "Можно обсудить ваш вопрос со специалистом"}
-            </p>
-            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-              {recommendedPractitioner.name} · {recommendedPractitioner.title} · от {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
-            </p>
-            <Link href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)} className="soft-button soft-button-primary mt-4 shrink-0">Записаться</Link>
-          </section>
-        ) : (
-          <section className="soft-card p-5" data-testid="client-support-card">
-            <p className="soft-eyebrow">рядом, если нужно</p>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Живой разговор со специалистом всегда доступен — спокойно, в своём темпе.</p>
-            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost mt-4 shrink-0">Посмотреть специалистов</Link>
-          </section>
-        )}
-        </PinBlurGate>
+        ))}
 
-        {/* Кошелёк — B512 rail card (mockup): баланс + тёплая строка срока
-            действия баллов (P6, честно и без таймера) + спокойный top-up. */}
-        <section className="soft-card p-5" data-testid="client-home-wallet-card">
+        {/* Кошелёк */}
+        <section className="soft-card flex flex-col p-5" data-testid="client-home-wallet-card">
           <div className="mb-2 flex items-baseline justify-between gap-3">
-            <p className="soft-eyebrow">Кошелёк</p>
+            <p className="soft-eyebrow">кошелёк</p>
             <Link href={appUrl("/wallet")} className="text-xs font-semibold" style={{ color: "var(--soft-ink-soft)" }}>
               Подробнее →
             </Link>
@@ -661,9 +355,23 @@ export default async function ClientCabinetPage() {
             <span className="font-heading text-[26px] font-semibold leading-none" style={{ color: "var(--soft-bordeaux)" }}>{clarityCredits}</span>
             <span className="text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>{pointsWord(clarityCredits)} на балансе</span>
           </div>
+          {/* INC-087: оплачено — но разбор ещё не сделан. Это состояние ждало
+              человека молча: в кабинете его не было, в админке тоже. */}
+          {awaitingAccess.map((access) => (
+            <Link
+              key={access.id}
+              href={mainUrl(access.route)}
+              className="mt-2.5 flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-2 text-[12px] font-semibold no-underline"
+              data-testid="client-awaiting-access"
+              style={{ background: "#FBF3EC", border: "1.5px solid var(--soft-terracotta)", color: "var(--soft-bordeaux)" }}
+            >
+              <span className="min-w-0 truncate">Оплачено: «{access.label}» — разбор ещё не сделан</span>
+              <ArrowRight className="size-3.5 shrink-0" aria-hidden="true" />
+            </Link>
+          ))}
           {creditExpiryLabel && (
             <p
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px]"
+              className="mt-2.5 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px]"
               data-testid="client-credit-expiry"
               style={{ background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }}
             >
@@ -673,28 +381,24 @@ export default async function ClientCabinetPage() {
           )}
           <Link
             href={appUrl("/wallet")}
-            className="mt-4 flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[var(--soft-terracotta)] px-4 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[#F6E7DD]"
-            style={{ background: "#FBF3EC", color: "var(--soft-bordeaux)" }}
+            className="mt-auto flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[var(--soft-terracotta)] px-4 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[#F6E7DD]"
+            style={{ background: "#FBF3EC", color: "var(--soft-bordeaux)", marginTop: 16 }}
           >
             <Plus className="size-4" aria-hidden="true" />
             Пополнить баллы
           </Link>
         </section>
 
-        {/* Referral card — warm gift framing + staged counter (owner copy locked).
-            Suppressed on crisis. Full copy/clipboard lives on /cabinet/invite. */}
-        {showMonetization ? (
+        {/* Подарите разбор — ТЗ владельца: «только этот блок нужно сделать очень
+            компактным», два поясняющих абзаца убраны. Остались счётчики и CTA. */}
+        {showMonetization && (
           <section
-            className="soft-card p-5"
+            className="soft-card flex flex-col p-5"
             data-testid="client-referral-card"
             style={{ background: "linear-gradient(155deg, var(--soft-apricot) 0%, #F8E6D1 100%)", border: "1px solid transparent" }}
           >
             <p className="soft-eyebrow">подарите разбор — получите баллы</p>
-            <h2 className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>Подарите кому-то первый разбор — и пополните свой баланс</h2>
-            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-bordeaux)", opacity: 0.85 }}>
-              Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим.
-            </p>
-            <div className="mt-4 flex gap-6">
+            <div className="mt-3 flex gap-6">
               {[
                 { n: referralStats.invited, label: "приглашены" },
                 { n: referralStats.tried, label: "попробовали" },
@@ -706,65 +410,232 @@ export default async function ClientCabinetPage() {
                 </div>
               ))}
             </div>
-            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-4 shrink-0">
+            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>
               <Gift className="size-4" aria-hidden="true" /> Пригласить друга
             </Link>
           </section>
-        ) : (
-          <section className="soft-card p-5" data-testid="client-referral-card-suppressed" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="soft-eyebrow">вы не одни</p>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-              Если сейчас непросто, можно написать в поддержку или вернуться к разбору позже.
-            </p>
+        )}
+      </div>
+
+      {/* Кризисный режим: спокойная преемственность вместо ряда продаж. */}
+      {crisisGuard && (
+        <section className="soft-card mt-4 p-5" data-testid="client-crisis-continuity">
+          <h2 className="soft-h3">Вы можете вернуться к этому в своём темпе</h2>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+            Здесь нет спешки. Если сейчас тяжело — рядом есть живая поддержка.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href={appUrl("/support")} className="soft-button soft-button-primary shrink-0">
+              <LifeBuoy className="size-4" aria-hidden="true" /> Поддержка
+            </Link>
+            {lastDialogue && (
+              <Link href={mainUrl(`/checkin?dialogueId=${lastDialogue.id}`)} className="soft-button soft-button-ghost shrink-0">
+                Вернуться к разговору
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ═══════ РЯД 2 — «Первые шаги» ═══════
+          ТЗ владельца, п. 9.2: свёрнут по умолчанию, прогресс-бар, карточки в
+          один ряд, в карточке — только короткий текст действия, пройденные
+          помечены галочкой и НЕ кликабельны. */}
+      {missionChecklist.completedCount < missionChecklist.totalCount && (
+        <details className="soft-card mt-4 p-5" data-testid="client-first-steps" open={false}>
+          <summary className="group flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="soft-eyebrow">первые шаги</p>
+                <span className="text-[12px] tabular-nums" style={{ color: "var(--soft-ink-soft)" }}>
+                  {missionChecklist.completedCount} из {missionChecklist.totalCount} · +{missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)}
+                </span>
+              </div>
+              {/* Прогресс-бар. Раньше здесь стояла фраза про «немного
+                  осталось» даже при нуле пройденных шагов — прямая неправда. */}
+              <div
+                className="mt-2.5 h-2 w-full overflow-hidden rounded-full"
+                style={{ background: "var(--soft-paper-deep)" }}
+                role="progressbar"
+                aria-valuenow={missionChecklist.completedCount}
+                aria-valuemin={0}
+                aria-valuemax={missionChecklist.totalCount}
+                aria-label="Прогресс первых шагов"
+                data-testid="client-first-steps-progress"
+              >
+                <span
+                  className="block h-full rounded-full transition-[width]"
+                  style={{
+                    width: `${Math.round((missionChecklist.completedCount / Math.max(1, missionChecklist.totalCount)) * 100)}%`,
+                    background: "var(--soft-terracotta-dark)",
+                  }}
+                />
+              </div>
+              <span className="soft-chip mt-3 inline-flex items-center gap-1.5" data-testid="client-first-steps-cta">
+                <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+                <span className="group-open:hidden">Показать шаги</span>
+                <span className="hidden group-open:inline">Свернуть</span>
+              </span>
+            </div>
+          </summary>
+          {/* Один ряд. На узком экране — горизонтальная прокрутка, а не перенос
+              в сетку: «в один ряд» перестаёт быть рядом при переносе. */}
+          <div className="-mx-1 mt-4 flex snap-x gap-3 overflow-x-auto px-1 pb-1">
+            {missionChecklist.items.map((mission) => {
+              const body = (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
+                      +{mission.rewardCredits} {pointsWord(mission.rewardCredits)}
+                    </span>
+                    {mission.completed ? (
+                      <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
+                    ) : (
+                      <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
+                </>
+              );
+              const shell = "w-[180px] shrink-0 snap-start rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline";
+              const tone = {
+                background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)",
+                color: "var(--soft-ink)",
+                opacity: mission.completed ? 0.7 : 1,
+              };
+              // Пройденный шаг — не ссылка: вести человека туда, где уже нечего
+              // делать, значит обещать действие, которого нет.
+              return mission.completed ? (
+                <div key={mission.key} className={shell} style={tone} data-testid={`client-mission-${mission.key}`} data-completed="1">
+                  {body}
+                </div>
+              ) : (
+                <Link key={mission.key} href={missionHref(mission.actionHref)} className={shell} style={tone} data-testid={`client-mission-${mission.key}`} data-completed="0">
+                  {body}
+                </Link>
+              );
+            })}
+          </div>
+        </details>
+      )}
+
+      {/* ═══════ РЯД 3 — «Рекомендуем вам» · «Если хочется живого разговора» ═══
+          ТЗ владельца, п. 9.4: «в этом же ряду ТОЙ ЖЕ ВЫСОТЫ». */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2" data-testid="client-home-row-3">
+        {usageRecommendations.length > 0 && (
+          <section className="soft-card flex flex-col p-5" data-testid="client-recommendations">
+            <p className="soft-eyebrow">рекомендуем вам</p>
+            <div className="mt-3 grid gap-2">
+              {usageRecommendations.map((item) => (
+                <Link
+                  key={item.productKey ?? item.route}
+                  href={item.surface === "app" ? appUrl(item.route) : mainUrl(item.route)}
+                  className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--soft-paper-edge)] px-3.5 py-3 no-underline transition-colors hover:bg-[var(--soft-paper-deep)]"
+                  data-recommendation-key={item.productKey ?? "start"}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold" style={{ color: "var(--soft-ink)" }}>{item.title}</span>
+                    <span className="mt-0.5 block truncate text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>{item.reason}</span>
+                  </span>
+                  <ArrowRight className="size-4 shrink-0" style={{ color: "var(--soft-terracotta)" }} aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
           </section>
         )}
 
-        {/* Subscription — B512: the qualified moment gets the bordeaux GROW
-            card (mockup .grow, real frozen numbers: Pro = 20 разборов/мес);
-            otherwise the quiet current-plan card. Value-before-paywall gating
-            (≥2 разборов) preserved from B464. */}
-        {subscriptionQualified ? (
-          <section
-            className="soft-card relative overflow-hidden p-5"
-            data-testid="client-subscription-status"
-            style={{ background: "linear-gradient(155deg, #6B3030, var(--soft-bordeaux) 70%)", border: "1px solid transparent", boxShadow: "0 18px 40px -22px rgba(92, 42, 44, 0.9)" }}
-          >
-            <p className="soft-eyebrow flex items-center gap-1.5" style={{ color: "#E9C9B6" }}>
-              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
-              если хотите возвращаться чаще
+        {/* «Если хочется живого разговора» — автомат из четырёх состояний:
+            при существующей брони рекомендовать бронь было бы ошибкой. */}
+        <PinBlurGate label="Работа со специалистом">
+        {upcomingBooking ? (
+          <section className="soft-card flex h-full flex-col p-5" style={{ borderLeft: "3px solid var(--soft-bordeaux)" }} data-testid="client-next-meeting">
+            <p className="soft-eyebrow">ближайшая встреча</p>
+            <p className="mt-2" style={{ fontSize: 15, fontWeight: 600, color: "var(--soft-ink)" }}>{upcomingBooking.practitioner.user.name}</p>
+            <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {upcomingBooking.slot
+                ? `${upcomingBooking.slot.startAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, ${upcomingBooking.slot.startAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })} · `
+                : ""}
+              {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
             </p>
-            <h2 className="mt-2.5 font-heading text-lg font-semibold" style={{ color: "#FBF1E4" }}>
-              В подписке — больше баллов каждый месяц
-            </h2>
-            <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: "rgba(251, 241, 228, 0.84)" }}>
-              Pro — <b style={{ color: "#F1D9A6", fontWeight: 600 }}>20 разборов в месяц</b> и расширенный дневник.
-              Спокойно сравните форматы — без спешки и обязательств.
+            <Link href={appUrl("/bookings")} className="soft-button soft-button-ghost mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>К записи</Link>
+          </section>
+        ) : practitionerPlan?.mode === "continue" && practitionerPlan.continueWith && showMonetization ? (
+          <section className="soft-card flex h-full flex-col p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode="continue">
+            <p className="soft-eyebrow">продолжить работу со специалистом</p>
+            {/* Имя в именительном падеже — произвольные ФИО нельзя надёжно склонять. */}
+            <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
+              {practitionerPlan.continueWith.name} уже знает вашу историю — можно продолжить в своём темпе
             </p>
-            <Link
-              href={appUrl("/wallet")}
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[13px] font-semibold"
-              style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }}
-            >
-              Сравнить тарифы <ArrowRight className="size-3.5" aria-hidden="true" />
-            </Link>
-            <p className="mt-3 text-[11px]" style={{ color: "rgba(251, 241, 228, 0.6)" }}>
-              Сейчас: {subscriptionLabel} · разовые баллы по мере надобности
+            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {practitionerPlan.topicLabel
+                ? `Тема «${practitionerPlan.topicLabel}» всё ещё рядом — регулярные встречи помогают удержать найденное.`
+                : "Регулярные встречи помогают удержать найденное."}
             </p>
+            <Link href={mainUrl(`/practitioners/${practitionerPlan.continueWith.slug}`)} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Записаться снова</Link>
+          </section>
+        ) : recommendedPractitioner && showMonetization ? (
+          <section className="soft-card flex h-full flex-col p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode={practitionerPlan?.mode ?? "explore"}>
+            <p className="soft-eyebrow">если хочется живого разговора</p>
+            <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
+              {practitionerPlan?.mode === "theme-match" && practitionerPlan.topicLabel
+                ? `Тема «${practitionerPlan.topicLabel}» — можно обсудить со специалистом этого направления`
+                : currentTheme
+                  ? `Тема «${currentTheme}» возвращается — может, обсудить с человеком?`
+                  : "Можно обсудить ваш вопрос со специалистом"}
+            </p>
+            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {recommendedPractitioner.name} · {recommendedPractitioner.title} · от {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
+            </p>
+            <Link href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)} className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Записаться</Link>
           </section>
         ) : (
-          <section className="soft-card p-5" data-testid="client-subscription-status">
-            <p className="soft-eyebrow">подписка</p>
-            <p className="mt-2" style={{ fontFamily: "var(--font-heading-v4, serif)", fontSize: 22, color: "var(--soft-bordeaux)", fontWeight: 500 }}>{subscriptionLabel}</p>
-            <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-              {subscriptionStatus}
-              {activeSubscription?.currentPeriodEnd
-                ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
-                : ""}
-            </p>
-            <Link href={appUrl("/wallet")} className="soft-chip mt-4 min-h-11">Управлять →</Link>
+          <section className="soft-card flex h-full flex-col p-5" data-testid="client-support-card">
+            <p className="soft-eyebrow">рядом, если нужно</p>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Живой разговор со специалистом всегда доступен — спокойно, в своём темпе.</p>
+            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>Посмотреть специалистов</Link>
           </section>
         )}
+        </PinBlurGate>
       </div>
+
+      {/* ═══════ РЯД 4 — «Ваш дневник» · «Что дальше по вашей теме» ═══════
+          ТЗ владельца, п. 9.5: «в один ряд одной высоты». */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2" data-testid="client-home-row-4">
+        <PinBlurGate label="Ваш дневник">
+        <div className="soft-card flex h-full flex-col justify-between gap-4 p-5" data-testid="client-map-preview">
+          <div className="min-w-0">
+            <p className="soft-eyebrow mb-2">ваш дневник</p>
+            <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
+              {diaryCardReco.text}
+            </p>
+          </div>
+          <Link href={appUrl("/diary")} className="soft-button soft-button-ghost w-fit shrink-0">{diaryCardReco.ctaLabel}</Link>
+        </div>
+        </PinBlurGate>
+
+        {showMonetization && serviceNudge && serviceNudgeHref ? (
+          <PinBlurGate label="Что дальше по вашей теме">
+          <div
+            className="soft-card flex h-full flex-col p-5"
+            data-testid="diary-recommendation"
+            data-nudge-key={serviceNudge.key}
+            style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
+          >
+            <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>что дальше по вашей теме</p>
+            <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
+              {serviceNudge.body}
+            </p>
+            <div className="flex flex-wrap items-center gap-3" style={{ marginTop: "auto", paddingTop: 16 }}>
+              <Link href={serviceNudgeHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
+                {serviceNudge.ctaLabel}
+              </Link>
+              <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost shrink-0" style={{ fontSize: 13 }}>
+                Подобрать специалиста
+              </Link>
+            </div>
+          </div>
+          </PinBlurGate>
+        ) : null}
       </div>
     </div>
   );

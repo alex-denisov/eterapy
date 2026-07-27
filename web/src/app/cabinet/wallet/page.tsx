@@ -6,6 +6,7 @@ import { ArrowRight, Clock, History } from "lucide-react";
 import { CreditPackPurchaseButton } from "@/components/cabinet/credit-pack-purchase-button";
 import { BillingPanel } from "@/components/cabinet/billing-panel";
 import { RevealList } from "@/components/cabinet/reveal-list";
+import { WalletHistoryTabs } from "@/components/cabinet/wallet-history-tabs";
 import { auth } from "@/lib/auth";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { getCreditWalletSnapshot } from "@/lib/credit-wallet";
@@ -13,9 +14,14 @@ import db from "@/lib/db";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 // B349 / Механика 2: /wallet and /credits merged into the single «Кошелёк».
-// B464 round-4 #13: the money hub per the approved blueprint — Баланс →
-// подарок → Разбивка → Пакеты → Подписка/Карты → История. The spend CATALOG
-// lives on the landing «Услуги» (round-2 #6) — only a slim bridge link here.
+//
+// B602 (владелец 2026-07-27, ТЗ п. 9.6) — страница перестроена в четыре ряда:
+//   ряд 1 — «Ваш тариф»
+//   ряд 2 — «Доступно» + «на что потратить баллы» + компактная разбивка сроков
+//   ряд 3 — «Пакеты баллов · Дозаправить кошелёк»
+//   ряд 4 — «История операций» (платежи и баллы в одном блоке)
+// Блок «Карты» удалён целиком — владелец: «убери, а не оставляй заглушку».
+// Тринадцать карточек до перестройки, пять одновременных предложений купить.
 
 type CreditWalletSnapshot = Awaited<ReturnType<typeof getCreditWalletSnapshot>>;
 type WalletPack = CreditWalletSnapshot["packs"][number];
@@ -35,71 +41,133 @@ function pointsWord(n: number): string {
   return "баллов";
 }
 
-// B464 item 5: the balance hero rebuilt per the b464-wallet mockup — no
-// icon-beside-number (that read crooked/oversized), just a clean left-aligned
-// serif figure + caption + the primary top-up CTA. The marketing H1 + lede are
-// dropped; the sidebar already labels the section «Кошелёк».
-function WalletBalanceHeader({ balance }: { balance: number }) {
+/**
+ * Ряд 2, левая карточка: «Доступно».
+ *
+ * Стартовый подарок больше не отдельная карточка — он схлопнут в янтарную
+ * строку внутри баланса. Отдельной карточкой он раздувал первый экран ровно у
+ * того, кому важнее всего понять структуру страницы, — у нового человека.
+ */
+function WalletAvailable({
+  balance,
+  welcomeExpiresAt,
+  now,
+}: {
+  balance: number;
+  welcomeExpiresAt: Date | null;
+  now: Date;
+}) {
   return (
-    <section className="mb-5" data-testid="wallet-balance-header">
+    <section
+      className="soft-card flex h-full flex-col p-5"
+      data-testid="wallet-balance-header"
+      style={{ background: "linear-gradient(155deg, #FFFCF5, var(--soft-apricot))", border: "1px solid transparent" }}
+    >
       <h1 className="sr-only">Кошелёк баллов</h1>
-      <div
-        className="soft-card p-5 sm:p-6"
-        style={{ background: "linear-gradient(155deg, #FFFCF5, var(--soft-apricot))", border: "1px solid transparent" }}
-      >
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="soft-eyebrow">доступно</p>
-            <p className="mt-1.5 font-heading font-medium leading-none text-[var(--soft-bordeaux)]">
-              <span style={{ fontSize: "clamp(2rem, 6vw, 2.5rem)" }}>{balance}</span>
-              <span className="ml-1.5 text-base font-normal text-[var(--soft-ink-soft)]">{pointsWord(balance)}</span>
-            </p>
-            {/* B512 §3.6 — honest copy: форматы стоят по-разному, «1 балл ≈
-                один разбор» было неправдой. */}
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Баллами открываются цифровые разборы · стоимость зависит от формата
-            </p>
-          </div>
-          <Link href="#wallet-topup" className="soft-button soft-button-primary shrink-0">
-            Пополнить кошелёк
-            <ArrowRight className="size-4" aria-hidden="true" />
+      <p className="soft-eyebrow">доступно</p>
+      <p className="mt-1.5 font-heading font-medium leading-none text-[var(--soft-bordeaux)]">
+        <span style={{ fontSize: "clamp(2rem, 6vw, 2.5rem)" }}>{balance}</span>
+        <span className="ml-1.5 text-base font-normal text-[var(--soft-ink-soft)]">{pointsWord(balance)}</span>
+      </p>
+      {/* B512 §3.6 — честно: форматы стоят по-разному, прежняя формула
+          «один балл — один разбор» была неправдой. */}
+      <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
+        Баллами открываются цифровые разборы · стоимость зависит от формата
+      </p>
+      {welcomeExpiresAt && (
+        <p
+          className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-[10px] px-2.5 py-2 text-[12px]"
+          data-testid="welcome-credits-card"
+          style={{ background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }}
+        >
+          <span>Стартовый подарок: 3 балла, ещё {daysUntil(welcomeExpiresAt, now)} дн.</span>
+          <Link
+            href={appUrl("/products/reframe")}
+            className="font-semibold underline underline-offset-2"
+            data-analytics-event="welcome_credits_open_reframe_clicked"
+            data-analytics-surface="cabinet_wallet"
+            data-analytics-target="/products/reframe"
+            data-analytics-product="reframe"
+          >
+            Переосмыслить ситуацию →
           </Link>
-        </div>
-      </div>
+        </p>
+      )}
+      <Link href="#wallet-topup" className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>
+        Пополнить кошелёк
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
     </section>
   );
 }
 
-function WalletBreakdown({ items }: { items: WalletBreakdownItem[] }) {
+/** Ряд 2, средняя карточка: мост в каталог. */
+function WalletSpendBridge() {
   return (
-    <section className="soft-card p-5" data-testid="wallet-breakdown">
+    <section
+      className="soft-card flex h-full flex-col p-5"
+      data-testid="wallet-spend-bridge"
+      style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
+    >
+      <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>на что потратить баллы</p>
+      <p className="mt-1 text-sm" style={{ color: "#43356E" }}>
+        Все разборы и форматы — в каталоге. Баллы спишутся при открытии.
+      </p>
+      <Link href={mainUrl("/products")} className="soft-button mt-auto w-fit shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13, marginTop: 16 }}>
+        Открыть каталог
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
+    </section>
+  );
+}
+
+/**
+ * Ряд 2, правая карточка: «Разбивка по срокам» — владелец просил «очень
+ * компактно».
+ *
+ * Компактность не должна съесть сам срок сгорания: ближайший виден всегда,
+ * первой строкой. Прятать сгорание под «показать ещё» — это то, за что потом
+ * приходят претензии.
+ */
+function WalletBreakdown({ items }: { items: WalletBreakdownItem[] }) {
+  const soonest = items.find((item) => item.expiresAt) ?? null;
+  return (
+    <section className="soft-card flex h-full flex-col p-5" data-testid="wallet-breakdown">
       <div className="flex items-center gap-2">
         <Clock className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
         <h2 className="soft-h3">Разбивка по срокам</h2>
       </div>
-      <div className="mt-4 grid gap-3">
-        {items.length === 0 ? (
-          <p className="text-sm text-[var(--soft-ink-soft)]">Активных начислений пока нет.</p>
-        ) : items.map((item) => (
-          <div key={item.key} className="flex items-center justify-between gap-4 rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--soft-ink)]">{item.pointTypeLabel}</p>
-              <p className="text-xs text-[var(--soft-ink-soft)]">{item.label}</p>
-              <p className="text-xs text-[var(--soft-ink-faint)]">{item.expiryLabel} · {item.expiryRuleLabel}</p>
-            </div>
-            <span className={item.amount >= 0 ? "soft-badge soft-badge-warm shrink-0" : "soft-badge shrink-0"}>
-              {item.amount > 0 ? "+" : ""}{item.amount}
-            </span>
-          </div>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Активных начислений пока нет.</p>
+      ) : (
+        <>
+          {soonest && (
+            <p className="mt-2 text-[12.5px] font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+              Ближайшее сгорание: {soonest.amount} — {soonest.expiryLabel}
+            </p>
+          )}
+          <RevealList initial={3} step={5} className="mt-2 divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать все">
+            {items.map((item) => (
+              <div key={item.key} className="flex items-center justify-between gap-3 py-2 text-[12.5px]">
+                <span className="min-w-0">
+                  <span className="block truncate text-[var(--soft-ink)]">{item.pointTypeLabel}</span>
+                  <span className="block truncate text-[11px] text-[var(--soft-ink-faint)]">{item.expiryLabel}</span>
+                </span>
+                <span className="shrink-0 tabular-nums" style={{ color: item.amount >= 0 ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)" }}>
+                  {item.amount > 0 ? "+" : ""}{item.amount}
+                </span>
+              </div>
+            ))}
+          </RevealList>
+        </>
+      )}
     </section>
   );
 }
 
 function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
   return (
-    <section className="mt-6" id="wallet-topup">
+    <section className="mt-4" id="wallet-topup">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="soft-eyebrow">пакеты баллов</p>
@@ -122,8 +190,6 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
             <p className="mt-4 font-heading text-3xl font-semibold text-[var(--soft-bordeaux)]">
               {pack.amountRub} ₽
             </p>
-            {/* Round-5 #8: no «+N баллов…» caption — it duplicated the card
-                heading; the 12-month rule lives in the section lede above. */}
             <p className="mt-1 flex-1 text-sm text-[var(--soft-ink-faint)]">
               {pack.pricePerCreditRub} ₽ за балл
             </p>
@@ -135,35 +201,27 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
   );
 }
 
-// B464 round-4 #13: history rows follow the owner's «recent 4 + показать ещё»
-// pattern — no endless scroll of ledger rows.
-function WalletHistory({ items }: { items: WalletHistoryItem[] }) {
+/** Список операций с баллами — вкладка «Баллы» объединённой истории. */
+function WalletCreditHistory({ items }: { items: WalletHistoryItem[] }) {
+  if (items.length === 0) {
+    return <p className="py-4 text-sm text-[var(--soft-ink-soft)]">Операций с баллами пока нет.</p>;
+  }
   return (
-    <section className="soft-card p-5" data-testid="wallet-history">
-      <div className="flex items-center gap-2">
-        <History className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-        <h2 className="soft-h3">История операций с баллами</h2>
-      </div>
-      {items.length === 0 ? (
-        <p className="py-4 text-sm text-[var(--soft-ink-soft)]">Операций пока нет.</p>
-      ) : (
-        <RevealList initial={4} step={4} className="mt-3 divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать ещё">
-          {items.map((entry) => (
-            <div key={entry.id} className="flex items-center justify-between gap-4 py-3 text-sm">
-              <div className="min-w-0">
-                <p className="font-medium text-[var(--soft-ink)]">{entry.typeLabel}</p>
-                <p className="text-xs text-[var(--soft-ink-faint)]">
-                  {entry.sourceLabel} · {entry.createdAt.toLocaleDateString("ru-RU")}
-                </p>
-              </div>
-              <span className={entry.amount >= 0 ? "text-[var(--soft-terracotta-dark)]" : "text-[var(--soft-bordeaux)]"}>
-                {entry.amount > 0 ? "+" : ""}{entry.amount}
-              </span>
-            </div>
-          ))}
-        </RevealList>
-      )}
-    </section>
+    <RevealList initial={4} step={4} className="divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать ещё">
+      {items.map((entry) => (
+        <div key={entry.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+          <div className="min-w-0">
+            <p className="font-medium text-[var(--soft-ink)]">{entry.typeLabel}</p>
+            <p className="text-xs text-[var(--soft-ink-faint)]">
+              {entry.sourceLabel} · {entry.createdAt.toLocaleDateString("ru-RU")}
+            </p>
+          </div>
+          <span className={entry.amount >= 0 ? "text-[var(--soft-terracotta-dark)]" : "text-[var(--soft-bordeaux)]"}>
+            {entry.amount > 0 ? "+" : ""}{entry.amount}
+          </span>
+        </div>
+      ))}
+    </RevealList>
   );
 }
 
@@ -185,69 +243,35 @@ export default async function CabinetWalletPage() {
 
   return (
     <main className="max-w-6xl px-4 py-8 sm:px-6" data-testid="cabinet-wallet-page" style={{ paddingBottom: 80 }}>
-      <WalletBalanceHeader balance={wallet.balance} />
-
-      {welcomeGrant?.expiresAt && (
-        <section className="mb-5 soft-card border-[var(--soft-terracotta)]/30 bg-[var(--soft-surface)] p-5" data-testid="welcome-credits-card">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="soft-eyebrow">стартовый подарок</p>
-              <h2 className="soft-h3 mt-2">3 приветственных балла на первые разборы</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                Они действуют ещё {daysUntil(welcomeGrant.expiresAt, now)} дн. Этого хватит,
-                чтобы открыть «Переосмысление» и попробовать один следующий формат за баллы.
-              </p>
-            </div>
-            <Link
-              href={appUrl("/products/reframe")}
-              className="soft-button soft-button-primary shrink-0 self-start sm:self-center"
-              data-analytics-event="welcome_credits_open_reframe_clicked"
-              data-analytics-surface="cabinet_wallet"
-              data-analytics-target="/products/reframe"
-              data-analytics-product="reframe"
-            >
-              Переосмыслить ситуацию
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <WalletBreakdown items={wallet.breakdown} />
-
-      {/* Slim spend-bridge: the catalog itself lives on the landing «Услуги»
-          (round-2 #6) — the wallet only points there, no duplicated grid.
-          B512: лиловый мост (mockup) — лиловый = «ведёт к сервисам», как
-          service-nudge на Главной. */}
-      <section
-        className="soft-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5"
-        data-testid="wallet-spend-bridge"
-        style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
-      >
-        <div className="min-w-0">
-          <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>на что потратить баллы</p>
-          <p className="mt-1 text-sm" style={{ color: "#43356E" }}>
-            Все разборы и форматы — в каталоге услуг. Баллы спишутся при открытии.
-          </p>
-        </div>
-        <Link href={mainUrl("/products")} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }}>
-          Открыть каталог услуг
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
+      {/* ═══════ РЯД 1 — «Ваш тариф» ═══════ */}
+      <section data-testid="wallet-billing" data-testid-row="1">
+        <BillingPanel section="plans" />
       </section>
 
+      {/* ═══════ РЯД 2 — доступно · на что потратить · разбивка по срокам ═══ */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3" data-testid="wallet-row-2">
+        <WalletAvailable balance={wallet.balance} welcomeExpiresAt={welcomeGrant?.expiresAt ?? null} now={now} />
+        <WalletSpendBridge />
+        <WalletBreakdown items={wallet.breakdown} />
+      </div>
+
+      {/* ═══════ РЯД 3 — пакеты баллов ═══════ */}
       <CreditPacksGrid packs={wallet.packs} />
 
-      {/* B464 IB3 — subscription + saved cards + payment history, merged from the
-          retired «Подписка и оплата» page (/billing → /wallet). Round-5 #9: no
-          extra wrapper headings — the panel carries its own single header per
-          block (тариф · карты · история). */}
-      <section className="mt-8" data-testid="wallet-billing">
-        <BillingPanel />
-      </section>
-
-      <section className="mt-6">
-        <WalletHistory items={wallet.history} />
+      {/* ═══════ РЯД 4 — «История операций» ═══════
+          Владелец просил ОДИН блок. Плоским списком нельзя: покупка пакета
+          пишет две записи в разные таблицы — рублёвую и балльную, — и общий
+          список показал бы каждую покупку дважды («+790 ₽» и «+5 баллов»).
+          Поэтому один блок с двумя вкладками. */}
+      <section className="soft-card mt-4 p-5 md:p-6" data-testid="wallet-history">
+        <div className="mb-3 flex items-center gap-2">
+          <History className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+          <h2 className="soft-h3">История операций</h2>
+        </div>
+        <WalletHistoryTabs
+          credits={<WalletCreditHistory items={wallet.history} />}
+          money={<BillingPanel section="history" />}
+        />
       </section>
     </main>
   );

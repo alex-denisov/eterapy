@@ -109,13 +109,14 @@ describe("R15 item 6 — daily question streak logic and copy", () => {
     expect(pluralRu(3, ["балл", "балла", "баллов"])).toBe("балла");
   });
 
-  it("home hides the streak badge without a live streak and speaks without «вехи»", () => {
+  it("B602: серия и её копирайт живут на «Дневнике», не на Главной", () => {
     const home = read("app/cabinet/page.tsx");
+    const diary = read("app/cabinet/diary/page.tsx");
+    // Живая серия по-прежнему считается — она питает рекомендации; показывает
+    // её «Дневник», где и стоит сам ритуал.
     expect(home).toContain("effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate");
-    expect(home).toContain("{liveStreak > 0 && (");
     expect(home).not.toContain("вехи:");
-    expect(home).toContain("Ответы сохраняются в Дневнике — их видите только вы.");
-    expect(home).toContain("За регулярность приходят баллы");
+    expect(diary).toContain('data-testid="diary-streak-ring"');
   });
 
   it("marking the day refreshes the server-rendered week strip immediately", () => {

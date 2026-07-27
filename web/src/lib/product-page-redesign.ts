@@ -75,7 +75,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     heroVisual: "interactive-chart",
     previewTitle: "Расклад без приговора",
     previewBullets: ["образ ситуации", "скрытая развилка", "практичный следующий шаг"],
-    trustLine: "Карты помогают думать, а не предсказывают судьбу.",
+    trustLine: "Расклад отвечает на ваш вопрос прямо — с выводом, а не с оговорками.",
   },
   "natal-chart": {
     family: "symbolic",

@@ -471,3 +471,131 @@ export function planPractitionerCard(signals: CabinetSignals): PractitionerPlan 
 
   return { mode: "explore", topic, topicLabel, categories: topicCategories, continueWith: null };
 }
+
+// ── «Рекомендуем вам» — ряд 3 слева (B602) ───────────────────────────────────
+//
+// Владелец: «переделать в рекомендательный блок … и дальше рекомендации делать
+// на основании ИСПОЛЬЗОВАННЫХ РАЗБОРОВ».
+//
+// Это сознательно ДРУГОЙ сигнал, чем у `buildServiceNudge` (ряд 4 справа):
+// там — доминирующая тема диалогов, здесь — какие услуги человек уже прошёл.
+// UX-разбор предупреждал, что два блока рекомендаций на одном движке
+// воспроизведут ту самую мозаику; разведение по сигналам — ответ на это, а не
+// отказ от второго блока, которого владелец просил.
+
+export interface UsageRecommendation {
+  /** `null` только у бесплатной двери — у неё нет productKey. */
+  productKey: string | null;
+  kind: "start" | "adjacent";
+  title: string;
+  /** «потому что вы делали …» — почему именно это, а не что-то ещё. */
+  reason: string;
+  cta: string;
+  route: string;
+  surface: "main" | "app";
+}
+
+/**
+ * Что естественно следует за уже пройденным. Порядок внутри списка — приоритет.
+ * Ключи и маршруты сверены с `lib/v5-products.ts`.
+ */
+const ADJACENT_SERVICES: Record<string, readonly string[]> = {
+  reframe: ["deep-report", "chat-analysis"],
+  "deep-report": ["pair", "family-scenarios"],
+  "chat-analysis": ["reframe", "pair"],
+  pair: ["synastry", "family-scenarios"],
+  tarot: ["horary", "numerology"],
+  "natal-chart": ["synastry", "human-design"],
+  synastry: ["pair", "natal-chart"],
+  horary: ["tarot", "natal-chart"],
+  "tarot-numerology": ["numerology", "natal-chart"],
+  numerology: ["tarot-numerology", "human-design"],
+  "family-scenarios": ["surname-story", "deep-report"],
+  "human-design": ["natal-chart", "numerology"],
+  "surname-story": ["family-scenarios", "numerology"],
+};
+
+/** Названия и адреса — те же, что на лендинге, без второй копии каталога. */
+const SERVICE_TITLES: Record<string, { title: string; cta: string; route: string }> = {
+  reframe: { title: "Переосмысление", cta: "Разобрать ситуацию", route: "/products/reframe" },
+  "deep-report": { title: "Подробный разбор", cta: "Открыть разбор", route: "/products/deep-report" },
+  "chat-analysis": { title: "Разбор переписки", cta: "Разобрать переписку", route: "/products/chat-analysis" },
+  pair: { title: "Разобраться вдвоём", cta: "Открыть «Вместе»", route: "/products/pair" },
+  tarot: { title: "Расклад Таро", cta: "Сделать расклад", route: "/products/tarot" },
+  "natal-chart": { title: "Натальная карта", cta: "Построить карту", route: "/products/natal-chart" },
+  synastry: { title: "Совместимость по звёздам", cta: "Проверить совместимость", route: "/products/synastry" },
+  horary: { title: "Ответ на один вопрос", cta: "Задать вопрос картам", route: "/products/horary" },
+  "tarot-numerology": { title: "Арканы рождения", cta: "Узнать свои арканы", route: "/products/tarot-numerology" },
+  numerology: { title: "Матрица судьбы", cta: "Рассчитать матрицу", route: "/products/numerology" },
+  "family-scenarios": { title: "Семейные сценарии", cta: "Собрать сценарии", route: "/products/family-scenarios" },
+  "human-design": { title: "Дизайн человека", cta: "Построить бодиграф", route: "/products/human-design" },
+  "surname-story": { title: "Кармический код фамилии", cta: "Разобрать фамилию", route: "/products/surname-story" },
+};
+
+const USAGE_RECOMMENDATION_LIMIT = 3;
+
+export function buildUsageRecommendations(
+  signals: CabinetSignals,
+  seed: number,
+  limit: number = USAGE_RECOMMENDATION_LIMIT,
+): UsageRecommendation[] {
+  // Человеку в кризисе платформа не продаёт. Пустой список — это ряд без
+  // левой карточки, а не карточка с уговорами подождать.
+  if (signals.crisisGuard) return [];
+
+  const used = signals.recentProductKeys.filter((key) => key in SERVICE_TITLES);
+
+  // Новичок: сначала бесплатная дверь, потом две флагманские услуги. Продавать
+  // тому, кто ещё ничего не пробовал, — это и есть «непонятно, что тут делать».
+  if (used.length === 0) {
+    const flagships = pickBy(seed, 11, [
+      ["reframe", "tarot"],
+      ["reframe", "numerology"],
+    ] as const);
+    return [
+      {
+        productKey: null,
+        kind: "start" as const,
+        title: "Задать свой вопрос",
+        reason: "Первый разбор бесплатный — с него понятнее всё остальное",
+        cta: "Задать вопрос",
+        route: "/checkin",
+        surface: "main" as const,
+      },
+      ...flagships.map((key) => ({
+        productKey: key,
+        kind: "adjacent" as const,
+        title: SERVICE_TITLES[key].title,
+        reason: "С этого чаще всего начинают",
+        cta: SERVICE_TITLES[key].cta,
+        route: SERVICE_TITLES[key].route,
+        surface: "main" as const,
+      })),
+    ].slice(0, limit);
+  }
+
+  // Ряд 4 занят своей рекомендацией по теме — не показываем её второй раз.
+  const nudgeKey = buildServiceNudge(signals, seed)?.productKey ?? null;
+  const excluded = new Set<string>([...used, ...(nudgeKey ? [nudgeKey] : [])]);
+
+  const out: UsageRecommendation[] = [];
+  // Обходим по свежести: последнее пройденное задаёт первую рекомендацию.
+  for (const source of used) {
+    for (const candidate of ADJACENT_SERVICES[source] ?? []) {
+      if (excluded.has(candidate)) continue;
+      excluded.add(candidate);
+      const service = SERVICE_TITLES[candidate];
+      out.push({
+        productKey: candidate,
+        kind: "adjacent",
+        title: service.title,
+        reason: `Вы делали «${SERVICE_TITLES[source].title}»`,
+        cta: service.cta,
+        route: service.route,
+        surface: "main",
+      });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}

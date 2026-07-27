@@ -41,12 +41,14 @@ describe("B205 Library and esoteric service pages", () => {
     }
   });
 
-  it("keeps esoteric copy inside the no-prediction safety contract", () => {
+  it("B601: разбор отвечает прямо, но ничего не гарантирует", () => {
     const page = source("src/components/public/esoteric-soon-page.tsx");
 
-    expect(page).toContain("языку метафор, не как к предсказанию");
-    expect(page).toContain("не обещаем точных");
-    expect(page).toContain("не заменяем психолога или врача");
+    // Владелец 2026-07-27 снял «это не гадание» из копирайта. Осталась
+    // единственная честная граница: ответ есть, гарантии события — нет.
+    expect(page).toContain("Разбор отвечает на ваш вопрос прямо");
+    expect(page).toContain("Гарантией события такой ответ\n            не является");
+    expect(page).toContain("психолога или врача мы не заменяем");
     // M26/B367: joint-session блок заменён на каталожный CTA с бейджем универсала.
     expect(page).toContain("психология + эзотерика");
   });

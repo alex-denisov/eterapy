@@ -57,10 +57,12 @@ describe("Z10 — credit wallet and credit packs", () => {
 
     const page = fs.readFileSync(pagePath, "utf8");
     expect(page).toContain('data-testid="cabinet-wallet-page"');
-    expect(page).toContain("WalletBalanceHeader");
+    // B602: «Доступно» переименован в WalletAvailable и встал в ряд 2, история
+    // объединена в один блок с вкладками «Баллы / Деньги».
+    expect(page).toContain("WalletAvailable");
     expect(page).toContain("WalletBreakdown");
     expect(page).toContain("CreditPacksGrid");
-    expect(page).toContain("WalletHistory");
+    expect(page).toContain("WalletHistoryTabs");
     expect(page).toContain('data-testid={`wallet-pack-${pack.credits}`}');
     expect(page).toContain("creditPackKey");
     expect(page).toContain("CreditPackPurchaseButton");
