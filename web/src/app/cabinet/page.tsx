@@ -615,7 +615,11 @@ export default async function ClientCabinetPage() {
               {diaryCardReco.text}
             </p>
           </div>
-          <div className="pt-4"><Link href={appUrl("/diary")} className="soft-button soft-button-ghost w-fit shrink-0">{diaryCardReco.ctaLabel}</Link></div>
+          {/* Кнопка ко дну, как во всех остальных карточках рядов 1 и 3: при
+              выравнивании по высоте пустота будет в любом случае, и лучше ей
+              быть НАД действием, чем под ним — иначе низ карточки читается как
+              недогрузившийся блок. */}
+          <div className="mt-auto pt-4"><Link href={appUrl("/diary")} className="soft-button soft-button-ghost w-fit shrink-0">{diaryCardReco.ctaLabel}</Link></div>
         </div>
         </PinBlurGate>
 
