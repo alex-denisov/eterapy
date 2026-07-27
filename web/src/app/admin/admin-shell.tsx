@@ -29,6 +29,7 @@ import {
   FileSpreadsheet,
   Coins,
   Link2,
+  Megaphone,
   Newspaper,
   ChevronDown,
   Search,
@@ -79,6 +80,11 @@ const NAV_ITEMS: NavItem[] = [
   // B600: реестр URL — в том же разделе, где ядро и публикации: вес адреса
   // берётся из ядра, а ломается он публикацией на старый адрес.
   { href: adminUrl("/admin/marketing/urls"), icon: Link2, label: "Реестр URL", section: "marketing", level: 1, superadminOnly: true },
+  // B599: журнал рекламных отправок живёт рядом с ядром и реестром — это тот же
+  // раздел «Поиск и маркетинг», куда владелец и просил его положить.
+  // Не просто «Уведомления»: в разделе «Система» уже есть пункт с таким именем,
+  // и он про доставку транзакционных. Здесь — реклама, и путать их нельзя.
+  { href: adminUrl("/admin/marketing/notifications"), icon: Megaphone, label: "Рекламные уведомления", section: "marketing", level: 1, superadminOnly: true },
 
   { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },
