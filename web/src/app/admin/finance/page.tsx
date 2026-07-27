@@ -100,6 +100,7 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
             <MetricCard label="Отчеты практиков" value="Открыть" href="/admin/finance/reports" hint="Электронные отчеты услуг" />
             <MetricCard label="Цены и тарифы" value="Открыть" href="/admin/finance/pricing" hint="Продукты, подписки, комиссии" />
             <MetricCard label="Сверка и импорт" value="Открыть" href="/admin/finance/reconciliation" hint="Webhook/экспорт/провайдер" />
+            <MetricCard label="Учёт и отчётность ИП" value="Открыть" href="/admin/finance/accounting" hint="Сроки ФНС, ставки, сколько отложить" />
             <MetricCard label="Контроль и журналы" value="Открыть" href="/admin/finance/controls" hint="Финансовые логи" />
             <MetricCard label="Юнит-экономика" value="Открыть" href="/admin/finance/unit-economics" hint="Фактические AI-затраты" />
           </div>

@@ -85,6 +85,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/pricing"), icon: SlidersHorizontal, label: "Цены и тарифы", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/controls"), icon: FileSearch,       label: "Контроль и журналы", section: "finance", level: 1, superadminOnly: true },
+  // B591: календарь обязанностей ИП и оценка «сколько отложить».
+  { href: adminUrl("/admin/finance/accounting"), icon: FileSpreadsheet, label: "Учёт и отчётность ИП", section: "finance", level: 1, superadminOnly: true },
 
   { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Система, AI и журналы", section: "ops", level: 0, permission: "system.read" },
   { href: adminUrl("/admin/ops/ai-cost"),  icon: BrainCircuit,         label: "AI-затраты и токены", section: "ops", level: 1, permission: "ai.configure" },
