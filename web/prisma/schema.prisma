@@ -2242,3 +2242,26 @@ model SupportMessage {
   @@index([telegramMessageId])
   @@map("support_messages")
 }
+
+// B591: ручные приходы и расходы вне платёжного рельса. Платёжная книга видит
+// только Robokassa и Telegram Stars; счёт, банковские комиссии, хостинг и
+// взносы платформа не видит вовсе, а бухгалтеру они нужны.
+// `taxable` — только про приход: на УСН «Доходы» расход базу не уменьшает.
+model IpLedgerEntry {
+  id            String   @id @default(cuid())
+  occurredAt    DateTime @map("occurred_at") @db.Date
+  direction     String
+  categoryKey   String   @map("category_key")
+  amountKopecks Int      @map("amount_kopecks")
+  taxable       Boolean  @default(true)
+  counterparty  String?
+  documentRef   String?  @map("document_ref")
+  note          String?
+  createdById   String?  @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([occurredAt])
+  @@index([direction, occurredAt])
+  @@map("ip_ledger_entries")
+}

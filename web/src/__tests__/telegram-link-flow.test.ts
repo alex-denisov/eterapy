@@ -21,6 +21,13 @@ jest.mock("@/lib/db", () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    // INC-088: отвязка снимает и identity входа из Mini App, поэтому мок
+    // повторяет транзакцию единого слоя привязки.
+    platformIdentity: {
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -129,16 +136,21 @@ describe("Telegram link flow", () => {
   });
 
   it("unlinks Telegram and removes any pending link tokens", async () => {
-    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      id: "user-1",
-      password: "$2a$10$hashed",
-      provider: "web",
-      providerId: null,
-      telegramId: "tg-1",
-      telegramUsername: "linked_user",
-    });
+    (db.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "user-1",
+        password: "$2a$10$hashed",
+        provider: "web",
+        providerId: null,
+        telegramId: "tg-1",
+        telegramUsername: "linked_user",
+      })
+      // INC-088: второй запрос — уже внутри транзакции единого слоя привязки.
+      .mockResolvedValueOnce({ id: "user-1", telegramId: "tg-1" });
+    (db.platformIdentity.findUnique as jest.Mock).mockResolvedValueOnce({ id: "identity-1", subjectId: "tg-1" });
     (db.telegramLinkToken.deleteMany as jest.Mock).mockResolvedValueOnce({});
     (db.user.update as jest.Mock).mockResolvedValueOnce({});
+    (db.$transaction as jest.Mock).mockImplementation((fn: (tx: typeof db) => unknown) => fn(db));
 
     const response = await DELETE();
     const body = await response.json();
@@ -157,6 +169,9 @@ describe("Telegram link flow", () => {
       where: { id: "user-1" },
       data: { telegramId: null, telegramUsername: null },
     });
+    // INC-088: identity входа снимается вместе с адресом доставки — иначе
+    // «отвязал» на экране, а вход из Mini App продолжает работать.
+    expect(db.platformIdentity.delete).toHaveBeenCalledWith({ where: { id: "identity-1" } });
   });
 
   it("does not unlink Telegram when it is the last login method", async () => {

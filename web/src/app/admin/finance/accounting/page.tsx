@@ -17,7 +17,10 @@ import {
   buildIncomeBook,
 } from "@/lib/ip-income-book";
 import { loadIncomeRecords } from "@/lib/ip-income-book-data";
+import { summarizeManualLedger } from "@/lib/ip-manual-ledger";
+import db from "@/lib/db";
 import { IncomeBookTable } from "./income-book-table";
+import { ManualLedger } from "./manual-ledger";
 
 // B591 фаза 1 (владелец 2026-07-27: «УСН Доходы 6 % уже стоит, продолжай
 // работу»). Экран отвечает ровно на один вопрос владельца: «что мне, как ИП,
@@ -61,7 +64,32 @@ export default async function FinanceAccountingPage() {
   }).catch(() => ({ records: [], internalCount: 0 }));
   const book = buildIncomeBook(records, now);
   const turnoverRub = Math.round(book.totals.turnoverKopecks / 100);
-  const incomeRub = Math.round(book.totals.ownIncomeKopecks / 100);
+  const railIncomeRub = Math.round(book.totals.ownIncomeKopecks / 100);
+
+  // B591: приход мимо платёжного рельса (оплата по счёту и подобное) — такой же
+  // доход, и налог с него платится. Поэтому он складывается с книгой ДО оценки,
+  // а не показывается отдельной справкой рядом. Расходы в оценку не входят
+  // вовсе: на УСН «Доходы» они базу не уменьшают.
+  const manualEntries = await db.ipLedgerEntry
+    .findMany({
+      where: { occurredAt: { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) } },
+    })
+    .catch(() => []);
+  const manualTotals = summarizeManualLedger(
+    manualEntries.map((entry) => ({
+      id: entry.id,
+      occurredAt: entry.occurredAt,
+      direction: entry.direction === "expense" ? "expense" as const : "income" as const,
+      categoryKey: entry.categoryKey,
+      amountKopecks: entry.amountKopecks,
+      taxable: entry.taxable,
+      counterparty: entry.counterparty,
+      documentRef: entry.documentRef,
+      note: entry.note,
+    })),
+  );
+  const manualIncomeRub = Math.round(manualTotals.taxableIncomeKopecks / 100);
+  const incomeRub = railIncomeRub + manualIncomeRub;
   const estimate = estimateSetAside({ incomeRub, year, at: now });
 
   const nextDue = schedule.find((item) => item.state === "soon" || item.state === "overdue");
@@ -79,7 +107,7 @@ export default async function FinanceAccountingPage() {
         <MetricCard
           label="Ваш доход с начала года"
           value={rub(incomeRub)}
-          hint={`оборот ${rub(turnoverRub)} · по сессиям доходом признаётся только комиссия`}
+          hint={`оборот ${rub(turnoverRub)} · по сессиям доходом признаётся только комиссия${manualIncomeRub > 0 ? ` · из них ${rub(manualIncomeRub)} заведены руками` : ""}`}
         />
         <MetricCard
           label="Отложить (оценка)"
@@ -229,6 +257,8 @@ export default async function FinanceAccountingPage() {
         )}
       </section>
 
+      <ManualLedger year={year} />
+
       <section className="soft-card p-5" data-testid="accounting-recognition-rules">
         <h2 className="soft-h3">Как признаётся доход</h2>
         <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
@@ -275,7 +305,13 @@ export default async function FinanceAccountingPage() {
             и видеть его надо в день появления. Сверять пока нечего: живых оплат почти нет.
           </li>
           <li>
-            <b>Годовой пакет и напоминания в Telegram</b> (фаза 4) — за 10 и за 3 дня до срока.
+            <b>Годовой пакет и напоминания в Telegram</b> (фаза 4) — за 10 и за 3 дня до срока,
+            уже работают.
+          </li>
+          <li>
+            <b>Импорт выписки банка</b> — прочие приходы и расходы пока заводятся по одной строке
+            руками; разбор выписки файлом появится, когда строк станет столько, что это будет
+            дешевле ручного ввода.
           </li>
         </ul>
       </section>

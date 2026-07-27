@@ -10,6 +10,7 @@ import { getTelegramLinkUrl } from "@/lib/telegram";
 import { randomBytes } from "crypto";
 import { canUnlinkLoginProvider } from "@/lib/auth-access";
 import { logAudit } from "@/lib/audit";
+import { unbindTelegramFromUser } from "@/lib/telegram-binding";
 
 export async function GET() {
   const session = await auth();
@@ -97,12 +98,8 @@ export async function DELETE() {
     }, { status: guard.reason === "last_login_method" ? 409 : 400 });
   }
 
-  await db.telegramLinkToken.deleteMany({ where: { userId } });
-
-  await db.user.update({
-    where: { id: userId },
-    data: { telegramId: null, telegramUsername: null },
-  });
+  // INC-088: снимаем обе записи — адрес доставки и identity входа из Mini App.
+  await unbindTelegramFromUser(userId);
   await logAudit(userId, "LOGIN_METHOD_UNLINK", undefined, JSON.stringify({ provider: "telegram" }));
 
   return NextResponse.json({

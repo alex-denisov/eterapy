@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import db from "@/lib/db";
+import { bindTelegramToUser } from "@/lib/telegram-binding";
 
 const TELEGRAM_PROVIDER = "telegram";
 const INIT_DATA_MAX_BYTES = 16_384;
@@ -193,30 +194,17 @@ export async function cleanupExpiredMiniAppAuthGrants(now = new Date()) {
   });
 }
 
+/**
+ * INC-088: привязка из Mini App теперь пишет и адрес доставки уведомлений
+ * (`users.telegramId`), а не только identity входа. Раньше человек, связавший
+ * аккаунт здесь, в разделе «Уведомления» оставался «не привязан» и не получал
+ * ничего. Правила конфликтов — в `lib/telegram-binding.ts`.
+ */
 export async function linkTelegramIdentity(userId: string, launch: VerifiedTelegramLaunch) {
-  return db.$transaction(async (tx) => {
-    const [bySubject, byUser] = await Promise.all([
-      tx.platformIdentity.findUnique({ where: { provider_subjectId: { provider: launch.provider, subjectId: launch.subjectId } } }),
-      tx.platformIdentity.findUnique({ where: { provider_userId: { provider: launch.provider, userId } } }),
-    ]);
-    if (bySubject && bySubject.userId !== userId) return { ok: false as const, code: "IDENTITY_IN_USE" as const };
-    if (byUser && byUser.subjectId !== launch.subjectId) return { ok: false as const, code: "USER_HAS_IDENTITY" as const };
-    const identity = await tx.platformIdentity.upsert({
-      where: { provider_subjectId: { provider: launch.provider, subjectId: launch.subjectId } },
-      create: {
-        provider: launch.provider,
-        subjectId: launch.subjectId,
-        userId,
-        username: launch.username,
-        displayName: [launch.firstName, launch.lastName].filter(Boolean).join(" "),
-      },
-      update: {
-        username: launch.username,
-        displayName: [launch.firstName, launch.lastName].filter(Boolean).join(" "),
-        verifiedAt: new Date(),
-        lastSeenAt: new Date(),
-      },
-    });
-    return { ok: true as const, identity };
+  return bindTelegramToUser({
+    userId,
+    subjectId: launch.subjectId,
+    username: launch.username,
+    displayName: [launch.firstName, launch.lastName].filter(Boolean).join(" ") || null,
   });
 }

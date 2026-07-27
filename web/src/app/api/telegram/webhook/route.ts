@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { enableAllTelegramNotifications } from "@/lib/notifications";
+import { bindTelegramToUser, findUserByTelegramSubject, unbindTelegramFromUser } from "@/lib/telegram-binding";
 import { sendTelegram } from "@/lib/telegram";
 import {
   formatTelegramGrowthMessage,
@@ -161,22 +162,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Check if this Telegram is already linked to someone else
-      const existing = await db.user.findFirst({ where: { telegramId: chatId } });
-      if (existing && existing.id !== link.userId) {
-        await safeSend(chatId, "⚠️ Этот Telegram уже привязан к другому аккаунту ETerapy.");
-        await completeWebhookEvent(claim.event.id, { result: "already-linked-other-user" });
+      // INC-088: привязка ботом теперь пишет и identity входа из Mini App, а не
+      // только адрес доставки. Конфликты («занят другим аккаунтом», «у аккаунта
+      // уже другой Telegram») считает один слой на обе записи сразу.
+      const bound = await bindTelegramToUser({
+        userId: link.userId,
+        subjectId: chatId,
+        username,
+        displayName: [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || null,
+      });
+      if (!bound.ok) {
+        await safeSend(chatId, bound.code === "IDENTITY_IN_USE"
+          ? "⚠️ Этот Telegram уже привязан к другому аккаунту ETerapy."
+          : "⚠️ К этому аккаунту уже привязан другой Telegram. Сначала отвяжите его в настройках.");
+        await completeWebhookEvent(claim.event.id, { result: `link-conflict:${bound.code}` });
         return NextResponse.json({ ok: true });
       }
-
-      // Link
-      await db.$transaction([
-        db.user.update({
-          where: { id: link.userId },
-          data: { telegramId: chatId, telegramUsername: username },
-        }),
-        db.telegramLinkToken.delete({ where: { token } }),
-      ]);
+      await db.telegramLinkToken.delete({ where: { token } }).catch(() => undefined);
 
       // Механика 5: enable all Telegram notification toggles on link.
       await enableAllTelegramNotifications(link.userId).catch((e: unknown) =>
@@ -193,20 +195,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === "/stop") {
-      const user = await db.user.findFirst({ where: { telegramId: chatId } });
+      // INC-088: ищем по обеим записям и снимаем обе. Иначе `/stop` у человека,
+      // привязавшегося из Mini App, отвечал «не привязан ни к одному аккаунту».
+      const user = await findUserByTelegramSubject(chatId);
       if (!user) {
         await safeSend(chatId, "Ваш Telegram не привязан ни к одному аккаунту ETerapy.");
       } else {
-        await db.user.update({ where: { id: user.id }, data: { telegramId: null, telegramUsername: null } });
+        await unbindTelegramFromUser(user.id);
         log.info("telegram-webhook-unlinked", { userId: user.id });
-        await safeSend(chatId, "✅ Telegram отвязан от аккаунта ETerapy. Уведомления отключены.");
+        await safeSend(chatId, "✅ Telegram отвязан от аккаунта ETerapy. Уведомления отключены, вход из Mini App тоже.");
       }
       await completeWebhookEvent(claim.event.id, { result: "stop" });
       return NextResponse.json({ ok: true });
     }
 
     if (text === "/status") {
-      const user = await db.user.findFirst({ where: { telegramId: chatId }, select: { name: true } });
+      const user = await findUserByTelegramSubject(chatId);
       if (!user) {
         await safeSend(chatId, "Уведомления Telegram пока не подключены. Само приложение уже можно открыть.", true);
       } else {
@@ -242,7 +246,7 @@ interface TelegramUpdate {
     message_id?: number;
     message_thread_id?: number;
     chat: { id: number };
-    from?: { username?: string };
+    from?: { username?: string; first_name?: string; last_name?: string };
     /** B529: приходит вместо текста, когда звёзды уже списаны. */
     successful_payment?: TelegramSuccessfulPayment;
     // B333: staff replies in the support group carry the original
