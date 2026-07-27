@@ -93,10 +93,12 @@ function WalletAvailable({
           </Link>
         </p>
       )}
-      <Link href="#wallet-topup" className="soft-button soft-button-primary mt-auto w-fit shrink-0" style={{ marginTop: 16 }}>
-        Пополнить кошелёк
-        <ArrowRight className="size-4" aria-hidden="true" />
-      </Link>
+      <div className="mt-auto pt-4">
+        <Link href="#wallet-topup" className="soft-button soft-button-primary w-fit shrink-0">
+          Пополнить кошелёк
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
     </section>
   );
 }
@@ -113,10 +115,12 @@ function WalletSpendBridge() {
       <p className="mt-1 text-sm" style={{ color: "#43356E" }}>
         Все разборы и форматы — в каталоге. Баллы спишутся при открытии.
       </p>
-      <Link href={mainUrl("/products")} className="soft-button mt-auto w-fit shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13, marginTop: 16 }}>
-        Открыть каталог
-        <ArrowRight className="size-4" aria-hidden="true" />
-      </Link>
+      <div className="mt-auto pt-4">
+        <Link href={mainUrl("/products")} className="soft-button w-fit shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }}>
+          Открыть каталог
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
     </section>
   );
 }
