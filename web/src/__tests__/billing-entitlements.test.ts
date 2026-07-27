@@ -188,7 +188,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(mockDb as never, {
       id: "tx-sub",
       userId: "user-1",
-      amount: 59000,
+      amount: 59000, provider: "robokassa",
       description: "ETerapy Plus",
       metadata: { purchaseKind: "subscription", planKey: "plus" },
     });
@@ -220,7 +220,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 139000,
+      amount: 139000, provider: "robokassa",
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     });
@@ -265,7 +265,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 69000,
+      amount: 69000, provider: "robokassa",
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -296,7 +296,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(testTx, {
       id: "tx-bundle",
       userId: "user-1",
-      amount: 89000,
+      amount: 89000, provider: "robokassa",
       description: "ETerapy: full-question",
       metadata: { purchaseKind: "product", productKey: "full-question" },
     });
@@ -361,7 +361,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 69000,
+      amount: 69000, provider: "robokassa",
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -384,7 +384,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 69000,
         type: "REFUND",
-        source: "unknown_refund",
+        source: "robokassa_refund",
         transactionId: "tx-1",
       }),
     }));
@@ -402,7 +402,7 @@ describe("v5 billing entitlements", () => {
     await revokeEntitlementsForTransaction(testTx, {
       id: "tx-bundle",
       userId: "user-1",
-      amount: 89000,
+      amount: 89000, provider: "robokassa",
       description: "ETerapy: full-question",
       metadata: { purchaseKind: "product", productKey: "full-question" },
     } as never, "Возврат бандла");
@@ -428,7 +428,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 89000,
         type: "REFUND",
-        source: "unknown_refund",
+        source: "robokassa_refund",
         transactionId: "tx-bundle",
       }),
     }));
@@ -449,7 +449,7 @@ describe("v5 billing entitlements", () => {
     await revokeEntitlementsForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 139000,
+      amount: 139000, provider: "robokassa",
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     } as never, "Возврат по обращению клиента");
@@ -476,7 +476,7 @@ describe("v5 billing entitlements", () => {
       data: expect.objectContaining({
         amountKopecks: 139000,
         type: "REFUND",
-        source: "unknown_refund",
+        source: "robokassa_refund",
         transactionId: "tx-pack",
       }),
     }));
