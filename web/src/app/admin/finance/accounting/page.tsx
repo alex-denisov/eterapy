@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import db from "@/lib/db";
 import { AdminHero, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import {
   IP_REGISTERED_AT,
@@ -11,6 +10,13 @@ import {
   estimateSetAside,
   type Obligation,
 } from "@/lib/ip-accounting";
+import {
+  INCOME_RECOGNITION_RULES,
+  RECOGNITION_LABEL,
+  SUBJECT_LABEL,
+  buildIncomeBook,
+} from "@/lib/ip-income-book";
+import { loadIncomeRecords } from "@/lib/ip-income-book-data";
 
 // B591 фаза 1 (владелец 2026-07-27: «УСН Доходы 6 % уже стоит, продолжай
 // работу»). Экран отвечает ровно на один вопрос владельца: «что мне, как ИП,
@@ -42,14 +48,19 @@ export default async function FinanceAccountingPage() {
   const year = now.getUTCFullYear();
   const schedule = buildObligationSchedule(year, now);
 
-  // Доход года берётся из УСПЕШНЫХ транзакций: оценка «сколько отложить»
-  // должна опираться на то, что действительно поступило, а не на выставленное.
-  const succeeded = await db.transaction.aggregate({
-    where: { status: "SUCCEEDED", createdAt: { gte: new Date(Date.UTC(year, 0, 1)) } },
-    _sum: { amount: true },
-  }).catch(() => ({ _sum: { amount: null } }));
-  // `amount` хранится в копейках.
-  const incomeRub = Math.round((succeeded._sum.amount ?? 0) / 100);
+  // B591 фаза 2. Раньше «поступило» считалось как сумма ВСЕХ успешных
+  // транзакций года — вместе с внутренними проводками и со знаком, которым
+  // записано списание у пользователя. Это давало не выручку, а сальдо
+  // пользовательского счёта. Теперь и метрика, и оценка берутся из книги
+  // доходов, и налог оценивается по СОБСТВЕННОМУ доходу: по агентским услугам
+  // им признаётся только комиссия (ответ бухгалтера 2026-07-27).
+  const { records, internalCount } = await loadIncomeRecords({
+    from: new Date(Date.UTC(year, 0, 1)),
+    to: new Date(Date.UTC(year + 1, 0, 1)),
+  }).catch(() => ({ records: [], internalCount: 0 }));
+  const book = buildIncomeBook(records, now);
+  const turnoverRub = Math.round(book.totals.turnoverKopecks / 100);
+  const incomeRub = Math.round(book.totals.ownIncomeKopecks / 100);
   const estimate = estimateSetAside({ incomeRub, year, at: now });
 
   const nextDue = schedule.find((item) => item.state === "soon" || item.state === "overdue");
@@ -65,9 +76,9 @@ export default async function FinanceAccountingPage() {
 
       <MetricGrid>
         <MetricCard
-          label="Поступило с начала года"
+          label="Ваш доход с начала года"
           value={rub(incomeRub)}
-          hint="успешные транзакции, все провайдеры"
+          hint={`оборот ${rub(turnoverRub)} · по сессиям доходом признаётся только комиссия`}
         />
         <MetricCard
           label="Отложить (оценка)"
@@ -126,6 +137,132 @@ export default async function FinanceAccountingPage() {
         </div>
       </section>
 
+      <section className="soft-card p-5" data-testid="accounting-income-book">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="soft-h3">Книга доходов за {year} год</h2>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <a className="soft-button-ghost px-3 py-1.5" href={`/api/admin/finance/income-book?year=${year}&format=xlsx`}>
+              Выгрузить XLSX
+            </a>
+            <a className="soft-button-ghost px-3 py-1.5" href={`/api/admin/finance/income-book?year=${year}&format=csv`}>
+              CSV
+            </a>
+          </div>
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          Это данные для Альфа-бухгалтерии, а не сама КУДиР: книгу ведёт бухгалтер, здесь она получает
+          цифры в готовом виде. Оборот и доход разделены — по агентским услугам вашим доходом
+          признаётся только комиссия платформы.
+        </p>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] px-3 py-2">
+            <div className="text-[11px] text-[var(--soft-ink-faint)]">Оборот</div>
+            <div className="text-sm font-semibold tabular-nums text-[var(--soft-ink)]">{rub(turnoverRub)}</div>
+          </div>
+          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] px-3 py-2">
+            <div className="text-[11px] text-[var(--soft-ink-faint)]">Ваш доход</div>
+            <div className="text-sm font-semibold tabular-nums text-[var(--soft-ink)]">{rub(incomeRub)}</div>
+          </div>
+          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] px-3 py-2">
+            <div className="text-[11px] text-[var(--soft-ink-faint)]">Снято возвратами</div>
+            <div className="text-sm font-semibold tabular-nums text-[var(--soft-ink)]">
+              {rub(Math.round(book.totals.refundedOwnIncomeKopecks / 100))}
+            </div>
+          </div>
+        </div>
+
+        {/* Нерешённые строки — красная плашка, а не сноска: выгружать книгу с
+            неопознанными поступлениями нельзя, она разойдётся с декларацией. */}
+        {book.totals.unresolvedCount > 0 && (
+          <p
+            className="mt-3 rounded-[10px] px-3 py-2 text-xs leading-relaxed"
+            data-testid="accounting-income-unresolved"
+            style={{ background: "rgba(180,60,60,0.12)", color: "#8E2F2F" }}
+          >
+            {book.totals.unresolvedCount} {book.totals.unresolvedCount === 1 ? "строка" : "строк"} на
+            {" "}{rub(Math.round(book.totals.unresolvedTurnoverKopecks / 100))} не отнесены к доходу.
+            Разберитесь с ними до выгрузки бухгалтеру: система не подставляет ставку и не угадывает вид платежа.
+          </p>
+        )}
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-xs">
+            <thead className="text-[var(--soft-ink-faint)]">
+              <tr>
+                <th className="pb-2 pr-3 font-medium">Дата</th>
+                <th className="pb-2 pr-3 font-medium">Источник</th>
+                <th className="pb-2 pr-3 font-medium">Что продано</th>
+                <th className="pb-2 pr-3 text-right font-medium">Оборот</th>
+                <th className="pb-2 pr-3 text-right font-medium">Ваш доход</th>
+                <th className="pb-2 font-medium">Признание</th>
+              </tr>
+            </thead>
+            <tbody>
+              {book.entries.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-3 text-[var(--soft-ink-soft)]">
+                    За {year} год денежных поступлений нет.
+                  </td>
+                </tr>
+              )}
+              {book.entries.map((entry) => (
+                <tr key={entry.id} className="border-t border-[var(--soft-paper-edge)] align-top" data-entry={entry.id}>
+                  <td className="py-2 pr-3 whitespace-nowrap tabular-nums text-[var(--soft-ink-strong)]">
+                    {dateRu(entry.recognizedAt)}
+                  </td>
+                  <td className="py-2 pr-3 text-[var(--soft-ink-soft)]">
+                    {entry.provider}
+                    <div className="text-[11px] text-[var(--soft-ink-faint)]">№ {entry.reference}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-[var(--soft-ink-soft)]">
+                    {entry.subject ? SUBJECT_LABEL[entry.subject] : "вид не определён"}
+                    {entry.note && <div className="text-[11px] text-[var(--soft-ink-faint)]">{entry.note}</div>}
+                    {entry.issue && <div className="text-[11px]" style={{ color: "#8E2F2F" }}>{entry.issue}</div>}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-[var(--soft-ink-strong)]">
+                    {rub(Math.round(entry.turnoverKopecks / 100))}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-[var(--soft-ink-strong)]">
+                    {entry.ownIncomeKopecks === null ? "—" : rub(Math.round(entry.ownIncomeKopecks / 100))}
+                  </td>
+                  <td className="py-2 text-[var(--soft-ink-faint)]">
+                    {entry.refunded ? "возврат" : entry.recognition ? RECOGNITION_LABEL[entry.recognition] : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {internalCount > 0 && (
+          <p className="mt-3 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
+            Ещё {internalCount} внутренних проводок за год (подписка практика за счёт заработанного,
+            выдача админом) в книгу не входят: денег по ним не поступало.
+          </p>
+        )}
+      </section>
+
+      <section className="soft-card p-5" data-testid="accounting-recognition-rules">
+        <h2 className="soft-h3">Как признаётся доход</h2>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          Правила — данные с датой начала действия и основанием, как и ставки. Меняется ответ
+          бухгалтера — меняется строка правила, а не расчёт.
+        </p>
+        <div className="mt-3 grid gap-1.5 text-xs">
+          {INCOME_RECOGNITION_RULES.map((rule) => (
+            <div key={rule.subject} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--soft-paper-edge)] pb-1.5 last:border-0">
+              <span className="text-[var(--soft-ink-strong)]">
+                {SUBJECT_LABEL[rule.subject]}
+                <span className="ml-2 font-semibold">{RECOGNITION_LABEL[rule.recognition]}</span>
+                <span className="ml-2 text-[var(--soft-ink-faint)]">{rule.basis}</span>
+              </span>
+              <span className="whitespace-nowrap tabular-nums text-[var(--soft-ink-faint)]">с {dateRu(rule.effectiveFrom)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="soft-card p-5" data-testid="accounting-rates">
         <h2 className="soft-h3">Ставки и пороги, по которым считалась оценка</h2>
         {/* Величины показаны с источником и датой начала действия намеренно:
@@ -147,11 +284,6 @@ export default async function FinanceAccountingPage() {
       <section className="soft-card p-5" data-testid="accounting-next-phases">
         <h2 className="soft-h3">Чего здесь ещё нет</h2>
         <ul className="mt-2 grid gap-1.5 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-          <li>
-            <b>Книга доходов</b> (фаза 2) — таблица признанных доходов с разделением
-            «оборот принципала / доход платформы» по агентской схеме и выгрузкой для Альфы.
-            Упирается в один вопрос к бухгалтеру: признаётся доходом вся сумма сессии или только комиссия.
-          </li>
           <li>
             <b>Сверка с чеками</b> (фаза 3) — оплата без фискального чека это нарушение 54-ФЗ,
             и видеть его надо в день появления. Сверять пока нечего: живых оплат почти нет.
