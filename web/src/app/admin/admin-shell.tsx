@@ -28,6 +28,7 @@ import {
   Landmark,
   FileSpreadsheet,
   Coins,
+  Link2,
   Newspaper,
   ChevronDown,
   Search,
@@ -75,6 +76,9 @@ const NAV_ITEMS: NavItem[] = [
 
   { href: adminUrl("/admin/marketing"),    icon: Search,              label: "Поиск и маркетинг", section: "marketing", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/marketing/publications"), icon: Newspaper, label: "Внешние публикации", section: "marketing", level: 1, superadminOnly: true },
+  // B600: реестр URL — в том же разделе, где ядро и публикации: вес адреса
+  // берётся из ядра, а ломается он публикацией на старый адрес.
+  { href: adminUrl("/admin/marketing/urls"), icon: Link2, label: "Реестр URL", section: "marketing", level: 1, superadminOnly: true },
 
   { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },
