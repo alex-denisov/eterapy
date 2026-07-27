@@ -42,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: "synastry", deletedAt: null },
+    where: { id, userId, productKey: "compatibility-by-date", deletedAt: null },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
 
@@ -78,7 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     where: {
       id,
       userId,
-      productKey: "synastry",
+      productKey: "compatibility-by-date",
       deletedAt: null,
     },
   });
@@ -102,7 +102,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     where: {
       id,
       userId,
-      productKey: "synastry",
+      productKey: "compatibility-by-date",
       deletedAt: null,
     },
   });

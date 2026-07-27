@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { STRATEGIC_KEYWORDS } from "@/lib/search-marketing-data";
+import { SEMANTIC_CORE } from "@/lib/seo/semantic-core-index";
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
@@ -10,7 +11,7 @@ describe("B578 — SEO/GEO content operations", () => {
     expect(STRATEGIC_KEYWORDS.every((keyword) => keyword.landing.startsWith("/"))).toBe(true);
     expect(new Set(STRATEGIC_KEYWORDS.map((keyword) => keyword.phrase)).size).toBe(STRATEGIC_KEYWORDS.length);
     expect(STRATEGIC_KEYWORDS).toEqual(expect.arrayContaining([
-      expect.objectContaining({ phrase: "матрица судьбы рассчитать", landing: "/products/numerology" }),
+      expect.objectContaining({ phrase: "матрица судьбы", landing: "/products/numerology" }),
       expect.objectContaining({ phrase: "таро онлайн", landing: "/products/tarot" }),
       expect.objectContaining({ phrase: "ии психолог", landing: "/ai-psychologist" }),
     ]));
@@ -19,7 +20,7 @@ describe("B578 — SEO/GEO content operations", () => {
   it("adds answer-first supporting content and FAQ schema to priority products", () => {
     const content = source("src/components/products/product-seo-content.tsx");
     const productPage = source("src/app/products/[slug]/page.tsx");
-    for (const slug of ["chat-analysis", "tarot", "natal-chart", "synastry", "numerology"]) {
+    for (const slug of ["chat-analysis", "tarot", "natal-chart", "compatibility-by-date", "numerology"]) {
       expect(content).toMatch(new RegExp(`["']?${slug}["']?: \\{`));
     }
     expect(content).toContain('"@type": "FAQPage"');
@@ -46,43 +47,66 @@ describe("B578 — SEO/GEO content operations", () => {
   });
 });
 
-describe("B607 — ядро из 50 замеренных запросов, без прочерков", () => {
-  it("ровно 50 фраз, и у каждой есть живой замер", () => {
-    // Владелец 2026-07-27: «я хочу чтобы там были только запросы, которые ты
-    // проанализировал через yandex-mcp и у которых реальный спрос есть …
-    // топ-50 запросов нашего направления». Фраза без замера в ядро не
-    // попадает — прочерков в графе спроса больше не бывает по построению.
-    expect(STRATEGIC_KEYWORDS).toHaveLength(50);
-    for (const keyword of STRATEGIC_KEYWORDS) {
-      expect(keyword.verifiedDemand).toBeGreaterThan(0);
+describe("B608 — ядро по услугам: 50–150 фраз на услугу, порог 100 показов", () => {
+  // Владелец 2026-07-27: «нужно чтобы по каждому из услуг ты делал полный поиск
+  // слов из wordstat, пусть их будет не менее 50 по каждому, но не более 150
+  // (только при условии что у всех у них есть не менее 100 просмотров в месяц)».
+  it("каждая услуга несёт от 50 до 150 фраз", () => {
+    expect(SEMANTIC_CORE.length).toBeGreaterThanOrEqual(13);
+    for (const cluster of SEMANTIC_CORE) {
+      expect(cluster.phrases.length).toBeGreaterThanOrEqual(50);
+      expect(cluster.phrases.length).toBeLessThanOrEqual(150);
     }
   });
 
-  it("мёртвые и чужие фразы прошлого ядра не вернулись", () => {
+  it("ни одной фразы ниже 100 показов и ни одной без замера", () => {
+    for (const keyword of STRATEGIC_KEYWORDS) {
+      expect(keyword.verifiedDemand).toBeGreaterThanOrEqual(100);
+    }
+  });
+
+  it("фразы не дублируются внутри услуги", () => {
+    for (const cluster of SEMANTIC_CORE) {
+      const phrases = cluster.phrases.map((item) => item.phrase);
+      expect(new Set(phrases).size).toBe(phrases.length);
+    }
+  });
+
+  it("мёртвые и чужие фразы прошлых ядер не вернулись", () => {
     const phrases = STRATEGIC_KEYWORDS.map((keyword) => keyword.phrase);
     // «кармический код фамилии» — ровно 0 показов.
     // «разбор переписки» — 323, и это школьный морфемный разбор.
-    // «какой расклад таро выбрать» — 64.
     // «хорарная астрология» — 5 492, в топе «фроули/учебник/скачать»: студенты.
+    // «рено аркана» и «арканы дота 2» — машина и игра под словом «аркан».
     for (const dead of [
       "кармический код фамилии",
       "разбор переписки",
-      "какой расклад таро выбрать",
       "хорарная астрология",
+      "рено аркана",
+      "арканы дота 2",
+      "пособие по беременности и родам",
     ]) {
       expect(phrases).not.toContain(dead);
     }
-  });
-
-  it("нижняя граница спроса поднята: ядро не держит фразы мельче тысячи", () => {
-    const weakest = Math.min(...STRATEGIC_KEYWORDS.map((k) => k.verifiedDemand ?? 0));
-    expect(weakest).toBeGreaterThanOrEqual(1_000);
   });
 
   it("каждая фраза ведёт на существующий раздел, а не в никуда", () => {
     const allowedPrefixes = ["/products/", "/library", "/ai-psychologist", "/checkin"];
     for (const keyword of STRATEGIC_KEYWORDS) {
       expect(allowedPrefixes.some((prefix) => keyword.landing.startsWith(prefix))).toBe(true);
+    }
+  });
+
+  it("посадочные ядра совпадают с новыми слагами услуг (B609)", () => {
+    const landings = new Set(SEMANTIC_CORE.map((cluster) => cluster.landing));
+    for (const landing of [
+      "/products/horoscope",
+      "/products/surname-origin",
+      "/products/family-questions",
+      "/products/compatibility",
+      "/products/arcana",
+    ]) {
+      expect(landings).toContain(landing);
     }
   });
 });

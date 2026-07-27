@@ -14,8 +14,8 @@ describe("B437 symbolic product hero previews", () => {
     "natal-chart",
     "numerology",
     "human-design",
-    "surname-story",
-    "family-scenarios",
+    "surname-origin",
+    "family-questions",
   ] as const;
 
   it("keeps every symbolic product on the B436 shell family contract", () => {

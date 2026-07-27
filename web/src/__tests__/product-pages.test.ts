@@ -34,7 +34,7 @@ describe("v5 product pages", () => {
       "components/products/chat-analysis-actions.tsx",
       "components/products/compatibility-actions.tsx",
       "components/products/symbolic-product-actions.tsx",
-      "components/products/synastry-actions.tsx",
+      "components/products/compatibility-by-date-actions.tsx",
     ].map(source).join("\n");
 
     expect(indexPage).toContain('data-testid="products-page"');

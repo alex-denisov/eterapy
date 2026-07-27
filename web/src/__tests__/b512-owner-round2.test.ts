@@ -32,10 +32,10 @@ describe("B512 owner acceptance round 2", () => {
   it("presents a product-specific title while retaining the internal direct-answer contract", () => {
     expect(presentSymbolicSectionTitle("tarot", "Прямой ответ")).toBe("Вердикт расклада");
     expect(presentSymbolicSectionTitle("natal-chart", "Прямой ответ")).toBe("Главный вывод карты");
-    expect(presentSymbolicSectionTitle("synastry", "Прямой ответ")).toBe("Главный вывод о вашей связи");
+    expect(presentSymbolicSectionTitle("compatibility-by-date", "Прямой ответ")).toBe("Главный вывод о вашей связи");
     expect(presentSymbolicSectionTitle("numerology", "Прямой ответ")).toBe("Главный вывод матрицы");
     expect(presentSymbolicSectionTitle("human-design", "Прямой ответ")).toBe("Главный ключ вашего дизайна");
-    expect(presentSymbolicSectionTitle("surname-story", "Прямой ответ")).toBe("Прямой итог родового аудита");
+    expect(presentSymbolicSectionTitle("surname-origin", "Прямой ответ")).toBe("Прямой итог родового аудита");
   });
 
   it("keeps current expert structure and runtime facts when a legacy admin prompt has no placeholder", () => {
@@ -63,10 +63,10 @@ describe("B512 owner acceptance round 2", () => {
   it("ships rotating contextual placeholders on all requested intake surfaces", () => {
     for (const file of [
       "natal-chart-actions.tsx",
-      "synastry-actions.tsx",
+      "compatibility-by-date-actions.tsx",
       "numerology-actions.tsx",
       "human-design-actions.tsx",
-      "surname-story-actions.tsx",
+      "surname-origin-actions.tsx",
       "new-symbolic-product-actions.tsx",
     ]) {
       expect(source(`src/components/products/${file}`)).toContain("useRotatingPlaceholder");
@@ -91,7 +91,7 @@ describe("B512 owner acceptance round 2", () => {
   it("restores only the matching owned product and surfaces missing-reading errors", () => {
     const hook = source("src/components/products/use-symbolic-service.ts");
     const tarot = source("src/components/products/symbolic-product-actions.tsx");
-    const synastry = source("src/components/products/synastry-actions.tsx");
+    const synastry = source("src/components/products/compatibility-by-date-actions.tsx");
     const route = source("src/app/api/products/symbolic/[id]/route.ts");
     expect(hook).toContain("?productKey=${encodeURIComponent(productKey)}");
     expect(tarot).toContain("?productKey=tarot");
@@ -101,7 +101,7 @@ describe("B512 owner acceptance round 2", () => {
   });
 
   it("uses an auditable lineage seal without SVG text truncation or generic fact/version/mirror cards", () => {
-    const surname = source("src/components/products/surname-story-actions.tsx");
+    const surname = source("src/components/products/surname-origin-actions.tsx");
     expect(surname).toContain("Родовая печать");
     expect(surname).toContain("lineage-seal-arcana-tick");
     expect(surname).toContain("LetterLedger");
@@ -122,7 +122,7 @@ describe("B512 owner acceptance round 2", () => {
   it("rejects empty or token-only required chapters before a paid result is saved", () => {
     const symbolic = source("src/lib/symbolic-products.ts");
     const synastry = source("src/lib/synastry.ts");
-    expect(symbolic).toContain("const sectionMinimum = input.productKey === \"surname-story\" ? 220 : 160");
+    expect(symbolic).toContain("const sectionMinimum = input.productKey === \"surname-origin\" ? 220 : 160");
     expect(symbolic).toContain("`неполный раздел ${weakSection.title}`");
     expect(synastry).toContain("Math.ceil(SYNASTRY_HEADINGS.length / 3)");
     expect(synastry).toContain("`неполный раздел ${weakSection.title}`");

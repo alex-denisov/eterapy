@@ -36,7 +36,7 @@ function readWheel(metadata: unknown): NatalWheel | SynastryWheelData | null {
   const raw = meta.wheel;
   if (!raw || typeof raw !== "object") return null;
   const wheel = raw as { kind?: unknown };
-  if (wheel.kind === "natal" || wheel.kind === "synastry") return raw as NatalWheel | SynastryWheelData;
+  if (wheel.kind === "natal" || wheel.kind === "compatibility-by-date") return raw as NatalWheel | SynastryWheelData;
   return null;
 }
 
@@ -101,7 +101,7 @@ export default async function PrintProductResultPage({ params }: { params: Promi
           <ZodiacWheel wheel={wheel} />
         </div>
       )}
-      {wheel?.kind === "synastry" && (
+      {wheel?.kind === "compatibility-by-date" && (
         <div className="print-visual">
           <SynastryWheel wheel={wheel} />
         </div>

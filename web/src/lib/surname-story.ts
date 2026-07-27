@@ -1,4 +1,4 @@
-// B515 — «Кармический код фамилии». Calculation is deterministic and client-safe:
+// B515 — «Происхождение фамилии». Calculation is deterministic and client-safe:
 // a visible Cyrillic 1–9 ledger, a base code and a parallel 1–22 Major Arcana
 // index. The LLM receives the finished calculation and may interpret it, but can
 // never replace the arithmetic or invent genealogy.

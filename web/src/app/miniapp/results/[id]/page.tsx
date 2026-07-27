@@ -8,8 +8,8 @@ import { MiniAppResultScreen } from "@/components/miniapp/result-screen";
 export const dynamic = "force-dynamic";
 
 const READING_RESTORE_KEYS = new Set([
-  "tarot", "natal-chart", "numerology", "horary", "tarot-numerology",
-  "family-scenarios", "human-design", "surname-story", "synastry",
+  "tarot", "natal-chart", "numerology", "horoscope", "arcana",
+  "family-questions", "human-design", "surname-origin", "compatibility-by-date",
 ]);
 
 const CUSTOM_RESTORE: Record<string, (id: string) => string> = {

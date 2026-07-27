@@ -72,14 +72,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "compatibility-by-date", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "compatibility-by-date", "numerology"],
     creditsPerPeriod: 0,
   },
   // B466 (owner, 2026-07-06): «мы не даём нигде бесплатный период тарифа» —

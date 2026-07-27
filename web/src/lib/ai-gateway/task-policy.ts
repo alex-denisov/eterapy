@@ -299,10 +299,10 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Если время рождения неизвестно, модель не утверждает дома/ASC как факт.",
   },
   {
-    feature: "product-synastry",
+    feature: "product-compatibility-by-date",
     enabled: true,
     tier: "premium",
-    title: "Совместимость по звёздам",
+    title: "Совместимость по дате",
     purpose: "Сравнение двух натальных карт как символического языка динамики пары.",
     providerOrder: [...directPremiumOrder],
     // B451: полный многоглавный разбор пары по реальным знакам Солнца обоих.
@@ -312,10 +312,10 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Не выносит verdict по отношениям; показывает ресурсы, различия и вопросы для разговора.",
   },
   {
-    feature: "product-horary",
+    feature: "product-horoscope",
     enabled: true,
     tier: "premium",
-    title: "Хорарная астрология",
+    title: "Гороскоп",
     purpose: "Прямой ответ на один зафиксированный вопрос по карте момента.",
     providerOrder: [...directPremiumOrder],
     maxTokens: 7000,
@@ -324,10 +324,10 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Карта и момент считаются детерминированно; промт редактируется в суперадминке.",
   },
   {
-    feature: "product-tarot-numerology",
+    feature: "product-arcana",
     enabled: true,
     tier: "premium",
-    title: "Арканы рождения",
+    title: "Арканы судьбы",
     purpose: "Детерминированная пара карт рождения Таро по дате.",
     providerOrder: [...directPremiumOrder],
     maxTokens: 7000,
@@ -349,11 +349,11 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Числа интерпретируются бережно, без предсказаний и давления.",
   },
   {
-    // B389 (M26): genogram-разбор «Семейные сценарии».
-    feature: "product-family-scenarios",
+    // B389 (M26): genogram-разбор «Семейные вопросы».
+    feature: "product-family-questions",
     enabled: true,
     tier: "premium",
-    title: "Семейные сценарии",
+    title: "Семейные вопросы",
     purpose: "Genogram-язык повторов рода без фатальности и обвинения семьи.",
     providerOrder: [...directPremiumOrder],
     // B451: полный многоглавный genogram-разбор.
@@ -378,10 +378,10 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
   },
   {
     // B515: deterministic Cyrillic code + Major Arcana + lineage-pattern audit.
-    feature: "product-surname-story",
+    feature: "product-surname-origin",
     enabled: true,
     tier: "premium",
-    title: "Кармический код фамилии",
+    title: "Происхождение фамилии",
     purpose: "Прямой аудит рассчитанного кода фамилии, Аркана, родового ресурса, тени и сценария смены имени.",
     providerOrder: [...directPremiumOrder],
     // B451: полный многоглавный родовой разбор.

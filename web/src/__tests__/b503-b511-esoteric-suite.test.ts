@@ -101,7 +101,7 @@ describe("B503–B511 — complete local esoteric suite", () => {
 
   it("applies the direct-answer contract to every new or reworked prompt", () => {
     expect(DIRECT_SYMBOLIC_ANSWER_CONTRACT).toMatch(/прямой ответ/i);
-    for (const feature of ["product-natal-chart", "product-synastry", "product-numerology", "product-human-design", "product-surname-story", "product-horary", "product-tarot-numerology"]) {
+    for (const feature of ["product-natal-chart", "product-compatibility-by-date", "product-numerology", "product-human-design", "product-surname-origin", "product-horoscope", "product-arcana"]) {
       const prompt = defaultPromptTextForFeature(feature);
       expect(prompt).toContain("## Прямой ответ");
       expect(prompt).toMatch(/противореч/i);
@@ -109,14 +109,14 @@ describe("B503–B511 — complete local esoteric suite", () => {
   });
 
   it("registers new products, prices, actions and editable AI features", () => {
-    expect(v5Products.find((product) => product.slug === "horary")).toMatchObject({ price: "590 ₽", creditCost: 2 });
-    expect(v5Products.find((product) => product.slug === "tarot-numerology")).toMatchObject({ price: "890 ₽", creditCost: 3 });
+    expect(v5Products.find((product) => product.slug === "horoscope")).toMatchObject({ price: "590 ₽", creditCost: 2 });
+    expect(v5Products.find((product) => product.slug === "arcana")).toMatchObject({ price: "890 ₽", creditCost: 3 });
     const page = source("src/app/products/[slug]/page.tsx");
     expect(page).toContain("HoraryActions");
     expect(page).toContain("TarotNumerologyActions");
     const policy = source("src/lib/ai-gateway/task-policy.ts");
-    expect(policy).toContain('feature: "product-horary"');
-    expect(policy).toContain('feature: "product-tarot-numerology"');
+    expect(policy).toContain('feature: "product-horoscope"');
+    expect(policy).toContain('feature: "product-arcana"');
     const createPayment = source("src/app/api/billing/create-payment/route.ts");
     const savedCard = source("src/app/api/billing/pay-with-saved-card/route.ts");
     expect(createPayment).toContain("resolveBillingPurchaseWithSettings");

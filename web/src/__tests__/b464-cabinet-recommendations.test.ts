@@ -117,7 +117,7 @@ describe("buildHeroAction — item 2 (никогда не «одно и то ж�
 
 describe("deepeningForTopic — Triage matrix", () => {
   it("maps family(≥3)→сценарии, relationships→pair, self→reframe, else→deep-report", () => {
-    expect(deepeningForTopic("family", 3).productKey).toBe("family-scenarios");
+    expect(deepeningForTopic("family", 3).productKey).toBe("family-questions");
     expect(deepeningForTopic("relationships", 0).route).toBe("/products/pair");
     expect(deepeningForTopic("self", 0).productKey).toBe("reframe");
     expect(deepeningForTopic("money", 0).productKey).toBe("deep-report");
@@ -128,7 +128,7 @@ describe("buildServiceNudge — item 4 (варьируемые тексты, с�
   it("family copy is about отношения с родителями/близкими, not «из поколения в поколение»", () => {
     for (let seed = 0; seed < 4; seed++) {
       const nudge = buildServiceNudge(signals({ topicCounts: { family: 4 } }), seed);
-      expect(nudge?.key).toBe("family-scenarios");
+      expect(nudge?.key).toBe("family-questions");
       expect(nudge?.body).not.toContain("из поколения в поколение");
       expect(nudge?.body).toMatch(/родител|близки/);
     }
@@ -145,9 +145,9 @@ describe("buildServiceNudge — item 4 (варьируемые тексты, с�
   it("anti-repeat falls through to the next candidate after a purchase", () => {
     const nudge = buildServiceNudge(signals({
       topicCounts: { family: 4, anxiety: 2 },
-      recentProductKeys: ["family-scenarios"],
+      recentProductKeys: ["family-questions"],
     }), 0);
-    expect(nudge?.key).not.toBe("family-scenarios");
+    expect(nudge?.key).not.toBe("family-questions");
   });
 
   it("weak signal → free daily-question, crisis → null", () => {

@@ -17,6 +17,7 @@ import {
   buildIncomeBook,
 } from "@/lib/ip-income-book";
 import { loadIncomeRecords } from "@/lib/ip-income-book-data";
+import { IncomeBookTable } from "./income-book-table";
 
 // B591 фаза 1 (владелец 2026-07-27: «УСН Доходы 6 % уже стоит, продолжай
 // работу»). Экран отвечает ровно на один вопрос владельца: «что мне, как ИП,
@@ -188,53 +189,26 @@ export default async function FinanceAccountingPage() {
           </p>
         )}
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="text-[var(--soft-ink-faint)]">
-              <tr>
-                <th className="pb-2 pr-3 font-medium">Дата</th>
-                <th className="pb-2 pr-3 font-medium">Источник</th>
-                <th className="pb-2 pr-3 font-medium">Что продано</th>
-                <th className="pb-2 pr-3 text-right font-medium">Оборот</th>
-                <th className="pb-2 pr-3 text-right font-medium">Ваш доход</th>
-                <th className="pb-2 font-medium">Признание</th>
-              </tr>
-            </thead>
-            <tbody>
-              {book.entries.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-3 text-[var(--soft-ink-soft)]">
-                    За {year} год денежных поступлений нет.
-                  </td>
-                </tr>
-              )}
-              {book.entries.map((entry) => (
-                <tr key={entry.id} className="border-t border-[var(--soft-paper-edge)] align-top" data-entry={entry.id}>
-                  <td className="py-2 pr-3 whitespace-nowrap tabular-nums text-[var(--soft-ink-strong)]">
-                    {dateRu(entry.recognizedAt)}
-                  </td>
-                  <td className="py-2 pr-3 text-[var(--soft-ink-soft)]">
-                    {entry.provider}
-                    <div className="text-[11px] text-[var(--soft-ink-faint)]">№ {entry.reference}</div>
-                  </td>
-                  <td className="py-2 pr-3 text-[var(--soft-ink-soft)]">
-                    {entry.subject ? SUBJECT_LABEL[entry.subject] : "вид не определён"}
-                    {entry.note && <div className="text-[11px] text-[var(--soft-ink-faint)]">{entry.note}</div>}
-                    {entry.issue && <div className="text-[11px]" style={{ color: "#8E2F2F" }}>{entry.issue}</div>}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-[var(--soft-ink-strong)]">
-                    {rub(Math.round(entry.turnoverKopecks / 100))}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-[var(--soft-ink-strong)]">
-                    {entry.ownIncomeKopecks === null ? "—" : rub(Math.round(entry.ownIncomeKopecks / 100))}
-                  </td>
-                  <td className="py-2 text-[var(--soft-ink-faint)]">
-                    {entry.refunded ? "возврат" : entry.recognition ? RECOGNITION_LABEL[entry.recognition] : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <IncomeBookTable
+            rows={book.entries.map((entry) => ({
+              id: entry.id,
+              date: dateRu(entry.recognizedAt),
+              sortDate: entry.recognizedAt.getTime(),
+              provider: entry.provider,
+              reference: entry.reference,
+              subject: entry.subject ? SUBJECT_LABEL[entry.subject] : "вид не определён",
+              note: entry.note,
+              issue: entry.issue,
+              turnoverRub: Math.round(entry.turnoverKopecks / 100),
+              ownIncomeRub: entry.ownIncomeKopecks === null ? null : Math.round(entry.ownIncomeKopecks / 100),
+              recognition: entry.refunded
+                ? "возврат"
+                : entry.recognition
+                  ? RECOGNITION_LABEL[entry.recognition]
+                  : "не определено",
+            }))}
+          />
         </div>
 
         {internalCount > 0 && (

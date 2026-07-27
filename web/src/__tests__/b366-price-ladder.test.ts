@@ -52,7 +52,7 @@ describe("B366 price ladder", () => {
     expect(getProductPriceLabel("reframe")).toBe("299 ₽");
     expect(getProductPriceLabel("chat-analysis")).toBe("590 ₽");
     expect(getProductPriceLabel("deep-report")).toBe("890 ₽");
-    expect(getProductPriceLabel("synastry")).toBe("890 ₽");
+    expect(getProductPriceLabel("compatibility-by-date")).toBe("890 ₽");
     expect(norm(getProductPriceLabel("full-question") ?? "")).toBe("1 090 ₽");
   });
 

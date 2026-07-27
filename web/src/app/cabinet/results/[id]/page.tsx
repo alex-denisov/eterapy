@@ -23,12 +23,12 @@ const READING_RESTORE_KEYS = new Set([
   "tarot",
   "natal-chart",
   "numerology",
-  "horary",
-  "tarot-numerology",
-  "family-scenarios",
+  "horoscope",
+  "arcana",
+  "family-questions",
   "human-design",
-  "surname-story",
-  "synastry",
+  "surname-origin",
+  "compatibility-by-date",
 ]);
 
 // Продукты со своим restore-параметром.

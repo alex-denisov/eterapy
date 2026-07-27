@@ -54,18 +54,18 @@ describe("B389 dominant topic + observations", () => {
   });
 });
 
-describe("B389 «Семейные сценарии» product is sellable and renders", () => {
+describe("B389 «Семейные вопросы» product is sellable and renders", () => {
   it("is a known paid product priced at 4 балла / 1090 ₽", () => {
-    expect(isKnownPaidProduct("family-scenarios")).toBe(true);
-    expect(V5_PRODUCT_CREDIT_COSTS["family-scenarios"]).toBe(4);
-    expect(V5_PRODUCT_PRICES_KOPECKS["family-scenarios"]).toBe(109000);
-    expect(getProductPriceLabel("family-scenarios")?.replace(/\s+/g, " ")).toBe("1 090 ₽");
+    expect(isKnownPaidProduct("family-questions")).toBe(true);
+    expect(V5_PRODUCT_CREDIT_COSTS["family-questions"]).toBe(4);
+    expect(V5_PRODUCT_PRICES_KOPECKS["family-questions"]).toBe(109000);
+    expect(getProductPriceLabel("family-questions")?.replace(/\s+/g, " ")).toBe("1 090 ₽");
   });
 
   it("is wired into the symbolic product pipeline and catalog", () => {
-    expect(isSymbolicProductKey("family-scenarios")).toBe(true);
-    expect(getSymbolicProductDefinition("family-scenarios")?.title).toBe("Семейные сценарии");
-    expect(getV5Product("family-scenarios")?.productKey).toBe("family-scenarios");
-    expect(getV5Product("family-scenarios")?.route).toBe("/products/family-scenarios");
+    expect(isSymbolicProductKey("family-questions")).toBe(true);
+    expect(getSymbolicProductDefinition("family-questions")?.title).toBe("Семейные вопросы");
+    expect(getV5Product("family-questions")?.productKey).toBe("family-questions");
+    expect(getV5Product("family-questions")?.route).toBe("/products/family-questions");
   });
 });

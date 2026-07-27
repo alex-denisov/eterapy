@@ -107,9 +107,9 @@ describe("B440 tarot page fixes (#1–#6)", () => {
 
     it("is wired into every service that has a text input", () => {
       expect(actions).toContain("useInputDraft");
-      expect(source("src/components/products/synastry-actions.tsx")).toContain("useInputDraft");
+      expect(source("src/components/products/compatibility-by-date-actions.tsx")).toContain("useInputDraft");
       expect(source("src/components/products/human-design-actions.tsx")).toContain("useInputDraft");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("useInputDraft");
+      expect(source("src/components/products/surname-origin-actions.tsx")).toContain("useInputDraft");
       // chat-analysis keeps its own B415 resume-key persistence
       expect(source("src/components/products/chat-analysis-actions.tsx")).toContain("CHAT_ANALYSIS_RESUME_KEY");
     });

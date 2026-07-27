@@ -20,7 +20,7 @@
  *    форматы разные. Поэтому даже верно опознанному эзотерическому запросу
  *    предлагались «Переосмысление» и «Разбор ситуации».
  *
- * Побочная находка: `horary` («Хорарная астрология» — прямой ответ по карте
+ * Побочная находка: `horoscope` («Гороскоп» — прямой ответ по карте
  * момента на ОДИН вопрос) не рекомендовался ни одной воронкой, хотя это ровно
  * тот формат, который отвечает на вопрос вида «буду ли я…».
  */
@@ -91,7 +91,7 @@ describe("B582 — запрос на прогноз опознаётся как 
 describe("B582 — форматы после разбора соответствуют запросу", () => {
   it("эзотерическому запросу даёт эзотерический основной формат", () => {
     const primary = recommendPrimaryProduct("relationships", "symbolic");
-    expect(primary.slug).toBe("horary");
+    expect(primary.slug).toBe("horoscope");
 
     const psych = recommendPrimaryProduct("relationships", "psychological");
     expect(psych.slug).toBe("pair");
@@ -102,10 +102,10 @@ describe("B582 — форматы после разбора соответств
   });
 
   it("смешивает, но не подменяет: свой регистр первым, соседний последним", () => {
-    const symbolic = recommendSecondaryProducts("relationships", "horary", 3, "symbolic");
+    const symbolic = recommendSecondaryProducts("relationships", "horoscope", 3, "symbolic");
     expect(symbolic).toHaveLength(3);
     // Первыми — форматы того же языка.
-    expect(symbolic.slice(0, 2).map((p) => p.slug)).toEqual(["tarot", "synastry"]);
+    expect(symbolic.slice(0, 2).map((p) => p.slug)).toEqual(["tarot", "compatibility-by-date"]);
     // Замыкающий — мостик на соседнюю полку, чтобы человек её видел.
     expect(symbolic[2].slug).toBe("reframe");
 
@@ -139,9 +139,9 @@ describe("B582 — форматы после разбора соответств
   });
 
   it("открывает вход в хорар — формат, который отвечает на «буду ли я…»", () => {
-    // До B582 `horary` не появлялся ни в одной рекомендации вовсе.
+    // До B582 `horoscope` не появлялся ни в одной рекомендации вовсе.
     const primary = recommendPrimaryProduct("other", "symbolic");
-    expect(primary.slug).toBe("horary");
-    expect(primary.href).toBe("/products/horary");
+    expect(primary.slug).toBe("horoscope");
+    expect(primary.href).toBe("/products/horoscope");
   });
 });

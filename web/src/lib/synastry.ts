@@ -51,7 +51,7 @@ function mergeSynastrySections(texts: string[]) {
   const wanted = new Map(SYNASTRY_HEADINGS.map((heading) => [headingKey(heading), heading]));
   const bodies = new Map<string, string>();
   for (const text of texts) {
-    for (const section of splitSections(normalizeResultSectionHeadings("synastry", normalizeResult(text)))) {
+    for (const section of splitSections(normalizeResultSectionHeadings("compatibility-by-date", normalizeResult(text)))) {
       const canonical = wanted.get(headingKey(section.title));
       if (!canonical || !section.body.trim()) continue;
       const existing = bodies.get(canonical) ?? "";
@@ -88,7 +88,7 @@ function fallbackSynastryResult(input: {
 }) {
   const focus = normalizeInput(input.focus ?? input.question ?? "");
   return [
-    "Совместимость по звёздам",
+    "Совместимость по дате",
     "",
     "Карта пары показывает сочетание двух ритмов: где притяжение складывается естественно и где различия создают напряжение.",
     "",
@@ -109,15 +109,15 @@ export function buildSynastryTeaser(input: {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const firstLine = lines.find((line) => !/^совместимость по звёздам$/i.test(line))
+  const firstLine = lines.find((line) => !/^совместимость по дате$/i.test(line))
     ?? "В вашей паре уже виден один ритм: близость легче выдерживается, когда у каждого есть право на темп.";
 
   return [
-    "Один акцент совместимости по звёздам",
+    "Один акцент совместимости по дате",
     firstLine,
     "",
     `Данные: ${compactBirthData(input.userBirthData)} + ${compactBirthData(input.partnerBirthData)}.`,
-    "Полная совместимость по звёздам откроет общие ресурсы, зоны различий и безопасный разговорный шаг.",
+    "Полная совместимость по дате откроет общие ресурсы, зоны различий и безопасный разговорный шаг.",
   ].join("\n");
 }
 
@@ -142,9 +142,9 @@ export async function generateSynastryResult(input: {
 
   try {
     // B451: тот же экспертный промпт, что виден/редактируется в /admin/ai
-    // (product-synastry), + посчитанные факты пары; полный многоглавный разбор.
+    // (product-compatibility-by-date), + посчитанные факты пары; полный многоглавный разбор.
     const relationshipLayer = normalizeInput(input.relationshipLayer ?? "personal");
-    const systemPrompt = `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel, relationshipLayer)}`;
+    const systemPrompt = `${defaultPromptTextForFeature("product-compatibility-by-date")}\n\n${synastryFactsForAI(wheel, relationshipLayer)}`;
     const context = [
       `Ваши данные рождения: ${normalizeInput(input.userBirthData)}`,
       `Данные рождения партнёра: ${normalizeInput(input.partnerBirthData)}`,
@@ -156,7 +156,7 @@ export async function generateSynastryResult(input: {
       (_, index) => SYNASTRY_HEADINGS.slice(index * 3, (index + 1) * 3),
     );
     const responses = await Promise.all(groups.map((headings, index) => aiComplete({
-      feature: "product-synastry",
+      feature: "product-compatibility-by-date",
       userId: input.userId,
       requestId: segmentedRequestId(input.requestId, `part-${index + 1}`),
       maxTokens: 6500,
@@ -197,7 +197,7 @@ export async function generateSynastryResult(input: {
     if (issue) {
       const repairHeadings = weakestSynastryHeadings(text);
       const repair = await aiComplete({
-        feature: "product-synastry",
+        feature: "product-compatibility-by-date",
         userId: input.userId,
         requestId: segmentedRequestId(input.requestId, "repair"),
         maxTokens: 6500,

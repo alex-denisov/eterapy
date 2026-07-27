@@ -12,7 +12,7 @@ import { recommendSecondaryProducts } from "@/lib/dialogue-recommendations";
 // (2) смежные услуги «другие форматы» и (3) специалиста-эзотерика. Текст основной
 // кнопки подбирается под тему расклада, чтобы он не выглядел шаблонным.
 const TAROT_THEME_FOLLOWUP: Record<string, { cta: string; other: string; topic: string }> = {
-  "Любовь и отношения": { cta: "Узнать, что ещё карты говорят об отношениях", other: "synastry", topic: "relationships" },
+  "Любовь и отношения": { cta: "Узнать, что ещё карты говорят об отношениях", other: "compatibility-by-date", topic: "relationships" },
   "Работа и призвание": { cta: "Спросить карты про работу и призвание", other: "reframe", topic: "career" },
   "Деньги и быт": { cta: "Спросить карты про деньги и опору", other: "reframe", topic: "money" },
   "Семья и дом": { cta: "Спросить карты про семью и дом", other: "natal-chart", topic: "family" },

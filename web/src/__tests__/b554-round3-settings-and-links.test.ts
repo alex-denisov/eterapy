@@ -267,7 +267,7 @@ describe("B554 round 3 — настройки профиля и ссылки-п�
     const controls = source("src/components/products/product-purchase-controls.tsx");
     const numerology = source("src/components/products/numerology-actions.tsx");
     const natal = source("src/components/products/natal-chart-actions.tsx");
-    const family = source("src/components/products/family-scenarios-actions.tsx");
+    const family = source("src/components/products/family-questions-actions.tsx");
 
     expect(controls).toContain("beforePay?: () => string | null");
     expect(controls).toContain("if (blockedByInput()) return;");

@@ -58,7 +58,7 @@ export default function B507SynastryPreviewPage() {
   return (
     <main className="mx-auto w-full max-w-[1120px] px-5 pb-20 pt-10">
       <p className="soft-eyebrow">локальный макет · B507 · Maya SVG</p>
-      <h1 className="soft-h1 mt-2">Совместимость по звёздам</h1>
+      <h1 className="soft-h1 mt-2">Совместимость по дате</h1>
       <p className="soft-body mt-2 max-w-2xl">Два набора планет, полная сеть межкартовых аспектов и подробная интерпретация по сохранённой паре.</p>
       <section className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
         <MayaSynastryWheel wheel={SYNASTRY_PREVIEW} assets={assets} />

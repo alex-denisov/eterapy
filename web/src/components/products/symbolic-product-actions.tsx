@@ -264,7 +264,7 @@ export function SymbolicProductActions({
   placeholder,
   creditCost,
 }: {
-  productKey: "tarot" | "natal-chart" | "numerology" | "family-scenarios";
+  productKey: "tarot" | "natal-chart" | "numerology" | "family-questions";
   title: string;
   promptLabel: string;
   placeholder: string;

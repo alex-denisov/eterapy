@@ -32,7 +32,7 @@ const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
 
 const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
   relationships: ["pair", "chat-analysis", "reframe", "tarot"],
-  family: ["reframe", "chat-analysis", "pair", "family-scenarios"],
+  family: ["reframe", "chat-analysis", "pair", "family-questions"],
   career: ["reframe", "deep-report", "numerology", "tarot"],
   money: ["deep-report", "reframe", "numerology", "tarot"],
   anxiety: ["deep-report", "reframe", "tarot", "natal-chart"],
@@ -49,7 +49,7 @@ const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
  * ситуации» — психологические форматы. Живой случай: вопрос «Буду ли я жить в
  * этой стране» получил ответ психолога и психологические рекомендации.
  *
- * Побочно вскрылось: `horary` («Хорарная астрология» — прямой ответ по карте
+ * Побочно вскрылось: `horoscope` («Гороскоп» — прямой ответ по карте
  * момента на ОДИН вопрос) не рекомендовался ни одной воронкой, хотя это ровно
  * тот формат, который отвечает на вопрос вида «буду ли я…». Продукт есть,
  * цена есть, входа в него из разбора не было.
@@ -59,22 +59,22 @@ export type RecommendationRegister = "symbolic" | "psychological";
 const SYMBOLIC_PRIMARY: Record<DialogueTopic, V5ProductSlug> = {
   // Вопрос про конкретного человека и «что будет» — карта момента отвечает
   // прямо, остальные форматы отвечают вокруг.
-  relationships: "horary",
-  family: "family-scenarios",
-  career: "horary",
-  money: "horary",
+  relationships: "horoscope",
+  family: "family-questions",
+  career: "horoscope",
+  money: "horoscope",
   anxiety: "natal-chart",
   self: "natal-chart",
-  other: "horary",
+  other: "horoscope",
 };
 
 const SYMBOLIC_ADJACENT: Record<DialogueTopic, V5ProductSlug[]> = {
-  relationships: ["tarot", "synastry", "natal-chart", "tarot-numerology"],
-  family: ["tarot", "natal-chart", "surname-story", "numerology"],
+  relationships: ["tarot", "compatibility-by-date", "natal-chart", "arcana"],
+  family: ["tarot", "natal-chart", "surname-origin", "numerology"],
   career: ["tarot", "natal-chart", "numerology", "human-design"],
   money: ["tarot", "numerology", "natal-chart", "human-design"],
-  anxiety: ["tarot", "human-design", "numerology", "tarot-numerology"],
-  self: ["human-design", "tarot-numerology", "numerology", "tarot"],
+  anxiety: ["tarot", "human-design", "numerology", "arcana"],
+  self: ["human-design", "arcana", "numerology", "tarot"],
   other: ["tarot", "natal-chart", "numerology", "human-design"],
 };
 

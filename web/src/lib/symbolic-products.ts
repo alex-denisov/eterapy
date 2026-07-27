@@ -51,23 +51,23 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     resultTitle: "Матрица судьбы: 22 энергии",
   },
   {
-    productKey: "horary",
-    title: "Хорарная астрология",
+    productKey: "horoscope",
+    title: "Гороскоп",
     promptLabel: "Один точный вопрос, место и момент фиксации",
-    resultTitle: "Хорарная астрология: ответ карты момента",
+    resultTitle: "Гороскоп: ответ карты момента",
   },
   {
-    productKey: "tarot-numerology",
-    title: "Арканы рождения",
+    productKey: "arcana",
+    title: "Арканы судьбы",
     promptLabel: "Имя, дата рождения, фокус и вопрос",
-    resultTitle: "Арканы рождения: ваши карты Таро по дате",
+    resultTitle: "Арканы судьбы: ваши карты Таро по дате",
   },
   {
-    // B389 (M26): genogram-разбор «Семейные сценарии» (рекомендуется в Дневнике).
-    productKey: "family-scenarios",
-    title: "Семейные сценарии",
+    // B389 (M26): genogram-разбор «Семейные вопросы» (рекомендуется в Дневнике).
+    productKey: "family-questions",
+    title: "Семейные вопросы",
     promptLabel: "Что повторяется в вашей семье и роду",
-    resultTitle: "Семейные сценарии: что повторяется в роду",
+    resultTitle: "Семейные вопросы: что повторяется в роду",
   },
   {
     // B387 (M26): «Дизайн человека». Тип/бодиграф считаются бесплатно и
@@ -79,11 +79,11 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     resultTitle: "Дизайн человека: ваш тип и стратегия",
   },
   {
-    // B515: «Кармический код фамилии». Число и Аркан считаются детерминированно;
+    // B515: «Происхождение фамилии». Число и Аркан считаются детерминированно;
     // генеративная часть объясняет ресурс, тень и прикладной сценарий, не меняя
     // видимую пользователю арифметику и не изобретая факты о предках.
-    productKey: "surname-story",
-    title: "Кармический код фамилии",
+    productKey: "surname-origin",
+    title: "Происхождение фамилии",
     promptLabel: "Фамилия и сценарий аудита",
     resultTitle: "Кармический аудит рода",
   },
@@ -226,10 +226,10 @@ export function buildSymbolicProductTeaser(input: {
       "Полный разбор раскроет дополнительные темы и практический маршрут.",
     ].join("\n");
   }
-  if (input.productKey === "horary") {
-    return ["Хорарная карта вопроса", firstMeaningfulLine, "", "Полный разбор откроет сигнификаторы, рецепции, препятствия, срок и условие изменения исхода."].join("\n");
+  if (input.productKey === "horoscope") {
+    return ["Гороскоп вашего вопроса", firstMeaningfulLine, "", "Полный разбор откроет сигнификаторы, рецепции, препятствия, срок и условие изменения исхода."].join("\n");
   }
-  if (input.productKey === "tarot-numerology") {
+  if (input.productKey === "arcana") {
     return ["Один акцент Арканного кода", firstMeaningfulLine, "", "Полный разбор откроет шесть рассчитанных арканов, их противоречия и ответ по вашему вопросу."].join("\n");
   }
 
@@ -244,7 +244,7 @@ export function buildSymbolicProductTeaser(input: {
     ].join("\n");
   }
 
-  if (input.productKey === "family-scenarios") {
+  if (input.productKey === "family-questions") {
     const repeated = extractRepeatedTheme(input.userInput);
     return [
       "Один повторяющийся сценарий",
@@ -268,7 +268,7 @@ export function buildSymbolicProductTeaser(input: {
     ].join("\n");
   }
 
-  if (input.productKey === "surname-story") {
+  if (input.productKey === "surname-origin") {
     const story = analyzeSurname(surnameValueFromStructuredInput(input.userInput));
     return [
       story ? `Код фамилии ${story.code.baseNumber} · ${story.code.arcanaGlyph} ${story.code.arcanaName}` : "Код вашей фамилии",
@@ -353,9 +353,9 @@ function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userIn
       "Проверьте, где вы сейчас тратите силы против собственного ритма, а где энергия появляется почти сама.",
     ].join("\n");
   }
-  if (input.productKey === "family-scenarios") {
+  if (input.productKey === "family-questions") {
     return [
-      "Семейные сценарии",
+      "Семейные вопросы",
       "",
       "Этот разбор читается как карта повторов, а не приговор рода. Мы смотрим, какие роли, темы и негласные правила передавались по семье — и какие из них вы уже несёте, не выбирая.",
       "",
@@ -459,7 +459,7 @@ function humanDesignFallback(chart: HumanDesignChart | null): string {
 function surnameStoryFallback(story: SurnameStory | null): string {
   if (!story) {
     return [
-      "Кармический код фамилии",
+      "Происхождение фамилии",
       "",
       "Чтобы рассчитать код, укажите фамилию кириллицей. Каждая буква получает значение от 1 до 9; из общей суммы отдельно получаются базовое число и индекс Старшего Аркана.",
       "",
@@ -581,7 +581,7 @@ function symbolicSectionHeadings(input: {
   if (input.productKey === "human-design" && input.chart) {
     return ["Прямой ответ", ...humanDesignSectionHeadings(input.chart)];
   }
-  if (input.productKey === "surname-story") {
+  if (input.productKey === "surname-origin") {
     const scenarioHeading = input.surnameAudit?.mode === "change"
       ? "Смена фамилии: что изменится"
       : input.surnameAudit?.mode === "alias"
@@ -607,11 +607,11 @@ function symbolicSectionHeadings(input: {
       "Ответ на ваш вопрос",
     ];
   }
-  if (input.productKey === "horary") {
+  if (input.productKey === "horoscope") {
     return ["Прямой ответ", "Радикальность и можно ли судить вопрос", "Вы и ваш сигнификатор", "Предмет вопроса и его сигнификатор", "Луна как ход событий", "Главный сходящийся аспект", "Рецепции: желание и способность действовать", "Препятствия и скрытые условия", "Что поддерживает ответ", "Что ему противоречит", "Вероятный срок", "Что может изменить исход"];
   }
-  if (input.productKey === "family-scenarios") {
-    // B512 R1-11 (owner 2026-07-15): «Семейные сценарии» переведены на
+  if (input.productKey === "family-questions") {
+    // B512 R1-11 (owner 2026-07-15): «Семейные вопросы» переведены на
     // сегментную генерацию с полной экспертной структурой (раньше — одиночный
     // проход по 6 тонким разделам, результат не оправдывал цену услуги).
     return [
@@ -631,7 +631,7 @@ function symbolicSectionHeadings(input: {
       "Ответ на ваш вопрос",
     ];
   }
-  if (input.productKey === "tarot-numerology") {
+  if (input.productKey === "arcana") {
     return ["Прямой ответ", "Пара карт рождения", "Карта рождения", "Карта души", "Связь двух арканов", "Сильное проявление", "Теневая сторона", "Отношения", "Реализация и деньги", "Ответ по вашему вопросу"];
   }
   return null;
@@ -735,15 +735,15 @@ function symbolicQualityIssue(input: {
     "natal-chart": 5_500,
     numerology: 5_000,
     "human-design": 4_800,
-    "surname-story": 5_000,
-    horary: 5_500,
-    "tarot-numerology": 6_000,
+    "surname-origin": 5_000,
+    horoscope: 5_500,
+    "arcana": 6_000,
     // B512 R1-11: полная карта рода — существенный объём (была общая планка 500).
-    "family-scenarios": 6_000,
+    "family-questions": 6_000,
   };
   if (input.text.length < (minimumChars[input.productKey] ?? 500)) return "результат слишком короткий";
   if (/\b(?:пользователь|клиент|заявитель|испытуемый)\b/iu.test(input.text)) return "заказчик описан в третьем лице";
-  if (input.productKey === "horary" && /\b(?:applying|separating|unknown|early|late|ordinary)\b/iu.test(input.text)) {
+  if (input.productKey === "horoscope" && /\b(?:applying|separating|unknown|early|late|ordinary)\b/iu.test(input.text)) {
     return "в клиентский текст попали внутренние английские значения хорарного расчёта";
   }
   const requiredHeadings = symbolicSectionHeadings({
@@ -758,7 +758,7 @@ function symbolicQualityIssue(input: {
   const actualHeadings = new Set(parsedSections.map((section) => headingKey(section.title)));
   const missingHeadings = requiredHeadings.filter((heading) => !actualHeadings.has(headingKey(heading)));
   if (missingHeadings.length > 0) return `нет обязательных разделов: ${missingHeadings.slice(0, 4).join(", ")}`;
-  const sectionMinimum = input.productKey === "surname-story" ? 220 : 160;
+  const sectionMinimum = input.productKey === "surname-origin" ? 220 : 160;
   const weakSection = parsedSections.find((section) => (
     requiredHeadings.some((heading) => headingKey(heading) === headingKey(section.title))
     && headingKey(section.title) !== headingKey("Прямой ответ")
@@ -804,8 +804,8 @@ function symbolicQualityIssue(input: {
     const citedAspects = exactAspects.filter((line) => input.text.includes(line.from.label) && input.text.includes(line.to.label));
     if (exactAspects.length > 0 && citedAspects.length < Math.min(2, exactAspects.length)) return "текст не цитирует рассчитанные аспекты";
   }
-  if (input.productKey === "surname-story" && input.surname && !input.text.includes(input.surname.surname)) return "текст не называет исследуемую фамилию";
-  if (input.productKey === "surname-story" && input.surname) {
+  if (input.productKey === "surname-origin" && input.surname && !input.text.includes(input.surname.surname)) return "текст не называет исследуемую фамилию";
+  if (input.productKey === "surname-origin" && input.surname) {
     const code = input.surname.code;
     if (!input.text.includes(String(code.sum)) || !input.text.includes(code.arcanaName)) return "текст меняет или не цитирует рассчитанный код фамилии";
     const smoothingPattern = /\b(?:бережн\w*|мягко исслед\w*|ответ находится внутри|вы уже достаточно|однако это не означает, что вы не сможете|не стоит расстраиваться|всё обязательно получится)\b/iu;
@@ -840,7 +840,7 @@ function symbolicQualityIssue(input: {
 
 // B450/B451: бюджет токенов на услугу для запроса в шлюз. Эффективный кап всё равно
 // задаёт task-policy (routing.ts:138), но держим запрос крупным для полного разбора.
-// B512 R1-11: смысловые слои «Семейных сценариев» с обязательными
+// B512 R1-11: смысловые слои «Семейных вопросов» с обязательными
 // подзаголовками «Как это выглядит / Чего это стоит / Как проверить у себя».
 const FAMILY_LAYER_HEADINGS = [
   "Роли и негласные правила рода",
@@ -855,10 +855,10 @@ const SYMBOLIC_MAX_TOKENS: Partial<Record<SymbolicProductKey, number>> = {
   "natal-chart": 7000,
   numerology: 6000,
   "human-design": 6500,
-  "surname-story": 6000,
-  "family-scenarios": 6500,
-  horary: 7000,
-  "tarot-numerology": 7000,
+  "surname-origin": 6000,
+  "family-questions": 6500,
+  horoscope: 7000,
+  "arcana": 7000,
 };
 
 export async function generateSymbolicProductResult(input: {
@@ -891,12 +891,12 @@ export async function generateSymbolicProductResult(input: {
       }
     })()
     : null;
-  const horaryWheel = input.productKey === "horary"
+  const horaryWheel = input.productKey === "horoscope"
     ? (() => {
       try { return buildNatalEphemerisWheel(normalizeInput(input.userInput)); } catch { return null; }
     })()
     : null;
-  const horaryFutureWheel = input.productKey === "horary" ? (() => {
+  const horaryFutureWheel = input.productKey === "horoscope" ? (() => {
     try {
       const iso = input.userInput.match(/Момент фиксации UTC:\s*(\d{4}-\d{2}-\d{2}T[^\s]+)/u)?.[1];
       if (!iso) return null;
@@ -911,20 +911,20 @@ export async function generateSymbolicProductResult(input: {
   // B391: распознанная форма фамилии — детерминированно; храним в metadata (для
   // страницы/PDF) и передаём в AI как факты, чтобы разбор не выдумывал этимологию.
   const surnameInput = surnameValueFromStructuredInput(input.userInput);
-  const surnameAudit = input.productKey === "surname-story" ? parseSurnameAuditInput(input.userInput) : null;
-  const surnameStoryBase = input.productKey === "surname-story" ? analyzeSurname(surnameInput) : null;
-  const surnamePrimaryCode = input.productKey === "surname-story"
+  const surnameAudit = input.productKey === "surname-origin" ? parseSurnameAuditInput(input.userInput) : null;
+  const surnameStoryBase = input.productKey === "surname-origin" ? analyzeSurname(surnameInput) : null;
+  const surnamePrimaryCode = input.productKey === "surname-origin"
     ? computeSurnameCode(surnameAudit?.surname || surnameInput)
     : null;
   const surnameStory = surnameStoryBase && surnamePrimaryCode
     ? { ...surnameStoryBase, surname: surnamePrimaryCode.source, code: surnamePrimaryCode }
     : surnameStoryBase;
-  const surnameComparison = input.productKey === "surname-story" && surnameAudit?.comparison
+  const surnameComparison = input.productKey === "surname-origin" && surnameAudit?.comparison
     ? computeSurnameCode(surnameAudit.comparison)
     : null;
   // B451: числовой портрет — детерминированные ядровые числа (для визуала и фактов AI).
   const numerology = input.productKey === "numerology" ? computeNumerology(input.userInput) : null;
-  const tarotBirthDate = input.productKey === "tarot-numerology" ? parseStrictBirthDate(input.userInput) : null;
+  const tarotBirthDate = input.productKey === "arcana" ? parseStrictBirthDate(input.userInput) : null;
   const tarotBirthCode = tarotBirthDate ? computeTarotBirthCode(tarotBirthDate.day, tarotBirthDate.month, tarotBirthDate.year) : null;
   const visualMeta: Prisma.InputJsonObject = {
     ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
@@ -952,17 +952,17 @@ export async function generateSymbolicProductResult(input: {
     ? tarotReadingFromCards(cards, input.userInput, tarotSpread?.label, tarotTheme)
     : input.productKey === "human-design"
       ? humanDesignFallback(hdChart)
-      : input.productKey === "surname-story"
+      : input.productKey === "surname-origin"
         ? surnameStoryFallback(surnameStory)
         : heuristicSymbolicResult(input);
 
   if (input.productKey === "natal-chart" && !wheel) {
     return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable", ...cardsMeta } };
   }
-  if (input.productKey === "horary" && (!horaryWheel || !horary)) {
+  if (input.productKey === "horoscope" && (!horaryWheel || !horary)) {
     return { text: fallback, metadata: { source: "heuristic", fallbackReason: "question_moment_not_calculable", ...cardsMeta } };
   }
-  if (input.productKey === "tarot-numerology" && !tarotBirthCode) {
+  if (input.productKey === "arcana" && !tarotBirthCode) {
     return { text: fallback, metadata: { source: "heuristic", fallbackReason: "birth_data_not_calculable", ...cardsMeta } };
   }
 
@@ -1043,16 +1043,16 @@ export async function generateSymbolicProductResult(input: {
               input.productKey === "numerology" && group.some((heading) => matrixZoneHeadings.includes(heading))
                 ? "Для КАЖДОГО позиционного раздела дай не менее 900 знаков и обязательно сохрани подзаголовки `### В плюсе`, `### В минусе`, `### Практики`. Не сокращай одну позицию ради другой."
                 : "",
-              input.productKey === "surname-story" && group.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
+              input.productKey === "surname-origin" && group.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
                 ? "Для КАЖДОГО смыслового слоя дай не менее 700 знаков и обязательно используй подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`. Пиши прямо, через наблюдаемое поведение и его цену; не утешай автоматически."
                 : "",
-              input.productKey === "family-scenarios" && group.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
+              input.productKey === "family-questions" && group.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
                 ? "Для КАЖДОГО смыслового слоя дай не менее 700 знаков и обязательно используй подзаголовки `### Как это выглядит`, `### Чего это стоит`, `### Как проверить у себя` — через конкретные наблюдаемые проявления, без общих слов."
                 : "",
-              input.productKey === "family-scenarios" && group.includes("Практики прерывания на 14 дней")
+              input.productKey === "family-questions" && group.includes("Практики прерывания на 14 дней")
                 ? "В `## Практики прерывания на 14 дней` дай нумерованный markdown-список из 4–6 практик (каждый пункт с новой строки, «1. », пустая строка перед списком); у каждой практики — срок и критерий, по которому видно, что она сработала."
                 : "",
-              input.productKey === "surname-story" && surnameComparison && group.some((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
+              input.productKey === "surname-origin" && surnameComparison && group.some((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
                 ? `Сравни оба рассчитанных варианта: ${surnameStory?.surname} → ${surnameComparison.source}. Назови, что усиливается, что ослабевает, что остаётся с человеком и какова цена перехода. Не обещай причинно изменить доход, характер или судьбу.`
                 : "",
               input.productKey === "natal-chart" && group.some((heading) => heading.startsWith("Аспекты:"))
@@ -1084,7 +1084,7 @@ export async function generateSymbolicProductResult(input: {
         const actual = new Set(splitSections(text).map((section) => headingKey(section.title)));
         const missing = headings.filter((heading) => !actual.has(headingKey(heading)));
         const issueHeadings = headingsNamedInQualityIssue(issue, headings);
-        const surnameComparisonHeading = input.productKey === "surname-story" && surnameComparison && issue.includes("сравнение")
+        const surnameComparisonHeading = input.productKey === "surname-origin" && surnameComparison && issue.includes("сравнение")
           ? headings.find((heading) => /Смена фамилии|Псевдоним или бренд/u.test(heading))
           : null;
         const repairHeadings = input.productKey === "natal-chart" && issue.includes("аспект")
@@ -1114,10 +1114,10 @@ export async function generateSymbolicProductResult(input: {
                 input.productKey === "numerology" && repairHeadings.some((heading) => matrixZoneHeadings.includes(heading))
                   ? "Каждый позиционный раздел должен содержать не менее 900 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Практики`."
                   : "",
-                input.productKey === "surname-story" && repairHeadings.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
+                input.productKey === "surname-origin" && repairHeadings.some((heading) => ["Главный ресурс рода", "Родовая тень", "Деньги и реализация", "Отношения, границы и семейная роль"].includes(heading))
                   ? "Каждый смысловой слой должен содержать не менее 700 знаков и подзаголовки `### В плюсе`, `### В минусе`, `### Как проверить у себя`, `### Практики`."
                   : "",
-                input.productKey === "family-scenarios" && repairHeadings.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
+                input.productKey === "family-questions" && repairHeadings.some((heading) => FAMILY_LAYER_HEADINGS.includes(heading))
                   ? "Каждый смысловой слой карты рода должен содержать не менее 700 знаков и подзаголовки `### Как это выглядит`, `### Чего это стоит`, `### Как проверить у себя`."
                   : "",
                 input.productKey === "natal-chart" && issue.includes("аспект")

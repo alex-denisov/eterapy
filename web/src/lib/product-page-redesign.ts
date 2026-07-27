@@ -61,7 +61,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["ваша сторона", "взгляд близкого", "общий безопасный итог"],
     trustLine: "Гость может ответить по ссылке без регистрации.",
   },
-  synastry: {
+  "compatibility-by-date": {
     family: "relationship",
     primaryPromise: "Сравните две карты как язык динамики пары.",
     heroVisual: "interactive-chart",
@@ -85,7 +85,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["Солнце и асцендент", "ключевые акценты", "связь с вашим вопросом"],
     trustLine: "Данные рождения используются только для выбранного разбора.",
   },
-  horary: {
+  horoscope: {
     family: "symbolic",
     primaryPromise: "Получите прямой ответ на один вопрос по карте зафиксированного момента.",
     heroVisual: "interactive-chart",
@@ -93,11 +93,11 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["сигнификаторы", "препятствия и рецепции", "ответ, срок и условие"],
     trustLine: "Момент фиксируется на сервере; новая формулировка создаёт новую карту.",
   },
-  "tarot-numerology": {
+  "arcana": {
     family: "symbolic",
     primaryPromise: "Узнайте постоянные Старшие арканы своей даты рождения.",
     heroVisual: "interactive-chart",
-    previewTitle: "Арканы рождения",
+    previewTitle: "Арканы судьбы",
     previewBullets: ["карта рождения", "карта души", "связь двух арканов"],
     trustLine: "Арканы рассчитываются по видимой формуле — случайной вытяжки нет.",
   },
@@ -109,7 +109,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["сильные стороны", "повторяющиеся уроки", "цикл года"],
     trustLine: "Это язык самонаблюдения, не обещание событий.",
   },
-  "family-scenarios": {
+  "family-questions": {
     family: "symbolic",
     primaryPromise: "Увидите семейные повторы, которые можно мягко прервать.",
     heroVisual: "document-outline",
@@ -125,7 +125,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["тип и стратегия", "центры и каналы", "полный разбор"],
     trustLine: "Тип — подсказка к решениям, не ярлык.",
   },
-  "surname-story": {
+  "surname-origin": {
     family: "symbolic",
     primaryPromise: "Раскроете происхождение, звучание и символический образ имени и фамилии.",
     heroVisual: "interactive-chart",

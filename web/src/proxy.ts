@@ -141,7 +141,7 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/products/chat-analysis",
   "/products/deep-report",
   "/products/natal-chart",
-  "/products/synastry",
+  "/products/compatibility-by-date",
   "/products/numerology",
   "/products/reframe",
   "/products/tarot",

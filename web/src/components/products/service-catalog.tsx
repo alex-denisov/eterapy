@@ -88,12 +88,12 @@ const GROUPS: ServiceGroup[] = [
     cards: [
       { id: "tarot-d", title: "Расклад Таро", desc: "Гадательное чтение выпавших карт", price: price("tarot"), href: "/products/tarot", icon: Moon },
       { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор карты", price: price("natal-chart"), href: "/products/natal-chart", icon: Compass },
-      { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом", price: price("synastry"), href: "/products/synastry", icon: Compass },
+      { id: "synastry-d", title: "Совместимость по дате", desc: "Две натальные карты рядом", price: price("compatibility-by-date"), href: "/products/compatibility-by-date", icon: Compass },
       { id: "numero-d", title: "Матрица судьбы", desc: "22 энергии, предназначения и карта здоровья", price: price("numerology"), href: "/products/numerology", icon: Sparkles },
-      { id: "horary-d", title: "Хорарная астрология", desc: "Ответ карты момента на один вопрос", price: price("horary"), href: "/products/horary", icon: Compass },
-      { id: "tarot-num-d", title: "Арканы рождения", desc: "Две карты Таро по дате рождения", price: price("tarot-numerology"), href: "/products/tarot-numerology", icon: Sparkles },
+      { id: "horary-d", title: "Гороскоп", desc: "Ответ карты момента на один вопрос", price: price("horoscope"), href: "/products/horoscope", icon: Compass },
+      { id: "tarot-num-d", title: "Арканы судьбы", desc: "Две карты Таро по дате рождения", price: price("arcana"), href: "/products/arcana", icon: Sparkles },
       { id: "hd-d", title: "Дизайн человека", desc: "Тип и бодиграф", price: price("human-design"), href: "/products/human-design", icon: Compass },
-      { id: "surname-d", title: "Кармический код фамилии", desc: "Число рода, Аркан, ресурс и тень", price: price("surname-story"), href: "/products/surname-story", icon: Sparkles },
+      { id: "surname-d", title: "Происхождение фамилии", desc: "Число рода, Аркан, ресурс и тень", price: price("surname-origin"), href: "/products/surname-origin", icon: Sparkles },
     ],
   },
   {

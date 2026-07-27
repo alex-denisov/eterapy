@@ -55,7 +55,7 @@ function SurnamePreview() {
 
 function FamilyPreview() {
   return (
-    <div className="soft-product-shell-family" data-testid="product-family-preview" aria-label="Превью семейных сценариев">
+    <div className="soft-product-shell-family" data-testid="product-family-preview" aria-label="Превью семейных вопросов">
       <svg viewBox="0 0 320 210" role="img" aria-label="Карта семейных повторов">
         <path d="M160 34 L90 94 L160 94 L230 94 L160 34 Z" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" />
         <path d="M90 94 L68 164 M160 94 L160 164 M230 94 L252 164" stroke="var(--soft-paper-edge)" strokeWidth="1.4" />
@@ -107,9 +107,9 @@ function PreviewGlyph({ product }: { product: V5Product }) {
     );
   }
 
-  if (product.slug === "surname-story") return <SurnamePreview />;
+  if (product.slug === "surname-origin") return <SurnamePreview />;
 
-  if (product.slug === "family-scenarios") return <FamilyPreview />;
+  if (product.slug === "family-questions") return <FamilyPreview />;
 
   return (
     <div className="soft-product-shell-symbol" aria-hidden="true">

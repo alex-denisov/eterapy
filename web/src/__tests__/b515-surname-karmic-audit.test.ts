@@ -5,7 +5,7 @@ import { analyzeSurname, computeSurnameCode, surnameFactsForAI } from "@/lib/sur
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
-describe("B515 — Кармический код фамилии", () => {
+describe("B515 — Происхождение фамилии", () => {
   it("keeps every deterministic value visible and immutable for the LLM", () => {
     const story = analyzeSurname("Романова")!;
     const comparison = computeSurnameCode("Волкова")!;
@@ -27,7 +27,7 @@ describe("B515 — Кармический код фамилии", () => {
   });
 
   it("audits the generation prompt for directness, structure and epistemic boundaries", () => {
-    const prompt = defaultPromptTextForFeature("product-surname-story");
+    const prompt = defaultPromptTextForFeature("product-surname-origin");
     for (const marker of [
       "## Прямой ответ",
       "## Формула фамилии",
@@ -47,7 +47,7 @@ describe("B515 — Кармический код фамилии", () => {
   });
 
   it("ships adaptive scenarios, a live seal and an accessible interactive result", () => {
-    const component = source("src/components/products/surname-story-actions.tsx");
+    const component = source("src/components/products/surname-origin-actions.tsx");
     for (const marker of [
       "Моя фамилия",
       "Смена фамилии",

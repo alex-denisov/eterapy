@@ -36,11 +36,11 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     const cases: Array<[string, string[]]> = [
       ["product-numerology", ["Матрицы судьбы", "Личность, Талант, Социум, Задача, Центр, Внутренний центр", "### В плюсе", "### В минусе", "### Практики"]],
       ["product-human-design", ["Дизайна человека", "Тип, стратегия, авторитет, профиль и определение всегда идут пятью отдельными разделами", "Каждый заголовок начинай с `##`"]],
-      ["product-surname-story", ["нумеролог буквенного кода", "## Формула фамилии", "### Как проверить у себя", "без автоматического утешения"]],
-      // B512 R1-11: экспертный апгрейд «Семейных сценариев» — полная карта
+      ["product-surname-origin", ["нумеролог буквенного кода", "## Формула фамилии", "### Как проверить у себя", "без автоматического утешения"]],
+      // B512 R1-11: экспертный апгрейд «Семейных вопросов» — полная карта
       // рода с обязательными слоями и практиками прерывания.
-      ["product-family-scenarios", ["системный семейный консультант", "## Что вы описали — узор повторов", "## Практики прерывания на 14 дней", "### Как проверить у себя"]],
-      ["product-synastry", ["астролог по синастрии", "## Главная ось связи", "## Итог в выбранном слое отношений"]],
+      ["product-family-questions", ["системный семейный консультант", "## Что вы описали — узор повторов", "## Практики прерывания на 14 дней", "### Как проверить у себя"]],
+      ["product-compatibility-by-date", ["астролог по синастрии", "## Главная ось связи", "## Итог в выбранном слое отношений"]],
     ];
     it.each(cases)("%s is expert-level and structured", (feature, markers) => {
       const prompt = defaultPromptTextForFeature(feature);
@@ -49,7 +49,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     });
 
     it("synastry gives a direct layer-specific answer without judging people globally", () => {
-      const prompt = defaultPromptTextForFeature("product-synastry");
+      const prompt = defaultPromptTextForFeature("product-compatibility-by-date");
       expect(prompt).toContain("## Прямой ответ");
       expect(prompt).toMatch(/вердикт относится только к выбранному слою/i);
     });
@@ -59,24 +59,24 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     const route = source("src/app/api/products/symbolic/route.ts");
     const idRoute = source("src/app/api/products/symbolic/[id]/route.ts");
     it("includes surname-story in the enum and product keys (fixes latent gap)", () => {
-      expect(route).toContain('"surname-story"');
-      expect(route).toMatch(/z\.enum\(\[[^\]]*"surname-story"/);
+      expect(route).toContain('"surname-origin"');
+      expect(route).toMatch(/z\.enum\(\[[^\]]*"surname-origin"/);
     });
     it("paywall/autosave/mandatory-LLM sets cover all five services", () => {
-      for (const key of ["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]) {
+      for (const key of ["natal-chart", "numerology", "human-design", "surname-origin", "family-questions"]) {
         expect(route).toContain(`"${key}"`);
       }
     });
     it("restores human-design and surname-story saved readings by ?reading=", () => {
-      for (const key of ["human-design", "surname-story"]) {
+      for (const key of ["human-design", "surname-origin"]) {
         expect(idRoute).toContain(`"${key}"`);
       }
     });
   });
 
   describe("synastry own route brought to parity", () => {
-    const route = source("src/app/api/products/synastry/route.ts");
-    const idRoute = source("src/app/api/products/synastry/[id]/route.ts");
+    const route = source("src/app/api/products/compatibility-by-date/route.ts");
+    const idRoute = source("src/app/api/products/compatibility-by-date/[id]/route.ts");
     it("paywall-402, mandatory-LLM 503, autosave on READY", () => {
       expect(route).toContain("402");
       expect(route).toContain('(generated.metadata as { source?: string }).source !== "ai"');
@@ -88,7 +88,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     });
     it("synastry generation uses the editable feature prompt", () => {
       const lib = source("src/lib/synastry.ts");
-      expect(lib).toContain('defaultPromptTextForFeature("product-synastry")');
+      expect(lib).toContain('defaultPromptTextForFeature("product-compatibility-by-date")');
       expect(lib).toContain("maxTokens: 6500");
     });
   });
@@ -98,9 +98,9 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     it.each([
       ["product-numerology", 6000],
       ["product-human-design", 6500],
-      ["product-surname-story", 6000],
-      ["product-synastry", 6500],
-      ["product-family-scenarios", 6500],
+      ["product-surname-origin", 6000],
+      ["product-compatibility-by-date", 6500],
+      ["product-family-questions", 6500],
     ])("%s maxTokens is %d", (feature, tokens) => {
       const re = new RegExp(`feature: "${feature}"[\\s\\S]{0,500}maxTokens: ${tokens}`);
       expect(policy).toMatch(re);
@@ -111,9 +111,9 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     const cases: Array<[string, string[]]> = [
       ["numerology-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "NumerologyChart"]],
       ["human-design-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "HumanDesignBodygraph"]],
-      ["surname-story-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "SurnameLineageVisual"]],
-      ["family-scenarios-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "FamilyGenogram"]],
-      ["synastry-actions.tsx", ["SymbolicResultScaffold", "SynastryWheel", 'searchParams.set("reading"']],
+      ["surname-origin-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "SurnameLineageVisual"]],
+      ["family-questions-actions.tsx", ["useSymbolicService", "SymbolicResultScaffold", "FamilyGenogram"]],
+      ["compatibility-by-date-actions.tsx", ["SymbolicResultScaffold", "SynastryWheel", 'searchParams.set("reading"']],
     ];
     it.each(cases)("%s uses kit + visual, no free fragment", (file, markers) => {
       const src = source(`src/components/products/${file}`);
@@ -126,14 +126,14 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
 
     it("removes generic topic chips from human-design and uses scenario-specific chips for surname audit", () => {
       expect(source("src/components/products/human-design-actions.tsx")).not.toContain("OptionScrollStrip");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("OptionScrollStrip");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("Смена фамилии");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("Псевдоним / бренд");
+      expect(source("src/components/products/surname-origin-actions.tsx")).toContain("OptionScrollStrip");
+      expect(source("src/components/products/surname-origin-actions.tsx")).toContain("Смена фамилии");
+      expect(source("src/components/products/surname-origin-actions.tsx")).toContain("Псевдоним / бренд");
     });
 
     it("uses compact one-line inputs for numerology and surname fields", () => {
       expect(source("src/components/products/numerology-actions.tsx")).toContain("product-line-input");
-      expect(source("src/components/products/surname-story-actions.tsx")).toContain("product-line-input");
+      expect(source("src/components/products/surname-origin-actions.tsx")).toContain("product-line-input");
     });
   });
 
@@ -146,7 +146,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     });
     it("all five are on the compact tool-first hero", () => {
       const compact = page.match(/COMPACT_HERO_SLUGS = new Set<string>\(\[([^\]]*)\]/)?.[1] ?? "";
-      for (const slug of ["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "synastry"]) {
+      for (const slug of ["natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "compatibility-by-date"]) {
         expect(compact).toContain(`"${slug}"`);
       }
     });

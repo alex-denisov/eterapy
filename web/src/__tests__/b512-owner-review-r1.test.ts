@@ -19,7 +19,7 @@ describe("R1-1 — /results/[id] = оригинальная страница р�
     expect(page).toContain("redirect(mainUrl(`/products/${result.productKey}?reading=${result.id}`))");
     expect(page).toContain('"deep-report": (id) => `/products/deep-report?resultId=${id}`');
     expect(page).toContain('"chat-analysis": (id) => `/products/chat-analysis?analysis=${id}`');
-    for (const key of ["surname-story", "family-scenarios", "tarot", "human-design", "horary", "synastry"]) {
+    for (const key of ["surname-origin", "family-questions", "tarot", "human-design", "horoscope", "compatibility-by-date"]) {
       expect(page).toContain(`"${key}"`);
     }
   });
@@ -104,11 +104,11 @@ describe("R1-7/8/9 — Дневник", () => {
   });
 });
 
-describe("R1-11 — «Семейные сценарии» upgrade", () => {
+describe("R1-11 — «Семейные вопросы» upgrade", () => {
   it("expert prompt: full section map + client-history requirement + list discipline", () => {
     const prompts = source("src/lib/ai-gateway/prompts.ts");
     const familyBlock = prompts.slice(
-      prompts.indexOf('"product-family-scenarios"'),
+      prompts.indexOf('"product-family-questions"'),
       prompts.indexOf('"product-human-design"'),
     );
     expect(familyBlock).toContain("## Прямой ответ");
@@ -121,10 +121,10 @@ describe("R1-11 — «Семейные сценарии» upgrade", () => {
 
   it("segmented generation: headings + quality floor + layer sub-structure", () => {
     const lib = source("src/lib/symbolic-products.ts");
-    expect(lib).toContain('if (input.productKey === "family-scenarios") {');
+    expect(lib).toContain('if (input.productKey === "family-questions") {');
     expect(lib).toContain("Контрсценарий: как не уйти в противоположность");
     expect(lib).toContain("FAMILY_LAYER_HEADINGS");
-    expect(lib).toContain('"family-scenarios": 6_000');
+    expect(lib).toContain('"family-questions": 6_000');
     expect(lib).toContain("clientContextNote");
   });
 
@@ -138,7 +138,7 @@ describe("R1-11 — «Семейные сценарии» upgrade", () => {
 
   it("direct-answer heading gets the family-specific display title", () => {
     const scaffold = source("src/components/products/symbolic-result-scaffold.tsx");
-    expect(scaffold).toContain('"family-scenarios": "Главный вывод карты рода"');
+    expect(scaffold).toContain('"family-questions": "Главный вывод карты рода"');
   });
 });
 

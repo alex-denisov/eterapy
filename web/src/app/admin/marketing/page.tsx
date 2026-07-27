@@ -17,6 +17,7 @@ import {
   formatNumber,
   formatPercent,
 } from "../admin-analytics-ui";
+import { SemanticCoreTable } from "./semantic-core-table";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -153,47 +154,25 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
           )}
         </AnalyticsSection>
 
-        <AnalyticsSection title="Стратегическое семантическое ядро">
-            <div className="overflow-x-auto rounded-lg border border-[#D6DEE9]">
-              <table className="w-full min-w-[960px] text-left text-sm">
-                <thead className="bg-slate-50 text-[0.68rem] uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2.5">Фраза</th>
-                    <th className="px-3 py-2.5">Кластер</th>
-                    <th className="px-3 py-2.5">Целевая страница</th>
-                    <th className="px-3 py-2.5 text-right">Спрос / месяц</th>
-                    <th className="px-3 py-2.5 text-right">Позиция</th>
-                    <th className="px-3 py-2.5 text-right">Показы</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.keywordCore.map((item) => (
-                    <tr key={item.phrase} className="hover:bg-slate-50/70">
-                      <td className="px-3 py-2.5">
-                        <span className="font-medium text-slate-900">{item.phrase}</span>
-                        <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[0.62rem] font-bold ${item.priority === "P1" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{item.priority}</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600">{item.cluster}</td>
-                      <td className="max-w-xs px-3 py-2.5"><Link href={`https://eterapy.com${item.landing}`} target="_blank" rel="noreferrer" className="break-all text-xs font-medium text-blue-700 hover:underline">{item.landing}</Link></td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">
-                        {/* B598: «не измеряли» и «спроса нет» — разные вещи, а
-                            выглядели одинаково («—»). Живой Wordstat вызывается
-                            только для головных фраз, поэтому у остальных ячейка
-                            была пустой по построению, и это читалось как
-                            «нерелевантный запрос». */}
-                        {item.monthlyDemand === null
-                          ? <span className="text-slate-400" title="Живой Wordstat вызывается только для головных фраз; спрос по этой фразе не замерялся">не замеряли</span>
-                          : formatNumber(item.monthlyDemand)}
-                        {item.demandSource === "baseline" ? <span className="ml-1 text-[0.6rem] text-slate-400" title="Значение из проверки Wordstat, а не из живого вызова">замер</span> : null}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatPosition(item.position)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(item.impressions)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">{data.keywordCore.length} запросов. Россия, broad match; дата рядом с числом означает сохранённый проверенный baseline. Пустое значение не заменяется догадкой.</p>
+        <AnalyticsSection title="Семантическое ядро по услугам">
+          <SemanticCoreTable
+            rows={data.keywordCore.map((item) => ({
+              phrase: item.phrase,
+              serviceName: item.serviceName,
+              cluster: item.cluster,
+              landing: item.landing,
+              priority: item.priority,
+              intent: item.intent,
+              monthlyDemand: item.monthlyDemand,
+              demandSource: item.demandSource,
+              position: item.position,
+              impressions: item.impressions,
+              clicks: item.clicks,
+            }))}
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            {formatNumber(data.keywordCore.length)} фраз по {new Set(data.keywordCore.map((item) => item.service)).size} услугам. Россия, broad match, порог 100 показов в месяц — фраза без замера в ядро не попадает. Живой Wordstat вызывается по одной головной фразе на услугу, остальное — сохранённый замер.
+          </p>
         </AnalyticsSection>
 
         <div className="grid gap-4 xl:grid-cols-2">

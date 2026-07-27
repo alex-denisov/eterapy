@@ -72,7 +72,7 @@ describe("B388 natal wheel", () => {
 describe("B388 synastry wheel", () => {
   it("carries both partners' sun signs and aspect lines", () => {
     const wheel = buildSynastryWheel("15.04.1990", "23.10.1988");
-    expect(wheel.kind).toBe("synastry");
+    expect(wheel.kind).toBe("compatibility-by-date");
     expect(wheel.a.sunSign.key).toBe("aries");
     expect(wheel.b.sunSign.key).toBe("scorpio");
     expect(wheel.aspects.length).toBeGreaterThan(0);

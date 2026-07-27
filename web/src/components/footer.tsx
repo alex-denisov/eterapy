@@ -32,7 +32,7 @@ export function Footer({ variant = "soft", compact = false }: { variant?: "dark"
       links: [
         [mainUrl("/products/tarot"), "Таро"],
         [mainUrl("/products/natal-chart"), "Натальная карта"],
-        [mainUrl("/products/synastry"), "Совместимость по звёздам"],
+        [mainUrl("/products/compatibility-by-date"), "Совместимость по дате"],
         [mainUrl("/products/numerology"), "Нумерология"],
       ],
     },

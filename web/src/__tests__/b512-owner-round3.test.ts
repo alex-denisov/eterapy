@@ -40,15 +40,15 @@ describe("B512 owner acceptance round 3", () => {
 
   it("restores every recap field for Horary and birth arcana after refresh", () => {
     const actions = source("src/components/products/new-symbolic-product-actions.tsx");
-    expect(actions).toContain('useSymbolicService("horary", (userInput) =>');
+    expect(actions).toContain('useSymbolicService("horoscope", (userInput) =>');
     expect(actions).toContain('{ label: "Контекст", value: context }');
-    expect(actions).toContain('useSymbolicService("tarot-numerology", (userInput) =>');
+    expect(actions).toContain('useSymbolicService("arcana", (userInput) =>');
     expect(actions).toContain('{ label: "Вопрос", value: question }');
   });
 
   it("ships a region-aware combobox and the interactive four-layer lineage seal", () => {
     const actions = source("src/components/products/new-symbolic-product-actions.tsx");
-    const surname = source("src/components/products/surname-story-actions.tsx");
+    const surname = source("src/components/products/surname-origin-actions.tsx");
     expect(actions).toContain("<LocationSuggestInput");
     expect(surname).toContain("Родовая печать");
     expect(surname).toContain('role="tablist"');

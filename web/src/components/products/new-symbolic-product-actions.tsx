@@ -71,7 +71,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
   const questionPlaceholder = useRotatingPlaceholder(HORARY_QUESTION_EXAMPLES[focus ?? "default"] ?? HORARY_QUESTION_EXAMPLES.default, focus ?? "default");
   const contextPlaceholder = useRotatingPlaceholder(HORARY_CONTEXT_EXAMPLES[focus ?? "default"] ?? HORARY_CONTEXT_EXAMPLES.default, focus ?? "default");
   const locationPlaceholder = useRotatingPlaceholder(HORARY_LOCATION_EXAMPLES, "horary-location");
-  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("horary", (userInput) => {
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("horoscope", (userInput) => {
     const restored = parseHoraryInput(userInput);
     setQuestion(restored.question);
     setLocation(restored.location);
@@ -96,12 +96,12 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
   };
 
   if (result?.resultText) {
-    return <SymbolicResultScaffold resultId={result.id} productKey="horary" eyebrow="хорарная астрология · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : []), ...(context ? [{ label: "Контекст", value: context }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setQuestion(""); setLocation(""); setSelectedLocation(null); setContext(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold resultId={result.id} productKey="horoscope" eyebrow="гороскоп · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : []), ...(context ? [{ label: "Контекст", value: context }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setQuestion(""); setLocation(""); setSelectedLocation(null); setContext(""); setFocus(null); }} />;
   }
 
   return (
     <div className="soft-card product-order-surface" data-testid="horary-actions">
-      <div className="product-order-head"><p className="soft-eyebrow">хорарная астрология · один вопрос, один момент</p></div>
+      <div className="product-order-head"><p className="soft-eyebrow">гороскоп · один вопрос, один ответ</p></div>
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
       <div className="product-controls">
         <OptionScrollStrip ariaLabel="Категория вопроса" label="о чём вопрос" hint="Категория помогает выбрать дом предмета вопроса; формулировка остаётся главной.">{HORARY_FOCUS.map((item) => <OptionChoice key={item} active={focus === item} disabled={status === "loading"} onClick={() => setFocus(item)}>{item}</OptionChoice>)}</OptionScrollStrip>
@@ -112,7 +112,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
         <label className="soft-eyebrow product-question-label" htmlFor="horary-context">короткий контекст, необязательно</label>
         <textarea id="horary-context" value={context} onChange={(event) => setContext(event.target.value.slice(0, 800))} placeholder={contextPlaceholder} className="soft-question-input product-question-input min-h-20" disabled={status === "loading"} />
         <div className="rounded-2xl bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]"><p className="font-medium text-[var(--soft-ink)]">Точное время вопроса будет использовано автоматически</p><p className="mt-1">Карта строится для момента, когда вы отправляете сформулированный вопрос.</p></div>
-        <div className="product-action-row">{hasEntitlement ? <Button onClick={submit} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="horary-start">{status === "loading" ? "Строим карту момента…" : "Зафиксировать вопрос"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="horary" label="Открыть хорарную карту" checkoutSource="horary-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (focus && question.trim() && location.trim()) submit(); }} />}</div>
+        <div className="product-action-row">{hasEntitlement ? <Button onClick={submit} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="horary-start">{status === "loading" ? "Строим карту момента…" : "Зафиксировать вопрос"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="horoscope" label="Открыть гороскоп" checkoutSource="horary-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (focus && question.trim() && location.trim()) submit(); }} />}</div>
       </div>
     </div>
   );
@@ -153,7 +153,7 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
   const namePlaceholder = useRotatingPlaceholder(TAROT_NUM_NAMES, placeholderKey);
   const birthPlaceholder = useRotatingPlaceholder(TAROT_NUM_BIRTHS, placeholderKey);
   const questionPlaceholder = useRotatingPlaceholder(TAROT_NUM_QUESTIONS[placeholderKey] ?? TAROT_NUM_QUESTIONS.default, placeholderKey);
-  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("tarot-numerology", (userInput) => {
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } = useSymbolicService("arcana", (userInput) => {
     const restored = parseTarotNumerologyInput(userInput);
     setName(restored.name);
     setBirth(restored.birth);
@@ -169,18 +169,18 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
     void generate([`Имя: ${name.trim()}`, `Дата рождения: ${birth.trim()}`, focus ? `Фокус: ${focus}` : "", question.trim() ? `Вопрос: ${question.trim()}` : ""].filter(Boolean).join("\n"));
   };
   if (result?.resultText) {
-    return <SymbolicResultScaffold resultId={result.id} productKey="tarot-numerology" eyebrow="таро · карты рождения" heading="Ваши Арканы рождения" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : []), ...(question ? [{ label: "Вопрос", value: question }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold resultId={result.id} productKey="arcana" eyebrow="таро · карты рождения" heading="Ваши Арканы судьбы" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : []), ...(question ? [{ label: "Вопрос", value: question }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
   }
   return (
     <div className="soft-card product-order-surface" data-testid="tarot-numerology-actions">
-      <div className="product-order-head"><p className="soft-eyebrow">арканы рождения · карты Таро по дате</p></div>
+      <div className="product-order-head"><p className="soft-eyebrow">арканы судьбы · карты Таро по дате</p></div>
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
       <div className="product-controls">
-        <OptionScrollStrip ariaLabel="Фокус Арканов рождения" label="что раскрыть подробнее" hint="Фокус меняет интерпретацию, но не расчёт арканов.">{TAROT_NUM_FOCUS.map((item) => <OptionChoice key={item} active={focus === item} disabled={status === "loading"} onClick={() => setFocus(item)}>{item}</OptionChoice>)}</OptionScrollStrip>
+        <OptionScrollStrip ariaLabel="Фокус Арканов судьбы" label="что раскрыть подробнее" hint="Фокус меняет интерпретацию, но не расчёт арканов.">{TAROT_NUM_FOCUS.map((item) => <OptionChoice key={item} active={focus === item} disabled={status === "loading"} onClick={() => setFocus(item)}>{item}</OptionChoice>)}</OptionScrollStrip>
         <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-name">имя</label><input id="tarot-num-name" value={name} onChange={(event) => setName(event.target.value.slice(0, 120))} placeholder={namePlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} />
         <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-birth">дата рождения</label><input id="tarot-num-birth" value={birth} inputMode="numeric" onChange={(event) => setBirth(maskDateInput(event.target.value.slice(0, 10), birth))} placeholder={birthPlaceholder} className="soft-question-input product-question-input product-line-input" disabled={status === "loading"} />
         <label className="soft-eyebrow product-question-label" htmlFor="tarot-num-question">ваш вопрос, необязательно</label><textarea id="tarot-num-question" value={question} onChange={(event) => setQuestion(event.target.value.slice(0, 600))} placeholder={questionPlaceholder} className="soft-question-input product-question-input min-h-24" disabled={status === "loading"} />
-        <div className="product-action-row">{hasEntitlement ? <Button onClick={submit} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="tarot-numerology-start">{status === "loading" ? "Рассчитываем карты…" : "Узнать свои арканы"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="tarot-numerology" label="Узнать свои арканы" checkoutSource="tarot-numerology-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (name.trim() && birth.trim()) submit(); }} />}</div>
+        <div className="product-action-row">{hasEntitlement ? <Button onClick={submit} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="tarot-numerology-start">{status === "loading" ? "Рассчитываем карты…" : "Узнать свои арканы"}<ArrowRight className="size-4" aria-hidden="true" /></Button> : <ProductPurchaseControls productKey="arcana" label="Узнать свои арканы" checkoutSource="tarot-numerology-direct" creditCost={creditCost} onUnlocked={() => { setHasEntitlement(true); if (name.trim() && birth.trim()) submit(); }} />}</div>
       </div>
     </div>
   );

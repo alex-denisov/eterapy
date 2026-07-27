@@ -22,7 +22,7 @@ export function llmsText() {
     link("/products/chat-analysis", "Conversation analysis", "Private analysis of observable message tone and possible replies; no mind-reading or lie detection."),
     link("/products/tarot", "Online Tarot spread", "A question-led symbolic spread with card meanings, a decision fork, and no prediction claim."),
     link("/products/natal-chart", "Natal chart", "A chart calculated from birth data and explained as a symbolic portrait, not a forecast."),
-    link("/products/synastry", "Birth-date compatibility and synastry", "Two-chart comparison focused on relationship dynamics rather than a love score."),
+    link("/products/compatibility-by-date", "Birth-date compatibility and synastry", "Two-chart comparison focused on relationship dynamics rather than a love score."),
     link("/products/numerology", "Matrix of Destiny", "A reproducible 22-energy calculation with non-fatalistic interpretation."),
     link("/practitioners", "Verified practitioners", "Public profiles, visible prices, formats, and booking paths."),
     "",

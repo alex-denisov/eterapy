@@ -40,7 +40,7 @@ export const PRODUCT_LABELS: Record<string, string> = {
   reframe: "Переосмысление",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
-  synastry: "Совместимость по звёздам",
+  "compatibility-by-date": "Совместимость по дате",
   // B375 (M26): бесплатный итог недели ежедневной практики.
   "weekly-summary": "Итог недели",
 };

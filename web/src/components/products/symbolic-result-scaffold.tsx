@@ -21,22 +21,22 @@ const LEGACY_FINAL_SECTION_TITLES: Record<string, string> = {
   tarot: "Как действовать по раскладу",
   numerology: "Практический ориентир на ближайшее время",
   "natal-chart": "Как работать с этой картой дальше",
-  synastry: "Что проверить в реальном разговоре",
+  "compatibility-by-date": "Что проверить в реальном разговоре",
   "human-design": "Как применять дизайн",
-  "surname-story": "Как интегрировать код фамилии",
+  "surname-origin": "Как интегрировать код фамилии",
 };
 
 const DIRECT_ANSWER_TITLES: Record<string, string> = {
   tarot: "Вердикт расклада",
   "natal-chart": "Главный вывод карты",
-  synastry: "Главный вывод о вашей связи",
+  "compatibility-by-date": "Главный вывод о вашей связи",
   numerology: "Главный вывод матрицы",
-  horary: "Ответ на поставленный вопрос",
-  "tarot-numerology": "Ключевой вывод ваших арканов",
+  horoscope: "Ответ на поставленный вопрос",
+  "arcana": "Ключевой вывод ваших арканов",
   "human-design": "Главный ключ вашего дизайна",
-  "surname-story": "Прямой итог родового аудита",
+  "surname-origin": "Прямой итог родового аудита",
   // B512 R1-11: расширенная карта рода.
-  "family-scenarios": "Главный вывод карты рода",
+  "family-questions": "Главный вывод карты рода",
 };
 
 export function presentSymbolicSectionTitle(productKey: string, title: string) {
