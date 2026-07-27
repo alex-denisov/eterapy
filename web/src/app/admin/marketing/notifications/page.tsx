@@ -106,26 +106,26 @@ export default async function MarketingNotificationsPage() {
           нельзя править между делом — она уходит наружу и необратима.
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[820px] table-fixed text-left text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-neutral-500">
-                <th className="py-2 pr-4">Событие</th>
-                <th className="py-2 pr-4">Категория</th>
-                <th className="py-2 pr-4">Когда уходит</th>
-                <th className="py-2 pr-4">Канал</th>
-                <th className="py-2 pr-4">Не чаще</th>
-                <th className="py-2">Текст</th>
+                <th className="w-[16%] py-2 pr-4 text-left">Событие</th>
+                <th className="w-[9%] py-2 pr-4 text-left">Категория</th>
+                <th className="w-[22%] py-2 pr-4 text-left">Когда уходит</th>
+                <th className="w-[11%] py-2 pr-4 text-left">Канал</th>
+                <th className="w-[9%] py-2 pr-4 text-left">Не чаще</th>
+                <th className="py-2 text-left">Текст</th>
               </tr>
             </thead>
             <tbody>
               {MARKETING_EVENTS.map((event) => (
                 <tr key={event.key} className="border-t border-neutral-200 align-top dark:border-neutral-800">
-                  <td className="py-3 pr-4 font-mono text-xs">{event.key}</td>
-                  <td className="py-3 pr-4">{MARKETING_CATEGORY_LABELS[event.category]}</td>
-                  <td className="py-3 pr-4 text-neutral-600 dark:text-neutral-400">{event.trigger}</td>
-                  <td className="py-3 pr-4">{event.channels.join(" → ")}</td>
-                  <td className="py-3 pr-4 whitespace-nowrap">раз в {event.minDaysBetween} дн.</td>
-                  <td className="py-3">
+                  <td className="py-3 pr-4 text-left font-mono text-xs break-words">{event.key}</td>
+                  <td className="py-3 pr-4 text-left">{MARKETING_CATEGORY_LABELS[event.category]}</td>
+                  <td className="py-3 pr-4 text-left text-neutral-600 dark:text-neutral-400">{event.trigger}</td>
+                  <td className="py-3 pr-4 text-left">{event.channels.join(" → ")}</td>
+                  <td className="py-3 pr-4 text-left whitespace-nowrap">раз в {event.minDaysBetween} дн.</td>
+                  <td className="py-3 text-left">
                     <div className="font-medium">{event.subject}</div>
                     <pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-neutral-600 dark:text-neutral-400">
                       {event.body}
