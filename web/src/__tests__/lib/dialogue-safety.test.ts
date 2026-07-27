@@ -73,17 +73,32 @@ describe("dialogue-safety", () => {
     }));
   });
 
-  it("uses conservative sensitive fallback when the classifier is unavailable and heuristics are normal", async () => {
+  it("B601: сбой классификатора не объявляет здорового человека «в кризисе»", async () => {
+    // Раньше недоступность модели давала `sensitive`, а `sensitive` глушит
+    // рекомендации и показывает «если сейчас непросто» тому, кто спросил про
+    // работу. Теперь при сбое отвечает детерминированная оценка риска.
     mockAiComplete.mockRejectedValue(new Error("provider unavailable"));
 
     await expect(classifyDialogueSafety({
       question: "Как выбрать работу?",
       requestId: "req-1",
     })).resolves.toEqual({
-      level: "sensitive",
-      reason: "classifier_unavailable",
-      confidence: 0.5,
-      source: "conservative",
+      level: "normal",
+      reason: "no_marker",
+      confidence: 0.55,
+      source: "heuristic",
     });
+  });
+
+  it("B601: сбой классификатора НЕ снимает явную угрозу — её ловит шкала", async () => {
+    mockAiComplete.mockRejectedValue(new Error("provider unavailable"));
+
+    await expect(classifyDialogueSafety({
+      question: "я хочу себя убить, уже всё решил",
+      requestId: "req-2",
+    })).resolves.toEqual(expect.objectContaining({
+      level: "crisis",
+      source: "heuristic",
+    }));
   });
 });
