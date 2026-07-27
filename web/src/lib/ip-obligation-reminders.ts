@@ -16,8 +16,8 @@
 
 import type { Obligation } from "@/lib/ip-accounting";
 import { buildObligationSchedule } from "@/lib/ip-accounting";
-import { db } from "@/lib/db";
 import { log } from "@/lib/logger";
+import { resolveOpsChannel } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
 /** За сколько дней напоминаем. Десять — успеть подготовить, три — успеть заплатить. */
@@ -102,6 +102,8 @@ export interface ObligationReminderResult {
   sent: number;
   recipients: number;
   failed: number;
+  /** Куда ушло: служебный канал или запасной путь через личный Telegram. */
+  target: "ops_channel" | "superadmin_fallback" | "none";
 }
 
 /**
@@ -117,32 +119,34 @@ export async function runIpObligationReminders(now: Date = new Date()): Promise<
     ...buildObligationSchedule(year + 1, now),
   ];
   const reminders = dueReminders(schedule, now);
-  if (reminders.length === 0) return { ok: true, due: 0, sent: 0, recipients: 0, failed: 0 };
+  if (reminders.length === 0) {
+    return { ok: true, due: 0, sent: 0, recipients: 0, failed: 0, target: "none" };
+  }
 
-  const recipients = await db.user.findMany({
-    where: { role: "SUPERADMIN", telegramId: { not: null } },
-    select: { id: true, telegramId: true },
-  });
+  // Адрес доставки — служебный канал, а не личный Telegram суперадмина
+  // (владелец 2026-07-27; подробности и запрет на «номер телефона» —
+  // в `ops-notification-channel.ts`).
+  const channel = await resolveOpsChannel();
 
-  if (recipients.length === 0) {
+  if (channel.chatIds.length === 0) {
     // Молчаливый успех здесь опаснее ошибки: «напоминания работают» при нулевой
     // доставке — это ровно тот сюрприз, который контур должен был убрать.
     log.warn("ip-obligation-reminders.no_recipients", { due: reminders.length });
-    return { ok: false, due: reminders.length, sent: 0, recipients: 0, failed: 0 };
+    return { ok: false, due: reminders.length, sent: 0, recipients: 0, failed: 0, target: "none" };
   }
 
   let sent = 0;
   let failed = 0;
   for (const reminder of reminders) {
     const text = formatReminderMessage(reminder);
-    for (const recipient of recipients) {
+    for (const chatId of channel.chatIds) {
       try {
-        await sendTelegram(recipient.telegramId as string, text);
+        await sendTelegram(chatId, text);
         sent += 1;
       } catch (error) {
         failed += 1;
         log.error("ip-obligation-reminders.send_failed", {
-          userId: recipient.id,
+          target: channel.source,
           obligation: reminder.obligation.key,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -150,5 +154,12 @@ export async function runIpObligationReminders(now: Date = new Date()): Promise<
     }
   }
 
-  return { ok: failed === 0, due: reminders.length, sent, recipients: recipients.length, failed };
+  return {
+    ok: failed === 0,
+    due: reminders.length,
+    sent,
+    recipients: channel.chatIds.length,
+    failed,
+    target: channel.source,
+  };
 }

@@ -83,6 +83,9 @@ export async function GET(request: Request) {
     // W5: the active impersonation cookie must die on logout too, otherwise a
     // later (non-admin) login still trips the impersonation banner.
     "eterapy-imp",
+    // INC-080: и видимая метка вместе с ним — плашку теперь рисует клиент по
+    // ней, и пережившая выход метка врала бы про чужой аккаунт.
+    "eterapy-imp-on",
   ];
 
   for (const name of names) {

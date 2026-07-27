@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useDeferredValue, useMemo } from "react";
+import { useState, useDeferredValue, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
 import type { AnonymousLibraryEntry, LibrarySection } from "@/data/anonymous-library";
+import { resolveLibraryTopic } from "@/lib/library-cta";
 
 const PAGE_SIZE = 9;
 
@@ -13,13 +14,11 @@ type SortDir = "desc" | "asc";
 export function LibrarySearch({
   entries,
   topics,
-  activeTopic,
   section = "life",
   cardLabel = "жизненная ситуация",
 }: {
   entries: AnonymousLibraryEntry[];
   topics: string[];
-  activeTopic?: string;
   section?: LibrarySection;
   cardLabel?: string;
 }) {
@@ -28,6 +27,34 @@ export function LibrarySearch({
   const [dir, setDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
   const deferredQuery = useDeferredValue(query);
+
+  // INC-080: тема раньше приходила с сервера из `?topic=`, и ровно это держало
+  // `/library` в динамическом рендере — страницу нельзя было собрать заранее и
+  // закешировать, хотя её содержимое от запроса не зависит.
+  //
+  // Почему НЕ `useSearchParams`: в статическом маршруте этот хук уводит всё
+  // поддерево в клиентский рендер, и 150 карточек пропали бы из готового HTML —
+  // то есть из выдачи. Читаем адрес после гидрации: робот получает ПОЛНЫЙ
+  // список, человек по ссылке с темой видит фильтр сразу после гидрации.
+  const [activeTopic, setActiveTopic] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("topic");
+    // Тот же разбор, что был на сервере: старые названия тем из разосланных
+    // ссылок продолжают работать, мусор в параметре — игнорируется.
+    setActiveTopic(resolveLibraryTopic(raw ?? undefined));
+  }, []);
+
+  /**
+   * Смена темы — без навигации: страница статическая, и router.push сюда
+   * ничего нового не принесёт, а адрес мы всё равно обязаны обновить, чтобы
+   * ссылкой на тему можно было поделиться.
+   */
+  const selectTopic = (topic?: string) => {
+    setActiveTopic(topic);
+    setPage(1);
+    window.history.replaceState(null, "", filterHref(topic));
+  };
 
   // Add a deterministic "freshness" rank so sort by "new" works without
   // a backend timestamp: entries near the start of the source array are
@@ -78,18 +105,24 @@ export function LibrarySearch({
     <>
       {/* Topic filter chips — v4 style row */}
       <nav className="soft-library-filter-row mb-6" aria-label="Фильтр тем">
-        <Link href={filterHref()} className={`soft-chip ${!activeTopic && !query ? "soft-chip-warm" : ""}`}>
+        <button
+          type="button"
+          onClick={() => selectTopic(undefined)}
+          className={`soft-chip ${!activeTopic && !query ? "soft-chip-warm" : ""}`}
+        >
           Все
-        </Link>
+        </button>
         {topics.map((topic) => (
-          <Link
+          <button
             key={topic}
-            href={filterHref(topic)}
+            type="button"
+            onClick={() => selectTopic(activeTopic === topic ? undefined : topic)}
+            aria-pressed={activeTopic === topic}
             className={`soft-chip ${activeTopic === topic ? "soft-chip-warm" : ""}`}
           >
             {topic}
             {activeTopic === topic && <span style={{ opacity: 0.7, marginLeft: 4 }}>×</span>}
-          </Link>
+          </button>
         ))}
       </nav>
 

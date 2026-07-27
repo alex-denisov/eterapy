@@ -1,4 +1,3 @@
-import { auth } from "@/lib/auth";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { HeroSection } from "@/components/landing/hero";
 import { ScenariosSection } from "@/components/landing/scenarios";
@@ -27,9 +26,11 @@ export const metadata = createPublicPageMetadata("/");
 // /practitioners/apply (footer link). One social-proof block (library) remains;
 // privacy is reassured inline in the hero, on /how-it-works and in the footer,
 // so the page stays ≤6 mobile screens.
-export default async function Home() {
-  await auth();
-
+// INC-080: здесь стоял `await auth()` без присваивания — остаток U04, где
+// залогиненных уводили с лендинга редиректом. Редирект убрали, вызов остался, и
+// он в одиночку держал ГЛАВНУЮ в динамическом рендере: результат никуда не шёл,
+// а чтение кук делало страницу несобираемой заранее.
+export default function Home() {
   return (
     <div className="soft-clarity-page" data-ui-version="design-v4-2-soft-clarity">
       <PublicJsonLd route="/" />
