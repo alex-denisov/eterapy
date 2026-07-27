@@ -1289,6 +1289,18 @@ model ExternalPublication {
   updatedAt        DateTime                    @updatedAt @map("updated_at")
   metrics          ExternalPublicationMetric[]
 
+  // B589 фаза 1: реестр стал очередью. PLANNED → DRAFT → SCHEDULED → PUBLISHED
+  // | FAILED. `autoPublish` по умолчанию false — черновик наружу сам не идёт.
+  body             String?                     @db.Text
+  scheduledFor     DateTime?                   @map("scheduled_for")
+  autoPublish      Boolean                     @default(false) @map("auto_publish")
+  attemptCount     Int                         @default(0) @map("attempt_count")
+  lastError        String?                     @map("last_error")
+  externalPostId   String?                     @map("external_post_id")
+  /// Слот контент-плана. Уникален: генератор не должен занимать слот дважды.
+  planSlot         String?                     @unique @map("plan_slot")
+
+  @@index([status, scheduledFor])
   @@index([status, publishedAt])
   @@index([platform, publishedAt])
   @@index([indexStatus, lastIndexCheckAt])

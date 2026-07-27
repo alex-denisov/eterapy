@@ -65,6 +65,10 @@ export const CRON_SCHEDULES: CronSchedule[] = [
   // ничего не двигает, он только пишет владельцу в Telegram. Под финансовым
   // гейтом напоминания молчали бы ровно там, где нужны.
   { type: "cron.ip-obligation-reminders", cadence: "daily", keyPrefix: "ip-obligation-reminders" },
+  // B589 фаза 1: пополнение очереди черновиков постов. Не «financial» и
+  // безопасен к позднему первому запуску — джоб только доводит число
+  // неопубликованных черновиков до целевого и наружу ничего не отправляет.
+  { type: "cron.marketing-generate", cadence: "daily", keyPrefix: "marketing-generate" },
   {
     type: "cron.session-escrow-capture",
     cadence: "hourly",

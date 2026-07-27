@@ -20,6 +20,7 @@ import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 import { cleanupExpiredMiniAppAuthGrants } from "@/lib/miniapp/telegram/auth";
 import { reconcileRobokassaBacklog } from "@/lib/payments/reconcile-robokassa";
 import { runIpObligationReminders } from "@/lib/ip-obligation-reminders";
+import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -461,6 +462,19 @@ export async function runIpObligationRemindersJob(job: Job): Promise<JobResult> 
   return { ...result, timestamp: now.toISOString() };
 }
 
+/**
+ * B589 фаза 1. Джоб ТОЛЬКО пополняет очередь черновиков; наружу не уходит
+ * ничего, адаптеры каналов — фаза 2. Это не осторожность ради осторожности:
+ * публикация необратима, и первые две недели черновик обязан посмотреть
+ * человек в `/admin/marketing/publications`.
+ */
+export async function runMarketingGenerateJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const result = await generateMarketingDrafts({ now });
+  log.info("cron-marketing-generate-completed", { jobId: job.id, ...result });
+  return { ...result, timestamp: now.toISOString() };
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.billing-reconcile-pending": runBillingReconcilePendingJob as JobHandler,
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
@@ -473,4 +487,5 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.subscription-renewal": runSubscriptionRenewalRemindersJob as JobHandler,
   "cron.session-escrow-capture": runSessionEscrowCaptureJob as JobHandler,
   "cron.ip-obligation-reminders": runIpObligationRemindersJob as JobHandler,
+  "cron.marketing-generate": runMarketingGenerateJob as JobHandler,
 };

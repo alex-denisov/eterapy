@@ -71,7 +71,10 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     const res = await sitemapXml(new Request("https://eterapy.com/sitemap.xml", { headers: { host: "eterapy.com" } }));
     const body = await res.text();
     const indexable = anonymousLibraryEntries.filter((e) => e.status === "approved" && e.indexable);
-    expect(indexable.length).toBe(150);
+    // Число растёт вместе с каталогом (B601 часть 3 добавила 14 карточек).
+    // Жёсткое число здесь ловит не размер, а РАСХОЖДЕНИЕ карты сайта с
+    // каталогом — его и проверяет цикл ниже; сам размер сверяем с каталогом.
+    expect(indexable.length).toBe(164);
     for (const entry of indexable) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
     }
