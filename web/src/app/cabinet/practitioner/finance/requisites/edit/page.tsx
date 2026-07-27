@@ -64,7 +64,7 @@ export default async function RequisitesEditPage() {
           Куда переводить ваш доход. ИНН и налоговый статус указываются отдельно — в разделе «Налоговый статус».
         </p>
         <RequisitesEditForm taxStatus={taxStatus} recipientName={recipientName} initial={practitioner.payoutDetails} variant="pcab" />
-        {/* B583: аккаунт Robokassa показывается только когда реквизиты уже
+        {/* B583: магазин Robokassa показывается только когда реквизиты уже
             заведены — форма правит существующую запись, а не создаёт её. */}
         {practitioner.payoutDetails && (
           <RobokassaAccountForm initialAccount={practitioner.payoutDetails.robokassaAccount} variant="pcab" />

@@ -58,9 +58,9 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
 
-  // B583: аккаунт Robokassa правится отдельным действием. Он не «ещё один
+  // B583: магазин Robokassa правится отдельным действием. Он не «ещё один
   // способ выплаты» в ряду CARD/SBP/ENTITY, а адресат сплита: Robokassa
-  // сплитует только на аккаунт Robokassa, альтернативы нет. Отдельное действие
+  // сплитует только на магазин Robokassa, альтернативы нет. Отдельное действие
   // нужно и затем, чтобы указать аккаунт можно было, не переоформляя банковские
   // реквизиты заново.
   if (str(body.action) === "robokassa_account") {
@@ -171,17 +171,17 @@ async function patchRobokassaAccount(userId: string, raw: unknown) {
   const account = input ? normalizeRobokassaAccount(input) : null;
   if (input && !account) {
     return NextResponse.json(
-      { error: "Идентификатор аккаунта Robokassa: 3–64 символа, латиница, цифры, точка, дефис или подчёркивание" },
+      { error: "Идентификатор магазина Robokassa: 3–64 символа, латиница, цифры, точка, дефис или подчёркивание" },
       { status: 400 },
     );
   }
 
   if (!practitioner.payoutDetails) {
-    // Записи реквизитов ещё нет: аккаунт Robokassa не заменяет банковские
+    // Записи реквизитов ещё нет: магазин Robokassa не заменяет банковские
     // реквизиты — они нужны фискальной части и ручной выплате, — поэтому
     // порядок остаётся прежним, сначала способ выплаты.
     return NextResponse.json(
-      { error: "Сначала заполните способ выплаты, затем укажите аккаунт Robokassa" },
+      { error: "Сначала заполните способ выплаты, затем укажите магазин Robokassa" },
       { status: 409 },
     );
   }
@@ -198,7 +198,7 @@ async function patchRobokassaAccount(userId: string, raw: unknown) {
     userId,
     "PAYOUT_DETAILS_UPDATE",
     undefined,
-    account ? `Аккаунт Robokassa указан (${account})` : "Аккаунт Robokassa отвязан",
+    account ? `Магазин Robokassa указан (${account})` : "Магазин Robokassa отвязан",
   );
   return NextResponse.json({ ok: true, robokassaAccount: account });
 }
