@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  CASH_RAIL_START,
   INCOME_RECOGNITION_RULES,
   buildIncomeBook,
   recognitionRuleFor,
@@ -72,6 +73,28 @@ describe("B591 · правила признания дохода живут ка
     );
     const builder = source.slice(source.indexOf("export function buildIncomeBook"));
     expect(builder).not.toMatch(/"session"|"credits"|"subscription"/);
+  });
+});
+
+describe("B591 · до запуска денежного рельса дохода не бывает", () => {
+  // На проде лежат 33 «успешные» транзакции ЮKassa за май–июнь на 55 тысяч ₽.
+  // Денег по ним не приходило: мерчантом ЮKassa платформа не была. Без отсечки
+  // первая выгрузка бухгалтеру принесла бы 3 070 ₽ несуществующего дохода — и
+  // налог посчитали бы с них.
+  it("тестовая ЮKassa-эра не признаётся доходом, но остаётся в книге", () => {
+    const { entries, totals } = buildIncomeBook(
+      [record({ recognizedAt: new Date(Date.UTC(2026, 4, 8)), subject: "subscription", turnoverKopecks: 307_000 })],
+      AT,
+    );
+    expect(entries[0].ownIncomeKopecks).toBeNull();
+    expect(entries[0].issue).toMatch(/денежного рельса/i);
+    expect(totals.ownIncomeKopecks).toBe(0);
+    expect(totals.turnoverKopecks).toBe(307_000);
+  });
+
+  it("у отсечки есть дата и основание — это данные, а не число в условии", () => {
+    expect(CASH_RAIL_START.at).toBeInstanceOf(Date);
+    expect(CASH_RAIL_START.basis.length).toBeGreaterThan(20);
   });
 });
 
