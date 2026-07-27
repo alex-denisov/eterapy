@@ -181,8 +181,10 @@ export default async function FinanceAccountingPage() {
             style={{ background: "rgba(180,60,60,0.12)", color: "#8E2F2F" }}
           >
             {book.totals.unresolvedCount} {book.totals.unresolvedCount === 1 ? "строка" : "строк"} на
-            {" "}{rub(Math.round(book.totals.unresolvedTurnoverKopecks / 100))} не отнесены к доходу.
-            Разберитесь с ними до выгрузки бухгалтеру: система не подставляет ставку и не угадывает вид платежа.
+            {" "}{rub(Math.round(book.totals.unresolvedTurnoverKopecks / 100))} не отнесены к доходу —
+            причина написана на каждой. Строки за май–июнь это тестовый рельс ЮKassa, денег по ним
+            не приходило; остальные проверьте до выгрузки бухгалтеру. Система не подставляет ставку
+            и не угадывает вид платежа.
           </p>
         )}
 
