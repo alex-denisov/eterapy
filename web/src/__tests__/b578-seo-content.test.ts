@@ -103,7 +103,7 @@ describe("B608 — ядро по услугам: 50–150 фраз на услу
       "/products/horoscope",
       "/products/surname-origin",
       "/products/family-questions",
-      "/products/compatibility",
+      "/products/compatibility-by-date",
       "/products/arcana",
     ]) {
       expect(landings).toContain(landing);

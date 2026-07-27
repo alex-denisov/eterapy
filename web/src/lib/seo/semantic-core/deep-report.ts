@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Подробный разбор» — 150 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const DEEPREPORT_PHRASES: readonly SemanticPhrase[] = [
+export const DEEP_REPORT_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "психологический", demand: 1041176, priority: "P1", intent: "смешанный" },
   { phrase: "психологическая помощь", demand: 75794, priority: "P1", intent: "смешанный" },
   { phrase: "психологические вопросы", demand: 73390, priority: "P1", intent: "смешанный" },

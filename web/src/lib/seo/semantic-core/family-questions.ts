@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Семейные вопросы» — 75 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const FAMILYSCENARIOS_PHRASES: readonly SemanticPhrase[] = [
+export const FAMILY_QUESTIONS_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "семейные вопросы", demand: 21435, priority: "P1", intent: "смешанный" },
   { phrase: "отношения с родителями", demand: 13153, priority: "P1", intent: "смешанный" },
   { phrase: "семейные конфликты", demand: 5005, priority: "P1", intent: "смешанный" },

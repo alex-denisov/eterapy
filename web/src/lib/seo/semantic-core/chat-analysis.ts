@@ -2,7 +2,7 @@ import type { SemanticPhrase } from "../semantic-core-types";
 
 // «Разбор переписки» — 150 фраз, замер Wordstat 27.07.2026 (Россия, broad).
 // Порог отбора — 100 показов в месяц: фразы ниже в ядро не попадают.
-export const CHATANALYSIS_PHRASES: readonly SemanticPhrase[] = [
+export const CHAT_ANALYSIS_PHRASES: readonly SemanticPhrase[] = [
   { phrase: "муж изменяет", demand: 420056, priority: "P1", intent: "смешанный" },
   { phrase: "жена изменяет", demand: 381885, priority: "P1", intent: "смешанный" },
   { phrase: "муж изменяет жене", demand: 176796, priority: "P1", intent: "смешанный" },
