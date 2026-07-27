@@ -1,3 +1,4 @@
+import { ACCOUNT_SOFT_DELETE_GRACE_DAYS } from "@/lib/account-deletion-policy";
 import { BookingStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { getLiveHealth, getReadinessHealth, type HealthStatus } from "@/lib/health";
@@ -12,7 +13,7 @@ export const PRODUCT_CRONS = [
   },
   {
     path: "/api/cron/cleanup",
-    purpose: "retention matrix: анонимизация soft-deleted клиентов через 7 дней + 72ч TTL гостевых диалогов/routing logs + 12м security logs",
+    purpose: `retention matrix: анонимизация soft-deleted клиентов через ${ACCOUNT_SOFT_DELETE_GRACE_DAYS} дней + 72ч TTL гостевых диалогов/routing logs + 12м security logs`,
     cadence: "1 раз в сутки (00:00)",
   },
   {

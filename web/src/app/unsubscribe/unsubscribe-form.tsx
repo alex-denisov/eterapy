@@ -9,7 +9,7 @@ export function UnsubscribeForm({ token }: { token: string | null }) {
 
   if (!token) {
     return (
-      <p className="mt-4 text-sm text-[var(--soft-ink-faint)]">
+      <p className="text-sm text-[var(--soft-ink-soft)]">
         Ссылка неполная — в ней нет опознавательной части. Откройте её из письма
         целиком или отключите рекламные сообщения в кабинете: «Настройки» →
         «Уведомления».
@@ -19,7 +19,7 @@ export function UnsubscribeForm({ token }: { token: string | null }) {
 
   if (state === "done") {
     return (
-      <p className="mt-4 text-sm text-[var(--text-primary)]">
+      <p className="text-sm text-[var(--soft-ink)]">
         Готово. Рекламные сообщения вам больше не уходят. Уведомления о записях,
         оплатах и сессиях это не затрагивает — они не реклама, и отключаются
         отдельно в кабинете.
@@ -29,7 +29,7 @@ export function UnsubscribeForm({ token }: { token: string | null }) {
 
   return (
     <>
-      <p className="mt-4 text-sm text-[var(--soft-ink-faint)]">
+      <p className="text-sm text-[var(--soft-ink-soft)]">
         Нажмите кнопку, чтобы отписаться. Служебные уведомления — о записях,
         оплатах и сессиях — останутся: они не реклама.
       </p>

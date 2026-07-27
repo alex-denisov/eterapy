@@ -17,6 +17,7 @@ import { NotificationSettings } from "@/components/notifications/notification-se
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 import { sanitizeName, getNameError, sanitizeText } from "@/lib/validation";
 import { logoutUrl } from "@/lib/subdomain";
+import { ACCOUNT_SOFT_DELETE_GRACE_DAYS } from "@/lib/account-deletion-policy";
 
 interface TelegramStatus {
   linked: boolean;
@@ -476,8 +477,8 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
               </p>
             ) : (
               <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
-                Аккаунт деактивируется немедленно. Через 10 дней данные будут удалены безвозвратно.
-                Вы можете отменить удаление, войдя в аккаунт в течение 10 дней.
+                Аккаунт деактивируется немедленно. Через {ACCOUNT_SOFT_DELETE_GRACE_DAYS} дней данные будут удалены безвозвратно.
+                Вы можете отменить удаление, войдя в аккаунт в течение {ACCOUNT_SOFT_DELETE_GRACE_DAYS} дней. Подтверждение с датой удаления придёт на почту.
               </p>
             )}
             <div className="space-y-3">

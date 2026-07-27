@@ -75,6 +75,7 @@ model User {
   chatMessages                    ChatMessage[]
   notificationPrefs               NotificationPreference[]
   marketingDispatches             MarketingDispatch[]
+  notificationDispatches          NotificationDispatch[]
   notifications                   Notification[]
   complaints                      Complaint[]                 @relation("ComplaintReporter")
   aiSessionLogs                   AISessionLog[]
@@ -924,6 +925,36 @@ model MarketingDispatch {
   @@index([eventKey, createdAt])
   @@index([status, createdAt])
   @@map("marketing_dispatches")
+}
+
+/// B599 (батч №20) · Журнал СЛУЖЕБНЫХ отправок: кому, когда, куда и что ушло.
+///
+/// Тело письма — снимок на момент отправки. Для АККАУНТНЫХ писем (сброс пароля,
+/// подтверждение почты) тело НЕ пишется намеренно: в нём одноразовая ссылка, а
+/// журнал читает суперадмин. Иначе доступ к журналу означал бы возможность
+/// сменить пароль любому пользователю.
+model NotificationDispatch {
+  id        String   @id @default(cuid())
+  /// NULL для писем на адрес, за которым аккаунта может не быть (приглашения).
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Адрес доставки в том виде, в каком его увидел отправитель.
+  recipient String
+  /// Ключ события: NotifEvent или ACCOUNT_* из notifications/system-catalog.ts
+  event     String
+  /// notify | account — через настройки кабинета или мимо них
+  kind      String
+  channel   String
+  status    String // sent | failed
+  subject   String?
+  body      String?
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
+  @@index([createdAt])
+  @@map("notification_dispatches")
 }
 
 model NotificationPreference {

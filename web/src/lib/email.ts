@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { EMAIL_FROM as FROM } from "@/lib/env";
+import { withAccountEmailLog } from "@/lib/notifications/dispatch-log";
 import {
   EMAIL_BORDEAUX as BORDEAUX,
   EMAIL_INK_FAINT as INK_FAINT,
@@ -33,7 +34,9 @@ const h1 = heading;
 
 export async function sendVerificationEmail(email: string, name: string, token: string) {
   const url = `${APP_URL}/auth/verify-email?token=${token}`;
-  return getResendClient().emails.send({
+  return withAccountEmailLog(
+    { recipient: email, event: "ACCOUNT_EMAIL_VERIFY", subject: "Подтвердите email — ETerapy" },
+    () => getResendClient().emails.send({
     from: FROM, to: email,
     subject: "Подтвердите email — ETerapy",
     html: emailWrapper(`
@@ -43,12 +46,15 @@ export async function sendVerificationEmail(email: string, name: string, token: 
       ${btn(url, "Подтвердить email")}
       <p style="margin:24px 0 0;color:${INK_FAINT};font-size:12px">Или скопируйте: <a href="${url}" style="color:${TERRACOTTA}">${url}</a></p>
     `),
-  });
+    }),
+  );
 }
 
 export async function sendPasswordResetEmail(email: string, name: string, token: string) {
   const url = `${APP_URL}/auth/reset-password?token=${token}`;
-  return getResendClient().emails.send({
+  return withAccountEmailLog(
+    { recipient: email, event: "ACCOUNT_PASSWORD_RESET", subject: "Сброс пароля — ETerapy" },
+    () => getResendClient().emails.send({
     from: FROM, to: email,
     subject: "Сброс пароля — ETerapy",
     html: emailWrapper(`
@@ -58,7 +64,48 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
       ${btn(url, "Сбросить пароль")}
       <p style="margin:24px 0 0;color:${INK_FAINT};font-size:12px">Если вы не запрашивали сброс — проигнорируйте это письмо.</p>
     `),
-  });
+    }),
+  );
+}
+
+/**
+ * B599 (батч №20) · Подтверждение запроса на удаление аккаунта.
+ *
+ * Дыра, вскрытая каталогом служебных событий: человек нажимал «Удалить
+ * аккаунт», немедленно вылетал из сессии — и не получал НИЧЕГО. При этом у него
+ * есть 10 дней, чтобы передумать, и узнать об этом было неоткуда: экран с
+ * условием он уже закрыл вместе с сессией.
+ *
+ * Письмо уходит всегда и переключателя не имеет: это подтверждение
+ * разрушительного действия, а не рассылка.
+ */
+export async function sendAccountDeletionRequestedEmail(
+  email: string,
+  name: string,
+  purgeAt: Date,
+) {
+  const purgeStr = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Moscow",
+  }).format(purgeAt);
+
+  return withAccountEmailLog(
+    { recipient: email, event: "ACCOUNT_DELETION_REQUESTED", subject: "Аккаунт деактивирован — ETerapy" },
+    () => getResendClient().emails.send({
+    from: FROM, to: email,
+    subject: "Аккаунт деактивирован — ETerapy",
+    html: emailWrapper(`
+      ${h1("Аккаунт деактивирован")}
+      <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Привет, ${name}!</p>
+      <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Мы получили запрос на удаление аккаунта и деактивировали его. Данные будут удалены безвозвратно <strong style="color:${BORDEAUX}">${purgeStr}</strong>.</p>
+      <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Если вы передумаете — просто войдите в аккаунт до этой даты, и удаление отменится. После указанной даты восстановить ничего нельзя.</p>
+      ${btn(`${APP_URL}/login`, "Войти и отменить удаление")}
+      <p style="margin:24px 0 0;color:${INK_FAINT};font-size:12px">Если запрос отправляли не вы — войдите в аккаунт прямо сейчас и смените пароль.</p>
+    `),
+    }),
+  );
 }
 
 // ─── Booking emails ───────────────────────────────────────────────────────────

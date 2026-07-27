@@ -9,6 +9,7 @@ import type { NotifEvent } from "@/lib/notification-events";
 import { APP_URL } from "@/lib/env";
 import { getProductLabel, getProductRoute } from "@/lib/billing-labels";
 import { absoluteMainUrl } from "@/lib/subdomain";
+import { recordNotificationDispatch } from "@/lib/notifications/dispatch-log";
 
 export const NOTIFICATION_DELIVERY_JOB_TYPE = "notification.delivery";
 export const NOTIFICATION_DELIVERY_MAX_ATTEMPTS = 3;
@@ -70,21 +71,55 @@ export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult
   const payload = parsed.data;
   const event = payload.event as NotifEvent;
 
+  // Журнал пишется ПОСЛЕ фактической отправки и по её результату (B599, батч
+  // №20). Записать намерение заранее значило бы получить журнал попыток, а
+  // вопрос у нас ровно один: ушло или нет.
   if (payload.channel === "EMAIL") {
     if (!payload.recipient.email) throw new Error("Missing email recipient");
-    await sendEmail({
+    const sent = await sendEmail({
       to: payload.recipient.email,
       event,
       name: payload.recipient.name ?? "",
       data: payload.data,
     });
+    await recordNotificationDispatch({
+      userId: payload.userId,
+      recipient: payload.recipient.email,
+      event,
+      kind: "notify",
+      channel: "EMAIL",
+      status: sent.delivered ? "sent" : "failed",
+      subject: sent.subject,
+      body: sent.html,
+      error: sent.delivered ? null : "почтовый рельс не подтвердил отправку",
+    });
   }
 
   if (payload.channel === "TELEGRAM") {
     if (!payload.recipient.telegramId) throw new Error("Missing Telegram recipient");
+    const telegramText = formatTelegramMessage(event, payload.recipient.name ?? "", payload.data);
     try {
-      await sendTelegram(payload.recipient.telegramId, formatTelegramMessage(event, payload.recipient.name ?? "", payload.data));
+      await sendTelegram(payload.recipient.telegramId, telegramText);
+      await recordNotificationDispatch({
+        userId: payload.userId,
+        recipient: payload.recipient.telegramId,
+        event,
+        kind: "notify",
+        channel: "TELEGRAM",
+        status: "sent",
+        body: telegramText,
+      });
     } catch (err) {
+      await recordNotificationDispatch({
+        userId: payload.userId,
+        recipient: payload.recipient.telegramId,
+        event,
+        kind: "notify",
+        channel: "TELEGRAM",
+        status: "failed",
+        body: telegramText,
+        error: err instanceof Error ? err.message : String(err),
+      });
       log.error("notification-telegram-delivery-failed", {
         requestId: payload.requestId,
         jobId: job.id,
@@ -107,6 +142,16 @@ export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult
         body: web.body,
         href: web.href ?? null,
       },
+    });
+    await recordNotificationDispatch({
+      userId: payload.userId,
+      recipient: "колокольчик в кабинете",
+      event,
+      kind: "notify",
+      channel: "WEB",
+      status: "sent",
+      subject: web.title,
+      body: web.body,
     });
   }
 

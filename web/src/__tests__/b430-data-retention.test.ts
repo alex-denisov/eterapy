@@ -1,3 +1,4 @@
+import { ACCOUNT_SOFT_DELETE_GRACE_DAYS } from "@/lib/account-deletion-policy";
 import { cleanupRetentionData, RETENTION_POLICY, retentionCutoffs } from "@/lib/data-retention";
 import db from "@/lib/db";
 import fs from "fs";
@@ -51,7 +52,7 @@ describe("B430 data retention", () => {
     expect(RETENTION_POLICY.guestPromptResult.ttlHours).toBe(72);
     expect(RETENTION_POLICY.routingLogs.guestTtlHours).toBe(72);
     expect(RETENTION_POLICY.routingLogs.paidYears).toBe(3);
-    expect(RETENTION_POLICY.accountProfile.softDeleteGraceDays).toBe(7);
+    expect(RETENTION_POLICY.accountProfile.softDeleteGraceDays).toBe(ACCOUNT_SOFT_DELETE_GRACE_DAYS);
     expect(RETENTION_POLICY.securityLogs.ttlMonths).toBe(12);
     expect(RETENTION_POLICY.payments.ttlYears).toBe(5);
     expect(RETENTION_POLICY.agentReports.ttlYears).toBe(5);
@@ -60,7 +61,9 @@ describe("B430 data retention", () => {
     expect(RETENTION_POLICY.anonymizedAnalytics.retention).toBe("indefinite");
 
     expect(retentionCutoffs(now)).toEqual({
-      accountAnonymizeBefore: new Date("2026-06-11T12:00:00.000Z"),
+      // Срок живёт в `account-deletion-policy.ts` — единственное место (B599,
+      // батч №20). Раньше здесь было 7 дней против 10, обещанных в настройках.
+      accountAnonymizeBefore: new Date("2026-06-08T12:00:00.000Z"),
       guestDialogueBefore: now,
       guestRoutingLogBefore: new Date("2026-06-15T12:00:00.000Z"),
       paidRoutingLogBefore: new Date("2023-06-18T12:00:00.000Z"),
@@ -72,7 +75,7 @@ describe("B430 data retention", () => {
     });
   });
 
-  it("anonymizes soft-deleted accounts after 7 days and records a deletion log", async () => {
+  it("anonymizes soft-deleted accounts after the promised grace period and records a deletion log", async () => {
     mockDb.user.findMany.mockResolvedValue([
       {
         id: "user-1",
@@ -87,7 +90,7 @@ describe("B430 data retention", () => {
 
     expect(mockDb.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        deletedAt: { lte: new Date("2026-06-11T12:00:00.000Z") },
+        deletedAt: { lte: new Date("2026-06-08T12:00:00.000Z") },
         retentionAnonymizedAt: null,
       },
     }));
@@ -202,7 +205,11 @@ describe("B430 data retention", () => {
     expect(cronJobs).toContain("cleanupRetentionData");
     expect(cronJobs).not.toContain("CLEANUP_GRACE_DAYS = 10");
     expect(status).toContain("retention matrix");
-    expect(status).toContain("7 дней");
+    // Строка статуса подставляет срок из общего модуля, поэтому в ИСХОДНИКЕ
+    // числа нет — и проверять его текстом здесь значило бы снова развести
+    // показанное и настоящее. Сверяем ссылку на общий модуль.
+    expect(status).toContain("ACCOUNT_SOFT_DELETE_GRACE_DAYS");
+    expect(status).not.toMatch(/через \d+ дней/);
 
     expect(retention).not.toMatch(/\bpayment\.(delete|deleteMany)\b/);
     expect(retention).not.toMatch(/\btransaction\.(delete|deleteMany)\b/);

@@ -27,12 +27,19 @@ export default async function UnsubscribePage({
 }) {
   const { t } = await searchParams;
 
+  // Оболочка — та же, что у остальных публичных страниц (`soft-clarity-page
+  // soft-public-page` + `soft-shell`). Без неё страница падала на дефолтные
+  // токены старой тёмно-фиолетовой темы: снаружи это выглядит как чужой сайт,
+  // а приходит человек сюда прямо из нашего письма.
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-16">
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-        Отписка от рекламных сообщений
-      </h1>
-      <UnsubscribeForm token={t ?? null} />
-    </div>
+    <main className="soft-clarity-page soft-public-page" data-testid="unsubscribe-page">
+      <article className="soft-shell mx-auto max-w-2xl py-12 md:py-20">
+        <p className="soft-eyebrow">рассылка</p>
+        <h1 className="soft-display mt-4">Отписка от рекламных сообщений</h1>
+        <div className="soft-card mt-8 p-6 md:p-8">
+          <UnsubscribeForm token={t ?? null} />
+        </div>
+      </article>
+    </main>
   );
 }

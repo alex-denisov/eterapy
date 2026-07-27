@@ -9,6 +9,8 @@ import {
 
 export type DispatchRow = {
   id: string;
+  /** «Маркетинг» / «Служебное» / «Аккаунт» — одна колонка вместо двух журналов. */
+  kind: string;
   recipient: string;
   eventKey: string;
   category: string;
@@ -19,7 +21,6 @@ export type DispatchRow = {
   body: string | null;
   error: string | null;
   createdAt: string;
-  sentAt: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -58,6 +59,7 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
   const columns: AdminCompactColumn[] = useMemo(
     () => [
       { key: "createdAt", label: "Когда", sortable: true, filterKind: "none" },
+      { key: "kind", label: "Линия", sortable: true, filterKind: "text" },
       { key: "recipient", label: "Кому", sortable: true, filterKind: "text" },
       { key: "eventKey", label: "Событие", sortable: true, filterKind: "text" },
       { key: "category", label: "Категория", sortable: true, filterKind: "text" },
@@ -75,6 +77,7 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
         id: row.id,
         cells: {
           createdAt: { value: formatMoscow(row.createdAt), sortValue: row.createdAt },
+          kind: { value: row.kind, sortValue: row.kind },
           recipient: { value: row.recipient, sortValue: row.recipient },
           eventKey: { value: row.eventKey, sortValue: row.eventKey },
           category: { value: row.category, sortValue: row.category },
@@ -111,8 +114,8 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
         columns={columns}
         rows={tableRows}
         pageSize={25}
-        minWidth="1100px"
-        empty="Пока ничего не отправлялось — рассылка выключена"
+        minWidth="1250px"
+        empty="Пока ничего не отправлялось"
       />
 
       {preview && (
@@ -130,7 +133,8 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-neutral-500">
-                  {preview.eventKey} · {preview.channel} · {formatMoscow(preview.createdAt)}
+                  {preview.kind} · {preview.eventKey} · {preview.channel} ·{" "}
+                  {formatMoscow(preview.createdAt)}
                 </p>
                 <h3 className="mt-1 text-lg font-semibold">{preview.subject ?? "Без темы"}</h3>
                 <p className="text-sm text-neutral-500">{preview.recipient}</p>
@@ -149,8 +153,9 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
               />
             ) : (
               <p className="mt-4 text-sm text-neutral-500">
-                Тела нет: сообщение не отправлялось
-                {preview.blockedBy ? ` — ${preview.blockedBy}` : ""}.
+                {preview.blockedBy
+                  ? `Тела нет: сообщение не отправлялось — ${preview.blockedBy}.`
+                  : "Тела нет. У писем сброса пароля и подтверждения почты оно не сохраняется намеренно: в нём рабочая одноразовая ссылка."}
               </p>
             )}
           </div>
