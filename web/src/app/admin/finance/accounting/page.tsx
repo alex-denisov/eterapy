@@ -56,7 +56,7 @@ export default async function FinanceAccountingPage() {
 
   return (
     <div className="space-y-6" data-testid="admin-accounting-page">
-      <AdminHero eyebrow="ИП · УСН «Доходы» 6 %" title="Учёт и отчётность">
+      <AdminHero eyebrow="УСН «Доходы» 6 %" title="Учёт и отчётность">
         <p className="text-sm text-[var(--soft-ink-soft)]">
           ИП зарегистрирован {dateRu(IP_REGISTERED_AT)} · ИНН 774315089677 · ОГРНИП 326508100422433.
           Декларацию сдаёт Альфа-бухгалтерия; этот экран даёт ей цифры и не даёт вам пропустить дату.
