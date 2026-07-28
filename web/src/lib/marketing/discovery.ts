@@ -3,9 +3,13 @@ import db from "@/lib/db";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { log, serializeError } from "@/lib/logger";
 import { upsertMarketingSignal } from "@/lib/marketing/agent";
+import {
+  marketingPlatformEnabled,
+  marketingPlatformValue,
+} from "@/lib/marketing/platform-settings";
 
 export type MarketingConnectorState = {
-  platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram";
+  platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen";
   ownedPublishing: boolean;
   discovery: boolean;
   comments: boolean;
@@ -13,51 +17,70 @@ export type MarketingConnectorState = {
   note: string;
 };
 
-function has(name: string) {
-  return Boolean(process.env[name]?.trim());
-}
-
-export function marketingConnectorStates(): MarketingConnectorState[] {
+export async function marketingConnectorStates(): Promise<MarketingConnectorState[]> {
+  const keys = [
+    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID",
+    "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
+    "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
+    "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID",
+    "DZEN_CHANNEL_URL",
+  ] as const;
+  const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
+  const has = (name: typeof keys[number]) => Boolean(values.get(name));
+  const missing = (...names: Array<typeof keys[number]>) => names.filter((key) => !has(key));
+  const enabled = new Map(await Promise.all(
+    (["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen"] as const)
+      .map(async (platform) => [platform, await marketingPlatformEnabled(platform)] as const),
+  ));
   return [
     {
       platform: "VK",
-      ownedPublishing: has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      discovery: has("VK_COMMUNITY_TOKEN"),
-      comments: has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      missing: ["VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID"].filter((key) => !has(key)),
+      ownedPublishing: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
+      discovery: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN"),
+      comments: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
+      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID"),
       note: "Официальный VK API: wall.post, newsfeed.search, wall.createComment.",
     },
     {
       platform: "Reddit",
-      ownedPublishing: has("REDDIT_ACCESS_TOKEN") && has("REDDIT_POST_SUBREDDIT"),
-      discovery: has("REDDIT_ACCESS_TOKEN") && has("REDDIT_SUBREDDITS"),
-      comments: has("REDDIT_ACCESS_TOKEN"),
-      missing: ["REDDIT_ACCESS_TOKEN", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT"].filter((key) => !has(key)),
+      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_POST_SUBREDDIT"),
+      discovery: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_SUBREDDITS"),
+      comments: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
+      missing: missing("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT"),
       note: "Официальный OAuth Data API: собственные self-posts и поиск по разрешённым subreddit. Любой комментарий только после Telegram-премодерации и с раскрытием аффилированности.",
     },
     {
       platform: "Threads",
-      ownedPublishing: has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
+      ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       discovery: false,
-      comments: has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
-      missing: ["THREADS_ACCESS_TOKEN", "THREADS_USER_ID"].filter((key) => !has(key)),
+      comments: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
+      missing: missing("THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
       note: "Официальный Threads API публикует посты/ответы. Глобального поиска чужих постов по ключевым словам API не обещает — входящие кандидаты добавляются из разрешённых mentions/feeds.",
     },
     {
       platform: "Instagram",
-      ownedPublishing: has("INSTAGRAM_ACCESS_TOKEN") && has("INSTAGRAM_USER_ID"),
+      ownedPublishing: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN") && has("INSTAGRAM_USER_ID"),
       discovery: false,
       comments: false,
-      missing: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"].filter((key) => !has(key)),
+      missing: missing("INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"),
       note: "Instagram API для Professional account: свои публикации и управление комментариями на своих медиа. Официальный API не даёт публиковать рекламные комментарии под произвольными чужими постами — этот путь не подменяется cookies-автоматизацией.",
     },
     {
       platform: "Telegram",
-      ownedPublishing: has("TELEGRAM_BOT_TOKEN") && has("TELEGRAM_CHANNEL_ID"),
+      ownedPublishing: Boolean(enabled.get("Telegram")) && has("TELEGRAM_BOT_TOKEN") && has("TELEGRAM_CHANNEL_ID"),
       discovery: false,
       comments: false,
-      missing: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID"].filter((key) => !has(key)),
+      missing: missing("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID"),
       note: "Bot API публикует в собственный канал; массового поиска и комментариев к чужим каналам нет.",
+    },
+    {
+      platform: "Dzen",
+      ownedPublishing: false,
+      discovery: false,
+      comments: false,
+      missing: missing("DZEN_CHANNEL_URL"),
+      note: "Канал учитывается в контент-плане. У Дзена нет поддерживаемого серверного API публикации: до появления официального доступа выпуск выполняется из авторизованной браузерной сессии.",
     },
   ];
 }
@@ -94,14 +117,14 @@ function matchingTopic(value: string) {
 
 async function discoverReddit(): Promise<Candidate[]> {
   const token = await redditAccessToken().catch(() => null);
-  const subreddits = process.env.REDDIT_SUBREDDITS?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+  const subreddits = (await marketingPlatformValue("REDDIT_SUBREDDITS"))?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
   if (!token || subreddits.length === 0) return [];
   const result: Candidate[] = [];
   for (const subreddit of subreddits.slice(0, 10)) {
     const response = await fetch(`https://oauth.reddit.com/r/${encodeURIComponent(subreddit)}/new?limit=25`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "User-Agent": process.env.REDDIT_USER_AGENT?.trim() || "ETerapySMM/1.0",
+        "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
       },
     });
     if (!response.ok) throw new Error(`Reddit discovery HTTP ${response.status}`);
@@ -127,7 +150,7 @@ async function discoverReddit(): Promise<Candidate[]> {
 }
 
 async function discoverVk(): Promise<Candidate[]> {
-  const token = process.env.VK_COMMUNITY_TOKEN?.trim();
+  const token = await marketingPlatformValue("VK_COMMUNITY_TOKEN");
   if (!token) return [];
   const result: Candidate[] = [];
   for (const topic of TOPICS) {

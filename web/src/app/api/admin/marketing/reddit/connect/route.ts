@@ -11,5 +11,5 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const state = createRedditOAuthState(session.user.id);
-  return NextResponse.redirect(redditAuthorizationUrl({ state }));
+  return NextResponse.redirect(await redditAuthorizationUrl({ state }));
 }

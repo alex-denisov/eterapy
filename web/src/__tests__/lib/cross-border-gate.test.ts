@@ -79,7 +79,7 @@ describe("cross-border AI legal gate", () => {
     expect(mockDb.managementSpecialOrder.findFirst).not.toHaveBeenCalled();
   });
 
-  it("allows only the free provider pool for public SMM content without platform user data", async () => {
+  it("allows the owner-approved marketing pool only for public SMM content", async () => {
     process.env.MARKETING_FOREIGN_LLM_ENABLED = "true";
 
     await expect(assertCrossBorderProcessingAllowed({
@@ -90,6 +90,12 @@ describe("cross-border AI legal gate", () => {
 
     await expect(assertCrossBorderProcessingAllowed({
       providers: [AIProvider.OPENAI],
+      scenario: "marketing-agent-writer",
+      dataClass: "PUBLIC_MARKETING",
+    })).resolves.toBeUndefined();
+
+    await expect(assertCrossBorderProcessingAllowed({
+      providers: [AIProvider.ANTHROPIC],
       scenario: "marketing-agent-writer",
       dataClass: "PUBLIC_MARKETING",
     })).rejects.toMatchObject({ code: "CROSS_BORDER_FLAGS_DISABLED" });
