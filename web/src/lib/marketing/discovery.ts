@@ -19,7 +19,7 @@ export type MarketingConnectorState = {
 
 export async function marketingConnectorStates(): Promise<MarketingConnectorState[]> {
   const keys = [
-    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID",
+    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN",
     "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
     "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
     "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
@@ -37,10 +37,10 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     {
       platform: "VK",
       ownedPublishing: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      discovery: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN"),
+      discovery: Boolean(enabled.get("VK")) && has("VK_USER_TOKEN"),
       comments: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID"),
-      note: "Официальный VK API: wall.post, newsfeed.search, wall.createComment.",
+      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN"),
+      note: "Официальный VK API: токен сообщества — wall.post/wall.createComment; отдельный пользовательский токен — newsfeed.search. Права не смешиваются.",
     },
     {
       platform: "Reddit",
@@ -150,7 +150,7 @@ async function discoverReddit(): Promise<Candidate[]> {
 }
 
 async function discoverVk(): Promise<Candidate[]> {
-  const token = await marketingPlatformValue("VK_COMMUNITY_TOKEN");
+  const token = await marketingPlatformValue("VK_USER_TOKEN");
   if (!token) return [];
   const result: Candidate[] = [];
   for (const topic of TOPICS) {
