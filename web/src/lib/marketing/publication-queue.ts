@@ -142,3 +142,59 @@ export async function generateMarketingDrafts(input: {
     planExhausted: taken.length + created >= activePlan.length,
   };
 }
+
+/**
+ * INC-094 taught us that a row can sit in a state nothing acts on — created by
+ * hand as `PLANNED`, never picked up by the generator, never published, and
+ * invisible as a problem because no step ever failed. The registry now audits
+ * itself: any row that has been parked in a non-terminal state past a
+ * reasonable window raises a signal in the superadmin cockpit.
+ */
+const STALLED_STATE_WINDOW_MS = 48 * 60 * 60_000;
+
+export interface StalledPublicationsResult {
+  stalled: Array<{ id: string; key: string; status: string; ageHours: number }>;
+}
+
+export async function auditStalledPublications(
+  input: { now?: Date } = {},
+): Promise<StalledPublicationsResult> {
+  const now = input.now ?? new Date();
+  const cutoff = new Date(now.getTime() - STALLED_STATE_WINDOW_MS);
+  const rows = await db.externalPublication.findMany({
+    where: {
+      // PLANNED has no executor; PUBLISHING means a dispatch that never
+      // finished. Both are silent stalls rather than reported failures.
+      status: { in: ["PLANNED", "PUBLISHING"] },
+      updatedAt: { lt: cutoff },
+    },
+    select: { id: true, key: true, status: true, platform: true, updatedAt: true },
+    orderBy: { updatedAt: "asc" },
+    take: 50,
+  });
+
+  const stalled = rows.map((row) => ({
+    id: row.id,
+    key: row.key,
+    status: row.status,
+    ageHours: Math.round((now.getTime() - row.updatedAt.getTime()) / 3_600_000),
+  }));
+
+  const { resolveMarketingSignal, upsertMarketingSignal } = await import("@/lib/marketing/agent");
+  if (stalled.length === 0) {
+    await resolveMarketingSignal("registry:stalled").catch(() => undefined);
+    return { stalled };
+  }
+  await upsertMarketingSignal({
+    key: "registry:stalled",
+    kind: "REGISTRY",
+    severity: "WARNING",
+    title: `Материалы без исполняемого статуса: ${stalled.length}`,
+    summary: stalled
+      .slice(0, 5)
+      .map((row) => `${row.key} — ${row.status}, ${row.ageHours} ч`)
+      .join("; "),
+    evidence: { rows: stalled },
+  }).catch(() => undefined);
+  return { stalled };
+}

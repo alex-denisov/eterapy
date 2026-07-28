@@ -7,6 +7,15 @@ import {
   marketingPlatformEnabled,
   marketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
+import {
+  ENGAGEMENT_PLATFORMS,
+  engagementDeficit,
+  engagementDailyTarget,
+  moscowDateKey,
+  openEngagementSlots,
+  type EngagementPlatform,
+} from "@/lib/marketing/engagement-plan";
+import { pickEngagementTone } from "@/lib/marketing/engagement-tone";
 
 export type MarketingConnectorState = {
   platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen";
@@ -64,10 +73,10 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     {
       platform: "Threads",
       ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
-      discovery: false,
+      discovery: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN"),
       comments: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
-      note: "Официальный Threads API публикует посты/ответы. Глобального поиска чужих постов по ключевым словам API не обещает — входящие кандидаты добавляются из разрешённых mentions/feeds.",
+      note: "Официальный Threads API публикует посты и ответы. Поиск чужих постов идёт через официальный keyword search; без выданного разрешения он отвечает пустым списком и включается сам, когда разрешение появится.",
     },
     {
       platform: "Instagram",
@@ -97,7 +106,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
 }
 
 type Candidate = {
-  platform: "reddit" | "vk";
+  platform: EngagementPlatform;
   targetId: string;
   targetUrl: string;
   targetLabel: string;
@@ -105,13 +114,25 @@ type Candidate = {
   topic: string;
 };
 
+/**
+ * Discovery vocabulary. Wider than the content plan on purpose: a person
+ * scrolling a feed reacts to how a problem is phrased, not to a keyword list.
+ */
 const TOPICS = [
   "как пережить расставание",
   "не могу забыть бывшего",
+  "вернётся ли бывший",
   "стоит ли увольняться",
   "выгорание",
   "мне одиноко",
   "не могу принять решение",
+  "будем ли мы вместе",
+  "не могу найти себя",
+  "к чему снится",
+  "повторяющийся сон",
+  "значение карты таро",
+  "матрица судьбы",
+  "совместимость по дате рождения",
 ] as const;
 
 export function normalizePublicPostExcerpt(value: string) {
@@ -180,29 +201,84 @@ async function discoverVk(): Promise<Candidate[]> {
       error?: { error_msg?: string };
     };
     if (payload.error) throw new Error(`VK discovery: ${payload.error.error_msg ?? "unknown error"}`);
-    const item = payload.response?.items?.find((row) => row.owner_id && row.id && row.text);
-    if (!item?.owner_id || !item.id) continue;
-    result.push({
-      platform: "vk",
-      targetId: `${item.owner_id}_${item.id}`,
-      targetUrl: `https://vk.com/wall${item.owner_id}_${item.id}`,
-      targetLabel: `VK wall${item.owner_id}_${item.id}`,
-      excerpt: normalizePublicPostExcerpt(item.text ?? ""),
-      topic,
-    });
+    for (const item of payload.response?.items ?? []) {
+      // A one-line post carries no question to answer; skip it rather than
+      // produce a generic reply.
+      if (!item.owner_id || !item.id || (item.text ?? "").trim().length < 120) continue;
+      result.push({
+        platform: "vk",
+        targetId: `${item.owner_id}_${item.id}`,
+        targetUrl: `https://vk.com/wall${item.owner_id}_${item.id}`,
+        targetLabel: `VK wall${item.owner_id}_${item.id}`,
+        excerpt: normalizePublicPostExcerpt(item.text ?? ""),
+        topic,
+      });
+    }
   }
   return result;
 }
 
-export async function ingestEngagementCandidate(candidate: Candidate) {
+/**
+ * Threads exposes an official keyword search to apps holding the
+ * `threads_keyword_search` permission. Until that permission is granted the
+ * call answers with an error; discovery then simply reports zero candidates
+ * instead of failing the cycle, and starts working on its own once the
+ * permission appears.
+ */
+async function discoverThreads(): Promise<Candidate[]> {
+  const token = await marketingPlatformValue("THREADS_ACCESS_TOKEN");
+  if (!token) return [];
+  const result: Candidate[] = [];
+  for (const topic of TOPICS.slice(0, 6)) {
+    const url = new URL("https://graph.threads.net/v1.0/keyword_search");
+    url.searchParams.set("q", topic);
+    url.searchParams.set("search_type", "TOP");
+    url.searchParams.set("fields", "id,text,permalink,username");
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = await response.json().catch(() => null) as {
+      data?: Array<{ id?: string; text?: string; permalink?: string; username?: string }>;
+      error?: { message?: string; code?: number };
+    } | null;
+    if (payload?.error) {
+      // Missing permission is a configuration state, not an outage.
+      if (/permission|scope|unsupported/i.test(payload.error.message ?? "")) return [];
+      throw new Error(`Threads discovery: ${payload.error.message ?? `HTTP ${response.status}`}`);
+    }
+    for (const item of payload?.data ?? []) {
+      if (!item.id || !item.permalink || (item.text ?? "").trim().length < 60) continue;
+      result.push({
+        platform: "threads",
+        targetId: item.id,
+        targetUrl: item.permalink,
+        targetLabel: `Threads @${item.username ?? "unknown"}`,
+        excerpt: normalizePublicPostExcerpt(item.text ?? ""),
+        topic,
+      });
+    }
+  }
+  return result;
+}
+
+function engagementKey(candidate: Pick<Candidate, "platform" | "targetId">) {
   const digest = createHash("sha256")
     .update(`${candidate.platform}:${candidate.targetId}`)
     .digest("hex")
     .slice(0, 24);
+  return `smm-comment-${digest}`;
+}
+
+export async function ingestEngagementCandidate(
+  candidate: Candidate,
+  placement: { scheduledFor: Date; toneId: string },
+) {
+  const key = engagementKey(candidate);
   return db.externalPublication.upsert({
-    where: { key: `smm-comment-${digest}` },
+    where: { key },
     create: {
-      key: `smm-comment-${digest}`,
+      key,
       platform: candidate.platform,
       title: `Комментарий: ${candidate.topic}`,
       contentType: "COMMENT",
@@ -215,7 +291,8 @@ export async function ingestEngagementCandidate(candidate: Candidate) {
       engagementTargetUrl: candidate.targetUrl,
       engagementTargetLabel: candidate.targetLabel,
       engagementExcerpt: candidate.excerpt,
-      scheduledFor: new Date(),
+      engagementTone: placement.toneId,
+      scheduledFor: placement.scheduledFor,
       autoPublish: false,
     },
     update: {
@@ -226,16 +303,103 @@ export async function ingestEngagementCandidate(candidate: Candidate) {
   });
 }
 
-export async function runEngagementDiscovery() {
-  const outcomes = [];
-  for (const [platform, discover] of [["reddit", discoverReddit], ["vk", discoverVk]] as const) {
+const DISCOVERERS: Record<EngagementPlatform, () => Promise<Candidate[]>> = {
+  reddit: discoverReddit,
+  vk: discoverVk,
+  threads: discoverThreads,
+};
+
+/**
+ * Today's already-planned replies for one platform, used both to avoid
+ * double-booking a slot and to keep the register rotating.
+ */
+async function plannedToday(platform: EngagementPlatform, now: Date) {
+  const dayStart = new Date(`${moscowDateKey(now)}T00:00:00.000+03:00`);
+  const dayEnd = new Date(dayStart.getTime() + 30 * 60 * 60_000);
+  const rows = await db.externalPublication.findMany({
+    where: {
+      platform,
+      contentType: "COMMENT",
+      source: "AGENT_DISCOVERY",
+      status: { notIn: ["ARCHIVED"] },
+      scheduledFor: { gte: dayStart, lt: dayEnd },
+    },
+    select: { scheduledFor: true, engagementTone: true, engagementTargetId: true },
+    orderBy: { scheduledFor: "desc" },
+  });
+  return {
+    slots: rows.map((row) => row.scheduledFor).filter((value): value is Date => Boolean(value)),
+    toneIds: rows.map((row) => row.engagementTone).filter((value): value is string => Boolean(value)),
+    targetIds: new Set(rows.map((row) => row.engagementTargetId).filter(Boolean) as string[]),
+  };
+}
+
+export interface EngagementDiscoveryOutcome {
+  platform: EngagementPlatform;
+  target: number;
+  planned: number;
+  found: number;
+  ingested: number;
+  error?: string;
+}
+
+/**
+ * Keeps every comment-capable network stocked with the day's quota of replies.
+ * Each ingested candidate lands on its own human-paced slot with its own
+ * register, and still goes through the writer/editor loop and Telegram
+ * premoderation before anything reaches the platform.
+ */
+export async function runEngagementDiscovery(
+  input: { now?: Date } = {},
+): Promise<EngagementDiscoveryOutcome[]> {
+  const now = input.now ?? new Date();
+  const outcomes: EngagementDiscoveryOutcome[] = [];
+
+  for (const platform of ENGAGEMENT_PLATFORMS) {
+    const existing = await plannedToday(platform, now).catch(() => ({
+      slots: [] as Date[],
+      toneIds: [] as string[],
+      targetIds: new Set<string>(),
+    }));
+    const target = engagementDailyTarget(platform, now);
+    const wanted = engagementDeficit({ platform, now, existingToday: existing.slots });
+    if (wanted === 0) {
+      outcomes.push({
+        platform,
+        target,
+        planned: existing.slots.length,
+        found: 0,
+        ingested: 0,
+      });
+      continue;
+    }
+
     try {
-      const candidates = await discover();
-      // Deliberately at most one candidate per platform/cycle. Relevance beats
-      // volume, and the unique key makes repeat discovery idempotent.
-      if (candidates[0]) await ingestEngagementCandidate(candidates[0]);
+      const candidates = (await DISCOVERERS[platform]())
+        .filter((candidate) => !existing.targetIds.has(candidate.targetId));
+      const slots = openEngagementSlots({ platform, now, taken: existing.slots }).slice(0, wanted);
+      const recentTones = [...existing.toneIds];
+      let ingested = 0;
+      for (const [index, slot] of slots.entries()) {
+        const candidate = candidates[index];
+        if (!candidate) break;
+        const tone = pickEngagementTone({
+          platform,
+          sequence: existing.slots.length + index,
+          recentToneIds: recentTones,
+        });
+        await ingestEngagementCandidate(candidate, { scheduledFor: slot, toneId: tone.id });
+        recentTones.unshift(tone.id);
+        ingested += 1;
+      }
       await resolveMarketingSignal(`discovery:${platform}`).catch(() => undefined);
-      outcomes.push({ platform, found: candidates.length, ingested: candidates[0] ? 1 : 0 });
+      outcomes.push({
+        platform,
+        target,
+        planned: existing.slots.length + ingested,
+        found: candidates.length,
+        ingested,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await upsertMarketingSignal({
@@ -247,8 +411,16 @@ export async function runEngagementDiscovery() {
         evidence: { platform },
       }).catch(() => undefined);
       log.error("marketing-discovery.failed", { platform, error: serializeError(error) });
-      outcomes.push({ platform, found: 0, ingested: 0, error: message });
+      outcomes.push({
+        platform,
+        target,
+        planned: existing.slots.length,
+        found: 0,
+        ingested: 0,
+        error: message,
+      });
     }
   }
+
   return outcomes;
 }

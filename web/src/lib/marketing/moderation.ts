@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
+import { engagementToneById } from "@/lib/marketing/engagement-tone";
 import { resolveOpsChannel } from "@/lib/ops-notification-channel";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
@@ -70,6 +71,7 @@ export async function requestMarketingModeration(publicationId: string) {
     "",
     `<b>Когда:</b> ${html(planned)} МСК`,
     `<b>Площадка:</b> ${html(publication.platform)}`,
+    `<b>Регистр:</b> ${html(engagementToneById(publication.engagementTone)?.label ?? "не задан")}`,
     `<b>Куда/кому:</b> ${html(short(publication.engagementTargetLabel, 180))}`,
     publication.engagementTargetUrl
       ? `<b>Ссылка:</b> ${html(publication.engagementTargetUrl)}`
@@ -131,8 +133,13 @@ export async function applyMarketingModeration(input: {
   }
 
   const now = new Date();
+  // Approving early must not collapse the day's pacing into one burst: a slot
+  // still in the future keeps its planned minute, a passed slot goes out now.
+  const plannedSlot = publication.scheduledFor && publication.scheduledFor > now
+    ? publication.scheduledFor
+    : now;
   const update = input.action === "approve"
-    ? { status: "SCHEDULED", scheduledFor: now, lastError: null }
+    ? { status: "SCHEDULED", scheduledFor: plannedSlot, lastError: null }
     : input.action === "revise"
       ? { status: "REVIEW", agentReviewedAt: null, lastError: "REVISION_REQUESTED" }
       : { status: "ARCHIVED", lastError: "REJECTED_BY_MODERATOR" };

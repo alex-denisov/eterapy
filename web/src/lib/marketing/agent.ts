@@ -6,6 +6,10 @@ import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
+import {
+  ENGAGEMENT_TONE_HARD_LIMITS,
+  engagementToneById,
+} from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import {
   marketingModelFreshness,
@@ -52,9 +56,17 @@ const REVIEW_SCORE_KEYS = [
   "visual",
   "antiSlop",
 ] as const;
+/** Only replies carry a conversational register, so it is scored separately. */
+const COMMENT_REVIEW_SCORE_KEY = "toneFit";
 
 function jsonObject<T>(raw: string): T {
   const unfenced = raw.trim()
+    // Reasoning models in the free pool (Qwen, GLM) prepend a visible thinking
+    // block. It is not part of the answer and its braces would corrupt the
+    // brace-matching below.
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "")
+    .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
   const firstBrace = unfenced.indexOf("{");
@@ -65,7 +77,10 @@ function jsonObject<T>(raw: string): T {
   return JSON.parse(candidate) as T;
 }
 
-function jsonStringField(raw: string, field: string) {
+function jsonStringField(rawInput: string, field: string) {
+  const raw = rawInput
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "");
   const marker = `"${field}"`;
   const markerIndex = raw.indexOf(marker);
   if (markerIndex < 0) return null;
@@ -121,7 +136,7 @@ function writerObject(raw: string, fallbackTitle: string): WriterOutput {
   }
 }
 
-function reviewerObject(raw: string): ReviewerOutput {
+function reviewerObject(raw: string, scoreKeys: readonly string[] = REVIEW_SCORE_KEYS): ReviewerOutput {
   const value = jsonObject<ReviewerOutput>(raw);
   if (!["APPROVE", "REVISE", "REJECT"].includes(value.decision)) {
     throw new Error("reviewer returned an unknown decision");
@@ -129,7 +144,7 @@ function reviewerObject(raw: string): ReviewerOutput {
   if (!value.scores || typeof value.scores !== "object") {
     throw new Error("reviewer omitted scorecard");
   }
-  for (const key of REVIEW_SCORE_KEYS) {
+  for (const key of scoreKeys) {
     const score = Number(value.scores[key]);
     if (!Number.isFinite(score) || score < 0 || score > 5) {
       throw new Error(`reviewer score ${key} is missing or outside 0..5`);
@@ -185,10 +200,13 @@ function assertPublishableDraft(input: {
   }
 }
 
-function approvedByScorecard(review: ReviewerOutput) {
+function approvedByScorecard(
+  review: ReviewerOutput,
+  scoreKeys: readonly string[] = REVIEW_SCORE_KEYS,
+) {
   return review.decision === "APPROVE"
     && review.issues.length === 0
-    && REVIEW_SCORE_KEYS.every((key) => Number(review.scores[key]) >= 4);
+    && scoreKeys.every((key) => Number(review.scores[key]) >= 4);
 }
 
 async function completeWithValidStructure<T>(input: {
@@ -290,6 +308,10 @@ export async function processMarketingDraft(publicationId: string) {
 
   const isComment = publication.contentType === "COMMENT";
   const platform = safePlatform(publication.platform);
+  const tone = isComment ? engagementToneById(publication.engagementTone) : null;
+  const scoreKeys = isComment
+    ? [...REVIEW_SCORE_KEYS, COMMENT_REVIEW_SCORE_KEY]
+    : REVIEW_SCORE_KEYS;
   // Public social content is part of the SMM task. Internal ETerapy user,
   // practitioner, dialogue, booking and session data is never attached here.
   const task = {
@@ -307,6 +329,10 @@ export async function processMarketingDraft(publicationId: string) {
     } : null,
     scheduledFor: publication.scheduledFor?.toISOString() ?? null,
     revisionRequested: publication.status === "REVIEW",
+    // Register is assigned by the engagement planner, not by the model, so the
+    // mix of voices across a day stays observable and reproducible.
+    tone: tone ? { id: tone.id, label: tone.label, brief: tone.brief } : null,
+    toneHardLimits: isComment ? ENGAGEMENT_TONE_HARD_LIMITS : null,
   };
 
   try {
@@ -378,7 +404,7 @@ export async function processMarketingDraft(publicationId: string) {
           { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
           { role: "user", content: JSON.stringify({ task, research, editorialRound: round, candidate: draft }) },
         ],
-        parse: reviewerObject,
+        parse: (raw) => reviewerObject(raw, scoreKeys),
       });
       const reviewer = reviewerResult.response;
       if (writer.provider === reviewer.provider && writer.model === reviewer.model) {
@@ -395,7 +421,7 @@ export async function processMarketingDraft(publicationId: string) {
       lastWriter = writer;
       lastReviewer = reviewer;
 
-      if (approvedByScorecard(review)) {
+      if (approvedByScorecard(review, scoreKeys)) {
         approvedDraft = draft;
         break;
       }

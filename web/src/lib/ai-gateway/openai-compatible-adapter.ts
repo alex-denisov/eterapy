@@ -161,12 +161,21 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
           retryable: classified.retryable,
           error: serializeError(err),
         });
-        throw new AIProviderError(`${options.providerSlug} completion failed`, {
-          provider: options.provider,
-          code: classified.code,
-          retryable: classified.retryable,
-          cause: err,
-        });
+        // Keep the upstream sentence. Without it the health panel can only say
+        // "completion failed", and an out-of-quota account is indistinguishable
+        // from a broken key — two different owner actions.
+        const upstream = err instanceof Error ? err.message.trim() : String(err).trim();
+        throw new AIProviderError(
+          upstream
+            ? `${options.providerSlug} completion failed: ${upstream.slice(0, 300)}`
+            : `${options.providerSlug} completion failed`,
+          {
+            provider: options.provider,
+            code: classified.code,
+            retryable: classified.retryable,
+            cause: err,
+          },
+        );
       }
     },
 
@@ -208,7 +217,7 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
           latencyMs: Date.now() - startedAt,
           code: providerError?.code,
           message: providerError
-            ? `${options.providerSlug} healthcheck failed (${providerError.code})`
+            ? `${providerError.message} (${providerError.code})`
             : err instanceof Error
               ? err.message
               : `${options.providerSlug} healthcheck failed`,

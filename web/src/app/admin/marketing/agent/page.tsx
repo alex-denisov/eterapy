@@ -12,6 +12,14 @@ import {
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
 import {
+  ENGAGEMENT_DAILY_MINIMUM,
+  ENGAGEMENT_PLATFORMS,
+  engagementDailyTarget,
+  engagementSessionsFor,
+  engagementSlotsFor,
+  moscowDateKey,
+} from "@/lib/marketing/engagement-plan";
+import {
   MARKETING_ACTIVE_PROVIDERS,
   MARKETING_FREE_PROVIDERS,
   MARKETING_MODEL_RELEASE_CUTOFF,
@@ -78,6 +86,42 @@ export default async function MarketingAgentPage() {
       comments: connector.comments && redditConnected,
     };
   });
+  // B613: VK issues a read-only user token through the implicit flow only, and
+  // the value lands in the browser address bar. Building the exact authorize
+  // URL here removes the guesswork about client id and scopes.
+  const vkClientId = process.env.VK_CLIENT_ID?.trim();
+  const vkUserTokenUrl = vkClientId
+    ? `https://oauth.vk.com/authorize?client_id=${encodeURIComponent(vkClientId)}`
+      + "&display=page&redirect_uri=https://oauth.vk.com/blank.html"
+      + "&scope=wall,offline&response_type=token&v=5.199"
+    : null;
+
+  const now = new Date();
+  const engagementToday = await Promise.all(ENGAGEMENT_PLATFORMS.map(async (platform) => {
+    const dayStart = new Date(`${moscowDateKey(now)}T00:00:00.000+03:00`);
+    const planned = await db.externalPublication.count({
+      where: {
+        platform,
+        contentType: "COMMENT",
+        source: "AGENT_DISCOVERY",
+        status: { notIn: ["ARCHIVED"] },
+        scheduledFor: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 60 * 60_000) },
+      },
+    }).catch(() => 0);
+    const sessions = engagementSessionsFor(platform, now);
+    return {
+      platform,
+      planned,
+      target: engagementDailyTarget(platform, now),
+      sessions: sessions.length,
+      times: engagementSlotsFor(platform, now).map((slot) => slot.toLocaleTimeString("ru-RU", {
+        timeZone: "Europe/Moscow",
+        hour: "2-digit",
+        minute: "2-digit",
+      })),
+    };
+  }));
+
   const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
   const modelColumns: AdminCompactColumn[] = [
     { key: "provider", label: "Коннектор", sortable: true, filterKind: "text" },
@@ -269,12 +313,50 @@ export default async function MarketingAgentPage() {
         </div>
       </AnalyticsSection>
 
+      <AnalyticsSection title="План живого присутствия на сегодня">
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Агент читает ленты несколькими заходами в день и отвечает в назначенные
+          минуты, а не по ровному расписанию. Каждый комментарий получает свой
+          регистр и всё равно уходит на премодерацию в Telegram.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {engagementToday.map((row) => (
+            <article key={row.platform} className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-[var(--soft-ink-strong)]">{row.platform}</h3>
+                <span className="soft-chip">{row.planned}/{row.target} на сегодня</span>
+              </div>
+              <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">
+                Заходы: {row.sessions}. Минимум по решению владельца — {ENGAGEMENT_DAILY_MINIMUM} комментариев в сутки.
+              </p>
+              <p className="mt-2 break-words font-mono text-[11px] text-[var(--soft-ink-faint)]">
+                {row.times.join(" · ")}
+              </p>
+            </article>
+          ))}
+        </div>
+      </AnalyticsSection>
+
       <AnalyticsSection title="Настройки площадок">
         <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
           Изменения применяются сразу после сохранения. Секреты шифруются тем же
           production-ключом, что и LLM-ключи, и никогда не возвращаются в браузер.
         </p>
         <MarketingPlatformSettings configs={platformConfigs} />
+        {vkUserTokenUrl ? (
+          <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+            <p className="font-semibold text-[var(--soft-ink-strong)]">Как получить VK user token для поиска (B613)</p>
+            <p className="mt-2">
+              Токен сообщества не умеет <code>newsfeed.search</code> — это другой тип
+              авторизации, а не поломка. Откройте ссылку ниже, подтвердите доступ и
+              скопируйте значение <code>access_token</code> из адресной строки в поле
+              «Пользовательский токен». Права запрашиваются только на чтение ленты.
+            </p>
+            <a className="soft-admin-action mt-3 inline-flex" href={vkUserTokenUrl} target="_blank" rel="noreferrer">
+              Открыть форму выдачи токена VK
+            </a>
+          </div>
+        ) : null}
         <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
           <p className="font-semibold text-[var(--soft-ink-strong)]">Callback URL для Meta App</p>
           <dl className="mt-2 grid gap-1 font-mono">
