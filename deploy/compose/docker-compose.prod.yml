@@ -25,6 +25,10 @@ services:
     network_mode: host
     restart: always
     env_file: .env
+    environment:
+      # Allows the authenticated "run now" endpoint to execute the same
+      # narrowly allow-listed public-social writer/reviewer route.
+      MARKETING_FOREIGN_LLM_ENABLED: "true"
     # Bound to loopback — only the host nginx talks to it.
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3200}", "--hostname", "127.0.0.1"]
     volumes:
@@ -60,6 +64,10 @@ services:
     network_mode: host
     restart: always
     env_file: .env
+    environment:
+      # No client/practitioner data enters the foreign LLM prompt. This narrow
+      # flag does not re-enable foreign LLMs for the main application contour.
+      MARKETING_FOREIGN_LLM_ENABLED: "true"
     command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:

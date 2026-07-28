@@ -11,6 +11,8 @@ import {
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
+import { MARKETING_FREE_PROVIDERS } from "@/lib/marketing/model-pool";
+import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { MarketingAgentControls } from "./agent-controls";
@@ -23,7 +25,7 @@ export default async function MarketingAgentPage() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
-  const [enabled, proposals, signals, recent] = await Promise.all([
+  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { contentType: "COMMENT", status: "REVIEW" } }),
     db.marketingAutomationSignal.findMany({
@@ -36,8 +38,73 @@ export default async function MarketingAgentPage() {
       orderBy: { agentReviewedAt: "desc" },
       take: 100,
     }),
+    db.aIProviderCredential.findMany({
+      where: { provider: { in: [...MARKETING_FREE_PROVIDERS] } },
+      select: {
+        provider: true,
+        label: true,
+        enabled: true,
+        modelOverride: true,
+        cooldownUntil: true,
+        regionBlocked: true,
+        lastSuccessAt: true,
+        lastErrorCode: true,
+      },
+      orderBy: [{ provider: "asc" }, { priority: "asc" }],
+    }),
+    db.aIProviderConfig.findMany({
+      where: { provider: { in: [...MARKETING_FREE_PROVIDERS] } },
+      select: { provider: true, defaultModel: true },
+    }),
   ]);
   const connectors = marketingConnectorStates();
+  const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
+  const modelColumns: AdminCompactColumn[] = [
+    { key: "provider", label: "Коннектор", sortable: true, filterKind: "text" },
+    { key: "model", label: "Модель", sortable: true, filterKind: "text" },
+    { key: "credentials", label: "Ключи", sortable: true, filterKind: "text" },
+    { key: "status", label: "Статус", sortable: true, filterKind: "select" },
+    { key: "lastSuccess", label: "Последний успех", sortable: true, filterKind: "date" },
+    { key: "role", label: "Балансировка", filterKind: "none" },
+  ];
+  const modelRows = MARKETING_FREE_PROVIDERS.map((provider) => {
+    const credentials = modelCredentials.filter((row) => row.provider === provider);
+    const ready = credentials.filter((row) => (
+      row.enabled
+      && !row.regionBlocked
+      && (!row.cooldownUntil || row.cooldownUntil <= new Date())
+    ));
+    const lastSuccess = credentials
+      .map((row) => row.lastSuccessAt)
+      .filter((value): value is Date => Boolean(value))
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const model = credentials.find((row) => row.enabled && row.modelOverride)?.modelOverride
+      ?? configByProvider.get(provider)?.defaultModel
+      ?? DEFAULT_PROVIDER_MODELS[provider];
+    return {
+      id: provider,
+      cells: {
+        provider,
+        model,
+        credentials: {
+          value: `${ready.length}/${credentials.length} готовы`,
+          subvalue: credentials.map((row) => row.label).join(", ") || "ключ не добавлен",
+          filterValue: `${ready.length} ${credentials.map((row) => row.label).join(" ")}`,
+        },
+        status: {
+          kind: "status" as const,
+          label: ready.length ? "готов" : "нужна настройка",
+          tone: ready.length ? ("ok" as const) : ("warn" as const),
+          filterValue: ready.length ? "готов" : "нужна настройка",
+        },
+        lastSuccess: {
+          value: dateTime(lastSuccess),
+          sortValue: lastSuccess?.getTime() ?? 0,
+        },
+        role: "writer + reviewer; порядок ротируется, одна модель не проверяет себя",
+      },
+    };
+  });
 
   const runColumns: AdminCompactColumn[] = [
     { key: "time", label: "Время", sortable: true, filterKind: "date" },
@@ -158,6 +225,20 @@ export default async function MarketingAgentPage() {
           </Link>.
         </p>
         <AdminCompactDataTable columns={runColumns} rows={runRows} pageSize={25} minWidth="1250px" empty="Агент ещё не обрабатывал материалы" />
+      </AnalyticsSection>
+
+      <AnalyticsSection title="Бесплатный пул зарубежных моделей">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="max-w-3xl text-sm text-[var(--soft-ink-soft)]">
+            Агент распределяет материалы между доступными бесплатными квотами.
+            Reviewer всегда получает другой провайдер. Данные клиентов и
+            практиков ETerapy в этот контур не передаются.
+          </p>
+          <Link className="soft-admin-action" href="/admin/ops/ai">
+            Модели, ключи и промпты
+          </Link>
+        </div>
+        <AdminCompactDataTable columns={modelColumns} rows={modelRows} pageSize={10} minWidth="1050px" empty="Пул моделей не настроен" />
       </AnalyticsSection>
 
       <AnalyticsSection title="Автоматические тикеты и инциденты">

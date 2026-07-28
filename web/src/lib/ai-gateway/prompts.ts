@@ -21,7 +21,7 @@ const MAX_AUDIT_TEXT_LENGTH = 20_000;
 // B560: ревизию обязательно двигать вместе с текстом промта — на проде живёт
 // синхронизированная копия в `ai_prompt_configs`, и без нового номера правка в
 // коде до модели просто не доедет (строка не считается устаревшей).
-export const AI_PROMPT_DEFAULT_REVISION = "2026-07-28-marketing-agent";
+export const AI_PROMPT_DEFAULT_REVISION = "2026-07-28-marketing-agent-public-social-v2";
 
 export interface AIPromptConfigView {
   id: string;

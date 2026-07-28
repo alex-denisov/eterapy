@@ -79,15 +79,11 @@ const TOPICS = [
   "не могу принять решение",
 ] as const;
 
-export function redactExternalExcerpt(value: string) {
+export function normalizePublicPostExcerpt(value: string) {
   return value
-    .replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, "[email]")
-    .replace(/(?:\+?\d[\s()-]*){9,}/g, "[телефон]")
-    .replace(/@[a-z0-9_.-]+/gi, "[@профиль]")
-    .replace(/https?:\/\/\S+/gi, "[ссылка]")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 600);
+    .slice(0, 1_200);
 }
 
 function matchingTopic(value: string) {
@@ -120,8 +116,8 @@ async function discoverReddit(): Promise<Candidate[]> {
         platform: "reddit",
         targetId: post.name,
         targetUrl: `https://www.reddit.com${post.permalink}`,
-        targetLabel: `r/${subreddit}: ${redactExternalExcerpt(post.title ?? "публикация")}`,
-        excerpt: redactExternalExcerpt(combined),
+        targetLabel: `r/${subreddit}: ${normalizePublicPostExcerpt(post.title ?? "публикация")}`,
+        excerpt: normalizePublicPostExcerpt(combined),
         topic,
       });
     }
@@ -156,7 +152,7 @@ async function discoverVk(): Promise<Candidate[]> {
       targetId: `${item.owner_id}_${item.id}`,
       targetUrl: `https://vk.com/wall${item.owner_id}_${item.id}`,
       targetLabel: `VK wall${item.owner_id}_${item.id}`,
-      excerpt: redactExternalExcerpt(item.text ?? ""),
+      excerpt: normalizePublicPostExcerpt(item.text ?? ""),
       topic,
     });
   }
