@@ -651,7 +651,7 @@ function PaginationPageLink({ pageNumber, active, href }: { pageNumber: number; 
   return (
     <Link
       className={`soft-admin-pagination-page inline-flex h-7 min-w-7 items-center justify-center rounded border px-2 tabular-nums ${active ? "font-bold shadow-sm" : "border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)]"}`}
-      style={active ? { outline: "2px solid #5c2a2c", outlineOffset: "-1px" } : undefined}
+      style={active ? { background: "color-mix(in srgb, var(--soft-bordeaux) 7%, white)" } : undefined}
       href={href}
       aria-current={active ? "page" : undefined}
     >

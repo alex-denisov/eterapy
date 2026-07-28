@@ -20,6 +20,7 @@ jest.mock("@/lib/db", () => ({
 
 jest.mock("@/lib/marketing/agent", () => ({
   upsertMarketingSignal: jest.fn(),
+  resolveMarketingSignal: jest.fn().mockResolvedValue({ count: 0 }),
 }));
 
 const mockDb = db as unknown as {

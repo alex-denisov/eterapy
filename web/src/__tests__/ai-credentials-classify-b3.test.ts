@@ -7,6 +7,7 @@ describe("B3 — AI credential failure classification", () => {
     expect(classifyHealthFailureCode("insufficient_quota: you exceeded your current quota", "X")).toBe("INSUFFICIENT_CREDITS");
     expect(classifyHealthFailureCode("Payment required", "X")).toBe("INSUFFICIENT_CREDITS");
     expect(classifyHealthFailureCode("HTTP 402", "X")).toBe("INSUFFICIENT_CREDITS");
+    expect(classifyHealthFailureCode("HTTP_402", "X")).toBe("INSUFFICIENT_CREDITS");
   });
 
   it("maps pure rate-limit messages to QUOTA_EXCEEDED", () => {

@@ -259,7 +259,7 @@ export function SupportConsole() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Клиент, email или текст…"
-                className="h-10 w-full rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] pl-9 pr-3 text-sm text-[var(--soft-ink)] outline-none transition-colors focus:border-[var(--soft-bordeaux)]/40"
+                className="h-10 w-full rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] pl-9 pr-3 text-sm text-[var(--soft-ink)] outline-none transition-colors focus:bg-white"
                 data-testid="admin-support-search"
               />
             </label>
@@ -295,7 +295,7 @@ export function SupportConsole() {
                     setDetail((current) => current?.id === conversation.id ? current : null);
                     lastMessageAtRef.current = null;
                   }}
-                  className={`relative block w-full border-b border-[var(--soft-paper-edge)] px-4 py-3.5 text-left transition-colors ${selected ? "bg-[var(--soft-apricot)]/35 ring-1 ring-inset ring-[var(--soft-bordeaux)]/25" : "hover:bg-[var(--soft-paper)]"}`}
+                  className={`relative block w-full border-b border-[var(--soft-paper-edge)] px-4 py-3.5 text-left transition-colors ${selected ? "bg-[var(--soft-apricot)]/35" : "hover:bg-[var(--soft-paper)]"}`}
                   data-testid="admin-support-conversation"
                   aria-pressed={selected}
                 >
@@ -398,7 +398,7 @@ export function SupportConsole() {
                         rows={2}
                         maxLength={MESSAGE_MAX}
                         disabled={sending}
-                        className="max-h-36 min-h-12 w-full resize-none rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-3 text-sm text-[var(--soft-ink)] outline-none transition-colors focus:border-[var(--soft-bordeaux)]/40"
+                        className="max-h-36 min-h-12 w-full resize-none rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-3 text-sm text-[var(--soft-ink)] outline-none transition-colors focus:bg-white"
                         data-testid="admin-support-reply-input"
                       />
                     </label>

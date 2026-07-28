@@ -6,7 +6,7 @@ import { marketingConnectorStates, normalizePublicPostExcerpt } from "@/lib/mark
 import { getDefaultAIRoutingPolicy } from "@/lib/ai-gateway/task-policy";
 import { AIProvider } from "@prisma/client";
 import {
-  MARKETING_FREE_PROVIDERS,
+  MARKETING_ACTIVE_PROVIDERS,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
 
@@ -16,8 +16,8 @@ describe("B610 · SMM-agent safety and routing contract", () => {
     const reviewer = getDefaultAIRoutingPolicy("marketing-agent-reviewer");
     expect(writer).not.toBeNull();
     expect(reviewer).not.toBeNull();
-    expect(writer!.providerOrder).toEqual(expect.arrayContaining([...MARKETING_FREE_PROVIDERS]));
-    expect(reviewer!.providerOrder).toEqual(expect.arrayContaining([...MARKETING_FREE_PROVIDERS]));
+    expect(writer!.providerOrder).toEqual(expect.arrayContaining([...MARKETING_ACTIVE_PROVIDERS]));
+    expect(reviewer!.providerOrder).toEqual(expect.arrayContaining([...MARKETING_ACTIVE_PROVIDERS]));
     expect(writer!.providerOrder).not.toContain(AIProvider.YANDEX);
     expect(reviewer!.providerOrder).not.toContain(AIProvider.YANDEX);
   });
@@ -25,8 +25,8 @@ describe("B610 · SMM-agent safety and routing contract", () => {
   it("rotates providers and excludes writer from independent review", () => {
     const writerOrder = marketingProviderOrder("publication-42");
     const reviewerOrder = marketingProviderOrder("publication-42:review", [writerOrder[0]]);
-    expect(writerOrder).toHaveLength(MARKETING_FREE_PROVIDERS.length);
-    expect(reviewerOrder).toHaveLength(MARKETING_FREE_PROVIDERS.length - 1);
+    expect(writerOrder).toHaveLength(MARKETING_ACTIVE_PROVIDERS.length);
+    expect(reviewerOrder).toHaveLength(MARKETING_ACTIVE_PROVIDERS.length - 1);
     expect(reviewerOrder).not.toContain(writerOrder[0]);
   });
 

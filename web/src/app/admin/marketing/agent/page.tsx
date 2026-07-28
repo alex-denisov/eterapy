@@ -11,7 +11,14 @@ import {
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
-import { MARKETING_FREE_PROVIDERS } from "@/lib/marketing/model-pool";
+import {
+  MARKETING_ACTIVE_PROVIDERS,
+  MARKETING_FREE_PROVIDERS,
+  MARKETING_MODEL_RELEASE_CUTOFF,
+  MARKETING_REVIEWER_MODEL_PREFERENCES,
+  MARKETING_WRITER_MODEL_PREFERENCES,
+  marketingModelFreshness,
+} from "@/lib/marketing/model-pool";
 import { redditOAuthConnected } from "@/lib/marketing/reddit-oauth";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
@@ -92,14 +99,23 @@ export default async function MarketingAgentPage() {
       .map((row) => row.lastSuccessAt)
       .filter((value): value is Date => Boolean(value))
       .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-    const model = credentials.find((row) => row.enabled && row.modelOverride)?.modelOverride
+    const writerModel = MARKETING_WRITER_MODEL_PREFERENCES[provider]
+      ?? credentials.find((row) => row.enabled && row.modelOverride)?.modelOverride
       ?? configByProvider.get(provider)?.defaultModel
       ?? DEFAULT_PROVIDER_MODELS[provider];
+    const reviewerModel = MARKETING_REVIEWER_MODEL_PREFERENCES[provider] ?? writerModel;
+    const freshness = marketingModelFreshness(writerModel);
+    const admitted = (MARKETING_ACTIVE_PROVIDERS as readonly string[]).includes(provider);
+    const eligible = ready.length > 0 && admitted && freshness.eligible;
     return {
       id: provider,
       cells: {
         provider,
-        model,
+        model: {
+          value: writerModel,
+          subvalue: reviewerModel !== writerModel ? `reviewer: ${reviewerModel}` : `релиз: ${freshness.releaseDate ?? "не подтверждён"}`,
+          filterValue: `${writerModel} ${reviewerModel}`,
+        },
         credentials: {
           value: `${ready.length}/${credentials.length} готовы`,
           subvalue: credentials.map((row) => row.label).join(", ") || "ключ не добавлен",
@@ -107,15 +123,21 @@ export default async function MarketingAgentPage() {
         },
         status: {
           kind: "status" as const,
-          label: ready.length ? "готов" : "нужна настройка",
-          tone: ready.length ? ("ok" as const) : ("warn" as const),
-          filterValue: ready.length ? "готов" : "нужна настройка",
+          label: eligible ? "в активном пуле" : ready.length ? "только мониторинг" : "нужна настройка",
+          tone: eligible ? ("ok" as const) : ("warn" as const),
+          filterValue: eligible ? "активный" : ready.length ? "мониторинг" : "нужна настройка",
         },
         lastSuccess: {
           value: dateTime(lastSuccess),
           sortValue: lastSuccess?.getTime() ?? 0,
         },
-        role: "writer + reviewer; порядок ротируется, одна модель не проверяет себя",
+        role: eligible
+          ? "writer + reviewer; модели разделяются, порядок ротируется"
+          : admitted
+            ? freshness.reason
+            : provider === "OPENAI"
+              ? "не используется автоматически: у прямого API нет бесплатной квоты"
+              : "не используется автоматически: нет публичной бесплатной модели после cutoff",
       },
     };
   });
@@ -234,6 +256,14 @@ export default async function MarketingAgentPage() {
                   {redditConnected ? "Переподключить Reddit" : "Подключить Reddit"}
                 </Link>
               ) : null}
+              {connector.platform === "Threads" || connector.platform === "Instagram" ? (
+                <Link
+                  className="soft-admin-action mt-3 inline-flex"
+                  href={`/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`}
+                >
+                  Подключить через OAuth
+                </Link>
+              ) : null}
             </article>
           ))}
         </div>
@@ -245,6 +275,16 @@ export default async function MarketingAgentPage() {
           production-ключом, что и LLM-ключи, и никогда не возвращаются в браузер.
         </p>
         <MarketingPlatformSettings configs={platformConfigs} />
+        <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          <p className="font-semibold text-[var(--soft-ink-strong)]">Callback URL для Meta App</p>
+          <dl className="mt-2 grid gap-1 font-mono">
+            <div><dt className="inline font-sans">Threads redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/oauth/callback</dd></div>
+            <div><dt className="inline font-sans">Threads deauthorize: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/deauthorize</dd></div>
+            <div><dt className="inline font-sans">Instagram redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/oauth/callback</dd></div>
+            <div><dt className="inline font-sans">Instagram webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/webhook</dd></div>
+            <div><dt className="inline font-sans">Data deletion: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/data-deletion</dd></div>
+          </dl>
+        </div>
       </AnalyticsSection>
 
       <AnalyticsSection title="Последние циклы writer → reviewer">
@@ -261,8 +301,9 @@ export default async function MarketingAgentPage() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-3xl text-sm text-[var(--soft-ink-soft)]">
             Агент распределяет материалы между доступными бесплатными квотами.
-            Reviewer всегда получает другой провайдер. Данные клиентов и
-            практиков ETerapy в этот контур не передаются.
+            Writer и reviewer всегда получают разные модели; cutoff релиза —
+            {` ${MARKETING_MODEL_RELEASE_CUTOFF}`}. Данные клиентов и практиков
+            ETerapy в этот контур не передаются.
           </p>
           <Link className="soft-admin-action" href="/admin/ops/ai">
             Модели, ключи и промпты

@@ -239,7 +239,7 @@ export function classifyHealthFailureCode(message: string | undefined, fallback:
   if (/organization_restricted|organization has been restricted|account (is )?(restricted|suspended|banned|disabled)|\brestricted\b|suspended|banned|access denied|forbidden|\b403\b/.test(text)) {
     return "PROVIDER_RESTRICTED";
   }
-  if (/credit balance|insufficient|out of (credits|quota)|too low|billing|payment required|\b402\b/.test(text)) {
+  if (/credit balance|insufficient|out of (credits|quota)|too low|billing|payment required|http[_ ]?402|\b402\b/.test(text)) {
     return "INSUFFICIENT_CREDITS";
   }
   if (/quota|rate limit|\b429\b/.test(text)) return "QUOTA_EXCEEDED";
@@ -271,11 +271,12 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
     if (health.status === "ok") {
       await markCredentialSuccess({ credentialId: row.id });
     } else {
+      const failureCode = health.status === "missing_config"
+        ? "MISSING_CONFIG"
+        : classifyHealthFailureCode(health.code ?? health.message, health.code ?? "HEALTHCHECK_FAILED");
       await markCredentialFailure({
         credentialId: row.id,
-        code: health.status === "missing_config"
-          ? "MISSING_CONFIG"
-          : classifyHealthFailureCode(health.message, "HEALTHCHECK_FAILED"),
+        code: failureCode,
         cooldownMs: 0,
         regionBlocked: false,
         message: health.message,
@@ -300,7 +301,7 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
           ? undefined
           : health.status === "missing_config"
             ? "MISSING_CONFIG"
-            : classifyHealthFailureCode(health.message, "HEALTHCHECK_FAILED"),
+            : classifyHealthFailureCode(health.code ?? health.message, health.code ?? "HEALTHCHECK_FAILED"),
       },
     };
   } catch (error) {

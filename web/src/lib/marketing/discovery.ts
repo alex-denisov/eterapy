@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import db from "@/lib/db";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { log, serializeError } from "@/lib/logger";
-import { upsertMarketingSignal } from "@/lib/marketing/agent";
+import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import {
   marketingPlatformEnabled,
   marketingPlatformValue,
@@ -21,10 +21,11 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
   const keys = [
     "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN",
     "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
-    "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
-    "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
+    "REDDIT_BROWSER_STORAGE_STATE",
+    "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
+    "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID",
-    "DZEN_CHANNEL_URL",
+    "DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE",
   ] as const;
   const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
   const has = (name: typeof keys[number]) => Boolean(values.get(name));
@@ -44,18 +45,28 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     },
     {
       platform: "Reddit",
-      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_POST_SUBREDDIT"),
+      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_POST_SUBREDDIT") && (
+        (has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"))
+        || has("REDDIT_BROWSER_STORAGE_STATE")
+      ),
       discovery: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_SUBREDDITS"),
-      comments: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
-      missing: missing("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT"),
-      note: "Официальный OAuth Data API: собственные self-posts и поиск по разрешённым subreddit. Любой комментарий только после Telegram-премодерации и с раскрытием аффилированности.",
+      comments: Boolean(enabled.get("Reddit")) && (
+        (has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"))
+        || has("REDDIT_BROWSER_STORAGE_STATE")
+      ),
+      missing: [
+        ...missing("REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT"),
+        ...(!has("REDDIT_CLIENT_ID") && !has("REDDIT_BROWSER_STORAGE_STATE") ? ["REDDIT_CLIENT_ID или REDDIT_BROWSER_STORAGE_STATE"] : []),
+        ...(!has("REDDIT_CLIENT_SECRET") && !has("REDDIT_BROWSER_STORAGE_STATE") ? ["REDDIT_CLIENT_SECRET или REDDIT_BROWSER_STORAGE_STATE"] : []),
+      ],
+      note: "Основной путь — официальный OAuth Data API. Если доступ не выдан, собственные посты и утверждённые комментарии используют изолированную Playwright-сессию; CAPTCHA и проверки безопасности никогда не обходятся.",
     },
     {
       platform: "Threads",
       ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       discovery: false,
       comments: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
-      missing: missing("THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
+      missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
       note: "Официальный Threads API публикует посты/ответы. Глобального поиска чужих постов по ключевым словам API не обещает — входящие кандидаты добавляются из разрешённых mentions/feeds.",
     },
     {
@@ -63,7 +74,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       ownedPublishing: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN") && has("INSTAGRAM_USER_ID"),
       discovery: false,
       comments: false,
-      missing: missing("INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"),
+      missing: missing("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
       note: "Instagram API для Professional account: свои публикации и управление комментариями на своих медиа. Официальный API не даёт публиковать рекламные комментарии под произвольными чужими постами — этот путь не подменяется cookies-автоматизацией.",
     },
     {
@@ -76,11 +87,11 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     },
     {
       platform: "Dzen",
-      ownedPublishing: false,
+      ownedPublishing: Boolean(enabled.get("Dzen")) && has("DZEN_CHANNEL_URL") && has("DZEN_BROWSER_STORAGE_STATE"),
       discovery: false,
       comments: false,
-      missing: missing("DZEN_CHANNEL_URL"),
-      note: "Канал учитывается в контент-плане. У Дзена нет поддерживаемого серверного API публикации: до появления официального доступа выпуск выполняется из авторизованной браузерной сессии.",
+      missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE"),
+      note: "У Дзена нет поддерживаемого серверного API публикации. Выпуск выполняется из изолированной авторизованной Playwright-сессии; истёкшая сессия или CAPTCHA переводит коннектор в требующий участия человека, без обхода защиты.",
     },
   ];
 }
@@ -223,6 +234,7 @@ export async function runEngagementDiscovery() {
       // Deliberately at most one candidate per platform/cycle. Relevance beats
       // volume, and the unique key makes repeat discovery idempotent.
       if (candidates[0]) await ingestEngagementCandidate(candidates[0]);
+      await resolveMarketingSignal(`discovery:${platform}`).catch(() => undefined);
       outcomes.push({ platform, found: candidates.length, ingested: candidates[0] ? 1 : 0 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

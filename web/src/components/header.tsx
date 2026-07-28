@@ -550,7 +550,7 @@ export function Header() {
             })}
           </nav>
         ) : (
-          <nav className="hidden items-center justify-center gap-1 md:flex">
+          <nav className="hidden min-w-0 flex-nowrap items-center justify-center gap-0 md:flex xl:gap-1">
             {nav.map((item) => {
               const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
               const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
@@ -569,7 +569,7 @@ export function Header() {
                 <Link key={item.href} href={item.href}
                   data-soft-nav="link"
                   data-active={active ? "true" : undefined}
-                  className={cn("rounded-full px-3 py-2 text-sm transition-colors",
+                  className={cn("shrink-0 whitespace-nowrap rounded-full px-2 py-2 text-[13px] transition-colors xl:px-3 xl:text-sm",
                     active ? "bg-primary/10 text-primary" : "text-[var(--soft-ink-soft)] hover:bg-white/5 hover:text-foreground"
                   )}>
                   {item.label}

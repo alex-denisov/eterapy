@@ -64,6 +64,9 @@ RUN npx prisma generate
 
 FROM base AS runner
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends chromium fonts-liberation fonts-dejavu-core \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=assemble /app /app
 # Runtime write surfaces only (ISR cache, uploads — uploads is volume-mounted).
 RUN chown -R node:node /app/web/.next /app/web/public

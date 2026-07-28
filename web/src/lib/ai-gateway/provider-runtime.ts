@@ -6,6 +6,7 @@ import {
   getCloudflareGatewayConfig,
   isCloudflareAIGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
+import { createCohereAdapter } from "@/lib/ai-gateway/cohere-adapter";
 import type { DecryptedAICredential } from "@/lib/ai-gateway/credentials";
 import { createFireworksAdapter } from "@/lib/ai-gateway/fireworks-adapter";
 import { createGeminiAdapter } from "@/lib/ai-gateway/gemini-adapter";
@@ -30,15 +31,15 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
 };
 
 export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
-  [AIProvider.OPENAI]: "gpt-4.1-mini",
+  [AIProvider.OPENAI]: "gpt-5.6-luna",
   [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
   [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
   [AIProvider.OPENROUTER]: "openrouter/free",
-  [AIProvider.GEMINI]: "gemini-2.5-flash",
-  [AIProvider.GROQ]: "llama-3.1-8b-instant",
-  [AIProvider.MISTRAL]: "mistral-small-latest",
-  [AIProvider.CEREBRAS]: "zai-glm-4.7",
-  [AIProvider.COHERE]: "command-r",
+  [AIProvider.GEMINI]: "gemini-3.6-flash",
+  [AIProvider.GROQ]: "qwen/qwen3.6-27b",
+  [AIProvider.MISTRAL]: "mistral-small-2603",
+  [AIProvider.CEREBRAS]: "gpt-oss-120b",
+  [AIProvider.COHERE]: "command-a-plus-05-2026",
   [AIProvider.YANDEX]: DEFAULT_YANDEX_MODEL,
 };
 
@@ -211,11 +212,8 @@ export function buildAdapterForCredential(
         defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS],
       });
     case AIProvider.COHERE:
-      return createOpenAICompatibleAdapter({
+      return createCohereAdapter({
         ...opts,
-        provider: AIProvider.COHERE,
-        providerSlug: "Cohere",
-        missingConfigMessage: "Cohere API key is not configured",
         baseURL: opts.baseURL ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE]!,
         defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[AIProvider.COHERE],
       });

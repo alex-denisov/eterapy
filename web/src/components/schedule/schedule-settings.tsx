@@ -85,13 +85,13 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
                 <span className="text-xs text-muted-foreground">с</span>
                 <select value={rule.startHour}
                   onChange={e => updateRule(dow, { startHour: Number(e.target.value) })}
-                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:border-[var(--soft-terracotta)] focus:outline-none">
+                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:bg-slate-50 focus:outline-none">
                   {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                 </select>
                 <span className="text-xs text-muted-foreground">до</span>
                 <select value={rule.endHour}
                   onChange={e => updateRule(dow, { endHour: Number(e.target.value) })}
-                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:border-[var(--soft-terracotta)] focus:outline-none">
+                  className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-sm focus:bg-slate-50 focus:outline-none">
                   {HOURS.filter(h => h > rule.startHour).map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                 </select>
               </div>

@@ -171,7 +171,7 @@ export function PrecheckForm({
         value={question}
         onChange={(event) => setQuestion(event.target.value)}
         maxLength={1600}
-        className="mt-3 min-h-[180px] w-full resize-y rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-4 py-3 text-base leading-relaxed text-[var(--soft-ink)] outline-none transition focus:border-[var(--soft-terracotta)]"
+        className="mt-3 min-h-[180px] w-full resize-y rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-4 py-3 text-base leading-relaxed text-[var(--soft-ink)] outline-none transition focus:bg-white"
         placeholder="Например: мы постоянно возвращаемся к одному спору, я не понимаю, где моя часть ответственности и стоит ли идти в совместную сессию..."
       />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

@@ -52,7 +52,7 @@ export function AdminCurrencySelector({
         <span className="font-semibold text-[var(--soft-ink)]">Валюта</span>
         <select
           aria-label="Валюта отображения финансовых данных"
-          className="rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-semibold text-[var(--soft-ink)] outline-none focus:border-[var(--soft-bordeaux)]"
+          className="rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-semibold text-[var(--soft-ink)] outline-none focus:bg-white"
           value={currency}
           onChange={(event) => updateCurrency(event.target.value as AdminDisplayCurrency)}
         >

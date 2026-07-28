@@ -1,7 +1,12 @@
 import { AIProvider, type AIRoutingPolicy } from "@prisma/client";
 import { normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import type { AIRoutingPolicyConfig } from "@/lib/ai-gateway/routing";
-import { isPublicMarketingAIFeature } from "@/lib/marketing/model-pool";
+import {
+  isPublicMarketingAIFeature,
+  MARKETING_ACTIVE_PROVIDERS,
+  MARKETING_REVIEWER_MODEL_PREFERENCES,
+  MARKETING_WRITER_MODEL_PREFERENCES,
+} from "@/lib/marketing/model-pool";
 
 export type AITaskTier = "free" | "cheap" | "premium" | "sensitive" | "vision" | "speech" | "compliance";
 
@@ -415,7 +420,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     tier: "free",
     title: "SMM-агент · автор",
     purpose: "Создание собственных постов и обезличенных рекламных комментариев по контент-плану.",
-    providerOrder: [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.CEREBRAS, AIProvider.GROQ, AIProvider.MISTRAL, AIProvider.COHERE, AIProvider.OPENAI],
+    providerOrder: [...MARKETING_ACTIVE_PROVIDERS],
+    modelPreferences: { ...MARKETING_WRITER_MODEL_PREFERENCES },
     maxTokens: 1500,
     temperature: 0.55,
     timeoutMs: 45_000,
@@ -428,7 +434,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     tier: "cheap",
     title: "SMM-агент · выпускающий редактор",
     purpose: "Независимая проверка полезности, честности, безопасности и соответствия правилам площадки.",
-    providerOrder: [AIProvider.GEMINI, AIProvider.CEREBRAS, AIProvider.GROQ, AIProvider.MISTRAL, AIProvider.COHERE, AIProvider.OPENAI, AIProvider.OPENROUTER],
+    providerOrder: [...MARKETING_ACTIVE_PROVIDERS].reverse(),
+    modelPreferences: { ...MARKETING_REVIEWER_MODEL_PREFERENCES },
     maxTokens: 1200,
     temperature: 0.1,
     timeoutMs: 35_000,

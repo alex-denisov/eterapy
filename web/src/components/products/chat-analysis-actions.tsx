@@ -1569,7 +1569,7 @@ export function ChatAnalysisActions() {
             <section className="product-controls-collapsed" data-testid="chat-analysis-recap" data-state={showResultSource ? "open" : "closed"}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-2 rounded-[0.9rem] px-[0.85rem] py-[0.6rem] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--soft-terracotta)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--soft-paper-card)]"
+                className="flex w-full items-center justify-between gap-2 rounded-[0.9rem] px-[0.85rem] py-[0.6rem] text-left focus-visible:bg-[var(--soft-paper-deep)] focus-visible:outline-none"
                 aria-expanded={showResultSource}
                 data-testid="chat-analysis-recap-toggle"
                 onClick={() => setShowResultSource((open) => !open)}

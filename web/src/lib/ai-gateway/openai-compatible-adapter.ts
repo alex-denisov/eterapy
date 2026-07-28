@@ -33,6 +33,7 @@ interface OpenAICompatibleClientLike {
           message?: {
             content?: string | null;
             reasoning_content?: string | null;
+            reasoning?: string | null;
           };
           finish_reason?: string | null;
         }>;
@@ -55,9 +56,18 @@ export interface OpenAICompatibleAdapterOptions {
 }
 
 function responseText(choice: {
-  message?: { content?: string | null; reasoning_content?: string | null };
+  message?: {
+    content?: string | null;
+    reasoning_content?: string | null;
+    reasoning?: string | null;
+  };
 } | undefined) {
-  return (choice?.message?.content ?? choice?.message?.reasoning_content ?? "").trim();
+  return (
+    choice?.message?.content
+    ?? choice?.message?.reasoning_content
+    ?? choice?.message?.reasoning
+    ?? ""
+  ).trim();
 }
 
 export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOptions): AIGatewayAdapter {
@@ -190,12 +200,18 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
           latencyMs: Date.now() - startedAt,
         };
       } catch (err) {
+        const providerError = err instanceof AIProviderError ? err : null;
         return {
           provider: options.provider,
           status: "down",
           model,
           latencyMs: Date.now() - startedAt,
-          message: err instanceof Error ? err.message : `${options.providerSlug} healthcheck failed`,
+          code: providerError?.code,
+          message: providerError
+            ? `${options.providerSlug} healthcheck failed (${providerError.code})`
+            : err instanceof Error
+              ? err.message
+              : `${options.providerSlug} healthcheck failed`,
         };
       }
     },

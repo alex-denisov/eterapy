@@ -8,6 +8,7 @@ import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
+import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
 
 export async function POST() {
   const session = await auth();
@@ -24,11 +25,12 @@ export async function POST() {
   const discovery = await runEngagementDiscovery();
   const seo = await runSeoAudit();
   const urls = await runMarketingUrlAudit();
+  const metaTokens = await refreshMetaMarketingTokens();
   await logAudit(
     session.user.id,
     AUDIT_ACTIONS.MARKETING_AGENT_RUN,
     "marketing-agent",
-    JSON.stringify({ generate, agent, publish, metrics, discovery, seo, urls }).slice(0, 8_000),
+    JSON.stringify({ generate, agent, publish, metrics, discovery, seo, urls, metaTokens }).slice(0, 8_000),
   );
-  return NextResponse.json({ ok: true, generate, agent, publish, metrics, discovery, seo, urls });
+  return NextResponse.json({ ok: true, generate, agent, publish, metrics, discovery, seo, urls, metaTokens });
 }

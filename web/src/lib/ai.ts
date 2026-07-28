@@ -53,6 +53,7 @@ import {
   MARKETING_FREE_PROVIDERS,
   isPublicMarketingAIFeature,
   marketingForeignLLMEnabled,
+  marketingModelPreferences,
 } from "@/lib/marketing/model-pool";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
@@ -208,6 +209,19 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       feature,
       enabled: storedPolicy?.enabled ?? true,
       providerOrder: options.providerOrder ?? [...MARKETING_FREE_PROVIDERS],
+      modelPreferences: {
+        ...(
+          storedPolicy?.modelPreferences
+          && typeof storedPolicy.modelPreferences === "object"
+          && !Array.isArray(storedPolicy.modelPreferences)
+            ? storedPolicy.modelPreferences
+            : {}
+        ),
+        // Autonomous public marketing has a rolling freshness contract. An
+        // old admin/database preference must not silently pin the worker to a
+        // retired model after the approved pool advances.
+        ...marketingModelPreferences(feature),
+      },
     }
     : storedPolicy;
   const providerConfigByName = new Map(providerConfigs.map((config) => [config.provider, config]));

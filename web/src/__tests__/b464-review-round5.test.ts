@@ -170,13 +170,13 @@ describe("R13 items 8-10 — wallet copy and headings", () => {
   });
 });
 
-// ── #12 · no terracotta outline on support inputs ────────────────────────────
-describe("R13 item 12 — support inputs keep a calm focus", () => {
-  it("suppresses the global terracotta :focus-visible outline on the support page", () => {
+// ── #12 · no interaction frames anywhere (superseded by B614) ───────────────
+describe("R13 item 12 — interaction focus is globally borderless", () => {
+  it("suppresses outlines and Tailwind rings for every shell and portal", () => {
     const tokens = read("app/v5-tokens.css");
-    expect(tokens).toContain('[data-testid="cabinet-support-page"] input:focus-visible');
-    expect(tokens).toContain('[data-testid="cabinet-support-page"] textarea:focus-visible');
-    expect(tokens).toContain('[data-testid="cabinet-support-page"] select:focus-visible');
+    expect(tokens).toContain(":focus-visible");
+    expect(tokens).toContain("outline: none !important");
+    expect(tokens).toContain("--tw-ring-shadow: 0 0 #0000 !important");
   });
 });
 

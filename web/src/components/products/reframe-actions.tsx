@@ -158,7 +158,7 @@ function AngleCardPreview({ angle, active, onClick }: {
       type="button"
       onClick={onClick}
       className="relative flex flex-col rounded-[16px] p-3.5 text-left transition-all sm:p-4"
-      style={{ background: style.bg, color: style.color, outline: active ? "2px solid var(--soft-bordeaux)" : "none", outlineOffset: 2, minHeight: 92 }}
+      style={{ background: style.bg, color: style.color, filter: active ? "brightness(0.94)" : undefined, minHeight: 92 }}
     >
       <span className="absolute right-3.5 top-3" style={{ fontSize: 20, opacity: 0.5 }}>{ANGLE_GLYPHS[angle.id] ?? "·"}</span>
       <span className="pr-6 font-heading text-base font-semibold leading-tight sm:text-lg">{angle.title}</span>

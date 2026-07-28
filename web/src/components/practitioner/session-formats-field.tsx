@@ -30,12 +30,12 @@ export function SessionFormatsField({ value, onChange, dense = false }: Props) {
     dense
       ? `rounded-md border px-2.5 py-1 text-xs transition-colors ${
           active
-            ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)]/10 text-[var(--soft-bordeaux)] font-medium"
+            ? "border-transparent bg-[var(--soft-bordeaux)]/10 text-[var(--soft-bordeaux)] font-medium"
             : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-ink-faint)]"
         } ${locked ? "cursor-default opacity-90" : ""}`
       : `rounded-lg border px-3 py-1.5 text-sm transition-colors ${
           active
-            ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
+            ? "border-transparent soft-select-pill font-medium"
             : "border-border/30 text-[var(--soft-ink-soft)] hover:border-border/60"
         } ${locked ? "cursor-default" : ""}`;
 

@@ -408,7 +408,7 @@ export function SlotPicker({
                         isSelected ? "bg-[var(--soft-bordeaux)] text-white font-semibold" :
                         // B353/Интерфейс 10: доступные дни — тёплая подсветка (apricot),
                         // чтобы было видно, какие даты открыты для записи, без пестроты.
-                        day.isToday ? "bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)] font-semibold ring-1 ring-[var(--soft-bordeaux)]/40" :
+                        day.isToday ? "bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)] font-semibold" :
                         "bg-[var(--soft-apricot)]/55 text-[var(--soft-bordeaux)] font-medium hover:bg-[var(--soft-apricot)]"
                       }`}>
                       {day.date.getDate()}
@@ -452,10 +452,10 @@ export function SlotPicker({
                     <button key={i} onClick={() => setSelectedSlot(isSelected ? null : slot)}
                       className={`rounded-lg border px-3 py-1.5 text-sm font-mono font-medium transition-all relative ${
                         isSelected
-                          ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]"
+                          ? "border-[var(--soft-paper-edge)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]"
                           : isSoon
-                          ? "border-amber-500/50 text-[var(--soft-ink)] hover:border-amber-500"
-                          : "border-[var(--soft-paper-edge)] text-[var(--soft-ink)] hover:border-[var(--soft-bordeaux)]/40"
+                          ? "border-[var(--soft-paper-edge)] text-[var(--soft-ink)] hover:bg-[var(--soft-paper-deep)]"
+                          : "border-[var(--soft-paper-edge)] text-[var(--soft-ink)] hover:bg-[var(--soft-paper-deep)]"
                       }`}>
                       <span>{formatTime(slot.startAt)}</span>
                       {slot.earlyAccess && (

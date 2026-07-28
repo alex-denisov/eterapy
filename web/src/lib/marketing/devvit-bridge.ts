@@ -26,7 +26,10 @@ function normalizedSubreddit(value: string | undefined | null): string | null {
 }
 
 export function devvitBridgeEnabled(env: Partial<NodeJS.ProcessEnv> = process.env): boolean {
-  return env.REDDIT_DEVVIT_ENABLED === "1" || env.REDDIT_DEVVIT_ENABLED === "true";
+  return (
+    env.REDDIT_DEVVIT_ENABLED === "1"
+    || env.REDDIT_DEVVIT_ENABLED === "true"
+  ) && Boolean(env.REDDIT_DEVVIT_SHARED_SECRET?.trim());
 }
 
 export function devvitBridgeAuthorized(

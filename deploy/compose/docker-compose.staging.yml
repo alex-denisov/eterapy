@@ -65,6 +65,8 @@ services:
     image: ${ETERAPY_IMAGE}
     network_mode: host
     restart: always
+    init: true
+    shm_size: "1gb"
     env_file: .env
     environment:
       ETERAPY_CONTOUR: staging

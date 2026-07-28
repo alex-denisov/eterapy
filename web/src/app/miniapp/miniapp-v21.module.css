@@ -62,8 +62,7 @@
 :where(.stage) textarea:focus-visible,
 :where(.stage) input:focus-visible,
 :where(.stage) a:focus-visible {
-  outline: 2px solid #ffd4ca;
-  outline-offset: 3px;
+  outline: 0;
 }
 
 :where(.stage) :is(h1, h2, h3, h4) {
@@ -288,7 +287,6 @@
 }
 
 .question-panel:focus-within {
-  border-color: rgba(255, 101, 72, 0.52);
   background: var(--surface-raised);
 }
 
@@ -528,7 +526,7 @@
 }
 
 .segment.is-selected {
-  border-color: rgba(255, 101, 72, 0.58);
+  border-color: transparent;
   background: rgba(255, 101, 72, 0.1);
   color: #fff4f0;
 }
@@ -773,10 +771,6 @@
   outline: 0;
 }
 
-.nav-item:focus-visible .nav-icon-wrap {
-  filter: drop-shadow(0 0 4px rgba(255, 212, 202, 0.8));
-}
-
 .nav-services {
   height: 78px;
   padding-bottom: 3px;
@@ -802,7 +796,7 @@
 }
 
 .nav-services:focus-visible .services-orb {
-  box-shadow: 0 0 0 2px #ffd4ca, 0 10px 27px rgba(255, 101, 72, 0.35);
+  filter: brightness(1.05);
 }
 
 .nav-services:active .services-orb {
@@ -810,7 +804,7 @@
 }
 
 .nav-services.is-active .services-orb {
-  box-shadow: 0 13px 40px rgba(255, 101, 72, 0.48), inset 0 1px 0 rgba(255, 245, 240, 0.4);
+  box-shadow: 0 13px 34px rgba(255, 101, 72, 0.34);
 }
 
 .nav-services span:last-child {
@@ -1229,7 +1223,7 @@
 }
 
 .week-mini span.is-today {
-  box-shadow: inset 0 0 0 1px rgba(255, 101, 72, 0.6);
+  box-shadow: none;
   color: var(--coral);
 }
 
@@ -1332,7 +1326,7 @@
 }
 
 .search-field:focus-within {
-  border-color: rgba(255, 101, 72, 0.45);
+  background: var(--surface-raised);
 }
 
 .search-field input {
@@ -1369,7 +1363,7 @@
 }
 
 .filter-row button.is-selected {
-  border-color: rgba(255, 101, 72, 0.5);
+  border-color: transparent;
   background: rgba(255, 101, 72, 0.1);
   color: #ffb19f;
 }
@@ -1800,7 +1794,7 @@
 }
 
 .minimal-segment button.is-active::before {
-  border-color: rgba(255, 101, 72, 0.28);
+  border-color: transparent;
   background: rgba(255, 101, 72, 0.1);
 }
 
@@ -2535,7 +2529,7 @@ a.service-row {
 }
 
 .week-strip .is-today b {
-  box-shadow: inset 0 0 0 1px rgba(255, 101, 72, 0.65);
+  box-shadow: none;
   color: var(--coral);
 }
 
@@ -2583,7 +2577,7 @@ a.service-row {
 }
 
 .journal-day-buttons button.is-active {
-  border-color: rgba(255, 101, 72, 0.55);
+  border-color: transparent;
   background: rgba(255, 101, 72, 0.08);
 }
 
@@ -2665,7 +2659,7 @@ a.service-row {
 }
 
 .profile-choice button.is-selected {
-  border-color: rgba(255, 101, 72, 0.5);
+  border-color: transparent;
   background: rgba(255, 101, 72, 0.1);
   color: #ffb19f;
 }
@@ -3488,19 +3482,12 @@ a.service-row {
   letter-spacing: -0.8px;
 }
 
-/* B556: владелец увидел у «Закрыть» жёлтую окружность. Это не рамка кнопки, а
-   глобальное кольцо фокуса: base-ui уводит шторку в портал на `body`, наружу
-   `.stage`, поэтому мини-аппный `:focus-visible` до неё не доставал и работал
-   `@layer base { * { outline-ring/50 } }` с `--focus-ring: var(--brand-soft-gold)`.
-   Диалог сам ставит фокус на первый элемент при открытии — кольцо появлялось
-   сразу. Правило ниже вне слоя, поэтому перебивает базовый слой; сама кнопка
-   стала мягким квадратом со скруглением, как остальная система. */
+/* B614: portal content follows the same borderless interaction contract. */
 .bottom-sheet button:focus-visible,
 .bottom-sheet a:focus-visible,
 .bottom-sheet input:focus-visible,
 .bottom-sheet textarea:focus-visible {
-  outline: 2px solid #ffd4ca;
-  outline-offset: 3px;
+  outline: 0;
 }
 
 .sheet-close {
@@ -4139,7 +4126,7 @@ a.service-row {
 }
 
 .journey-field textarea::placeholder { color: var(--muted); }
-.journey-field textarea:focus { border-color: rgba(255, 128, 105, .65); box-shadow: 0 0 0 3px rgba(255, 101, 72, .08); }
+.journey-field textarea:focus { background: var(--surface-raised); box-shadow: none; }
 .journey-field > small { margin: -25px 12px 10px auto; position: relative; color: var(--muted); font-size: 11px; }
 
 .compact-tabs,
@@ -4173,7 +4160,7 @@ a.service-row {
 .account-switch button.is-active {
   color: var(--text);
   background: #142235;
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: none;
 }
 
 .practitioner-list,
@@ -4267,7 +4254,7 @@ a.service-row {
 }
 
 .calendar-day.is-today {
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: none;
 }
 
 .calendar-day.is-selected {
@@ -4295,7 +4282,7 @@ a.service-row {
 }
 
 .slot-chips button.is-selected {
-  border-color: var(--coral);
+  border-color: transparent;
   background: var(--coral);
   color: #fff;
   font-weight: 600;
@@ -4557,7 +4544,7 @@ a.service-row {
 .slot-list button strong { font-size: 13px; text-transform: capitalize; }
 .slot-list button small { color: var(--muted); font-size: 12px; }
 .slot-list button > svg:last-child { opacity: 0; color: var(--lime); }
-.slot-list button.is-selected { border-color: rgba(190, 217, 90, .55); background: rgba(190, 217, 90, .08); }
+.slot-list button.is-selected { background: rgba(190, 217, 90, .08); }
 .slot-list button.is-selected > svg:last-child { opacity: 1; }
 
 .empty-detail {
@@ -4639,7 +4626,7 @@ a.service-row {
   font-size: 14px;
 }
 
-.account-form input:not([type="checkbox"]):focus { border-color: rgba(255, 128, 105, .65); box-shadow: 0 0 0 3px rgba(255, 101, 72, .08); }
+.account-form input:not([type="checkbox"]):focus { background: var(--surface-raised); box-shadow: none; }
 .consents { display: grid; gap: 8px; padding: 3px 0; }
 .consents label { min-height: 44px; display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; color: var(--muted); font-size: 12px; line-height: 1.35; cursor: pointer; }
 .consents input { width: 16px; height: 16px; accent-color: var(--coral); }
@@ -5141,7 +5128,7 @@ a.service-row {
 .product-action-boundary :global(.product-option-choice-active),
 .product-action-boundary :global(.option-choice-active),
 .product-action-boundary :global([aria-pressed="true"]) {
-  border-color: rgba(255, 128, 105, .52) !important;
+  border-color: transparent !important;
   color: #ffd1c7 !important;
   background: rgba(255, 101, 72, .12) !important;
 }
@@ -5224,8 +5211,8 @@ a.service-row {
 .product-action-boundary :global(.miniapp-practice-week > div > span) { display: grid; justify-items: center; gap: 4px; }
 .product-action-boundary :global(.miniapp-practice-week small) { color: var(--muted); font-size: 11px; text-transform: uppercase; }
 .product-action-boundary :global(.miniapp-practice-week b) { width: 100%; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; color: var(--muted-strong); background: #0b1827; font-size: 12px; }
-.product-action-boundary :global(.miniapp-practice-week [data-state="done"] b) { border-color: var(--coral); color: #11141a; background: var(--coral); }
-.product-action-boundary :global(.miniapp-practice-week [data-state="today"] b) { border-color: var(--coral); color: #ffd1c7; background: var(--coral-soft); }
+.product-action-boundary :global(.miniapp-practice-week [data-state="done"] b) { border-color: transparent; color: #11141a; background: var(--coral); }
+.product-action-boundary :global(.miniapp-practice-week [data-state="today"] b) { border-color: transparent; color: #ffd1c7; background: var(--coral-soft); }
 .product-action-boundary :global(.miniapp-practice-week [data-state="future"]) { opacity: .45; }
 .product-action-boundary :global(.miniapp-practice-week footer) { margin-top: 10px; padding-top: 10px; display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .product-action-boundary :global(.miniapp-practice-week footer svg) { color: var(--lime); }
@@ -5331,8 +5318,8 @@ a.service-row {
 }
 
 .dialogue-surface :global(.soft-question-input:focus) {
-  border-color: rgba(255, 128, 105, .62) !important;
-  box-shadow: 0 0 0 3px rgba(255, 101, 72, .08);
+  background: var(--surface-raised);
+  box-shadow: none;
 }
 
 .dialogue-surface :global(.soft-ask-foot) {
@@ -5717,7 +5704,7 @@ a.service-row {
 }
 
 .library-topics button[aria-pressed="true"] {
-  border-color: rgba(255, 101, 72, .38);
+  border-color: transparent;
   color: #ffd1c7;
   background: var(--coral-soft);
 }

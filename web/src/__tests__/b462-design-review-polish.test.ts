@@ -13,7 +13,7 @@ import path from "node:path";
 //   2. Chat-analysis upload affordances grid stacks on mobile (MEDIUM)
 //   4. Client billing no longer renders a blank viewport while the session loads
 //   5. Practitioner earnings table collapses to cards < 640px (wallet is already a list)
-//   6. Product order-surface gets a visible terracotta focus-within ring (a11y + polish)
+//   6. Product order-surface does not grow an interaction frame
 //   7. Diary + bookings empty states sit on the soft Dialogue-Halo background
 //   3. Natal/HD birth inputs are single textareas (resolved by B450) — regression guard
 
@@ -82,22 +82,12 @@ describe("B462 — deep design-review polish batch", () => {
     });
   });
 
-  describe("§4.2 product order-surface keeps neutral chrome on focus", () => {
+  describe("§4.2 product order-surface never grows a focus frame", () => {
     const css = source("app/v4-soft.css");
 
-    it("keeps the tarot/natal/HD order surface from looking like a validation error", () => {
-      expect(css).toMatch(/\.product-order-surface:focus-within\s*\{/);
-      const block = css.slice(css.indexOf(".product-order-surface:focus-within"));
-      expect(block.slice(0, 220)).not.toContain("--soft-terracotta");
-      expect(block.slice(0, 220)).toContain("--soft-paper-edge");
-      expect(block.slice(0, 220)).toContain("--soft-shadow-sm");
-    });
-
-    it("keeps the neutral focus handling viewport-unconditional (not behind a min-width media)", () => {
-      // Regression guard: the surface's base styles live inside min-width:768 /
-      // max-width:760 media blocks. The focus-within override must sit BEFORE
-      // the first @media so mobile product forms do not get the old red tint.
-      expect(css.indexOf(".product-order-surface:focus-within")).toBeLessThan(css.indexOf("@media"));
+    it("has no card-level focus-within border or shadow", () => {
+      expect(css).not.toMatch(/\.product-order-surface:focus-within\s*\{/);
+      expect(css).not.toMatch(/\.chat-analysis-result-shell:focus-within\s*\{/);
     });
   });
 

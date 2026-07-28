@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { AIProvider, Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
@@ -8,9 +8,11 @@ import {
 } from "@/lib/marketing/agent-prompt";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import {
+  marketingModelFreshness,
   marketingProviderFromLabel,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
+import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 
 type WriterOutput = {
   title: string;
@@ -18,6 +20,9 @@ type WriterOutput = {
   audienceNeed: string;
   goal: string;
   disclosure: string;
+  cta: string;
+  mediaBrief: string;
+  researchUsed: string[];
   safetyFlags: string[];
 };
 
@@ -25,11 +30,28 @@ type ReviewerOutput = {
   decision: "APPROVE" | "REVISE" | "REJECT";
   scores: Record<string, number>;
   issues: string[];
+  revisionBrief: string[];
   revisedText: string;
   summary: string;
 };
 
+type AICompletion = Awaited<ReturnType<typeof aiComplete>>;
+type StructuredCompletion<T> = { response: AICompletion; value: T };
+
 const LOOP_LIMIT = 3;
+const EDITORIAL_ROUND_LIMIT = 3;
+const REVIEW_SCORE_KEYS = [
+  "relevance",
+  "value",
+  "authenticity",
+  "safety",
+  "platformFit",
+  "completeness",
+  "language",
+  "cta",
+  "visual",
+  "antiSlop",
+] as const;
 
 function jsonObject<T>(raw: string): T {
   const unfenced = raw.trim()
@@ -91,9 +113,82 @@ function writerObject(raw: string, fallbackTitle: string): WriterOutput {
       audienceNeed: jsonStringField(raw, "audienceNeed") || "саморефлексия",
       goal: jsonStringField(raw, "goal") || "полезный отклик аудитории",
       disclosure: jsonStringField(raw, "disclosure") || "",
+      cta: jsonStringField(raw, "cta") || "",
+      mediaBrief: jsonStringField(raw, "mediaBrief") || "",
+      researchUsed: [],
       safetyFlags: [],
     };
   }
+}
+
+function reviewerObject(raw: string): ReviewerOutput {
+  const value = jsonObject<ReviewerOutput>(raw);
+  if (!["APPROVE", "REVISE", "REJECT"].includes(value.decision)) {
+    throw new Error("reviewer returned an unknown decision");
+  }
+  if (!value.scores || typeof value.scores !== "object") {
+    throw new Error("reviewer omitted scorecard");
+  }
+  for (const key of REVIEW_SCORE_KEYS) {
+    const score = Number(value.scores[key]);
+    if (!Number.isFinite(score) || score < 0 || score > 5) {
+      throw new Error(`reviewer score ${key} is missing or outside 0..5`);
+    }
+  }
+  if (!Array.isArray(value.issues) || !Array.isArray(value.revisionBrief)) {
+    throw new Error("reviewer omitted issues or revision brief");
+  }
+  if (value.revisedText?.trim()) {
+    throw new Error("reviewer must not rewrite the writer's text");
+  }
+  return {
+    ...value,
+    issues: value.issues.map(String).filter(Boolean),
+    revisionBrief: value.revisionBrief.map(String).filter(Boolean),
+    revisedText: "",
+    summary: String(value.summary ?? ""),
+  };
+}
+
+function assertFreshMarketingModel(model: string) {
+  const freshness = marketingModelFreshness(model);
+  if (!freshness.eligible) {
+    throw new Error(`model ${model} is ineligible: ${freshness.reason}`);
+  }
+}
+
+function assertPublishableDraft(input: {
+  draft: WriterOutput;
+  isComment: boolean;
+  destinationUrl: string | null;
+  platform: string;
+}) {
+  const text = input.draft.text?.trim() ?? "";
+  if (!text || (input.draft.safetyFlags?.length ?? 0) > 0) {
+    throw new Error(`writer safety block: ${(input.draft.safetyFlags ?? []).join(", ") || "empty text"}`);
+  }
+  if (input.isComment) return;
+  if (!input.destinationUrl || !text.includes(input.destinationUrl)) {
+    throw new Error("owned publication omitted the exact destination URL");
+  }
+  if (!input.draft.cta?.trim()) {
+    throw new Error("owned publication omitted CTA metadata");
+  }
+  if (input.platform === "telegram" && text.length > 1_000) {
+    throw new Error("Telegram publication exceeds the 1000-character media caption budget");
+  }
+  if (input.platform === "threads" && text.length > 480) {
+    throw new Error("Threads publication exceeds the 480-character editorial budget");
+  }
+  if (["telegram", "instagram", "dzen"].includes(input.platform) && !input.draft.mediaBrief?.trim()) {
+    throw new Error(`${input.platform} publication omitted the required media brief`);
+  }
+}
+
+function approvedByScorecard(review: ReviewerOutput) {
+  return review.decision === "APPROVE"
+    && review.issues.length === 0
+    && REVIEW_SCORE_KEYS.every((key) => Number(review.scores[key]) >= 4);
 }
 
 async function completeWithValidStructure<T>(input: {
@@ -117,6 +212,7 @@ async function completeWithValidStructure<T>(input: {
         requestId: `${input.requestId}:${provider.toLowerCase()}`,
         messages: input.messages,
       });
+      assertFreshMarketingModel(response.model);
       try {
         return { response, value: input.parse(response.text) };
       } catch (error) {
@@ -136,7 +232,7 @@ async function completeWithValidStructure<T>(input: {
 
 function safePlatform(value: string) {
   const normalized = value.trim().toLowerCase();
-  return ["vk", "telegram", "reddit", "threads", "instagram"].includes(normalized)
+  return ["vk", "telegram", "reddit", "threads", "instagram", "dzen"].includes(normalized)
     ? normalized
     : "other";
 }
@@ -201,6 +297,7 @@ export async function processMarketingDraft(publicationId: string) {
     platform,
     title: publication.title,
     topic: publication.cluster ?? publication.targetQuery ?? "саморефлексия",
+    editorialBrief: publication.notes,
     destinationUrl: isComment ? null : publication.destinationUrl,
     publicPost: isComment ? {
       text: publication.engagementExcerpt,
@@ -214,62 +311,119 @@ export async function processMarketingDraft(publicationId: string) {
 
   try {
     const cycleSeed = `${publication.id}:${publication.attemptCount + 1}`;
-    const writerResult = await completeWithValidStructure({
-      feature: "marketing-agent-writer",
-      providerOrder: marketingProviderOrder(`writer:${cycleSeed}`),
-      maxTokens: 1_500,
-      temperature: 0.55,
-      requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}`,
-      messages: [
-        { role: "system", content: MARKETING_AGENT_SYSTEM_PROMPT },
-        { role: "user", content: JSON.stringify(task) },
-      ],
-      parse: (raw) => writerObject(raw, publication.title),
-    });
-    const writer = writerResult.response;
-    const draft = writerResult.value;
-    if (!draft.text?.trim() || (draft.safetyFlags?.length ?? 0) > 0) {
-      throw new Error(`writer safety block: ${(draft.safetyFlags ?? []).join(", ") || "empty text"}`);
+    const research = await buildMarketingResearchBrief(publication);
+    const iterationHistory: Array<{
+      round: number;
+      writer: { provider: string; model: string };
+      candidate: WriterOutput;
+      reviewer: { provider: string; model: string };
+      review: ReviewerOutput;
+    }> = [];
+    let approvedDraft: WriterOutput | null = null;
+    let lastWriter: Awaited<ReturnType<typeof aiComplete>> | null = null;
+    let lastReviewer: Awaited<ReturnType<typeof aiComplete>> | null = null;
+    let previousDraft: WriterOutput | null = null;
+    let previousReview: ReviewerOutput | null = null;
+
+    for (let round = 1; round <= EDITORIAL_ROUND_LIMIT; round += 1) {
+      const pinnedWriterProvider: AIProvider | null = lastWriter
+        ? marketingProviderFromLabel(lastWriter.provider)
+        : null;
+      const writerPrompt: Record<string, unknown> = previousDraft && previousReview
+        ? {
+          task,
+          research,
+          editorialRound: round,
+          previousCandidate: previousDraft,
+          editorIssues: previousReview.issues,
+          revisionBrief: previousReview.revisionBrief,
+          instruction: "Исправь все замечания редактора и верни полностью готовую новую версию в обязательном JSON-формате.",
+        }
+        : { task, research, editorialRound: round };
+      const writerResult: StructuredCompletion<WriterOutput> = await completeWithValidStructure({
+        feature: "marketing-agent-writer",
+        providerOrder: pinnedWriterProvider
+          ? [pinnedWriterProvider]
+          : marketingProviderOrder(`writer:${cycleSeed}`),
+        maxTokens: 2_200,
+        temperature: 0.45,
+        requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
+        messages: [
+          { role: "system", content: MARKETING_AGENT_SYSTEM_PROMPT },
+          { role: "user", content: JSON.stringify(writerPrompt) },
+        ],
+        parse: (raw) => writerObject(raw, publication.title),
+      });
+      const writer: AICompletion = writerResult.response;
+      const draft: WriterOutput = writerResult.value;
+      assertPublishableDraft({
+        draft,
+        isComment,
+        destinationUrl: publication.destinationUrl,
+        platform,
+      });
+
+      const writerProvider = marketingProviderFromLabel(writer.provider);
+      const reviewerProviderOrder = marketingProviderOrder(
+        `reviewer:${cycleSeed}`,
+        writerProvider && writerProvider !== "OPENROUTER" ? [writerProvider] : [],
+      );
+      const reviewerResult = await completeWithValidStructure({
+        feature: "marketing-agent-reviewer",
+        providerOrder: reviewerProviderOrder,
+        maxTokens: 1_600,
+        temperature: 0.05,
+        requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
+        messages: [
+          { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
+          { role: "user", content: JSON.stringify({ task, research, editorialRound: round, candidate: draft }) },
+        ],
+        parse: reviewerObject,
+      });
+      const reviewer = reviewerResult.response;
+      if (writer.provider === reviewer.provider && writer.model === reviewer.model) {
+        throw new Error("writer and reviewer resolved to the same model; configure separate model policies");
+      }
+      const review = reviewerResult.value;
+      iterationHistory.push({
+        round,
+        writer: { provider: writer.provider, model: writer.model },
+        candidate: draft,
+        reviewer: { provider: reviewer.provider, model: reviewer.model },
+        review,
+      });
+      lastWriter = writer;
+      lastReviewer = reviewer;
+
+      if (approvedByScorecard(review)) {
+        approvedDraft = draft;
+        break;
+      }
+      if (review.decision === "REJECT") break;
+      previousDraft = draft;
+      previousReview = review.decision === "APPROVE"
+        ? {
+          ...review,
+          decision: "REVISE",
+          issues: ["Формальная оценка ниже 4 — материал не может быть утверждён."],
+          revisionBrief: ["Исправить параметры, получившие оценку ниже 4, и вернуть полный новый материал."],
+        }
+        : review;
     }
 
-    const writerProvider = marketingProviderFromLabel(writer.provider);
-    const reviewerResult = await completeWithValidStructure({
-      feature: "marketing-agent-reviewer",
-      providerOrder: marketingProviderOrder(
-        `reviewer:${cycleSeed}`,
-        writerProvider ? [writerProvider] : [],
-      ),
-      maxTokens: 1_200,
-      temperature: 0.1,
-      requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}`,
-      messages: [
-        { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
-        { role: "user", content: JSON.stringify({ task, candidate: draft }) },
-      ],
-      parse: jsonObject<ReviewerOutput>,
-    });
-    const reviewer = reviewerResult.response;
-    if (writer.provider === reviewer.provider && writer.model === reviewer.model) {
-      throw new Error("writer and reviewer resolved to the same model; configure separate model policies");
-    }
-    const review = reviewerResult.value;
-    const approvedText = review.decision === "APPROVE"
-      ? draft.text.trim()
-      : review.decision === "REVISE"
-        ? review.revisedText?.trim()
-        : "";
-    if (!approvedText) {
+    if (!approvedDraft || !lastWriter || !lastReviewer) {
+      const lastReview = iterationHistory.at(-1)?.review;
       await db.externalPublication.update({
         where: { id: publication.id },
         data: {
           status: "FAILED",
-          lastError: review.summary || "Independent reviewer rejected the draft",
+          lastError: lastReview?.summary || "Independent reviewer did not approve the draft in three rounds",
           attemptCount: { increment: 1 },
-          agentWriterProvider: writer.provider,
-          agentWriterModel: writer.model,
-          agentReviewerProvider: reviewer.provider,
-          agentReviewerModel: reviewer.model,
-          agentReview: review as unknown as Prisma.InputJsonValue,
+          agentWriterProvider: lastWriter?.provider,
+          agentWriterModel: lastWriter?.model,
+          agentReviewerProvider: lastReviewer?.provider,
+          agentReviewerModel: lastReviewer?.model,
+          agentReview: { research, iterations: iterationHistory } as unknown as Prisma.InputJsonValue,
           agentReviewedAt: new Date(),
         },
       });
@@ -280,17 +434,20 @@ export async function processMarketingDraft(publicationId: string) {
     const updated = await db.externalPublication.update({
       where: { id: publication.id },
       data: {
-        title: draft.title?.trim() || publication.title,
-        body: approvedText,
+        title: approvedDraft.title?.trim() || publication.title,
+        body: approvedDraft.text.trim(),
+        mediaUrl: isComment
+          ? null
+          : `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`,
         status: nextStatus,
         autoPublish: !isComment,
         attemptCount: { increment: 1 },
         lastError: null,
-        agentWriterProvider: writer.provider,
-        agentWriterModel: writer.model,
-        agentReviewerProvider: reviewer.provider,
-        agentReviewerModel: reviewer.model,
-        agentReview: review as unknown as Prisma.InputJsonValue,
+        agentWriterProvider: lastWriter.provider,
+        agentWriterModel: lastWriter.model,
+        agentReviewerProvider: lastReviewer.provider,
+        agentReviewerModel: lastReviewer.model,
+        agentReview: { research, iterations: iterationHistory } as unknown as Prisma.InputJsonValue,
         agentReviewedAt: new Date(),
       },
     });

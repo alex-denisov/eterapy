@@ -35,7 +35,7 @@ const DETAILS_MIN = 10;
 const DETAILS_MAX = 1000;
 
 const FIELD_CLASS =
-  "mt-1 w-full rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] transition-colors focus:border-[var(--soft-bordeaux)] focus:outline-none focus:ring-2 focus:ring-[var(--soft-bordeaux)]/20";
+  "mt-1 w-full rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] transition-colors focus:bg-white focus:outline-none";
 
 export function ComplaintForm() {
   const [open, setOpen] = useState(false);

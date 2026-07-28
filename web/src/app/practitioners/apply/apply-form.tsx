@@ -167,7 +167,7 @@ export function ApplyForm() {
               <div className="flex items-center gap-2 shrink-0">
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   done ? "bg-[var(--soft-terracotta-dark)] text-[#fbf0e1]" :
-                  active ? "border border-[var(--soft-terracotta-dark)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]" :
+                  active ? "bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]" :
                   "bg-[var(--soft-paper-card)] text-[var(--soft-ink-faint)]"
                 }`}>
                   {done ? <Check className="size-3.5" aria-hidden="true" /> : n}

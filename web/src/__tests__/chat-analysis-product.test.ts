@@ -392,7 +392,7 @@ describe("B087/B088 chat analysis product", () => {
 
   it("B490 renders the source as a messenger transcript with toggle label and no shell focus tint", async () => {
     const css = source("src/app/v4-soft.css");
-    expect(css).toContain(".chat-analysis-result-shell:focus-within");
+    expect(css).not.toContain(".chat-analysis-result-shell:focus-within");
     expect(css).toContain("box-shadow: var(--soft-shadow-sm)");
 
     const originalFetch = global.fetch;

@@ -106,8 +106,9 @@ export function PricingPlans() {
                   padding: "1.75rem",
                   display: "flex",
                   flexDirection: "column",
-                  outline: plan.featured ? "2px solid var(--soft-terracotta-dark, #b85b40)" : "none",
-                  outlineOffset: "0",
+                  background: plan.featured
+                    ? "color-mix(in srgb, var(--soft-terracotta) 6%, var(--soft-paper-card))"
+                    : undefined,
                   color: plan.dark ? "#fbf0e1" : "var(--soft-ink)",
                   ...plan.style,
                 }}

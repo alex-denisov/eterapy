@@ -180,7 +180,10 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
             ...geminiMessages,
             generationConfig: {
               maxOutputTokens: request.maxTokens,
-              temperature: request.temperature,
+              // Gemini 3.5/3.6 deprecated sampling controls and rejects them
+              // with HTTP 400. Keep temperature only for older compatible
+              // models; marketing is pinned to the current 3.x family.
+              ...(!/^gemini-3\.[56]-/.test(model) ? { temperature: request.temperature } : {}),
               // INC-024: gemini-2.5* are *thinking* models and thinking tokens count
               // toward maxOutputTokens — they were eating the budget and truncating
               // structured-JSON answers (chat-analysis разбор was cut off mid-JSON →

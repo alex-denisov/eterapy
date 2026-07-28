@@ -101,10 +101,9 @@ export function SupportHelpCenter({
           </>
         ) : null}
 
-        {/* Calm focus lives on the wrapper (:focus-within), the global
-            terracotta :focus-visible outline is suppressed on the input. */}
+        {/* B614: focus remains borderless; the wrapper only changes fill. */}
         <form
-          className="mt-4 flex items-center gap-1 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] pl-4 pr-1.5 transition-[border-color,box-shadow] focus-within:border-[var(--soft-bordeaux)]/40 focus-within:shadow-[0_0_0_3px_rgba(92,42,44,0.08)]"
+          className="mt-4 flex items-center gap-1 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] pl-4 pr-1.5 transition-colors focus-within:bg-white"
           onSubmit={(e) => { e.preventDefault(); setQuery((q) => q.trim()); }}
         >
           <input

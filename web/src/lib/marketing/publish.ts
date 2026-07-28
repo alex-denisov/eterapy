@@ -13,6 +13,12 @@ import { callTelegramApi } from "@/lib/telegram";
 import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import {
+  browserFallbackConfigured,
+  publishRedditCommentBrowser,
+  publishToDzenBrowser,
+  publishToRedditBrowser,
+} from "@/lib/marketing/browser-publisher";
+import {
   marketingPlatformEnabled,
   marketingPlatformValue,
   requiredMarketingPlatformValue,
@@ -20,6 +26,7 @@ import {
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
+const META_GRAPH_VERSION = "v25.0";
 
 export function marketingAutopublishEnabled(
   env: Partial<NodeJS.ProcessEnv> = process.env,
@@ -46,14 +53,89 @@ export type PublicationAdapter = (
   },
 ) => Promise<PublishedPost>;
 
-async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram") {
+async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen") {
   if (!await marketingPlatformEnabled(platform)) {
     throw new Error(`${platform} connector is disabled`);
   }
 }
 
+async function vkWallPhotoAttachment(input: {
+  token: string;
+  communityId: string;
+  mediaUrl: string;
+}) {
+  const source = await fetch(input.mediaUrl, {
+    signal: AbortSignal.timeout(15_000),
+    headers: { Accept: "image/*" },
+  });
+  const contentType = source.headers.get("content-type") ?? "";
+  if (!source.ok || !contentType.startsWith("image/")) {
+    throw new Error(`VK media download failed: HTTP ${source.status}`);
+  }
+  const bytes = await source.arrayBuffer();
+  if (bytes.byteLength > 15 * 1024 * 1024) {
+    throw new Error("VK media exceeds the 15 MB upload limit");
+  }
+
+  const serverResponse = await fetch("https://api.vk.com/method/photos.getWallUploadServer", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      access_token: input.token,
+      v: VK_API_VERSION,
+      group_id: input.communityId,
+    }),
+  });
+  const serverPayload = await serverResponse.json().catch(() => null) as {
+    response?: { upload_url?: string };
+    error?: { error_msg?: string };
+  } | null;
+  const uploadUrl = serverPayload?.response?.upload_url;
+  if (!serverResponse.ok || !uploadUrl) {
+    throw new Error(`VK photos.getWallUploadServer failed: ${serverPayload?.error?.error_msg ?? `HTTP ${serverResponse.status}`}`);
+  }
+
+  const form = new FormData();
+  form.set("photo", new Blob([bytes], { type: contentType }), "eterapy-publication.png");
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(30_000),
+  });
+  const uploadPayload = await uploadResponse.json().catch(() => null) as {
+    server?: number;
+    photo?: string;
+    hash?: string;
+  } | null;
+  if (!uploadResponse.ok || !uploadPayload?.server || !uploadPayload.photo || !uploadPayload.hash) {
+    throw new Error(`VK photo upload failed: HTTP ${uploadResponse.status}`);
+  }
+
+  const saveResponse = await fetch("https://api.vk.com/method/photos.saveWallPhoto", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      access_token: input.token,
+      v: VK_API_VERSION,
+      group_id: input.communityId,
+      server: String(uploadPayload.server),
+      photo: uploadPayload.photo,
+      hash: uploadPayload.hash,
+    }),
+  });
+  const savePayload = await saveResponse.json().catch(() => null) as {
+    response?: Array<{ owner_id?: number; id?: number; access_key?: string }>;
+    error?: { error_msg?: string };
+  } | null;
+  const photo = savePayload?.response?.[0];
+  if (!saveResponse.ok || !photo?.owner_id || !photo.id) {
+    throw new Error(`VK photos.saveWallPhoto failed: ${savePayload?.error?.error_msg ?? `HTTP ${saveResponse.status}`}`);
+  }
+  return `photo${photo.owner_id}_${photo.id}${photo.access_key ? `_${photo.access_key}` : ""}`;
+}
+
 export async function publishToVk(
-  publication: { body: string },
+  publication: { body: string; mediaUrl?: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("VK");
   const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
@@ -62,6 +144,9 @@ export async function publishToVk(
     throw new Error("VK_COMMUNITY_ID must be numeric");
   }
 
+  const attachment = publication.mediaUrl
+    ? await vkWallPhotoAttachment({ token, communityId, mediaUrl: publication.mediaUrl })
+    : null;
   const response = await fetch("https://api.vk.com/method/wall.post", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -71,6 +156,7 @@ export async function publishToVk(
       owner_id: `-${communityId}`,
       from_group: "1",
       message: publication.body,
+      ...(attachment ? { attachments: attachment } : {}),
     }),
   });
   const payload = await response.json().catch(() => null) as {
@@ -91,21 +177,31 @@ export async function publishToVk(
 }
 
 export async function publishToTelegram(
-  publication: { body: string },
+  publication: { body: string; mediaUrl?: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Telegram");
   const channelId = await requiredMarketingPlatformValue("TELEGRAM_CHANNEL_ID");
+  if (publication.mediaUrl && publication.body.length > 1_024) {
+    throw new Error("Telegram media caption exceeds 1024 characters");
+  }
   const response = await callTelegramApi<{
     message_id?: number;
     chat?: { username?: string };
-  }>("sendMessage", {
-    chat_id: channelId,
-    text: publication.body,
-    disable_web_page_preview: false,
-  });
+  }>(publication.mediaUrl ? "sendPhoto" : "sendMessage", publication.mediaUrl
+    ? {
+      chat_id: channelId,
+      photo: publication.mediaUrl,
+      caption: publication.body,
+      show_caption_above_media: false,
+    }
+    : {
+      chat_id: channelId,
+      text: publication.body,
+      disable_web_page_preview: false,
+    });
   const messageId = response.result?.message_id;
   if (!response.ok || !messageId) {
-    throw new Error(`Telegram sendMessage failed: ${response.description ?? "unknown error"}`);
+    throw new Error(`Telegram ${publication.mediaUrl ? "sendPhoto" : "sendMessage"} failed: ${response.description ?? "unknown error"}`);
   }
 
   const username = response.result?.chat?.username ?? channelId.replace(/^@/, "");
@@ -117,7 +213,7 @@ export async function publishToTelegram(
   };
 }
 
-export async function publishRedditComment(
+async function publishRedditCommentApi(
   publication: { body: string; engagementTargetId: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Reddit");
@@ -150,6 +246,34 @@ export async function publishRedditComment(
     externalPostId: data.id,
     publicUrl: data.permalink ? `https://www.reddit.com${data.permalink}` : "https://www.reddit.com",
   };
+}
+
+export async function publishRedditComment(
+  publication: {
+    title?: string;
+    body: string;
+    mediaUrl?: string | null;
+    engagementTargetId: string | null;
+    engagementTargetUrl?: string | null;
+  },
+): Promise<PublishedPost> {
+  try {
+    return await publishRedditCommentApi(publication);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      await browserFallbackConfigured("Reddit")
+      && /OAuth|not configured|HTTP 401|HTTP 403|unauthorized|forbidden/i.test(message)
+    ) {
+      return publishRedditCommentBrowser({
+        title: publication.title ?? "ETerapy",
+        body: publication.body,
+        mediaUrl: publication.mediaUrl ?? null,
+        engagementTargetUrl: publication.engagementTargetUrl ?? null,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function publishVkComment(
@@ -225,7 +349,7 @@ export async function publishThreadsReply(
 }
 
 export async function publishToThreads(
-  publication: { body: string },
+  publication: { body: string; mediaUrl?: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
@@ -235,8 +359,9 @@ export async function publishToThreads(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       access_token: token,
-      media_type: "TEXT",
+      media_type: publication.mediaUrl ? "IMAGE" : "TEXT",
       text: publication.body,
+      ...(publication.mediaUrl ? { image_url: publication.mediaUrl } : {}),
     }),
   });
   const created = await create.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -258,7 +383,7 @@ export async function publishToThreads(
   };
 }
 
-export async function publishToReddit(
+async function publishToRedditApi(
   publication: { title: string; body: string },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Reddit");
@@ -299,6 +424,34 @@ export async function publishToReddit(
   };
 }
 
+export async function publishToReddit(
+  publication: { title: string; body: string; mediaUrl?: string | null },
+): Promise<PublishedPost> {
+  try {
+    return await publishToRedditApi(publication);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      await browserFallbackConfigured("Reddit")
+      && /OAuth|not configured|HTTP 401|HTTP 403|unauthorized|forbidden/i.test(message)
+    ) {
+      return publishToRedditBrowser({
+        title: publication.title,
+        body: publication.body,
+        mediaUrl: publication.mediaUrl ?? null,
+      });
+    }
+    throw error;
+  }
+}
+
+export async function publishToDzen(
+  publication: { title: string; body: string; mediaUrl: string | null },
+): Promise<PublishedPost> {
+  await ensurePlatformEnabled("Dzen");
+  return publishToDzenBrowser(publication);
+}
+
 export async function publishToInstagram(
   publication: { body: string; mediaUrl: string | null },
 ): Promise<PublishedPost> {
@@ -308,20 +461,21 @@ export async function publishToInstagram(
   if (!publication.mediaUrl || !/^https:\/\//i.test(publication.mediaUrl)) {
     throw new Error("Instagram requires a public HTTPS mediaUrl");
   }
-  const create = await fetch(`https://graph.facebook.com/v23.0/${encodeURIComponent(userId)}/media`, {
+  const create = await fetch(`https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       access_token: token,
       image_url: publication.mediaUrl,
       caption: publication.body,
+      is_ai_generated: "true",
     }),
   });
   const created = await create.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
   if (!create.ok || !created?.id) {
     throw new Error(`Instagram media creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`https://graph.facebook.com/v23.0/${encodeURIComponent(userId)}/media_publish`, {
+  const publish = await fetch(`https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media_publish`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
@@ -331,7 +485,7 @@ export async function publishToInstagram(
     throw new Error(`Instagram media publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
   }
   const permalinkResponse = await fetch(
-    `https://graph.facebook.com/v23.0/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
+    `https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
   );
   const permalink = await permalinkResponse.json().catch(() => null) as { permalink?: string } | null;
   return {
@@ -357,6 +511,7 @@ function adapterFor(
   if (normalized === "threads") return publishToThreads;
   if (normalized === "reddit") return publishToReddit;
   if (normalized === "instagram") return publishToInstagram;
+  if (normalized === "dzen") return publishToDzen;
   throw new Error(`Unsupported publication platform: ${publication.platform}`);
 }
 
@@ -410,6 +565,25 @@ export async function publishScheduledMarketing(input: {
         data: { status: "FAILED", lastError: error, attemptCount: { increment: 1 } },
       });
       outcomes.push({ id: publication.id, status: "failed", error });
+      continue;
+    }
+
+    const connectorPlatform = ({
+      vk: "VK",
+      reddit: "Reddit",
+      threads: "Threads",
+      instagram: "Instagram",
+      telegram: "Telegram",
+      dzen: "Dzen",
+    } as const)[publication.platform.toLowerCase() as "vk" | "reddit" | "threads" | "instagram" | "telegram" | "dzen"];
+    const normalizedPlatform = publication.platform.toLowerCase();
+    if (
+      connectorPlatform
+      && !input.adapters?.[normalizedPlatform]
+      && !await marketingPlatformEnabled(connectorPlatform)
+    ) {
+      // Keep the row scheduled. Saving and enabling connector settings makes
+      // the next worker tick pick it up without a deploy or a false incident.
       continue;
     }
 
