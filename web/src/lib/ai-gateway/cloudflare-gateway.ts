@@ -54,7 +54,7 @@ export function buildCloudflareGatewayUrl(input: {
   provider: CloudflareGatewayProvider;
 }): string {
   const providerPath = input.provider === "google-ai-studio"
-    ? "google-ai-studio/v1"
+    ? "google-ai-studio/v1beta"
     : input.provider === "cohere-compatibility"
       ? "cohere/compatibility/v1"
     : input.provider;
