@@ -86,7 +86,7 @@ describe("notification delivery jobs", () => {
     jest.clearAllMocks();
     mockEnqueueJob.mockResolvedValue({ id: "job-1" } as never);
     mockSendEmail.mockResolvedValue({ subject: "тема", html: "<p>тело</p>", delivered: true });
-    mockSendTelegram.mockResolvedValue(undefined);
+    mockSendTelegram.mockResolvedValue(null);
     (db.notification.create as jest.Mock).mockResolvedValue({});
     (db.notificationDispatch.create as jest.Mock).mockResolvedValue({});
   });

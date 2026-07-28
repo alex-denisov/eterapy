@@ -28,12 +28,14 @@ export type DraftRow = {
   title: string;
   body: string;
   destinationUrl: string | null;
+  scheduledFor: string | null;
   createdAt: string;
 };
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Черновик",
   SCHEDULED: "Утверждён",
+  PUBLISHING: "Публикуется",
   FAILED: "Ошибка",
 };
 
@@ -47,7 +49,7 @@ export function DraftQueue({ rows }: { rows: DraftRow[] }) {
       method: "POST",
     });
     if (response.ok) {
-      toast.success("Черновик утверждён. Наружу пока не уходит — адаптеры каналов в фазе 2.");
+      toast.success("Черновик утверждён. Он выйдет по расписанию, если автопубликация включена и канал настроен.");
       startTransition(() => router.refresh());
     } else {
       toast.error("Не удалось утвердить черновик");
@@ -55,7 +57,7 @@ export function DraftQueue({ rows }: { rows: DraftRow[] }) {
   }
 
   const columns: AdminCompactColumn[] = [
-    { key: "createdAt", label: "Создан", sortable: true, filterKind: "none" },
+    { key: "scheduledFor", label: "Плановая дата", sortable: true, filterKind: "date" },
     { key: "platform", label: "Канал", sortable: true, filterKind: "text" },
     { key: "cluster", label: "Кластер", sortable: true, filterKind: "text" },
     { key: "targetQuery", label: "Запрос", sortable: true, filterKind: "text" },
@@ -68,13 +70,13 @@ export function DraftQueue({ rows }: { rows: DraftRow[] }) {
   const tableRows: AdminCompactRow[] = rows.map((row) => ({
     id: row.id,
     cells: {
-      createdAt: {
+      scheduledFor: {
         value: new Intl.DateTimeFormat("ru-RU", {
-          day: "2-digit",
-          month: "2-digit",
+          dateStyle: "short",
+          timeStyle: "short",
           timeZone: "Europe/Moscow",
-        }).format(new Date(row.createdAt)),
-        sortValue: row.createdAt,
+        }).format(new Date(row.scheduledFor ?? row.createdAt)),
+        sortValue: row.scheduledFor ?? row.createdAt,
       },
       platform: { value: row.platform, sortValue: row.platform },
       cluster: { value: row.cluster ?? "—", sortValue: row.cluster ?? "" },

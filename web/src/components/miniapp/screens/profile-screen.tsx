@@ -63,7 +63,7 @@ function ProfileRow({ href, Icon: RowIcon, title, subtitle, meta }: {
 export function ProfileScreen() {
   const { data, viewerName, share } = useMiniAppV21();
   const viewer = data.viewer;
-  const bookingMeta = data.upcomingBookingLabel ? "1" : undefined;
+  const bookingMeta = data.loadError ? "—" : data.upcomingBookingLabel ? "1" : undefined;
 
   return (
     <MiniAppChrome data={data}>
@@ -83,7 +83,9 @@ export function ProfileScreen() {
 
         <section className={styles["plan-card"]} aria-label={viewer.authenticated ? "Текущий тариф" : "Сохранение разборов"}>
           <span className={styles["plan-icon"]}><CrownSimple size={21} weight="duotone" /></span>
-          {viewer.authenticated ? (
+          {viewer.authenticated && data.loadError ? (
+            <><div><small>ТЕКУЩИЙ ТАРИФ</small><strong>Не удалось загрузить</strong><p>Обновите экран. Мы не подставляем базовый тариф вместо неизвестного.</p></div><button type="button" onClick={() => window.location.reload()}>Повторить</button></>
+          ) : viewer.authenticated ? (
             <><div><small>ТЕКУЩИЙ ТАРИФ</small><strong>{viewer.plan}</strong><p>{viewer.planStatus}. Условия видны до любого изменения.</p></div><Link href="/miniapp/packages">Изменить <ArrowRight size={15} /></Link></>
           ) : (
             <><div><small>СОХРАНЯЙТЕ РЕЗУЛЬТАТЫ</small><strong>Создайте профиль</strong><p>Разборы появятся в Дневнике и будут доступны с сайта.</p></div><Link href="/miniapp/account?mode=register&intent=profile">Создать <ArrowRight size={15} /></Link></>
@@ -103,7 +105,7 @@ export function ProfileScreen() {
             <section className={styles["profile-section"]}>
               <p className={styles.eyebrow}>аккаунт и работа со специалистом</p>
               <div className={styles["profile-rows"]}>
-                {HUB_ROWS.map((row) => <ProfileRow key={row.href} {...row} meta={row.title === "Записи" ? bookingMeta : row.title === "Кошелёк" ? String(viewer.points) : row.meta} />)}
+                {HUB_ROWS.map((row) => <ProfileRow key={row.href} {...row} meta={row.title === "Записи" ? bookingMeta : row.title === "Кошелёк" ? (data.loadError ? "—" : String(viewer.points)) : row.meta} />)}
               </div>
             </section>
 

@@ -103,9 +103,20 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
               method,
               source,
               provider: tx.providerPaymentId ?? tx.provider,
-              receipt: tx.providerPaymentId
-                ? { kind: "link", href: `/api/admin/finance/receipt/${tx.id}`, icon: "download", external: true, title: "Скачать чек" }
-                : null,
+              receipt: tx.fiscalReceiptRef
+                ? {
+                    kind: "link",
+                    href: `/api/admin/finance/receipt/${tx.id}`,
+                    icon: "download",
+                    external: true,
+                    title: `Фискальный чек: ${tx.fiscalReceiptStatus ?? "статус не указан"}`,
+                  }
+                : {
+                    kind: "status",
+                    label: tx.fiscalReceiptStatus ?? "Не сверен",
+                    tone: tx.fiscalReceiptError ? "danger" : "warn",
+                    filterValue: `${tx.fiscalReceiptStatus ?? ""} ${tx.fiscalReceiptError ?? ""}`,
+                  },
             },
           };
         })}

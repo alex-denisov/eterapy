@@ -19,13 +19,17 @@ export async function GET(
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = [
-    "ETerapy · локальная карточка чека",
+    "ETerapy · карточка фискальной сверки",
     `Timestamp: ${formatDateTime(tx.createdAt)}`,
     `Клиент: ${tx.user.name} <${tx.user.email}>`,
     `Сумма: ${tx.amount / 100} ${tx.currency}`,
     `Статус: ${tx.status}`,
     `Провайдер: ${tx.provider}`,
     `Provider payment id: ${tx.providerPaymentId ?? "—"}`,
+    `Статус фискального чека: ${tx.fiscalReceiptStatus ?? "не сверен"}`,
+    `Фискальный идентификатор: ${tx.fiscalReceiptRef ?? "—"}`,
+    `Проверено: ${tx.fiscalReceiptCheckedAt ? formatDateTime(tx.fiscalReceiptCheckedAt) : "—"}`,
+    `Ошибка: ${tx.fiscalReceiptError ?? "—"}`,
     `Описание: ${tx.description ?? "—"}`,
   ].join("\n");
 

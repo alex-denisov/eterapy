@@ -10,6 +10,10 @@ import { CHAT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/chat-analysis-prompt";
 import { buildCompanionSystemPrompt } from "@/lib/companion-chat";
 import { DEEP_REPORT_SYSTEM_PROMPT } from "@/lib/deep-report-prompt";
 import { log, serializeError } from "@/lib/logger";
+import {
+  MARKETING_AGENT_SYSTEM_PROMPT,
+  MARKETING_REVIEWER_SYSTEM_PROMPT,
+} from "@/lib/marketing/agent-prompt";
 import { REFRAME_SYSTEM_PROMPT } from "@/lib/reframe-prompt";
 
 const MAX_PROMPT_LENGTH = 30_000;
@@ -17,7 +21,7 @@ const MAX_AUDIT_TEXT_LENGTH = 20_000;
 // B560: ревизию обязательно двигать вместе с текстом промта — на проде живёт
 // синхронизированная копия в `ai_prompt_configs`, и без нового номера правка в
 // коде до модели просто не доедет (строка не считается устаревшей).
-export const AI_PROMPT_DEFAULT_REVISION = "2026-07-21-clarifier-no-echo";
+export const AI_PROMPT_DEFAULT_REVISION = "2026-07-28-marketing-agent";
 
 export interface AIPromptConfigView {
   id: string;
@@ -254,6 +258,8 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
     restrictions: "все буквы, значения, суммы, коды и Арканы уже рассчитаны runtime: повтори видимую формулу, но не пересчитывай и не меняй её; не добавляй случайные карты. Пиши только по-русски, прямо и без автоматического утешения, коучинговых клише, `бережного исследования`, ответа `прислушайтесь к себе` и компенсирующих оговорок вроде `однако это не означает, что вы не сможете`, `не стоит расстраиваться` или `всё обязательно получится`. Неблагоприятную символику и цену теневого сценария называй прямо. Строго различай: расчётный факт, сообщённый пользователем факт, источниковую ономастическую версию и символическую гипотезу. Не выдумывай предков, семейные события, тайны, географию, архивы, проклятия или травмы. Не связывай фамилию с интеллектом, диагнозом, этничностью или моральными качествами; не называй финансовый потолок фактом и не обещай, что смена фамилии сама изменит доход, характер, брак или судьбу. При сравнении назови усиление, ослабление, то, что остаётся с человеком, цену перехода и главное противоречие каждого варианта.",
   }),
   "companion-chat": buildCompanionSystemPrompt("explore"),
+  "marketing-agent-writer": MARKETING_AGENT_SYSTEM_PROMPT,
+  "marketing-agent-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
   "session-compliance": promptSections({
     role: "ревьюер соблюдения правил ETerapy для сессий практиков; помогаешь модератору, но не принимаешь санкционное решение.",
     task: "оценить риск нарушения правил платформы по материалам сессии: границы компетенции, давление, небезопасные рекомендации, приватность, финансовые/медицинские/юридические обещания.",

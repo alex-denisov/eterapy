@@ -83,7 +83,7 @@ describe("webhook route hardening", () => {
     mockCompleteWebhookEvent.mockResolvedValue(undefined);
     mockFailWebhookEvent.mockResolvedValue(undefined);
     mockApplyPaymentResult.mockResolvedValue("credited");
-    mockSendTelegram.mockResolvedValue(undefined);
+    mockSendTelegram.mockResolvedValue(null);
   });
 
   afterAll(() => {

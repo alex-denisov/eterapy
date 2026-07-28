@@ -15,13 +15,15 @@ describe("INC-068 — выход по префетчу больше не руш�
   // куки. В логах прода это видно по маркеру `_rsc=` за секунды до того, как
   // клиента выбрасывало на экран входа.
   it("запрос с признаком предзагрузки не трогает куки", async () => {
-    for (const headers of [
-      { "next-router-prefetch": "1" },
-      { purpose: "prefetch" },
-      { "sec-purpose": "prefetch;prerender" },
-    ]) {
+    for (const [name, value] of [
+      ["next-router-prefetch", "1"],
+      ["purpose", "prefetch"],
+      ["sec-purpose", "prefetch;prerender"],
+    ] as const) {
       const response = await logoutGet(
-        new NextRequest("https://eterapy.com/api/auth/logout?callbackUrl=/miniapp", { headers }),
+        new NextRequest("https://eterapy.com/api/auth/logout?callbackUrl=/miniapp", {
+          headers: new Headers({ [name]: value }),
+        }),
       );
       expect(response.status).toBe(204);
       expect(response.headers.get("set-cookie")).toBeNull();

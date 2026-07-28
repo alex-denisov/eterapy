@@ -51,7 +51,7 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
       telegramLinked: false,
       telegramLinkAvailable: telegramMiniAppSsoEnabled(),
     },
-    dialogues: [], diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
+    dialogues: [], dialogueNextCursor: null, diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,
     upcomingBookingLabel: null, streak: 0, completedWeekdays: [],
     cardPaymentEnabled: cardPaymentAvailable(), loadError: false,
@@ -85,8 +85,8 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         select: { planKey: true, status: true, cancelAtPeriodEnd: true },
       }),
       db.dialogue.findMany({
-        where: { userId: viewer.id, deletedAt: null, status: { in: ["OPEN", "AWAITING_USER", "PROCESSING"] } },
-        orderBy: { updatedAt: "desc" }, take: 12,
+        where: { userId: viewer.id, deletedAt: null },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: 13,
         select: { id: true, title: true, topic: true, status: true, updatedAt: true, _count: { select: { messages: true } } },
       }),
       listDiaryItems(viewer.id),
@@ -140,12 +140,13 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
           ? subscription.cancelAtPeriodEnd ? "До конца периода" : getSubscriptionStatusLabel(subscription.status)
           : "Базовый доступ",
       },
-      dialogues: dialogues.map((item) => ({
+      dialogues: dialogues.slice(0, 12).map((item) => ({
         id: item.id, title: item.title,
         topic: dialogueTopicLabelRu(item.topic), status: dialogueStatusLabelRu(item.status),
         updated: relativeDate(item.updatedAt), messageCount: item._count.messages,
         href: `/miniapp/checkin?dialogueId=${encodeURIComponent(item.id)}`,
       })),
+      dialogueNextCursor: dialogues.length > 12 ? dialogues[11]?.id ?? null : null,
       diaryItems: diary.slice(0, 20).map((item) => ({
         id: `${item.kind}:${item.id}`, title: item.title, type: item.eyebrow,
         topic: item.topicLabel ?? item.topic ?? "Личное", date: relativeDate(item.updatedAt),

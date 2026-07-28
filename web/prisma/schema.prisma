@@ -1271,6 +1271,7 @@ model ExternalPublication {
   status           String                      @default("PLANNED")
   publicUrl        String?                     @unique @map("public_url")
   destinationUrl   String?                     @map("destination_url")
+  mediaUrl         String?                     @map("media_url")
   utmSource        String?                     @map("utm_source")
   utmMedium        String?                     @map("utm_medium")
   utmCampaign      String?                     @map("utm_campaign")
@@ -1299,6 +1300,21 @@ model ExternalPublication {
   externalPostId   String?                     @map("external_post_id")
   /// Слот контент-плана. Уникален: генератор не должен занимать слот дважды.
   planSlot         String?                     @unique @map("plan_slot")
+  /// B610: for an engagement draft, where and in reply to what it is intended.
+  /// The excerpt is deliberately short and is never sent to an LLM verbatim.
+  engagementTargetUrl String?                  @map("engagement_target_url")
+  engagementTargetId String?                   @map("engagement_target_id")
+  engagementTargetLabel String?                @map("engagement_target_label")
+  engagementExcerpt String?                    @db.Text @map("engagement_excerpt")
+  telegramReviewMessageId Int?                 @map("telegram_review_message_id")
+  agentWriterProvider String?                  @map("agent_writer_provider")
+  agentWriterModel String?                     @map("agent_writer_model")
+  agentReviewerProvider String?                @map("agent_reviewer_provider")
+  agentReviewerModel String?                   @map("agent_reviewer_model")
+  agentReview         Json?                    @map("agent_review")
+  agentReviewedAt     DateTime?                @map("agent_reviewed_at")
+  moderationDecisionBy String?                 @map("moderation_decision_by")
+  moderationDecisionAt DateTime?               @map("moderation_decision_at")
 
   @@index([status, scheduledFor])
   @@index([status, publishedAt])
@@ -1307,6 +1323,29 @@ model ExternalPublication {
   @@index([nextReviewAt])
   @@index([utmSource, utmCampaign])
   @@map("external_publications")
+}
+
+/// B610: durable SEO/marketing findings. Production does not write Markdown
+/// tracker files, so the service creates a database ticket first; the admin
+/// register and ops channel expose it for triage/export into the local board.
+model MarketingAutomationSignal {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  kind            String
+  severity        String
+  status          String   @default("OPEN")
+  title           String
+  summary         String   @db.Text
+  evidence        Json?
+  suggestedTicket String?  @map("suggested_ticket")
+  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([status, severity, lastSeenAt])
+  @@map("marketing_automation_signals")
 }
 
 model ExternalPublicationMetric {
@@ -2013,6 +2052,10 @@ model Transaction {
   termsVersion         String?           @map("terms_version")
   consentVersion       String?           @map("consent_version")
   metadata             Json?
+  fiscalReceiptStatus  String?           @map("fiscal_receipt_status")
+  fiscalReceiptRef     String?           @map("fiscal_receipt_ref")
+  fiscalReceiptCheckedAt DateTime?       @map("fiscal_receipt_checked_at")
+  fiscalReceiptError   String?           @map("fiscal_receipt_error")
   createdAt            DateTime          @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2346,6 +2389,8 @@ model IpLedgerEntry {
   createdById   String?  @map("created_by_id")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+  importKey     String?  @unique @map("import_key")
+  importSource  String?  @map("import_source")
 
   @@index([occurredAt])
   @@index([direction, occurredAt])

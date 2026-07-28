@@ -47,7 +47,21 @@ export function ManualLedger({ year }: { year: number }) {
     setEntries(data.entries as ApiEntry[]);
   }, [year]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/finance/ledger?year=${year}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data) throw new Error("Не удалось загрузить строки");
+        if (!cancelled) setEntries(data.entries as ApiEntry[]);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Не удалось загрузить строки");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
 
   const categories = useMemo(
     () => LEDGER_CATEGORIES.filter((category) => category.direction === direction),

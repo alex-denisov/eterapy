@@ -1,14 +1,13 @@
 /**
- * POST /api/video/recording  — начать запись сессии
- * DELETE /api/video/recording — остановить запись
- * GET /api/video/recording?bookingId=xxx — статус и URL записи
+ * POST /api/video/recording — включить временный audio-only поток для AI-конспекта
+ * DELETE /api/video/recording — остановить оставшийся legacy egress
+ * GET /api/video/recording?bookingId=xxx — состояние AI-конспекта
  */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { startRoomRecording, stopRecording } from "@/lib/livekit-egress";
+import { stopRecording } from "@/lib/livekit-egress";
 import {
-  recordServerSttConsent,
   ServerSttError,
   startServerSttForBooking,
 } from "@/lib/server-stt";
@@ -51,58 +50,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Only practitioner of this booking or admin can start recording
-  const booking = await db.booking.findUnique({
-    where: { id: bookingId },
-    include: { practitioner: { select: { userId: true } }, videoSession: true },
-  });
-  if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-
-  const isPractitioner = booking.practitioner.userId === session.user.id;
-  const isAdmin = ["ADMIN", "SUPERADMIN"].includes(role);
-  if (!isPractitioner && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  if (!booking.videoSession) return NextResponse.json({ error: "No active video session" }, { status: 404 });
-
-  const roomName = booking.videoSession.roomName;
-  const recording = await startRoomRecording(roomName, bookingId);
-  if (!recording) return NextResponse.json({ error: "Не удалось запустить запись. Egress сервер недоступен." }, { status: 503 });
-
-  // Store in DB
-  await db.videoSession.update({
-    where: { bookingId },
-    data: {
-      recordingUrl: recording.url,
-      recordingExpiry: recording.expiresAt,
-      recordingEgressId: recording.egressId,
-    },
-  });
-
-  return NextResponse.json({
-    ok: true,
-    egressId: recording.egressId,
-    url: recording.url,
-    expiresAt: recording.expiresAt,
-  });
-}
-
-export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { bookingId, consent } = await req.json();
-  if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
-  if (consent !== true) return NextResponse.json({ error: "recording consent required" }, { status: 400 });
-
-  try {
-    return NextResponse.json(await recordServerSttConsent({
-      bookingId,
-      actorUserId: session.user.id,
-      actorRole: session.user?.role,
-    }));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return NextResponse.json(
+    { error: "Полная видеозапись недоступна. Для конспекта используется только временное аудио." },
+    { status: 409 },
+  );
 }
 
 export async function DELETE(req: NextRequest) {
@@ -146,8 +97,6 @@ export async function GET(req: NextRequest) {
       recordingUrl: true,
       recordingExpiry: true,
       recordingEgressId: true,
-      recordingConsentClientAt: true,
-      recordingConsentPractitionerAt: true,
       serverSttStatus: true,
       serverSttJobId: true,
       serverSttAudioExpiresAt: true,
@@ -170,10 +119,6 @@ export async function GET(req: NextRequest) {
       audioExpiresAt: vs.serverSttAudioExpiresAt,
       transcriptExpiresAt: vs.transcriptExpiresAt,
       summaryExpiresAt: vs.summaryExpiresAt,
-      consent: {
-        client: Boolean(vs.recordingConsentClientAt),
-        practitioner: Boolean(vs.recordingConsentPractitionerAt),
-      },
     },
   });
 }

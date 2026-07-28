@@ -14,7 +14,11 @@ jest.mock("@/lib/db", () => ({
   },
 }));
 
-jest.mock("@/lib/file-storage", () => ({ storeFile: jest.fn() }));
+jest.mock("@/lib/file-storage", () => ({
+  FILE_STORAGE_ALLOWED_MIME: { DOCUMENT: ["application/pdf"] },
+  FILE_STORAGE_MAX_BYTES: { DOCUMENT: 20 * 1024 * 1024 },
+  storeFile: jest.fn(),
+}));
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockStoreFile = storeFile as jest.MockedFunction<typeof storeFile>;
@@ -64,7 +68,7 @@ describe("B521 video chat participant RBAC", () => {
           ],
         },
       },
-      select: { id: true },
+      select: { id: true, status: true, endedAt: true },
     });
   });
 
@@ -79,17 +83,30 @@ describe("B521 video chat participant RBAC", () => {
   });
 
   it("preserves participant reads", async () => {
-    mockDb.videoSession.findFirst.mockResolvedValueOnce({ id: "vs-private" });
+    mockDb.videoSession.findFirst.mockResolvedValueOnce({
+      id: "vs-private",
+      status: "ACTIVE",
+      endedAt: null,
+    });
     mockDb.chatMessage.findMany.mockResolvedValueOnce([]);
 
     const response = await GET(getRequest());
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ messages: [] });
+    await expect(response.json()).resolves.toEqual({
+      messages: [],
+      nextCursor: null,
+      writable: true,
+      retentionExpiresAt: null,
+    });
   });
 
   it("preserves participant writes", async () => {
-    mockDb.videoSession.findFirst.mockResolvedValueOnce({ id: "vs-private" });
+    mockDb.videoSession.findFirst.mockResolvedValueOnce({
+      id: "vs-private",
+      status: "ACTIVE",
+      endedAt: null,
+    });
     mockDb.chatMessage.create.mockResolvedValueOnce({ id: "message-1" });
 
     const response = await POST(postRequest());
@@ -102,5 +119,18 @@ describe("B521 video chat participant RBAC", () => {
         text: "Сообщение",
       }),
     }));
+  });
+
+  it("rejects writes after the session has ended", async () => {
+    mockDb.videoSession.findFirst.mockResolvedValueOnce({
+      id: "vs-private",
+      status: "ENDED",
+      endedAt: new Date(),
+    });
+
+    const response = await POST(postRequest());
+
+    expect(response.status).toBe(409);
+    expect(mockDb.chatMessage.create).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AdminCompactDataTable,
   type AdminCompactColumn,
@@ -118,26 +119,26 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
         empty="Пока ничего не отправлялось"
       />
 
-      {preview && (
+      {preview && typeof document !== "undefined" ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Текст сообщения"
           onClick={() => setPreview(null)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5 dark:bg-neutral-900"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-auto rounded-xl border border-[var(--soft-paper-edge)] bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wide text-neutral-500">
+                <p className="text-xs uppercase tracking-wide text-[var(--soft-ink-soft)]">
                   {preview.kind} · {preview.eventKey} · {preview.channel} ·{" "}
                   {formatMoscow(preview.createdAt)}
                 </p>
-                <h3 className="mt-1 text-lg font-semibold">{preview.subject ?? "Без темы"}</h3>
-                <p className="text-sm text-neutral-500">{preview.recipient}</p>
+                <h3 className="mt-1 font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{preview.subject ?? "Без темы"}</h3>
+                <p className="text-sm text-[var(--soft-ink-soft)]">{preview.recipient}</p>
               </div>
               <button type="button" className="soft-chip" onClick={() => setPreview(null)}>
                 Закрыть
@@ -149,18 +150,19 @@ export function DispatchJournal({ rows }: { rows: DispatchRow[] }) {
                 sandbox=""
                 title="Текст сообщения как он ушёл"
                 srcDoc={preview.body}
-                className="mt-4 h-[50vh] w-full rounded-xl border border-neutral-200 bg-white dark:border-neutral-800"
+                className="mt-4 h-[50vh] w-full rounded-xl border border-[var(--soft-paper-edge)] bg-white"
               />
             ) : (
-              <p className="mt-4 text-sm text-neutral-500">
+              <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">
                 {preview.blockedBy
                   ? `Тела нет: сообщение не отправлялось — ${preview.blockedBy}.`
                   : "Тела нет. У писем сброса пароля и подтверждения почты оно не сохраняется намеренно: в нём рабочая одноразовая ссылка."}
               </p>
             )}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      ) : null}
     </>
   );
 }

@@ -127,7 +127,9 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(security).toContain('key: "open", label: "Действия"');
     expect(security).toContain('kind: "details"');
     expect(compactTable).toContain('kind: "details"');
-    expect(compactTable).toContain("<dialog");
+    expect(compactTable).toContain('role="dialog"');
+    expect(compactTable).toContain("createPortal");
+    expect(compactTable).toContain("z-[200]");
     expect(security).not.toContain("<details");
     expect(security).not.toContain("Показать детали");
     expect(security).not.toContain("flex max-w-[34rem] flex-wrap");

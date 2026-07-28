@@ -28,6 +28,10 @@ import {
   type TelegramPreCheckoutQuery,
   type TelegramSuccessfulPayment,
 } from "@/lib/payments/telegram-stars-webhook";
+import {
+  applyMarketingModeration,
+  parseMarketingModerationCallback,
+} from "@/lib/marketing/moderation";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = getTrackedTelegramMiniAppUrl(
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest) {
     // authenticated SUPERADMIN session in the first-party console.
     const supportGroupChatId =
       process.env.TELEGRAM_SUPPORT_CHAT_ID ?? process.env.SUPPORT_TELEGRAM_CHAT_ID ?? null;
-    if (supportGroupChatId && String(update.message?.chat.id ?? "") === supportGroupChatId) {
+    if (supportGroupChatId && String(update.message?.chat.id ?? update.callback_query?.message?.chat.id ?? "") === supportGroupChatId) {
       return NextResponse.json({ ok: true, supportGroupIgnored: true });
     }
 
@@ -95,14 +99,37 @@ export async function POST(req: NextRequest) {
     const claim = await claimWebhookEvent({
       provider: "telegram",
       eventId,
-      eventType: update.message?.text?.split(" ")[0] ?? "update",
-      resourceId: update.message?.chat.id !== undefined ? String(update.message.chat.id) : null,
+      eventType: update.callback_query ? "callback_query" : update.message?.text?.split(" ")[0] ?? "update",
+      resourceId: update.message?.chat.id !== undefined
+        ? String(update.message.chat.id)
+        : update.callback_query?.message?.chat.id !== undefined
+          ? String(update.callback_query.message.chat.id)
+          : null,
       payload: update as unknown as Prisma.InputJsonObject,
     });
     if (!claim.claimed || !claim.event) {
       return NextResponse.json({ ok: true, duplicate: true });
     }
     claimedEventId = claim.event.id;
+
+    if (update.callback_query?.data && update.callback_query.message) {
+      const parsed = parseMarketingModerationCallback(update.callback_query.data);
+      if (!parsed) {
+        await completeWebhookEvent(claim.event.id, { result: "unknown-callback" });
+        return NextResponse.json({ ok: true });
+      }
+      const result = await applyMarketingModeration({
+        ...parsed,
+        chatId: String(update.callback_query.message.chat.id),
+        actor: update.callback_query.from.username
+          ? `telegram:@${update.callback_query.from.username}`
+          : `telegram:${update.callback_query.from.id}`,
+        callbackQueryId: update.callback_query.id,
+        messageId: update.callback_query.message.message_id,
+      });
+      await completeWebhookEvent(claim.event.id, { result });
+      return NextResponse.json({ ok: true, result });
+    }
 
     const msg = update.message;
 
@@ -240,6 +267,15 @@ interface TelegramUpdate {
   update_id?: number;
   /** B529: подтверждение счёта перед списанием звёзд. */
   pre_checkout_query?: TelegramPreCheckoutQuery;
+  callback_query?: {
+    id: string;
+    data?: string;
+    from: { id: number; username?: string };
+    message?: {
+      message_id: number;
+      chat: { id: number };
+    };
+  };
   message?: {
     text?: string;
     date?: number;

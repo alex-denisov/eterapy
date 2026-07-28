@@ -129,7 +129,10 @@ describe("B589 · расписание", () => {
     expect(schedule!.financial).toBeUndefined();
   });
 
-  it("джоба публикации в этой фазе нет вовсе — наружу ничего не уходит", () => {
-    expect(CRON_SCHEDULES.some((item) => item.type === "cron.marketing-publish")).toBe(false);
+  it("фаза 2 зарегистрировала hourly publish; внешний выпуск всё ещё держат статус и выключатель", () => {
+    const schedule = CRON_SCHEDULES.find((item) => item.type === "cron.marketing-publish");
+    expect(schedule).toBeDefined();
+    expect(schedule!.cadence).toBe("hourly");
+    expect(schedule!.financial).toBeUndefined();
   });
 });
