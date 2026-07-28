@@ -28,7 +28,7 @@ describe("production runtime", () => {
   it("starts the dedicated marketing agent enabled in production", () => {
     const composeProd = source("deploy/compose/docker-compose.prod.yml");
 
-    expect(composeProd).toContain('MARKETING_AGENT_ENABLED: "true"');
+    expect(composeProd).toContain('MARKETING_AGENT_ENABLED: "${MARKETING_AGENT_ENABLED:-true}"');
     expect(composeProd).toContain('MARKETING_AUTOPUBLISH: "true"');
     expect(composeProd).toContain('command: ["npm", "run", "worker:marketing"]');
   });
