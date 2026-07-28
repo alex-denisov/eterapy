@@ -4,6 +4,7 @@ import { decryptSecret, encryptSecret } from "@/lib/ai-gateway/credentials-crypt
 export const MARKETING_PLATFORM_FIELDS = [
   { platform: "VK", key: "VK_COMMUNITY_TOKEN", label: "Токен сообщества", secret: true },
   { platform: "VK", key: "VK_COMMUNITY_ID", label: "ID сообщества", secret: false },
+  { platform: "VK", key: "VK_USER_TOKEN", label: "Пользовательский токен для поиска публичных постов", secret: true },
   { platform: "Reddit", key: "REDDIT_CLIENT_ID", label: "Client ID", secret: false },
   { platform: "Reddit", key: "REDDIT_CLIENT_SECRET", label: "Client secret", secret: true },
   { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false },
