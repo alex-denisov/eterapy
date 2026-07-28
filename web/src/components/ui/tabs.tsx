@@ -26,7 +26,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-7 items-center justify-center rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-medium text-muted-foreground transition-colors duration-[var(--motion-base)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 data-active:bg-background data-active:text-foreground data-active:shadow-sm disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-7 items-center justify-center rounded-[calc(var(--radius-control)-2px)] px-3 text-sm font-medium text-muted-foreground transition-colors duration-[var(--motion-base)] hover:text-foreground focus-visible:bg-background focus-visible:outline-none data-active:bg-background data-active:text-foreground data-active:shadow-sm disabled:pointer-events-none disabled:opacity-50",
         className
       )}
       {...props}
@@ -38,7 +38,7 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
-      className={cn("mt-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/35", className)}
+      className={cn("mt-4 outline-none", className)}
       {...props}
     />
   )

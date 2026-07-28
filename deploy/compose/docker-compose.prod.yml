@@ -63,6 +63,8 @@ services:
     profiles: ["worker"]
     network_mode: host
     restart: always
+    init: true
+    shm_size: "1gb"
     env_file: .env
     environment:
       # No client/practitioner data enters the foreign LLM prompt. This narrow

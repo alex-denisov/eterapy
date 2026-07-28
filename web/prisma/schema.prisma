@@ -1307,6 +1307,8 @@ model ExternalPublication {
   engagementTargetId String?                   @map("engagement_target_id")
   engagementTargetLabel String?                @map("engagement_target_label")
   engagementExcerpt String?                    @db.Text @map("engagement_excerpt")
+  /// B616: conversational register chosen for this reply (см. engagement-tone).
+  engagementTone   String?                     @map("engagement_tone")
   telegramReviewMessageId Int?                 @map("telegram_review_message_id")
   agentWriterProvider String?                  @map("agent_writer_provider")
   agentWriterModel String?                     @map("agent_writer_model")

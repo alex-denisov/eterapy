@@ -34,9 +34,13 @@
   --signal-danger: #e46666;
   --signal-info: var(--brand-lavender-light);
 
-  --focus-ring: var(--brand-soft-gold);
-  --focus-ring-offset: var(--brand-midnight-navy);
-  --focus-outline: 2px solid var(--focus-ring);
+  /* B614: owner explicitly rejected framed interaction states. Keep these
+     compatibility tokens neutral so legacy consumers cannot recreate an
+     orange/yellow outline. Focus is expressed with borderless fill/tone
+     changes in the component that owns the interaction. */
+  --focus-ring: transparent;
+  --focus-ring-offset: transparent;
+  --focus-outline: none;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -123,18 +127,16 @@
   --surface-inset-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.32);
 }
 
+/* B614: no control, link, card or portal-owned button may grow a focus frame.
+   Tailwind rings are two box-shadow custom properties, so clearing only
+   `outline` is insufficient. `!important` is intentional: CSS modules used by
+   the Telegram mini-app and portal content are loaded after this file. */
+:focus,
 :focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: 2px;
-}
-
-/* B464 round-5 #12: text fields on the support surface keep their own calm
-   focus styling (border/ring/focus-within shadow) — the global terracotta
-   outline reads as an alarming orange ring around the input. This rule is
-   intentionally UNLAYERED next to the global one above: Tailwind's layered
-   `outline-none` utilities lose to it, so the suppression must live here. */
-[data-testid="cabinet-support-page"] input:focus-visible,
-[data-testid="cabinet-support-page"] textarea:focus-visible,
-[data-testid="cabinet-support-page"] select:focus-visible {
-  outline: none;
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
 }

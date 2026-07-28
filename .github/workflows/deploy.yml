@@ -216,6 +216,21 @@ jobs:
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
           YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
+          # B616/INC-093: маркетинговые коннекторы читают значение из настроек
+          # суперадминки, а при её пустоте — из окружения. Раньше ID канала жил
+          # только на машине владельца, поэтому Telegram-коннектор в панели
+          # выглядел ненастроенным при рабочем боте. Секрет пуст → ключ не
+          # трогаем, коннектор просто остаётся выключенным.
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          THREADS_APP_ID: ${{ secrets.THREADS_APP_ID }}
+          THREADS_APP_SECRET: ${{ secrets.THREADS_APP_SECRET }}
+          INSTAGRAM_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
+          INSTAGRAM_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          REDDIT_SUBREDDITS: ${{ secrets.REDDIT_SUBREDDITS }}
+          REDDIT_POST_SUBREDDIT: ${{ secrets.REDDIT_POST_SUBREDDIT }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -398,7 +413,11 @@ jobs:
                      PAYMENT_PROVIDER TELEGRAM_STARS_RUB_RATE \
                      CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN \
                      FLEET_GITHUB_TOKEN \
-                     TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID \
+                     TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_CHANNEL_ID \
+                     THREADS_APP_ID THREADS_APP_SECRET \
+                     INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET \
+                     REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET REDDIT_USER_AGENT \
+                     REDDIT_SUBREDDITS REDDIT_POST_SUBREDDIT \
                      YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue

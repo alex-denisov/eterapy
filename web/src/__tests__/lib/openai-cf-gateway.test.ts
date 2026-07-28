@@ -71,7 +71,7 @@ describe("OpenAI Cloudflare AI Gateway integration", () => {
         accountId: "abc123",
         gatewayId: "eterapy-openai",
         provider: AIProvider.COHERE,
-      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/cohere/compatibility/v1");
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/cohere");
       expect(buildCloudflareGatewayUrlForAIProvider({
         accountId: "abc123",
         gatewayId: "eterapy-openai",

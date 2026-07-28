@@ -1,22 +1,33 @@
+import { randomBytes } from "node:crypto";
 import db from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/ai-gateway/credentials-crypto";
 
 export const MARKETING_PLATFORM_FIELDS = [
-  { platform: "VK", key: "VK_COMMUNITY_TOKEN", label: "Токен сообщества", secret: true },
-  { platform: "VK", key: "VK_COMMUNITY_ID", label: "ID сообщества", secret: false },
-  { platform: "VK", key: "VK_USER_TOKEN", label: "Пользовательский токен для поиска публичных постов", secret: true },
-  { platform: "Reddit", key: "REDDIT_CLIENT_ID", label: "Client ID", secret: false },
-  { platform: "Reddit", key: "REDDIT_CLIENT_SECRET", label: "Client secret", secret: true },
-  { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false },
-  { platform: "Reddit", key: "REDDIT_POST_SUBREDDIT", label: "Subreddit для своих постов", secret: false },
-  { platform: "Reddit", key: "REDDIT_SUBREDDITS", label: "Subreddit для поиска, через запятую", secret: false },
-  { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token", secret: true },
-  { platform: "Threads", key: "THREADS_USER_ID", label: "User ID", secret: false },
-  { platform: "Instagram", key: "INSTAGRAM_ACCESS_TOKEN", label: "Access token", secret: true },
-  { platform: "Instagram", key: "INSTAGRAM_USER_ID", label: "Professional account ID", secret: false },
-  { platform: "Telegram", key: "TELEGRAM_BOT_TOKEN", label: "Bot token", secret: true },
-  { platform: "Telegram", key: "TELEGRAM_CHANNEL_ID", label: "Маркетинговый канал", secret: false },
-  { platform: "Dzen", key: "DZEN_CHANNEL_URL", label: "Адрес канала", secret: false },
+  { platform: "VK", key: "VK_COMMUNITY_TOKEN", label: "Токен сообщества", secret: true, multiline: false },
+  { platform: "VK", key: "VK_COMMUNITY_ID", label: "ID сообщества", secret: false, multiline: false },
+  { platform: "VK", key: "VK_USER_TOKEN", label: "Пользовательский токен для поиска публичных постов", secret: true, multiline: false },
+  { platform: "Reddit", key: "REDDIT_CLIENT_ID", label: "Client ID", secret: false, multiline: false },
+  { platform: "Reddit", key: "REDDIT_CLIENT_SECRET", label: "Client secret", secret: true, multiline: false },
+  { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false, multiline: false },
+  { platform: "Reddit", key: "REDDIT_POST_SUBREDDIT", label: "Subreddit для своих постов", secret: false, multiline: false },
+  { platform: "Reddit", key: "REDDIT_SUBREDDITS", label: "Subreddit для поиска, через запятую", secret: false, multiline: false },
+  { platform: "Reddit", key: "REDDIT_BROWSER_STORAGE_STATE", label: "Резервная браузерная сессия (Playwright storageState JSON)", secret: true, multiline: true },
+  { platform: "Threads", key: "THREADS_APP_ID", label: "Threads App ID", secret: false, multiline: false },
+  { platform: "Threads", key: "THREADS_APP_SECRET", label: "Threads App Secret", secret: true, multiline: false },
+  { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
+  { platform: "Threads", key: "THREADS_USER_ID", label: "Threads User ID", secret: false, multiline: false },
+  { platform: "Threads", key: "THREADS_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_APP_ID", label: "Instagram App ID", secret: false, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_APP_SECRET", label: "Instagram App Secret", secret: true, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_USER_ID", label: "Instagram-scoped User ID", secret: false, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN", label: "Подтверждение маркера webhook (создаётся автоматически)", secret: false, multiline: false },
+  { platform: "Telegram", key: "TELEGRAM_BOT_TOKEN", label: "Bot token", secret: true, multiline: false },
+  { platform: "Telegram", key: "TELEGRAM_CHANNEL_ID", label: "Маркетинговый канал", secret: false, multiline: false },
+  { platform: "Dzen", key: "DZEN_CHANNEL_URL", label: "Адрес канала", secret: false, multiline: false },
+  { platform: "Dzen", key: "DZEN_BROWSER_STORAGE_STATE", label: "Браузерная сессия (Playwright storageState JSON)", secret: true, multiline: true },
+  { platform: "Research", key: "MARKETING_COMPETITOR_URLS", label: "Публичные страницы конкурентов, по одной URL в строке", secret: false, multiline: true },
 ] as const;
 
 export type MarketingPlatform = typeof MARKETING_PLATFORM_FIELDS[number]["platform"];
@@ -25,6 +36,12 @@ export type MarketingPlatformFieldKey = typeof MARKETING_PLATFORM_FIELDS[number]
 const FIELD_BY_KEY = new Map<string, typeof MARKETING_PLATFORM_FIELDS[number]>(
   MARKETING_PLATFORM_FIELDS.map((field) => [field.key, field]),
 );
+
+const ENV_ALIASES: Partial<Record<MarketingPlatformFieldKey, readonly string[]>> = {
+  TELEGRAM_CHANNEL_ID: ["TELEGRAM_ETERAPY_CHANNEL_ID"],
+  REDDIT_CLIENT_ID: ["REDDIT_OAUTH_APP_CLIENT_ID"],
+  REDDIT_CLIENT_SECRET: ["REDDIT_OAUTH_APP_CLIENT_SECRET"],
+};
 
 function settingKey(key: string) {
   return `marketing.connector.${key}`;
@@ -53,7 +70,12 @@ export async function marketingPlatformValue(key: MarketingPlatformFieldKey): Pr
       return null;
     }
   }
-  return process.env[key]?.trim() || null;
+  const names = [key, ...(ENV_ALIASES[key] ?? [])];
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return null;
 }
 
 export async function requiredMarketingPlatformValue(key: MarketingPlatformFieldKey): Promise<string> {
@@ -77,6 +99,7 @@ export type MarketingPlatformAdminField = {
   key: MarketingPlatformFieldKey;
   label: string;
   secret: boolean;
+  multiline: boolean;
   configured: boolean;
   value: string;
 };
@@ -102,6 +125,7 @@ export async function listMarketingPlatformAdminConfigs(): Promise<MarketingPlat
         key: field.key,
         label: field.label,
         secret: field.secret,
+        multiline: field.multiline,
         configured: Boolean(field.value),
         value: field.secret ? "" : field.value ?? "",
       })),
@@ -129,7 +153,12 @@ export async function saveMarketingPlatformConfig(input: {
       update: { value: String(input.enabled), updatedBy: input.actorId },
     });
     for (const field of allowed) {
-      const raw = input.values[field.key];
+      const generatedWebhookToken = input.platform === "Instagram"
+        && field.key === "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"
+        && !(await tx.platformSetting.findUnique({ where: { key: settingKey(field.key) }, select: { key: true } }))
+          ? `eterapy_${randomBytes(24).toString("base64url")}`
+          : undefined;
+      const raw = input.values[field.key] || generatedWebhookToken;
       if (raw === undefined || raw === null) continue;
       const value = raw.trim();
       // Empty secret means “keep the existing secret”; this prevents an

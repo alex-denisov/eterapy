@@ -268,7 +268,7 @@ export default async function AdminDatabasePage(props: {
       <form action="/admin/ops/database" className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
           Таблица
-          <select className="mt-1 h-9 min-w-56 rounded border border-[var(--soft-paper-edge)] bg-white/85 px-2 text-xs text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]" name="table" defaultValue={table}>
+          <select className="mt-1 h-9 min-w-56 rounded border border-[var(--soft-paper-edge)] bg-white/85 px-2 text-xs text-[var(--soft-ink)] outline-none focus:bg-white" name="table" defaultValue={table}>
             {TABLES.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}

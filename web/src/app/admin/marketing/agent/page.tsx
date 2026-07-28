@@ -11,7 +11,22 @@ import {
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
-import { MARKETING_FREE_PROVIDERS } from "@/lib/marketing/model-pool";
+import {
+  ENGAGEMENT_DAILY_MINIMUM,
+  ENGAGEMENT_PLATFORMS,
+  engagementDailyTarget,
+  engagementSessionsFor,
+  engagementSlotsFor,
+  moscowDateKey,
+} from "@/lib/marketing/engagement-plan";
+import {
+  MARKETING_ACTIVE_PROVIDERS,
+  MARKETING_FREE_PROVIDERS,
+  MARKETING_MODEL_RELEASE_CUTOFF,
+  MARKETING_REVIEWER_MODEL_PREFERENCES,
+  MARKETING_WRITER_MODEL_PREFERENCES,
+  marketingModelFreshness,
+} from "@/lib/marketing/model-pool";
 import { redditOAuthConnected } from "@/lib/marketing/reddit-oauth";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
@@ -71,6 +86,42 @@ export default async function MarketingAgentPage() {
       comments: connector.comments && redditConnected,
     };
   });
+  // B613: VK issues a read-only user token through the implicit flow only, and
+  // the value lands in the browser address bar. Building the exact authorize
+  // URL here removes the guesswork about client id and scopes.
+  const vkClientId = process.env.VK_CLIENT_ID?.trim();
+  const vkUserTokenUrl = vkClientId
+    ? `https://oauth.vk.com/authorize?client_id=${encodeURIComponent(vkClientId)}`
+      + "&display=page&redirect_uri=https://oauth.vk.com/blank.html"
+      + "&scope=wall,offline&response_type=token&v=5.199"
+    : null;
+
+  const now = new Date();
+  const engagementToday = await Promise.all(ENGAGEMENT_PLATFORMS.map(async (platform) => {
+    const dayStart = new Date(`${moscowDateKey(now)}T00:00:00.000+03:00`);
+    const planned = await db.externalPublication.count({
+      where: {
+        platform,
+        contentType: "COMMENT",
+        source: "AGENT_DISCOVERY",
+        status: { notIn: ["ARCHIVED"] },
+        scheduledFor: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 60 * 60_000) },
+      },
+    }).catch(() => 0);
+    const sessions = engagementSessionsFor(platform, now);
+    return {
+      platform,
+      planned,
+      target: engagementDailyTarget(platform, now),
+      sessions: sessions.length,
+      times: engagementSlotsFor(platform, now).map((slot) => slot.toLocaleTimeString("ru-RU", {
+        timeZone: "Europe/Moscow",
+        hour: "2-digit",
+        minute: "2-digit",
+      })),
+    };
+  }));
+
   const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
   const modelColumns: AdminCompactColumn[] = [
     { key: "provider", label: "Коннектор", sortable: true, filterKind: "text" },
@@ -92,14 +143,23 @@ export default async function MarketingAgentPage() {
       .map((row) => row.lastSuccessAt)
       .filter((value): value is Date => Boolean(value))
       .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-    const model = credentials.find((row) => row.enabled && row.modelOverride)?.modelOverride
+    const writerModel = MARKETING_WRITER_MODEL_PREFERENCES[provider]
+      ?? credentials.find((row) => row.enabled && row.modelOverride)?.modelOverride
       ?? configByProvider.get(provider)?.defaultModel
       ?? DEFAULT_PROVIDER_MODELS[provider];
+    const reviewerModel = MARKETING_REVIEWER_MODEL_PREFERENCES[provider] ?? writerModel;
+    const freshness = marketingModelFreshness(writerModel);
+    const admitted = (MARKETING_ACTIVE_PROVIDERS as readonly string[]).includes(provider);
+    const eligible = ready.length > 0 && admitted && freshness.eligible;
     return {
       id: provider,
       cells: {
         provider,
-        model,
+        model: {
+          value: writerModel,
+          subvalue: reviewerModel !== writerModel ? `reviewer: ${reviewerModel}` : `релиз: ${freshness.releaseDate ?? "не подтверждён"}`,
+          filterValue: `${writerModel} ${reviewerModel}`,
+        },
         credentials: {
           value: `${ready.length}/${credentials.length} готовы`,
           subvalue: credentials.map((row) => row.label).join(", ") || "ключ не добавлен",
@@ -107,15 +167,21 @@ export default async function MarketingAgentPage() {
         },
         status: {
           kind: "status" as const,
-          label: ready.length ? "готов" : "нужна настройка",
-          tone: ready.length ? ("ok" as const) : ("warn" as const),
-          filterValue: ready.length ? "готов" : "нужна настройка",
+          label: eligible ? "в активном пуле" : ready.length ? "только мониторинг" : "нужна настройка",
+          tone: eligible ? ("ok" as const) : ("warn" as const),
+          filterValue: eligible ? "активный" : ready.length ? "мониторинг" : "нужна настройка",
         },
         lastSuccess: {
           value: dateTime(lastSuccess),
           sortValue: lastSuccess?.getTime() ?? 0,
         },
-        role: "writer + reviewer; порядок ротируется, одна модель не проверяет себя",
+        role: eligible
+          ? "writer + reviewer; модели разделяются, порядок ротируется"
+          : admitted
+            ? freshness.reason
+            : provider === "OPENAI"
+              ? "не используется автоматически: у прямого API нет бесплатной квоты"
+              : "не используется автоматически: нет публичной бесплатной модели после cutoff",
       },
     };
   });
@@ -234,6 +300,38 @@ export default async function MarketingAgentPage() {
                   {redditConnected ? "Переподключить Reddit" : "Подключить Reddit"}
                 </Link>
               ) : null}
+              {connector.platform === "Threads" || connector.platform === "Instagram" ? (
+                <Link
+                  className="soft-admin-action mt-3 inline-flex"
+                  href={`/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`}
+                >
+                  Подключить через OAuth
+                </Link>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </AnalyticsSection>
+
+      <AnalyticsSection title="План живого присутствия на сегодня">
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Агент читает ленты несколькими заходами в день и отвечает в назначенные
+          минуты, а не по ровному расписанию. Каждый комментарий получает свой
+          регистр и всё равно уходит на премодерацию в Telegram.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {engagementToday.map((row) => (
+            <article key={row.platform} className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-[var(--soft-ink-strong)]">{row.platform}</h3>
+                <span className="soft-chip">{row.planned}/{row.target} на сегодня</span>
+              </div>
+              <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">
+                Заходы: {row.sessions}. Минимум по решению владельца — {ENGAGEMENT_DAILY_MINIMUM} комментариев в сутки.
+              </p>
+              <p className="mt-2 break-words font-mono text-[11px] text-[var(--soft-ink-faint)]">
+                {row.times.join(" · ")}
+              </p>
             </article>
           ))}
         </div>
@@ -245,6 +343,30 @@ export default async function MarketingAgentPage() {
           production-ключом, что и LLM-ключи, и никогда не возвращаются в браузер.
         </p>
         <MarketingPlatformSettings configs={platformConfigs} />
+        {vkUserTokenUrl ? (
+          <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+            <p className="font-semibold text-[var(--soft-ink-strong)]">Как получить VK user token для поиска (B613)</p>
+            <p className="mt-2">
+              Токен сообщества не умеет <code>newsfeed.search</code> — это другой тип
+              авторизации, а не поломка. Откройте ссылку ниже, подтвердите доступ и
+              скопируйте значение <code>access_token</code> из адресной строки в поле
+              «Пользовательский токен». Права запрашиваются только на чтение ленты.
+            </p>
+            <a className="soft-admin-action mt-3 inline-flex" href={vkUserTokenUrl} target="_blank" rel="noreferrer">
+              Открыть форму выдачи токена VK
+            </a>
+          </div>
+        ) : null}
+        <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          <p className="font-semibold text-[var(--soft-ink-strong)]">Callback URL для Meta App</p>
+          <dl className="mt-2 grid gap-1 font-mono">
+            <div><dt className="inline font-sans">Threads redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/oauth/callback</dd></div>
+            <div><dt className="inline font-sans">Threads deauthorize: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/deauthorize</dd></div>
+            <div><dt className="inline font-sans">Instagram redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/oauth/callback</dd></div>
+            <div><dt className="inline font-sans">Instagram webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/webhook</dd></div>
+            <div><dt className="inline font-sans">Data deletion: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/data-deletion</dd></div>
+          </dl>
+        </div>
       </AnalyticsSection>
 
       <AnalyticsSection title="Последние циклы writer → reviewer">
@@ -261,8 +383,9 @@ export default async function MarketingAgentPage() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-3xl text-sm text-[var(--soft-ink-soft)]">
             Агент распределяет материалы между доступными бесплатными квотами.
-            Reviewer всегда получает другой провайдер. Данные клиентов и
-            практиков ETerapy в этот контур не передаются.
+            Writer и reviewer всегда получают разные модели; cutoff релиза —
+            {` ${MARKETING_MODEL_RELEASE_CUTOFF}`}. Данные клиентов и практиков
+            ETerapy в этот контур не передаются.
           </p>
           <Link className="soft-admin-action" href="/admin/ops/ai">
             Модели, ключи и промпты

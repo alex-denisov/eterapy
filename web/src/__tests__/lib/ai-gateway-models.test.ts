@@ -22,13 +22,28 @@ const baseCred = (overrides: Partial<DecryptedAICredential> = {}): DecryptedAICr
 
 describe("ai-gateway/models", () => {
   let originalFetch: typeof fetch;
+  let originalGatewayAccountId: string | undefined;
+  let originalGatewayId: string | undefined;
+  let originalGatewayToken: string | undefined;
 
   beforeEach(() => {
     originalFetch = global.fetch;
+    originalGatewayAccountId = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    originalGatewayId = process.env.CF_AI_GATEWAY_ID;
+    originalGatewayToken = process.env.CF_AI_GATEWAY_TOKEN;
+    process.env.CF_AI_GATEWAY_ACCOUNT_ID = "account-test";
+    process.env.CF_AI_GATEWAY_ID = "gateway-test";
+    process.env.CF_AI_GATEWAY_TOKEN = "cf-test-token";
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    if (originalGatewayAccountId === undefined) delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    else process.env.CF_AI_GATEWAY_ACCOUNT_ID = originalGatewayAccountId;
+    if (originalGatewayId === undefined) delete process.env.CF_AI_GATEWAY_ID;
+    else process.env.CF_AI_GATEWAY_ID = originalGatewayId;
+    if (originalGatewayToken === undefined) delete process.env.CF_AI_GATEWAY_TOKEN;
+    else process.env.CF_AI_GATEWAY_TOKEN = originalGatewayToken;
   });
 
   function mockFetch(json: unknown, init: { ok?: boolean; status?: number } = {}) {
@@ -79,7 +94,7 @@ describe("ai-gateway/models", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://gateway.ai.cloudflare.com/v1/acc/gw/anthropic/models",
+      "https://gateway.ai.cloudflare.com/v1/account-test/gateway-test/anthropic/models",
       expect.objectContaining({
         headers: expect.objectContaining({
           "cf-aig-authorization": "Bearer cf-test-token",
@@ -166,7 +181,7 @@ describe("ai-gateway/models", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter/models",
+      "https://gateway.ai.cloudflare.com/v1/account-test/gateway-test/openrouter/models",
       expect.objectContaining({
         headers: expect.objectContaining({
           "cf-aig-authorization": "Bearer cf-test-token",

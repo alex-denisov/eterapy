@@ -166,7 +166,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
               value={note[event.id] ?? ""}
               onChange={(e) => setNote((prev) => ({ ...prev, [event.id]: e.target.value }))}
               placeholder="Заметка"
-              className="h-7 w-full min-w-[10rem] rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-[11px] outline-none focus:ring-1 focus:ring-[var(--soft-bordeaux)]"
+              className="h-7 w-full min-w-[10rem] rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-[11px] outline-none focus:bg-slate-50"
               aria-label={`Заметка к решению ${event.id}`}
             />
           ),

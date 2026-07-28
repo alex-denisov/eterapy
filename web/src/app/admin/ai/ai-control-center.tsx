@@ -762,7 +762,7 @@ function ModelSelect({
         list={datalistId}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder ?? "Начните вводить model id"}
-        className="h-7 w-full min-w-0 rounded-sm border border-[var(--soft-paper-edge)] bg-white px-1.5 font-mono text-[11px] text-[var(--soft-ink)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--soft-bordeaux)]"
+        className="h-7 w-full min-w-0 rounded-sm border border-[var(--soft-paper-edge)] bg-white px-1.5 font-mono text-[11px] text-[var(--soft-ink)] outline-none focus:bg-slate-50"
         spellCheck={false}
       />
       <datalist id={datalistId}>
@@ -1529,7 +1529,7 @@ function PromptTableRow({
         <textarea
           value={draft.promptText}
           onChange={(event) => setDraft({ ...draft, promptText: event.target.value })}
-          className="min-h-28 w-full min-w-[46rem] resize-y border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 py-1 font-mono text-[11px] leading-snug text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]"
+          className="min-h-28 w-full min-w-[46rem] resize-y border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 py-1 font-mono text-[11px] leading-snug text-[var(--soft-ink)] outline-none focus:bg-slate-50"
           spellCheck={false}
           aria-label={`${prompt.feature} prompt text`}
         />

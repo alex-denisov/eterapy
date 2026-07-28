@@ -215,7 +215,7 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                             value={resolution[complaint.id] ?? complaint.resolution ?? ""}
                             onChange={(event) => setResolution((current) => ({ ...current, [complaint.id]: event.target.value }))}
                             placeholder="Опишите принятое решение..."
-                            className="min-h-20 rounded border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-xs text-[var(--soft-ink)] outline-none focus:ring-1 focus:ring-[var(--soft-bordeaux)]"
+                            className="min-h-20 rounded border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-xs text-[var(--soft-ink)] outline-none focus:bg-slate-50"
                           />
                         </span>
                         {heldRub > 0 ? (

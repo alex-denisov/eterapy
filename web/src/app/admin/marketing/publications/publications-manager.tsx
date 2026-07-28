@@ -84,7 +84,7 @@ function toLocalInput(value: string | null) {
 }
 
 function inputClass() {
-  return "min-h-10 w-full rounded-lg border border-[#D6DEE9] bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100";
+  return "min-h-10 w-full rounded-lg border border-[#D6DEE9] bg-white px-3 text-sm text-slate-900 outline-none focus:bg-slate-50";
 }
 
 function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {

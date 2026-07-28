@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
-import { upsertMarketingSignal } from "@/lib/marketing/agent";
+import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import {
   marketingPlatformValue,
   requiredMarketingPlatformValue,
@@ -95,7 +95,7 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
   },
   instagram: async (publication) => {
     const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
-    const base = `https://graph.facebook.com/v23.0/${encodeURIComponent(publication.externalPostId)}`;
+    const base = `https://graph.instagram.com/v25.0/${encodeURIComponent(publication.externalPostId)}`;
     const [media, insights] = await Promise.all([
       json(`${base}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`),
       json(`${base}/insights?metric=impressions,reach,views,shares,total_interactions&access_token=${encodeURIComponent(token)}`)
@@ -171,6 +171,7 @@ export async function collectDuePublicationMetrics(input: {
   const due = await db.externalPublication.findMany({
     where: {
       status: "PUBLISHED",
+      contentType: { in: ["POST", "COMMENT"] },
       publishedAt: { not: null },
       nextReviewAt: { lte: now },
       externalPostId: { not: null },
@@ -269,7 +270,10 @@ export async function collectDuePublicationMetrics(input: {
           summary: `D+${milestone} зафиксирован без платформенных метрик; UTM-переходы посчитаны на стороне ETerapy.`,
           evidence: { publicationId: publication.id, platform, milestone },
         });
+      } else {
+        await resolveMarketingSignal(`metrics:unsupported:${platform}`).catch(() => undefined);
       }
+      await resolveMarketingSignal(`metrics:${publication.id}:d${milestone}`).catch(() => undefined);
       recorded += 1;
     } catch (error) {
       failed += 1;

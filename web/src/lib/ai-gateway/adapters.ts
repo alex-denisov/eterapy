@@ -28,6 +28,7 @@ export interface AIProviderHealth {
   model?: string;
   latencyMs?: number;
   message?: string;
+  code?: string;
 }
 
 export interface AIGatewayAdapter {

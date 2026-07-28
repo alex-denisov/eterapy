@@ -27,7 +27,7 @@ export type CloudflareGatewayProvider =
   | "groq"
   | "mistral"
   | "cerebras"
-  | "cohere-compatibility"
+  | "cohere"
   | "azure-openai"
   | "google-ai-studio";
 
@@ -55,8 +55,6 @@ export function buildCloudflareGatewayUrl(input: {
 }): string {
   const providerPath = input.provider === "google-ai-studio"
     ? "google-ai-studio/v1beta"
-    : input.provider === "cohere-compatibility"
-      ? "cohere/compatibility/v1"
     : input.provider;
   return `https://gateway.ai.cloudflare.com/v1/${input.accountId}/${input.gatewayId}/${providerPath}`;
 }
@@ -69,7 +67,7 @@ export function cloudflareProviderForAIProvider(provider: AIProvider): Cloudflar
   if (provider === AIProvider.GROQ) return "groq";
   if (provider === AIProvider.MISTRAL) return "mistral";
   if (provider === AIProvider.CEREBRAS) return "cerebras";
-  if (provider === AIProvider.COHERE) return "cohere-compatibility";
+  if (provider === AIProvider.COHERE) return "cohere";
   return null;
 }
 

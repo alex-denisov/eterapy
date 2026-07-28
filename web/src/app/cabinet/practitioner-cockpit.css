@@ -568,7 +568,7 @@
 .pcab-chip.is-active {
   background: var(--pc-bordeaux);
   color: var(--pc-cream);
-  border-color: var(--pc-bordeaux);
+  border-color: transparent;
 }
 
 /* заметка-счётчик над списком («Требуют внимания — 2») */
@@ -1988,7 +1988,7 @@
 }
 .pcab-preset-chip.active {
   background: var(--pc-bordeaux);
-  border-color: var(--pc-bordeaux);
+  border-color: transparent;
   color: var(--pc-cream);
   font-weight: 600;
 }
@@ -2348,7 +2348,7 @@
 }
 .pcab-commentarea:focus {
   outline: none;
-  border-color: var(--pc-bordeaux);
+  background: color-mix(in srgb, var(--pc-paper-card) 92%, white);
 }
 /* B481: сетка свободных слотов выбранного дня (mockup .slots/.slot) —
    API возвращает только СВОБОДНЫЕ слоты, поэтому busy-состояние не нужно. */
@@ -2371,7 +2371,7 @@
 .pcab-slot.active {
   background: var(--pc-bordeaux);
   color: #fbf1e4;
-  border-color: var(--pc-bordeaux);
+  border-color: transparent;
   font-weight: 600;
 }
 .pcab-slots-note {
@@ -2402,7 +2402,7 @@
   margin-top: 2px;
 }
 .pcab-dur.active {
-  border-color: var(--pc-bordeaux);
+  border-color: transparent;
   color: var(--pc-bordeaux);
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(110, 43, 43, 0.08);
@@ -2556,7 +2556,7 @@
   cursor: pointer;
 }
 .pcab-rchip.active {
-  border-color: var(--pc-bordeaux);
+  border-color: transparent;
   color: var(--pc-bordeaux);
   font-weight: 600;
 }

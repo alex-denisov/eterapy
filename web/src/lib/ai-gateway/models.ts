@@ -8,8 +8,6 @@ import {
 import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
 import { isFreeOpenRouterModel } from "@/lib/ai-gateway/openrouter-adapter";
 import {
-  providerConfigToRouting,
-  DIRECT_PROVIDER_BASE_URLS,
   resolvedProviderBaseUrl,
 } from "@/lib/ai-gateway/provider-runtime";
 import {
@@ -41,6 +39,19 @@ export class AIModelFetchError extends Error {
 }
 
 const FETCH_TIMEOUT_MS = 15_000;
+
+function foreignGatewayBaseUrl(
+  provider: Exclude<AIProvider, typeof AIProvider.YANDEX>,
+  credential?: DecryptedAICredential | null,
+) {
+  const baseUrl = resolvedProviderBaseUrl({
+    credential: credential ?? { provider, baseUrlOverride: null },
+    providerConfig: { provider, baseUrl: null, cloudflareGatewayEnabled: true },
+    requireCloudflareAIGateway: true,
+  });
+  if (!baseUrl) throw new AIModelFetchError(`Cloudflare AI Gateway is not configured for ${provider}`);
+  return baseUrl.replace(/\/+$/, "");
+}
 
 function openRouterUsdPerTokenToMicrosPerThousand(value: string | undefined) {
   if (!value) return null;
@@ -116,7 +127,7 @@ async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
 }
 
 async function fetchOpenAIModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI]!;
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.OPENAI, credential);
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       Authorization: `Bearer ${credential.apiKey}`,
@@ -136,7 +147,7 @@ async function fetchOpenAIModels(credential: DecryptedAICredential): Promise<AIM
 }
 
 async function fetchAnthropicModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC]!;
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.ANTHROPIC, credential);
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       "x-api-key": credential.apiKey,
@@ -156,7 +167,7 @@ async function fetchAnthropicModels(credential: DecryptedAICredential): Promise<
 }
 
 async function fetchFireworksModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS]!;
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.FIREWORKS, credential);
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: { Authorization: `Bearer ${credential.apiKey}` },
   });
@@ -175,9 +186,11 @@ async function fetchFireworksModels(credential: DecryptedAICredential): Promise<
 async function fetchOpenAICompatibleModels(input: {
   provider: AIProvider;
   credential: DecryptedAICredential;
-  defaultBaseUrl: string;
 }): Promise<AIModelInfo[]> {
-  const baseUrl = input.credential.baseUrlOverride?.replace(/\/+$/, "") ?? input.defaultBaseUrl;
+  if (input.provider === AIProvider.YANDEX) {
+    throw new AIModelFetchError("Yandex is not an OpenAI-compatible foreign provider");
+  }
+  const baseUrl = foreignGatewayBaseUrl(input.provider, input.credential);
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       Authorization: `Bearer ${input.credential.apiKey}`,
@@ -207,7 +220,7 @@ interface GeminiModelRow {
 }
 
 async function fetchGeminiModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.GEMINI]!;
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.GEMINI, credential);
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       "x-goog-api-key": credential.apiKey,
@@ -239,7 +252,7 @@ interface OpenRouterModelRow {
 }
 
 async function fetchOpenRouterModels(credential: DecryptedAICredential | null): Promise<AIModelInfo[]> {
-  const baseUrl = credential?.baseUrlOverride?.replace(/\/+$/, "") ?? "https://openrouter.ai/api/v1";
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.OPENROUTER, credential);
   const headers: Record<string, string> = { Accept: "application/json" };
   if (credential?.apiKey) headers.Authorization = `Bearer ${credential.apiKey}`;
   Object.assign(headers, cloudflareGatewayAuthHeaders(baseUrl));
@@ -271,6 +284,29 @@ async function fetchOpenRouterModels(credential: DecryptedAICredential | null): 
   return [...OPENROUTER_META_MODELS, ...realModels];
 }
 
+async function fetchCohereModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
+  const baseUrl = foreignGatewayBaseUrl(AIProvider.COHERE, credential);
+  const data = await fetchJSON(`${baseUrl}/v1/models`, {
+    headers: {
+      Authorization: `Bearer ${credential.apiKey}`,
+      ...cloudflareGatewayAuthHeaders(baseUrl),
+    },
+  });
+  const list = (data as {
+    models?: Array<{ name?: string; endpoints?: string[]; context_length?: number }>;
+  }).models ?? [];
+  return list
+    .filter((row) => typeof row.name === "string" && row.name.length > 0)
+    .map((row) => ({
+      modelId: row.name as string,
+      displayName: row.name ?? null,
+      isFree: false,
+      contextWindow: row.context_length ?? null,
+      ...knownModelPricing(AIProvider.COHERE, row.name as string),
+      metadata: row,
+    }));
+}
+
 export async function fetchModelsFromProvider(input: {
   provider: AIProvider;
   credential?: DecryptedAICredential | null;
@@ -294,16 +330,16 @@ export async function fetchModelsFromProvider(input: {
       return fetchGeminiModels(credential);
     case AIProvider.GROQ:
       if (!credential) throw new AIModelFetchError("Groq model list requires a credential");
-      return fetchOpenAICompatibleModels({ provider: AIProvider.GROQ, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GROQ]! });
+      return fetchOpenAICompatibleModels({ provider: AIProvider.GROQ, credential });
     case AIProvider.MISTRAL:
       if (!credential) throw new AIModelFetchError("Mistral model list requires a credential");
-      return fetchOpenAICompatibleModels({ provider: AIProvider.MISTRAL, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.MISTRAL]! });
+      return fetchOpenAICompatibleModels({ provider: AIProvider.MISTRAL, credential });
     case AIProvider.CEREBRAS:
       if (!credential) throw new AIModelFetchError("Cerebras model list requires a credential");
-      return fetchOpenAICompatibleModels({ provider: AIProvider.CEREBRAS, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.CEREBRAS]! });
+      return fetchOpenAICompatibleModels({ provider: AIProvider.CEREBRAS, credential });
     case AIProvider.COHERE:
       if (!credential) throw new AIModelFetchError("Cohere model list requires a credential");
-      return fetchOpenAICompatibleModels({ provider: AIProvider.COHERE, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE]! });
+      return fetchCohereModels(credential);
     case AIProvider.YANDEX:
       if (!credential) throw new AIModelFetchError("Yandex model list requires a credential");
       return YANDEX_TEXT_MODELS;
@@ -367,8 +403,6 @@ export async function updateCachedModelPricing(input: {
 }
 
 export async function refreshModelsForProvider(provider: AIProvider): Promise<RefreshResult> {
-  const providerConfigRow = await db.aIProviderConfig.findUnique({ where: { provider } });
-  const providerConfig = providerConfigRow ? providerConfigToRouting(providerConfigRow) : null;
   const rawCredential = provider === AIProvider.OPENROUTER
     ? await pickCredentialForProvider({ provider }).catch(() => null)
     : await pickCredentialForProvider({ provider });
@@ -377,11 +411,7 @@ export async function refreshModelsForProvider(provider: AIProvider): Promise<Re
     throw new AIModelFetchError(`No active credential available for ${provider}`);
   }
 
-  const baseUrl = resolvedProviderBaseUrl({ credential: rawCredential, providerConfig });
-  const credential = rawCredential && baseUrl && !rawCredential.baseUrlOverride
-    ? { ...rawCredential, baseUrlOverride: baseUrl }
-    : rawCredential;
-  const models = await fetchModelsFromProvider({ provider, credential });
+  const models = await fetchModelsFromProvider({ provider, credential: rawCredential });
   const fetchedAt = new Date();
 
   const upserts = models.map((model) => {

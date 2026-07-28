@@ -103,7 +103,7 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
               type="search"
               defaultValue={first(params.q)}
               placeholder="Например, ии психолог"
-              className="min-h-10 min-w-0 flex-1 rounded-lg border border-[#D6DEE9] bg-white px-3 text-sm outline-none focus:border-[#2563EB]"
+              className="min-h-10 min-w-0 flex-1 rounded-lg border border-[#D6DEE9] bg-white px-3 text-sm outline-none focus:bg-slate-50"
             />
             <button className="soft-admin-action" type="submit">Найти</button>
           </form>

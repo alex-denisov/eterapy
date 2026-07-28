@@ -355,7 +355,7 @@ export function SupportChat() {
               value={draft}
               onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX))}
               placeholder="Сообщение…"
-              className="max-h-32 flex-1 resize-none rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5 text-sm leading-relaxed text-[var(--soft-ink)] outline-none transition-colors focus:border-[var(--soft-bordeaux)]/40 focus-visible:outline-none"
+              className="max-h-32 flex-1 resize-none rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5 text-sm leading-relaxed text-[var(--soft-ink)] outline-none transition-colors focus:bg-white focus-visible:outline-none"
               rows={1}
               maxLength={MESSAGE_MAX}
               disabled={sending}

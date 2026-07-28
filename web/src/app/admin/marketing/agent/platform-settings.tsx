@@ -62,20 +62,36 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
               {config.fields.map((field) => (
                 <label key={field.key} className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">
                   <span>{field.label}</span>
-                  <input
-                    className="soft-input"
-                    type={field.secret ? "password" : "text"}
-                    autoComplete="off"
-                    placeholder={field.secret && field.configured ? "•••••••• (оставьте пустым, чтобы сохранить)" : ""}
-                    value={draft.values[field.key] ?? ""}
-                    onChange={(event) => setDrafts((current) => ({
-                      ...current,
-                      [config.platform]: {
-                        ...current[config.platform],
-                        values: { ...current[config.platform].values, [field.key]: event.target.value },
-                      },
-                    }))}
-                  />
+                  {field.multiline ? (
+                    <textarea
+                      className="soft-input min-h-28 resize-y font-mono text-[11px]"
+                      autoComplete="off"
+                      placeholder={field.secret && field.configured ? "•••••••• (оставьте пустым, чтобы сохранить)" : ""}
+                      value={draft.values[field.key] ?? ""}
+                      onChange={(event) => setDrafts((current) => ({
+                        ...current,
+                        [config.platform]: {
+                          ...current[config.platform],
+                          values: { ...current[config.platform].values, [field.key]: event.target.value },
+                        },
+                      }))}
+                    />
+                  ) : (
+                    <input
+                      className="soft-input"
+                      type={field.secret ? "password" : "text"}
+                      autoComplete="off"
+                      placeholder={field.secret && field.configured ? "•••••••• (оставьте пустым, чтобы сохранить)" : ""}
+                      value={draft.values[field.key] ?? ""}
+                      onChange={(event) => setDrafts((current) => ({
+                        ...current,
+                        [config.platform]: {
+                          ...current[config.platform],
+                          values: { ...current[config.platform].values, [field.key]: event.target.value },
+                        },
+                      }))}
+                    />
+                  )}
                 </label>
               ))}
             </div>

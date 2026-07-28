@@ -1,7 +1,7 @@
 import { seoMonitorTestables } from "@/lib/marketing/seo-monitor";
 
 describe("B552 · production SEO monitor", () => {
-  it("audits only same-origin sitemap URLs and caps the batch", () => {
+  it("audits only same-origin sitemap URLs", () => {
     const xml = [
       "<urlset>",
       "<url><loc>https://eterapy.com/library/one</loc></url>",
@@ -15,6 +15,21 @@ describe("B552 · production SEO monitor", () => {
       "https://eterapy.com/library/one",
       "https://eterapy.com/library/two",
     ]);
+  });
+
+  it("does not silently truncate a normal sitemap after one hundred URLs", () => {
+    const xml = [
+      "<urlset>",
+      ...Array.from(
+        { length: 150 },
+        (_, index) => `<url><loc>https://eterapy.com/library/page-${index + 1}</loc></url>`,
+      ),
+      "</urlset>",
+    ].join("");
+
+    expect(
+      seoMonitorTestables.urlsFromSitemap(xml, "https://eterapy.com"),
+    ).toHaveLength(150);
   });
 
   it("does not demand HTML metadata from healthy machine-readable resources", () => {

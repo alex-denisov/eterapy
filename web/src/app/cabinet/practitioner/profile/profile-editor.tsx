@@ -312,7 +312,7 @@ export function PractitionerProfileEditor({
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Расскажите о вашем пути, методах работы и чём вы помогаете…"
-            className="premium-input h-32 w-full resize-none px-4 py-2 text-base outline-none focus:border-primary/50 md:text-sm"
+            className="premium-input h-32 w-full resize-none px-4 py-2 text-base outline-none md:text-sm"
             data-testid="practitioner-profile-bio"
           />
         </div>

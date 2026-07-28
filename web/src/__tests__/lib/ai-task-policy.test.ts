@@ -4,6 +4,7 @@ import {
   listDefaultAITaskPolicies,
   mergeAITaskPolicies,
 } from "@/lib/ai-gateway/task-policy";
+import { marketingModelPreferences } from "@/lib/marketing/model-pool";
 
 describe("AI task taxonomy and default routing policy", () => {
   it("maps v5 product tasks to free, premium, sensitive, vision, speech, and compliance tiers", () => {
@@ -74,7 +75,7 @@ describe("AI task taxonomy and default routing policy", () => {
           AIProvider.CEREBRAS,
           AIProvider.GROQ,
         ]));
-        expect(policy.modelPreferences ?? {}).toEqual({});
+        expect(policy.modelPreferences ?? {}).toEqual(marketingModelPreferences(policy.feature));
         continue;
       }
       expect(policy.providerOrder).toEqual([AIProvider.YANDEX]);

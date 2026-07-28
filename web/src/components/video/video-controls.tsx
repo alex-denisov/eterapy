@@ -274,7 +274,7 @@ function DeviceSelect({
         value={activeDeviceId}
         disabled={devices.length === 0}
         onChange={(event) => void setActiveMediaDevice(event.target.value)}
-        className="min-h-[44px] w-full rounded-xl border border-white/15 bg-video-bg px-3 text-sm text-foreground outline-none focus:border-primary/60 disabled:opacity-50"
+        className="min-h-[44px] w-full rounded-xl border border-white/15 bg-video-bg px-3 text-sm text-foreground outline-none focus:bg-white/10 disabled:opacity-50"
       >
         {devices.length === 0 && <option value="">Недоступно в этом браузере</option>}
         {devices.map((device, index) => (

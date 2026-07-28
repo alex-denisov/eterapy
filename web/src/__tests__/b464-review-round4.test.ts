@@ -327,8 +327,10 @@ describe("R11 item 18 — support centre", () => {
     expect(center).toContain('data-testid="support-search-submit"');
     // The loupe sits AFTER the input in the form (right side).
     expect(center.indexOf("support-search-input")).toBeLessThan(center.indexOf("support-search-submit"));
-    // Calm focus: wrapper focus-within + the global terracotta outline suppressed.
-    expect(center).toContain("focus-within:border-[var(--soft-bordeaux)]/40");
+    // B614: borderless focus uses a fill change, never a ring/border.
+    expect(center).toContain("focus-within:bg-white");
+    expect(center).not.toContain("focus-within:border-");
+    expect(center).not.toContain("focus-within:shadow-");
     expect(center).toContain("focus-visible:outline-none");
   });
 

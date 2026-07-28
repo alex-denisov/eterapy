@@ -1,11 +1,21 @@
 import "dotenv/config";
 import { setTimeout as wait } from "timers/promises";
-import { runMarketingAgentCycle, marketingAgentEnabled, upsertMarketingSignal } from "@/lib/marketing/agent";
+import {
+  runMarketingAgentCycle,
+  marketingAgentEnabled,
+  resolveMarketingSignal,
+  upsertMarketingSignal,
+} from "@/lib/marketing/agent";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
+import { runSeoCoverageCycle } from "@/lib/marketing/seo-coverage";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
+import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
+import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
+import { probeMarketingProviders } from "@/lib/marketing/provider-health";
+import { auditStalledPublications } from "@/lib/marketing/publication-queue";
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
@@ -13,6 +23,9 @@ let stopping = false;
 let lastDiscovery = 0;
 let lastSeoAudit = 0;
 let lastUrlAudit = 0;
+let lastMetaRefresh = 0;
+let lastPlanSync = 0;
+let lastProviderProbe = 0;
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -20,6 +33,7 @@ process.once("SIGTERM", () => { stopping = true; });
 async function guarded(name: string, run: () => Promise<unknown>) {
   try {
     const result = await run();
+    await resolveMarketingSignal(`worker:${name}`).catch(() => undefined);
     log.info(`marketing-worker.${name}`, { result });
   } catch (error) {
     log.error(`marketing-worker.${name}_failed`, { error: serializeError(error) });
@@ -37,19 +51,41 @@ async function main() {
   log.info("marketing-worker.started", { pollMs });
   while (!stopping) {
     if (await marketingAgentEnabled()) {
+      const now = Date.now();
+      if (now - lastPlanSync >= 6 * 60 * 60_000) {
+        lastPlanSync = now;
+        await guarded("plan", () => generateMarketingDrafts({ now: new Date(now) }));
+        await guarded("registry-audit", () => auditStalledPublications({ now: new Date(now) }));
+      }
       await guarded("agent", runMarketingAgentCycle);
       // Approved comments are dispatched independently of the owned-post
       // autopublish flag. Owned posts still obey MARKETING_AUTOPUBLISH.
       await guarded("publish", () => publishScheduledMarketing());
       await guarded("metrics", () => collectDuePublicationMetrics());
-      const now = Date.now();
-      if (now - lastDiscovery >= 4 * 60 * 60_000) {
+      if (now - lastMetaRefresh >= 6 * 60 * 60_000) {
+        lastMetaRefresh = now;
+        await guarded("meta-tokens", () => refreshMetaMarketingTokens(new Date(now)));
+      }
+      // The engagement plan books replies on human-paced slots a couple of
+      // hours ahead, so discovery has to top the queue up several times an
+      // hour — not once every four hours.
+      if (now - lastDiscovery >= 35 * 60_000) {
         lastDiscovery = now;
-        await guarded("discovery", runEngagementDiscovery);
+        await guarded("discovery", () => runEngagementDiscovery({ now: new Date(now) }));
+      }
+      if (now - lastProviderProbe >= 30 * 60_000) {
+        lastProviderProbe = now;
+        await guarded("provider-health", () => probeMarketingProviders({ now: new Date(now) }));
       }
       if (now - lastSeoAudit >= 6 * 60 * 60_000) {
         lastSeoAudit = now;
         await guarded("seo", runSeoAudit);
+        // Coverage runs on the same cadence: the recrawl quota resets daily and
+        // spending it in four batches is friendlier than one burst.
+        await guarded("seo-coverage", () => runSeoCoverageCycle({
+          now: new Date(now),
+          maxSubmissions: 40,
+        }));
       }
       if (now - lastUrlAudit >= 6 * 60 * 60_000) {
         lastUrlAudit = now;

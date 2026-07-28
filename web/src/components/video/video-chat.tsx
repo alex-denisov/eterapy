@@ -238,7 +238,7 @@ export function VideoChat({ videoSessionId, participantName, onClose }: VideoCha
             maxLength={2000}
             placeholder="Сообщение... (Enter — отправить)"
             rows={1}
-            className="flex-1 resize-none rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm focus:border-primary/50 focus:outline-none placeholder:text-muted-foreground/50 max-h-24 overflow-y-auto"
+            className="flex-1 resize-none rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm focus:bg-white/12 focus:outline-none placeholder:text-muted-foreground/50 max-h-24 overflow-y-auto"
             style={{ minHeight: "38px" }}
           />
           <div className="flex flex-col gap-1">

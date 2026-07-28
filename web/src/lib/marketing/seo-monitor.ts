@@ -22,7 +22,10 @@ function urlsFromSitemap(xml: string, origin: string) {
         return false;
       }
     })
-    .slice(0, 100);
+    // Audit the complete sitemap. The former 100-row cap silently excluded a
+    // large part of the library and made the "healthy" result misleading.
+    // The hard ceiling is only a runaway-payload guard.
+    .slice(0, 2_000);
 }
 
 async function auditPage(url: string): Promise<PageAudit> {

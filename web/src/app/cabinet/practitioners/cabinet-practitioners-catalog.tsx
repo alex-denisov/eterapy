@@ -96,20 +96,20 @@ export function CabinetPractitionersCatalog({
           className="bg-card/50 max-w-xs"
         />
         <select value={specialty} onChange={e => setSpecialty(e.target.value)}
-          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:border-primary focus:outline-none">
+          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:bg-white/5 focus:outline-none">
           <option value="all">Все специализации</option>
           {allSpecialties.map(s => (
             <option key={s} value={s}>{specialtyLabels[s] ?? s}</option>
           ))}
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:bg-white/5 focus:outline-none"
           aria-label="Сортировка по рейтингу">
           <option value="rating">По рейтингу</option>
           <option value="reviews">По отзывам</option>
         </select>
         <select value={sortPrice} onChange={e => setSortPrice(e.target.value as typeof sortPrice)}
-          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] px-3 py-2 text-sm focus:bg-white/5 focus:outline-none"
           aria-label="Сортировка по стоимости">
           <option value="default">По стоимости</option>
           <option value="asc">Сначала дешевле</option>

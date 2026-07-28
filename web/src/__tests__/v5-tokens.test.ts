@@ -15,7 +15,9 @@ describe("v5 design tokens", () => {
     expect(v5TokensCss).toContain("--brand-soft-gold: #f2c37d");
     expect(v5TokensCss).toContain("--brand-lavender: #8e89d6");
     expect(v5TokensCss).toContain("--dialogue-halo-core: var(--brand-glow-center)");
-    expect(v5TokensCss).toContain("--focus-outline: 2px solid var(--focus-ring)");
+    expect(v5TokensCss).toContain("--focus-outline: none");
+    expect(v5TokensCss).toContain("--focus-ring: transparent");
+    expect(v5TokensCss).toContain("--tw-ring-shadow: 0 0 #0000 !important");
   });
 
   it("maps Tailwind theme colors to v5 brand variables", () => {

@@ -18,6 +18,7 @@
 
 import { approvedLibraryEntries } from "@/data/anonymous-library";
 import type { ContentPlanSlot } from "@/lib/marketing/content-plan";
+import { libraryStartParam, telegramDeepLink } from "@/lib/share";
 
 export interface GeneratedPost {
   title: string;
@@ -46,7 +47,10 @@ export function destinationUrlFor(slot: ContentPlanSlot): string {
     utm_campaign: utm.campaign,
     utm_content: utm.content,
   });
-  return `${SITE}/library/${slot.articleSlug}?${query.toString()}`;
+  const webUrl = `${SITE}/library/${slot.articleSlug}?${query.toString()}`;
+  return slot.channel === "telegram"
+    ? telegramDeepLink(libraryStartParam(slot.articleSlug), webUrl)
+    : webUrl;
 }
 
 /**
