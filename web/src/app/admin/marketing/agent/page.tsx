@@ -17,6 +17,8 @@ import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { MarketingAgentControls } from "./agent-controls";
+import { MarketingPlatformSettings } from "./platform-settings";
+import { listMarketingPlatformAdminConfigs } from "@/lib/marketing/platform-settings";
 
 const dateTime = (value: Date | null) => value
   ? value.toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" })
@@ -26,7 +28,7 @@ export default async function MarketingAgentPage() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
-  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs, redditConnected] = await Promise.all([
+  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs, redditConnected, connectors, platformConfigs] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { contentType: "COMMENT", status: "REVIEW" } }),
     db.marketingAutomationSignal.findMany({
@@ -49,6 +51,7 @@ export default async function MarketingAgentPage() {
         cooldownUntil: true,
         regionBlocked: true,
         lastSuccessAt: true,
+        lastErrorAt: true,
         lastErrorCode: true,
       },
       orderBy: [{ provider: "asc" }, { priority: "asc" }],
@@ -58,17 +61,14 @@ export default async function MarketingAgentPage() {
       select: { provider: true, defaultModel: true },
     }),
     redditOAuthConnected().catch(() => false),
+    marketingConnectorStates(),
+    listMarketingPlatformAdminConfigs(),
   ]);
-  const connectors = marketingConnectorStates().map((connector) => {
+  const effectiveConnectors = connectors.map((connector) => {
     if (connector.platform !== "Reddit" || !redditConnected) return connector;
-    const hasPostTarget = Boolean(process.env.REDDIT_POST_SUBREDDIT?.trim());
-    const hasDiscoveryTargets = Boolean(process.env.REDDIT_SUBREDDITS?.trim());
     return {
       ...connector,
-      ownedPublishing: hasPostTarget,
-      discovery: hasDiscoveryTargets,
-      comments: true,
-      missing: connector.missing.filter((key) => key !== "REDDIT_ACCESS_TOKEN"),
+      comments: connector.comments && redditConnected,
     };
   });
   const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
@@ -86,6 +86,7 @@ export default async function MarketingAgentPage() {
       row.enabled
       && !row.regionBlocked
       && (!row.cooldownUntil || row.cooldownUntil <= new Date())
+      && (!row.lastErrorAt || Boolean(row.lastSuccessAt && row.lastSuccessAt > row.lastErrorAt))
     ));
     const lastSuccess = credentials
       .map((row) => row.lastSuccessAt)
@@ -203,12 +204,12 @@ export default async function MarketingAgentPage() {
         <MetricCard label="Сервис" value={enabled ? "работает" : "остановлен"} hint="переключатель хранится в БД" tone={enabled ? "ok" : "warn"} icon={<Bot className="size-4" />} />
         <MetricCard label="На премодерации" value={proposals.toLocaleString("ru-RU")} hint="рекламных комментариев" tone={proposals ? "warn" : "ok"} icon={<ShieldCheck className="size-4" />} />
         <MetricCard label="Открытые сигналы" value={signals.length.toLocaleString("ru-RU")} hint="SEO, адаптеры и сбои" tone={signals.length ? "warn" : "ok"} icon={<SearchCheck className="size-4" />} />
-        <MetricCard label="Готовые коннекторы" value={`${connectors.filter((row) => row.ownedPublishing || row.comments).length}/${connectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
+        <MetricCard label="Готовые коннекторы" value={`${effectiveConnectors.filter((row) => row.ownedPublishing || row.comments).length}/${effectiveConnectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
       </MetricGrid>
 
       <AnalyticsSection title="Площадки и возможности">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {connectors.map((connector) => (
+          {effectiveConnectors.map((connector) => (
             <article key={connector.platform} className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-[var(--soft-ink-strong)]">{connector.platform}</h3>
@@ -236,6 +237,14 @@ export default async function MarketingAgentPage() {
             </article>
           ))}
         </div>
+      </AnalyticsSection>
+
+      <AnalyticsSection title="Настройки площадок">
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Изменения применяются сразу после сохранения. Секреты шифруются тем же
+          production-ключом, что и LLM-ключи, и никогда не возвращаются в браузер.
+        </p>
+        <MarketingPlatformSettings configs={platformConfigs} />
       </AnalyticsSection>
 
       <AnalyticsSection title="Последние циклы writer → reviewer">

@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/audit";
 import { AI_GATEWAY_PROVIDERS, AI_PROVIDER_LABELS, aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import { listAdminAIInteractions } from "@/lib/ai-gateway/interactions";
 import { listAIPromptConfigs } from "@/lib/ai-gateway/prompts";
-import { getAIUsageDetails, getAIUsageLedger } from "@/lib/ai-gateway/usage";
+import { getAIUsageDetails, getAIUsageDetailsForRange, getAIUsageLedger } from "@/lib/ai-gateway/usage";
 import { listCredentials } from "@/lib/ai-gateway/credentials";
 import { isAICredentialEncryptionConfigured } from "@/lib/ai-gateway/credentials-crypto";
 import { listCachedModels } from "@/lib/ai-gateway/models";
@@ -21,7 +21,6 @@ import {
   cloudflareGatewayEnabled,
 } from "@/lib/ai-gateway/provider-runtime";
 import { assertForeignProviderAdminChangeAllowed } from "@/lib/ai-gateway/cross-border-gate";
-import { cloudflareAIGatewayEnabledForRU } from "@/lib/env";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -60,7 +59,10 @@ const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
   { provider: AIProvider.FIREWORKS, enabled: false, priority: 85, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: 900, outputTokenCostMicros: 900 },
 ];
 
-export async function getAIControlCenterData(period = aiBudgetPeriod(), options: { includeSecrets?: boolean } = {}) {
+export async function getAIControlCenterData(
+  period = aiBudgetPeriod(),
+  options: { includeSecrets?: boolean; range?: { start: Date; end: Date } } = {},
+) {
   const [
     storedProviders,
     policyRows,
@@ -73,11 +75,15 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
   ] = await Promise.all([
     db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] }),
     db.aIRoutingPolicy.findMany({ orderBy: { feature: "asc" } }),
-    getAIUsageLedger(period),
-    getAIUsageDetails(period),
+    options.range ? Promise.resolve([]) : getAIUsageLedger(period),
+    options.range ? getAIUsageDetailsForRange(options.range) : getAIUsageDetails(period),
     listCredentials(undefined, { includeSecrets: options.includeSecrets }),
     listAIPromptConfigs(),
-    options.includeSecrets ? listAdminAIInteractions({ period, daysBack: 7, limit: 80 }) : Promise.resolve([]),
+    options.includeSecrets
+      ? listAdminAIInteractions(options.range
+        ? { start: options.range.start, end: options.range.end, limit: 80 }
+        : { period, daysBack: 7, limit: 80 })
+      : Promise.resolve([]),
     Promise.all(AI_GATEWAY_PROVIDERS.map(async (provider) => [provider, await listCachedModels(provider)] as const)),
   ]);
 
@@ -105,7 +111,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
 
   const models = Object.fromEntries(modelLists) as Record<AIProvider, Awaited<ReturnType<typeof listCachedModels>>>;
 
-  const cfGateway = cloudflareAIGatewayEnabledForRU() ? getCloudflareGatewayConfig() : null;
+  const cfGateway = getCloudflareGatewayConfig();
   const cloudflareGateway = cfGateway
     ? {
       configured: true as const,
@@ -148,7 +154,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
 export async function updateAIProviderConfig(actorId: string, input: AIProviderConfigInput): Promise<AIProviderConfig> {
   await assertForeignProviderAdminChangeAllowed(actorId, input);
 
-  const cfGateway = cloudflareAIGatewayEnabledForRU() ? getCloudflareGatewayConfig() : null;
+  const cfGateway = getCloudflareGatewayConfig();
   const cfBaseUrl = cfGateway
     ? buildCloudflareGatewayUrlForAIProvider({
       accountId: cfGateway.accountId,

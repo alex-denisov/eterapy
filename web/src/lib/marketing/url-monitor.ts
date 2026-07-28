@@ -21,7 +21,7 @@ function signalKey(path: string) {
   return `url:audit:${createHash("sha256").update(path).digest("hex").slice(0, 20)}`;
 }
 
-function sitemapPaths(xml: string, origin: string) {
+export function sitemapPaths(xml: string, origin: string) {
   const paths = new Set<string>();
   for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
     try {
@@ -173,18 +173,33 @@ export async function runMarketingUrlAudit(now = new Date()) {
   const active = marketingUrlRegistry().map((entry) => entry.path);
   const publicationPaths = publications.flatMap(({ destinationUrl }) => {
     const path = destinationUrl ? marketingPathFromUrl(destinationUrl, base.origin) : null;
-    return path ? [path] : [];
+    return path && (sitemap.has(path) || RETIRED_URLS[path]) ? [path] : [];
   });
   const attributedPaths = traffic.flatMap(({ firstEntryPath }) => {
     const path = marketingPathFromUrl(firstEntryPath, base.origin);
-    return path ? [path] : [];
+    return path && (sitemap.has(path) || RETIRED_URLS[path]) ? [path] : [];
   });
   const paths = [...new Set([
     ...active,
+    ...sitemap,
     ...publicationPaths,
     ...attributedPaths,
     ...Object.keys(RETIRED_URLS),
   ])];
+  await db.marketingAutomationSignal.updateMany({
+    where: {
+      kind: "URL_AUDIT",
+      status: "OPEN",
+      key: { notIn: paths.map(signalKey) },
+    },
+    data: {
+      status: "RESOLVED",
+      severity: "INFO",
+      summary: "Адрес исключён из контроля: он не является действующей публичной страницей",
+      suggestedTicket: null,
+      resolvedAt: now,
+    },
+  });
   const result = { checked: 0, failures: 0 };
 
   for (let index = 0; index < paths.length; index += BATCH_SIZE) {

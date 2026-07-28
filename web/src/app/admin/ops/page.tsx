@@ -20,6 +20,8 @@ import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/adm
 import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../admin-currency";
 import { AdminCurrencySelector } from "../admin-currency-selector";
+import { PeriodToolbar } from "../admin-analytics-ui";
+import { resolveAdminPeriod } from "../admin-analytics-data";
 import {
   AdminOpsLinkCard,
   AdminOpsMetric,
@@ -77,6 +79,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("system.read")) redirect("/admin");
   const currency = resolveAdminCurrency(params);
+  const period = resolveAdminPeriod(params);
 
   const oneDayAgo = new Date();
   oneDayAgo.setHours(oneDayAgo.getHours() - 24);
@@ -84,7 +87,10 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
   const [status, ai, audit24h, securityEvents24h, currencyRates] = await Promise.all([
     getAdminSystemStatus(requestContextFromHeaders()),
     permissions.includes("ai.configure")
-      ? getAIControlCenterData(undefined, { includeSecrets: false })
+      ? getAIControlCenterData(period.endInput, {
+        includeSecrets: false,
+        range: { start: period.start, end: period.end },
+      })
       : Promise.resolve(null),
     db.auditLog.count({
       where: {
@@ -127,6 +133,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AdminCurrencySelector basePath="/admin/ops" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
+          <PeriodToolbar basePath="/admin/ops" start={period.startInput} end={period.endInput} />
           <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)}>
             <ServerCog className="h-4 w-4" />
             {statusLabel(status.status)}

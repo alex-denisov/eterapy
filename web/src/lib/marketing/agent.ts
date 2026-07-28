@@ -295,6 +295,7 @@ export async function processMarketingDraft(publicationId: string) {
       },
     });
     if (isComment) await requestMarketingModeration(updated.id);
+    await resolveMarketingSignal(`agent-draft:${publication.id}`).catch(() => undefined);
     return { status: nextStatus.toLowerCase() as "review" | "scheduled" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

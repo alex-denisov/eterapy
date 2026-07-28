@@ -27,6 +27,14 @@ export function marketingNotificationsEnabled(env: Partial<NodeJS.ProcessEnv> = 
   return env.MARKETING_NOTIFICATIONS === "1" || env.MARKETING_NOTIFICATIONS === "true";
 }
 
+export async function marketingNotificationsRuntimeEnabled(): Promise<boolean> {
+  const setting = await db.platformSetting?.findUnique?.({
+    where: { key: "marketing.notifications.enabled" },
+    select: { value: true },
+  })?.catch(() => null) ?? null;
+  return setting ? setting.value === "true" : marketingNotificationsEnabled();
+}
+
 const WEEK_MS = 7 * 86_400_000;
 
 /** Подстановка значений в шаблон. Незаполненный плейсхолдер остаётся как есть — видно в журнале. */
@@ -188,7 +196,7 @@ export async function sendMarketingMessage(input: SendMarketingInput): Promise<S
   if (!recipient) return { status: "failed", reason: "unknown_user" };
 
   const decision = marketingDecision({
-    featureEnabled: marketingNotificationsEnabled(),
+    featureEnabled: await marketingNotificationsRuntimeEnabled(),
     event,
     recipient,
     now,

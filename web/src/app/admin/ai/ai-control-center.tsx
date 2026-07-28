@@ -2136,8 +2136,8 @@ export function AIControlCenter({
   return (
     <div className="space-y-6" data-testid="admin-ai-control-center">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-ai-ops-metrics">
-        <MetricCard icon={Activity} label="AI-запросы" value={formatTokens(totals.requests)} hint={`токены ${formatTokens(totals.tokens)} за день`} />
-        <MetricCard icon={DollarSign} label="Расход AI" value={formatCost(totals.costMicros)} hint={`расчет по стоимости провайдера и модели · ${currencyRateLabel}`} />
+        <MetricCard icon={Activity} label="AI-запросы" value={formatTokens(totals.requests)} hint={`токены ${formatTokens(totals.tokens)} · ${usagePeriod}`} />
+        <MetricCard icon={DollarSign} label="Расход AI" value={formatCost(totals.costMicros)} hint={`фактическая/расчётная стоимость; free-модели = 0 · ${currencyRateLabel}`} />
         <MetricCard icon={KeyRound} label="API-ключи" value={`${totals.activeKeys}/${visibleCredentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
         <MetricCard icon={AlertTriangle} label="Ошибки LLM" value={formatTokens(totals.llmErrors)} hint={`${Object.keys(featureErrors).length} продуктов с ошибками`} />
       </section>
