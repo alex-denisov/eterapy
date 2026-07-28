@@ -456,6 +456,20 @@ jobs:
               $SSH "sudo docker logs eterapy-worker-1 --tail 100" || true
               exit 1
             fi
+            # B610: outbound social publishing must have exactly one active
+            # scheduler. It is declared only by the primary-node compose file;
+            # edge workers keep processing their local queues but must never
+            # duplicate posts or moderation messages.
+            if [ "$NODE_ROLE" = "primary" ]; then
+              MARKETING_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-marketing-agent-1" || echo missing)
+              echo "eterapy-marketing-agent container → $MARKETING_STATUS"
+              if [ "$MARKETING_STATUS" != "running" ]; then
+                $SSH "sudo docker logs eterapy-marketing-agent-1 --tail 100" || true
+                exit 1
+              fi
+            else
+              echo "$NODE_ROLE node: marketing agent intentionally absent — singleton runs on primary"
+            fi
           fi
 
       - name: Cleanup SSH key
@@ -526,6 +540,33 @@ jobs:
           probe eterapy-2 "eterapy-2 standby RU" "https://192.144.13.153.sslip.io/api/health"
           probe eterapy-3 "eterapy-3 US racknerd" "https://107.172.153.202.sslip.io/api/health"
           probe eterapy-4 "eterapy-4 EU aws" "https://18.195.184.182.sslip.io/api/health"
+
+      - name: Reject an unexpected public service port
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          readonly hosts=(
+            "192.144.14.146"
+            "192.144.13.153"
+            "107.172.153.202"
+            "18.195.184.182"
+          )
+          readonly restricted_ports=("5432" "3200" "6379" "7880")
+          failures=0
+          for host in "${hosts[@]}"; do
+            for port in "${restricted_ports[@]}"; do
+              if timeout 3 bash -c "exec 3<>/dev/tcp/${host}/${port}" 2>/dev/null; then
+                printf '::error::unexpected public listener %s:%s\n' "$host" "$port"
+                failures=$((failures + 1))
+              else
+                printf '✓ %s:%s is not reachable publicly\n' "$host" "$port"
+              fi
+            done
+          done
+          if (( failures > 0 )); then
+            printf 'Restricted public listeners found: %s\n' "$failures" >&2
+            exit 1
+          fi
 
       - name: Upload fleet health
         if: always()

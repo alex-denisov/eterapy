@@ -307,7 +307,7 @@
 }
 
 .question-panel textarea::placeholder {
-  color: #7f8a9a;
+  color: var(--muted);
 }
 
 .question-tools {
@@ -316,7 +316,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #657286;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -413,7 +413,7 @@
 }
 
 .continue-row > svg {
-  color: #667286;
+  color: var(--muted);
 }
 
 .service-teaser {
@@ -492,7 +492,7 @@
 .selector-group legend {
   margin-bottom: 8px;
   padding: 0 2px;
-  color: #6f7c8e;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1;
   font-weight: 800;
@@ -613,7 +613,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #8f9cae;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -738,7 +738,7 @@
   justify-content: flex-end;
   gap: 3px;
   background: transparent;
-  color: #657185;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1;
   font-weight: 650;
@@ -1091,7 +1091,7 @@
 }
 
 .diary-pin-lock small {
-  color: #697589;
+  color: var(--muted);
   font-size: 11.5px;
 }
 
@@ -1217,7 +1217,7 @@
   padding: 5px 0;
   border-radius: 9px;
   background: rgba(247, 244, 237, 0.025);
-  color: #586579;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 750;
   text-align: center;
@@ -1313,6 +1313,12 @@
   margin-top: 10px;
 }
 
+.dialogue-search-status {
+  margin: 7px 2px 0;
+  color: var(--muted-strong);
+  font-size: 12px;
+}
+
 .search-field {
   min-height: 44px;
   padding: 0 12px;
@@ -1340,7 +1346,7 @@
 }
 
 .search-field input::placeholder {
-  color: #6d798b;
+  color: var(--muted);
 }
 
 .filter-row {
@@ -1374,6 +1380,10 @@
   gap: 10px;
 }
 
+.load-more {
+  width: 100%;
+}
+
 .dialogue-row {
   border-radius: 16px;
   overflow: hidden;
@@ -1398,7 +1408,7 @@
   display: grid;
   place-items: center;
   background: rgba(247, 244, 237, 0.05);
-  color: #8995a7;
+  color: var(--muted);
   cursor: pointer;
 }
 
@@ -1508,7 +1518,7 @@
 }
 
 .dialogue-copy > small {
-  color: #687589;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -1525,7 +1535,7 @@
 
 .dialogue-main > svg {
   margin-top: 10px;
-  color: #5f6b7e;
+  color: var(--muted);
 }
 
 .dialogue-row.is-complete {
@@ -1534,7 +1544,7 @@
 
 .dialogue-row.is-complete .dialogue-mark,
 .dialogue-row.is-complete .dialogue-badges em:last-child {
-  color: #8995a7;
+  color: var(--muted);
   background: rgba(247, 244, 237, 0.045);
 }
 
@@ -1737,7 +1747,7 @@
 }
 
 .minimal-segment > span {
-  color: #6e7a8d;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 750;
 }
@@ -1768,7 +1778,7 @@
   position: relative;
   isolation: isolate;
   background: transparent;
-  color: #727f91;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.1;
   font-weight: 700;
@@ -1830,14 +1840,14 @@
 
 .service-shortcuts small {
   overflow: hidden;
-  color: #718095;
+  color: var(--muted);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .service-shortcuts > :is(button, a) > svg:last-child {
-  color: #566478;
+  color: var(--muted);
 }
 
 .catalog-nav {
@@ -1862,7 +1872,7 @@
   border-radius: 12px;
   border: 0;
   background: transparent;
-  color: #697589;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.1;
   font-weight: 750;
@@ -2160,14 +2170,14 @@ a.service-row {
 }
 
 .catalog-price em {
-  color: #657286;
+  color: var(--muted);
   font-size: 11px;
   font-style: normal;
 }
 
 .catalog-arrow {
   margin-left: auto;
-  color: #5e6a7d;
+  color: var(--muted);
 }
 
 .catalog-card:not(.is-wide) .catalog-arrow {
@@ -2317,7 +2327,7 @@ a.service-row {
 }
 
 .library-question > small {
-  color: #8894a7;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
 }
@@ -2442,7 +2452,7 @@ a.service-row {
 }
 
 .practice-form textarea::placeholder {
-  color: #697589;
+  color: var(--muted);
 }
 
 .practice-form button {
@@ -2503,7 +2513,7 @@ a.service-row {
 }
 
 .week-strip small {
-  color: #667286;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
 }
@@ -2514,7 +2524,7 @@ a.service-row {
   display: grid;
   place-items: center;
   box-shadow: inset 0 0 0 1px var(--line);
-  color: #687487;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -2531,7 +2541,7 @@ a.service-row {
 
 .practice-footnote {
   margin: 8px 0 0;
-  color: #657286;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
   text-align: center;
@@ -2607,7 +2617,7 @@ a.service-row {
 
 .journal-expanded small {
   display: block;
-  color: #697589;
+  color: var(--muted);
   font-size: 10.5px;
   font-weight: 750;
   letter-spacing: .04em;
@@ -2720,7 +2730,7 @@ a.service-row {
 
 .wallet-rows small {
   overflow: hidden;
-  color: #697589;
+  color: var(--muted);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2800,7 +2810,7 @@ a.service-row {
 .diary-observation em {
   display: block;
   margin-top: 7px;
-  color: #667286;
+  color: var(--muted);
   font-size: 11px;
   font-style: normal;
 }
@@ -2879,7 +2889,7 @@ a.service-row {
 .diary-item-main em,
 .diary-item-main small {
   overflow: hidden;
-  color: #697589;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.3;
   font-style: normal;
@@ -2900,7 +2910,7 @@ a.service-row {
 }
 
 .diary-item-main > svg {
-  color: #5b687b;
+  color: var(--muted);
 }
 
 .diary-share {
@@ -3097,7 +3107,7 @@ a.service-row {
 
 .profile-section > .eyebrow {
   padding: 0 2px 8px;
-  color: #6c788a;
+  color: var(--muted);
 }
 
 .profile-rows {
@@ -3176,7 +3186,7 @@ a.service-row {
 }
 
 .profile-row-caret {
-  color: #5f6b7e;
+  color: var(--muted);
   transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -3612,7 +3622,7 @@ a.service-row {
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  color: #6d798b;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.42;
 }
@@ -3698,7 +3708,7 @@ a.service-row {
 }
 
 .share-options > :is(button, a) > svg {
-  color: #5f6b7e;
+  color: var(--muted);
 }
 
 .utility-sheet {
@@ -3715,7 +3725,7 @@ a.service-row {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #6d798b;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -4128,9 +4138,9 @@ a.service-row {
   line-height: 1.48;
 }
 
-.journey-field textarea::placeholder { color: #667386; }
+.journey-field textarea::placeholder { color: var(--muted); }
 .journey-field textarea:focus { border-color: rgba(255, 128, 105, .65); box-shadow: 0 0 0 3px rgba(255, 101, 72, .08); }
-.journey-field > small { margin: -25px 12px 10px auto; position: relative; color: #657185; font-size: 11px; }
+.journey-field > small { margin: -25px 12px 10px auto; position: relative; color: var(--muted); font-size: 11px; }
 
 .compact-tabs,
 .account-switch {
@@ -4482,7 +4492,7 @@ a.service-row {
    строки вместо многоточия. */
 .practitioner-card em { display: -webkit-box; overflow: hidden; color: var(--muted-strong); font-size: 12px; font-style: normal; line-height: 1.3; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .practitioner-card span span { margin-top: 3px; color: var(--muted); font-size: 12px; }
-.practitioner-card > svg { color: #718097; }
+.practitioner-card > svg { color: var(--muted); }
 
 .practitioner-detail-card {
   padding: 15px;
@@ -4562,7 +4572,7 @@ a.service-row {
   text-align: center;
 }
 
-.empty-detail svg { color: #8493a6; }
+.empty-detail svg { color: var(--muted); }
 .empty-detail strong { color: var(--text); font-size: 14px; }
 .empty-detail p { max-width: 260px; margin: 0; font-size: 13px; line-height: 1.45; }
 
@@ -4744,7 +4754,7 @@ a.service-row {
 .settings-list > :is(a, div) > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
 .settings-list strong { font-size: 13px; }
 .settings-list small { color: var(--muted); font-size: 12px; line-height: 1.35; }
-.settings-list > :is(a, div) > svg { color: #718097; }
+.settings-list > :is(a, div) > svg { color: var(--muted); }
 
 .profile-detail-list {
   display: grid;
@@ -4770,7 +4780,7 @@ a.service-row {
 .profile-detail-list strong { overflow: hidden; color: var(--text); font-size: 13px; line-height: 1.38; text-overflow: ellipsis; }
 .profile-detail-list p { margin: 0; display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 .profile-detail-list > article > a { min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px; border-radius: 12px; color: #11141a; background: var(--coral); font-size: 12px; font-weight: 800; }
-.profile-detail-list > a > svg { color: #718097; }
+.profile-detail-list > a > svg { color: var(--muted); }
 
 .material-head { display: grid; grid-template-columns: 38px 1fr; gap: 8px; align-items: start; }
 .material-head > a { width: 38px; height: 44px; display: grid; place-items: center; border-radius: 13px; color: var(--muted-strong); }
@@ -4811,6 +4821,30 @@ a.service-row {
 
 .miniapp-session :global(main),
 .miniapp-session :global(section) { max-width: 100% !important; }
+
+/* B467: a live call is a task mode, not a card inside the Mini App feed.
+   Cover the Telegram viewport, honour its safe-area variables and remove the
+   old 20px frame that clipped fullscreen video and the mobile chat sheet. */
+.miniapp-session {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  height: 100dvh;
+  min-height: 0;
+  padding-top: var(--miniapp-safe-top, env(safe-area-inset-top));
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+}
+
+.miniapp-session :global([data-testid="video-room"]) {
+  height: 100%;
+  min-height: 100%;
+}
+
+.miniapp-session :global([aria-label="Управление видеосессией"]) {
+  padding-bottom: max(.5rem, var(--miniapp-safe-bottom, env(safe-area-inset-bottom)));
+}
 
 .native-toggle-list { display: grid; gap: 8px; }
 .native-toggle-list > button { min-height: 62px; padding: 10px 11px; display: grid; grid-template-columns: 34px 1fr 38px; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 16px; color: var(--text); background: rgba(13, 26, 42, .8); text-align: left; }
@@ -5071,7 +5105,7 @@ a.service-row {
 }
 
 .product-action-boundary :global(input::placeholder),
-.product-action-boundary :global(textarea::placeholder) { color: #6f7e92 !important; }
+.product-action-boundary :global(textarea::placeholder) { color: var(--muted) !important; }
 
 .product-action-boundary :global(.soft-button) {
   min-height: 44px;
@@ -5293,7 +5327,7 @@ a.service-row {
 }
 
 .dialogue-surface :global(.soft-question-input::placeholder) {
-  color: #6f7e92;
+  color: var(--muted);
 }
 
 .dialogue-surface :global(.soft-question-input:focus) {
@@ -5654,7 +5688,7 @@ a.service-row {
 }
 
 .library-search input::placeholder {
-  color: #718095;
+  color: var(--muted);
 }
 
 .library-topics {

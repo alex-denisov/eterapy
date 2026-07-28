@@ -53,7 +53,22 @@ services:
     network_mode: host
     restart: always
     env_file: .env
+    environment:
+      MARKETING_NOTIFICATIONS: "true"
     command: ["npm", "run", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  marketing-agent:
+    image: ${ETERAPY_IMAGE}
+    network_mode: host
+    restart: always
+    env_file: .env
+    environment:
+      ETERAPY_CONTOUR: staging
+      MARKETING_AGENT_ENABLED: "false"
+    command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:
         condition: service_completed_successfully

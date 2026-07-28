@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 interface ChatMsg {
   id: string;
@@ -25,24 +26,57 @@ interface VideoChatProps {
   videoSessionId: string | null;
   participantName: string;
   role: "client" | "practitioner";
+  onClose?: () => void;
 }
 
-export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
+export function VideoChat({ videoSessionId, participantName, onClose }: VideoChatProps) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [writable, setWritable] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Загружаем историю
   useEffect(() => {
     if (!videoSessionId) return;
-    fetch(`/api/video/chat?videoSessionId=${videoSessionId}`)
-      .then(r => r.json())
-      .then(d => { if (d.messages) setMessages(d.messages); });
+    fetch(`/api/video/chat?videoSessionId=${encodeURIComponent(videoSessionId)}&limit=50`)
+      .then(async (response) => ({ response, data: await response.json().catch(() => null) }))
+      .then(({ response, data }) => {
+        if (response.status === 410) {
+          setMessages([]);
+          setWritable(false);
+          return;
+        }
+        if (data?.messages) setMessages(data.messages);
+        setNextCursor(data?.nextCursor ?? null);
+        setWritable(data?.writable !== false);
+      })
+      .catch(() => toast.error("Не удалось загрузить чат"));
   }, [videoSessionId]);
+
+  const loadOlder = useCallback(async () => {
+    if (!videoSessionId || !nextCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const response = await fetch(
+        `/api/video/chat?videoSessionId=${encodeURIComponent(videoSessionId)}&limit=50&cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) throw new Error(data?.error ?? "Не удалось загрузить");
+      setMessages((current) => [...data.messages, ...current]);
+      setNextCursor(data.nextCursor ?? null);
+      setWritable(data.writable !== false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось загрузить");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [loadingOlder, nextCursor, videoSessionId]);
 
   // Скролл вниз при новых сообщениях
   useEffect(() => {
@@ -50,7 +84,7 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
   }, [messages]);
 
   const sendMessage = useCallback(async (msgText: string) => {
-    if (!videoSessionId || !msgText.trim()) return;
+    if (!videoSessionId || !msgText.trim() || !writable) return;
     setSending(true);
     try {
       const res = await fetch("/api/video/chat", {
@@ -63,11 +97,12 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
         setMessages(prev => [...prev, d.message]);
         setText("");
       } else {
+        if (res.status === 409 || res.status === 410) setWritable(false);
         toast.error(d.error ?? "Ошибка");
       }
     } catch { toast.error("Ошибка сети"); }
     finally { setSending(false); }
-  }, [videoSessionId]);
+  }, [videoSessionId, writable]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -78,7 +113,7 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !videoSessionId) return;
+    if (!file || !videoSessionId || !writable) return;
     setUploading(true);
     try {
       const fd = new FormData();
@@ -89,6 +124,7 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
       if (d.ok) {
         setMessages(prev => [...prev, d.message]);
       } else {
+        if (res.status === 409 || res.status === 410) setWritable(false);
         toast.error(d.error ?? "Ошибка загрузки");
       }
     } catch { toast.error("Ошибка сети"); }
@@ -101,13 +137,37 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Заголовок */}
-      <div className="px-4 py-3 border-b border-white/10">
-        <p className="text-sm font-semibold">Чат сессии</p>
-        <p className="text-xs text-muted-foreground">История сохранится в кабинете</p>
+      <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold">Чат сессии</p>
+          <p className="text-xs text-muted-foreground">
+            Доступен во время сессии и 24 часа после её завершения
+          </p>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full bg-white/8 hover:bg-white/15"
+            aria-label="Закрыть чат"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Сообщения */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+        {nextCursor && (
+          <button
+            type="button"
+            className="mx-auto block rounded-lg bg-white/8 px-3 py-1.5 text-xs hover:bg-white/15 disabled:opacity-50"
+            disabled={loadingOlder}
+            onClick={() => void loadOlder()}
+          >
+            {loadingOlder ? "Загружаем…" : "Показать более ранние"}
+          </button>
+        )}
         {messages.length === 0 && (
           <p className="text-center text-xs text-muted-foreground/60 mt-8">Начните общение</p>
         )}
@@ -151,7 +211,7 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
       </div>
 
       {/* Emoji picker */}
-      {showEmoji && (
+      {writable && showEmoji && (
         <div className="px-3 py-2 border-t border-white/10 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto bg-video-bg">
           {EMOJIS.map(e => (
             <button key={e} onClick={() => { setText(prev => prev + e); setShowEmoji(false); }}
@@ -164,11 +224,18 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
 
       {/* Ввод */}
       <div className="px-3 py-2 border-t border-white/10 bg-video-bg">
+        {!writable && (
+          <p className="mb-2 rounded-lg bg-white/8 px-3 py-2 text-xs text-muted-foreground" role="status">
+            Сессия завершена: чат доступен только для чтения.
+          </p>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
+            disabled={!writable}
+            maxLength={2000}
             placeholder="Сообщение... (Enter — отправить)"
             rows={1}
             className="flex-1 resize-none rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm focus:border-primary/50 focus:outline-none placeholder:text-muted-foreground/50 max-h-24 overflow-y-auto"
@@ -176,17 +243,18 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
           />
           <div className="flex flex-col gap-1">
             <button onClick={() => setShowEmoji(!showEmoji)}
+              disabled={!writable}
               className="h-8 w-8 rounded-lg bg-white/8 text-sm hover:bg-white/15 transition-colors">
               😊
             </button>
             <button onClick={() => fileRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || !writable}
               className="h-8 w-8 rounded-lg bg-white/8 text-sm hover:bg-white/15 transition-colors disabled:opacity-50"
               title="Прикрепить файл">
               {uploading ? "⏳" : "📎"}
             </button>
             <button onClick={() => sendMessage(text)}
-              disabled={sending || !text.trim()}
+              disabled={sending || !text.trim() || !writable}
               className="h-8 w-8 rounded-lg bg-primary text-navy text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50">
               ↑
             </button>
@@ -194,7 +262,7 @@ export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
         </div>
         <input ref={fileRef} type="file"
           accept="image/*,application/pdf,audio/*,text/plain,.pdf,.txt,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg,.m4a"
-          className="hidden" onChange={handleFile} />
+          className="hidden" disabled={!writable} onChange={handleFile} />
         <p className="text-[10px] text-muted-foreground/70 mt-1 text-right">
           Enter — отправить · Shift+Enter — новая строка
         </p>

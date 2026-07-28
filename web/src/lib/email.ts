@@ -69,6 +69,93 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
 }
 
 /**
+ * Invitation to an account created by an administrator. This is intentionally
+ * separate from password reset: the recipient did not request a reset.
+ */
+export async function sendAccountInvitationEmail(
+  email: string,
+  name: string,
+  token: string,
+  role: "client" | "practitioner" | "moderator",
+) {
+  const url = `${APP_URL}/auth/reset-password?token=${token}`;
+  const roleLabel = role === "moderator"
+    ? "модератора"
+    : role === "practitioner"
+      ? "практика"
+      : "клиента";
+  const event = role === "moderator" ? "ACCOUNT_MODERATOR_INVITE" : "ACCOUNT_PASSWORD_SET_INVITE";
+  const subject = role === "moderator"
+    ? "Приглашение в команду ETerapy"
+    : "Ваш аккаунт ETerapy готов";
+
+  return withAccountEmailLog(
+    { recipient: email, event, subject },
+    () => getResendClient().emails.send({
+      from: FROM,
+      to: email,
+      subject,
+      html: emailWrapper(`
+        ${h1(role === "moderator" ? "Вас пригласили в команду" : "Ваш аккаунт готов")}
+        <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Привет, ${name}!</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Для вас создан аккаунт ${roleLabel} ETerapy. Задайте свой пароль по одноразовой ссылке — она действует 1 час.</p>
+        ${btn(url, "Задать пароль")}
+        <p style="margin:24px 0 0;color:${INK_FAINT};font-size:12px">Если вы не ожидали приглашения, просто проигнорируйте это письмо.</p>
+      `),
+    }),
+  );
+}
+
+export async function sendPractitionerApplicationApprovedEmail(
+  email: string,
+  name: string,
+  token: string,
+) {
+  const url = `${APP_URL}/auth/reset-password?token=${token}`;
+  const subject = "Заявка специалиста одобрена — ETerapy";
+  return withAccountEmailLog(
+    { recipient: email, event: "ACCOUNT_APPLICATION_DECISION", subject },
+    () => getResendClient().emails.send({
+      from: FROM,
+      to: email,
+      subject,
+      html: emailWrapper(`
+        ${h1("Заявка одобрена")}
+        <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Привет, ${name}!</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">Мы создали для вас кабинет практика ETerapy. Задайте пароль по одноразовой ссылке — она действует 1 час. После входа можно завершить оформление профиля.</p>
+        ${btn(url, "Задать пароль и войти")}
+      `),
+    }),
+  );
+}
+
+export async function sendPractitionerApplicationDecisionEmail(
+  email: string,
+  name: string,
+  approved: boolean,
+) {
+  const subject = approved
+    ? "Проверка профиля завершена — ETerapy"
+    : "Решение по заявке специалиста — ETerapy";
+  return withAccountEmailLog(
+    { recipient: email, event: "ACCOUNT_APPLICATION_DECISION", subject },
+    () => getResendClient().emails.send({
+      from: FROM,
+      to: email,
+      subject,
+      html: emailWrapper(`
+        ${h1(approved ? "Профиль подтверждён" : "Заявка не одобрена")}
+        <p style="margin:0 0 8px;color:${INK_SOFT};line-height:1.6">Привет, ${name}!</p>
+        <p style="margin:0 0 28px;color:${INK_SOFT};line-height:1.6">${approved
+          ? "Проверка завершена: статус профиля обновлён в кабинете."
+          : "Сейчас мы не можем одобрить заявку. Если нужны уточнения или повторная подача, ответьте на это письмо — команда поддержки поможет разобраться."}</p>
+        ${approved ? btn(`${APP_URL}/cabinet/practitioner`, "Открыть кабинет") : ""}
+      `),
+    }),
+  );
+}
+
+/**
  * B599 (батч №20) · Подтверждение запроса на удаление аккаунта.
  *
  * Дыра, вскрытая каталогом служебных событий: человек нажимал «Удалить

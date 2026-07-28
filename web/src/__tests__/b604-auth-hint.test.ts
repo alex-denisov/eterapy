@@ -95,7 +95,6 @@ describe("B604 · пре-paint скрипт", () => {
     document.cookie = `${AUTH_HINT_COOKIE}=; path=/; max-age=0`;
     document.cookie = "other=; path=/; max-age=0";
     for (const cookie of cookies) document.cookie = `${cookie}; path=/`;
-    // eslint-disable-next-line no-eval
     (0, eval)(AUTH_HINT_INLINE_SCRIPT);
     return document.documentElement.getAttribute(AUTH_HINT_ATTR);
   };

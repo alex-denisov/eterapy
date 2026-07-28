@@ -56,19 +56,24 @@ function TopBar({ data, onUtility }: {
       <div className={styles["topbar-utilities"]} aria-label="Баланс, подписка и помощь">
         {/* INC-068: «баллов» было зашито строкой — на 9662 выходило
             «9662 баллов» вместо «9662 балла». Склонение считает `pointsWord`. */}
-        <button className={styles["points-button"]} type="button" aria-label={`Баланс: ${formatPoints(data.viewer.points)}. Открыть`} onClick={() => onUtility("balance")}>
+        <button
+          className={styles["points-button"]}
+          type="button"
+          aria-label={data.loadError ? "Баланс не загрузился. Открыть кошелёк" : `Баланс: ${formatPoints(data.viewer.points)}. Открыть`}
+          onClick={() => onUtility("balance")}
+        >
           <span className={c("utility-face", "points-face")}>
             <Coins size={14} weight="duotone" />
-            <strong>{data.viewer.points}</strong>
+            <strong>{data.loadError ? "—" : data.viewer.points}</strong>
             <span className={styles["utility-plus"]}><Plus size={9} weight="bold" /></span>
           </span>
         </button>
         {/* B554 (owner п.8): корона выглядела одинаково с подпиской и без.
             Активная подписка теперь заливает знак фирменным цветом, а точка
             остаётся индикатором «подписки нет». */}
-        <button className={c("utility-button", "subscription-button", data.viewer.plan !== "Базовый" && "is-subscribed")} type="button" aria-label={`Подписка: ${data.viewer.plan}`} onClick={() => onUtility("subscription")}>
-          <span className={styles["utility-face"]}><CrownSimple size={17} weight={data.viewer.plan === "Базовый" ? "duotone" : "fill"} /></span>
-          {data.viewer.plan === "Базовый" ? <span className={styles["utility-status-dot"]} aria-hidden="true" /> : null}
+        <button className={c("utility-button", "subscription-button", !data.loadError && data.viewer.plan !== "Базовый" && "is-subscribed")} type="button" aria-label={data.loadError ? "Подписка не загрузилась" : `Подписка: ${data.viewer.plan}`} onClick={() => onUtility("subscription")}>
+          <span className={styles["utility-face"]}><CrownSimple size={17} weight={!data.loadError && data.viewer.plan !== "Базовый" ? "fill" : "duotone"} /></span>
+          {!data.loadError && data.viewer.plan === "Базовый" ? <span className={styles["utility-status-dot"]} aria-hidden="true" /> : null}
         </button>
         <button className={styles["utility-button"]} type="button" aria-label="Помощь" onClick={() => onUtility("help")}>
           <span className={styles["utility-face"]}><Question size={16} weight="bold" /></span>
@@ -177,7 +182,14 @@ function Sheet({ open, onOpenChange, title, eyebrow, lead, children, label }: {
 function UtilitySheet({ utility, data, onClose }: { utility: Utility; data: MiniAppInitialData; onClose: () => void }) {
   const content = utility ? UTILITY_CONTENT[utility] : null;
   if (!content) return null;
-  const title = utility === "balance" ? formatPoints(data.viewer.points) : utility === "subscription" ? data.viewer.plan : "Чем помочь?";
+  const personalDataUnavailable = data.loadError && (utility === "balance" || utility === "subscription");
+  const title = personalDataUnavailable
+    ? "Не загрузилось"
+    : utility === "balance"
+      ? formatPoints(data.viewer.points)
+      : utility === "subscription"
+        ? data.viewer.plan
+        : "Чем помочь?";
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }} title={title} eyebrow={content.eyebrow} lead={content.lead} label={content.label}>
@@ -190,6 +202,11 @@ function UtilitySheet({ utility, data, onClose }: { utility: Utility; data: Mini
           </Link>
         ))}
       </div>
+      {personalDataUnavailable ? (
+        <p className={styles["utility-response-note"]} role="status">
+          Обновите экран: мы не показываем ноль или базовый тариф вместо неизвестных данных.
+        </p>
+      ) : null}
       {utility === "help" ? <p className={styles["utility-response-note"]}><ChatCircleText size={16} /> Обычно отвечаем в течение дня</p> : null}
     </Sheet>
   );

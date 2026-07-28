@@ -14,14 +14,26 @@ import { authRateLimitKey, checkAuthRateLimit } from "./auth-rate-limit";
 const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
 const PUBLIC_ROOT = path.join(process.cwd(), "public");
 const USER_STORAGE_QUOTA_BYTES = 250 * 1024 * 1024;
-const MAX_SIZES: Record<FileKind, number> = {
+export const FILE_STORAGE_MAX_BYTES: Record<FileKind, number> = {
   AVATAR:   5 * 1024 * 1024,   // 5 MB
   DOCUMENT: 20 * 1024 * 1024,  // 20 MB
   REPORT:   10 * 1024 * 1024,  // 10 MB
 };
-const ALLOWED_MIME: Record<FileKind, readonly string[]> = {
+export const FILE_STORAGE_ALLOWED_MIME: Record<FileKind, readonly string[]> = {
   AVATAR: ["image/jpeg", "image/png", "image/webp", "image/gif"],
-  DOCUMENT: ["application/pdf", "image/jpeg", "image/png", "text/plain"],
+  DOCUMENT: [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/ogg",
+    "audio/wav",
+    "audio/webm",
+    "text/plain",
+  ],
   // REPORT is server-created only. Active HTML must never be placed in the
   // same-origin public tree; JSON and PDF use canonical, non-executable suffixes.
   REPORT: ["application/pdf", "application/json"],
@@ -34,6 +46,11 @@ const CANONICAL_EXTENSION: Record<string, string> = {
   "image/gif": "gif",
   "application/pdf": "pdf",
   "application/json": "json",
+  "audio/mpeg": "mp3",
+  "audio/mp4": "m4a",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
   "text/plain": "txt",
 };
 
@@ -50,6 +67,19 @@ function contentMatchesMime(buffer: Buffer, mime: string): boolean {
       && buffer.subarray(8, 12).toString("ascii") === "WEBP";
   }
   if (mime === "application/pdf") return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  if (mime === "audio/mpeg") {
+    return buffer.subarray(0, 3).toString("ascii") === "ID3"
+      || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0);
+  }
+  if (mime === "audio/mp4") return buffer.subarray(4, 8).toString("ascii") === "ftyp";
+  if (mime === "audio/ogg") return buffer.subarray(0, 4).toString("ascii") === "OggS";
+  if (mime === "audio/wav") {
+    return buffer.subarray(0, 4).toString("ascii") === "RIFF"
+      && buffer.subarray(8, 12).toString("ascii") === "WAVE";
+  }
+  if (mime === "audio/webm") {
+    return hasPrefix(buffer, [0x1a, 0x45, 0xdf, 0xa3]);
+  }
   if (mime === "text/plain" || mime === "application/json") {
     if (buffer.includes(0)) return false;
     try {
@@ -71,22 +101,24 @@ function safePathBelow(root: string, ...segments: string[]) {
   return candidate;
 }
 
+type FileUploadInput = Pick<File, "size" | "type" | "name" | "arrayBuffer">;
+
 export async function storeFile(
   userId: string,
-  file: File,
+  file: FileUploadInput,
   kind: FileKind
 ): Promise<{ url: string; fileId: string }> {
-  if (!(kind in MAX_SIZES)) throw new Error("Неподдерживаемая категория файла");
+  if (!(kind in FILE_STORAGE_MAX_BYTES)) throw new Error("Неподдерживаемая категория файла");
   const userLimit = checkAuthRateLimit(authRateLimitKey("file:store:user", userId), 60, 60 * 60_000);
   if (!userLimit.allowed) throw new Error("Слишком много загрузок. Попробуйте позже.");
 
   // Validate size
-  if (file.size <= 0 || file.size > MAX_SIZES[kind]) {
-    throw new Error(`Файл слишком большой. Максимум: ${MAX_SIZES[kind] / 1024 / 1024} МБ`);
+  if (file.size <= 0 || file.size > FILE_STORAGE_MAX_BYTES[kind]) {
+    throw new Error(`Файл слишком большой. Максимум: ${FILE_STORAGE_MAX_BYTES[kind] / 1024 / 1024} МБ`);
   }
   // Validate mime
   const mime = file.type.trim().toLowerCase();
-  if (!ALLOWED_MIME[kind].includes(mime)) {
+  if (!FILE_STORAGE_ALLOWED_MIME[kind].includes(mime)) {
     throw new Error(`Неподдерживаемый тип файла: ${mime}`);
   }
 

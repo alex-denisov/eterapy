@@ -102,6 +102,27 @@ export async function POST(req: NextRequest) {
   }
 
   const practitionerUserId = videoSession.booking.practitioner.userId;
+  const browserCapture = parsed.data.sttSource === "browser_speech_recognition";
+  if (browserCapture && userId !== practitionerUserId) {
+    // Browser SpeechRecognition captures only the speaker's local microphone.
+    // A client-side fragment is useful for an in-call warning, but must never
+    // overwrite the practitioner's transcript, consume their AI quota or
+    // create a compliance hold against them.
+    return NextResponse.json({
+      ok: true,
+      violation: quickWarning,
+      stored: false,
+      requestId: context.requestId,
+    });
+  }
+  if (browserCapture && videoSession.serverSttStatus === "completed") {
+    return NextResponse.json({
+      ok: true,
+      stored: false,
+      reason: "server_transcript_already_completed",
+      requestId: context.requestId,
+    });
+  }
   const transcriptAllowed = await practitionerHasFeature(practitionerUserId, "browser_stt");
   const summaryAllowed = transcriptAllowed
     ? await practitionerHasFeature(practitionerUserId, "session_summary")
@@ -149,7 +170,10 @@ export async function POST(req: NextRequest) {
   // B434: разбор метерится (Pro 20 / Pro+ 50 + докупка) и может быть выключен
   // глобально/на сессии. Регенерация уже разобранной сессии бесплатна.
   const { resolveAnalysisEligibility, consumeAnalysis } = await import("@/lib/practitioner-ai-metering");
-  const eligibility = summaryAllowed && !videoSession.summaryText
+  // A local browser transcript contains only one side of the conversation.
+  // It remains a live-compliance fallback, while complete post-session notes
+  // are generated from the practitioner-enabled LiveKit audio-only stream.
+  const eligibility = summaryAllowed && !browserCapture && !videoSession.summaryText
     ? await resolveAnalysisEligibility({
         practitionerId: videoSession.booking.practitionerId,
         practitionerUserId,

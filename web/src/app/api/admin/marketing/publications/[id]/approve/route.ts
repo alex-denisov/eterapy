@@ -23,10 +23,24 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   }
 
   const { id } = await context.params;
+  const current = await db.externalPublication.findFirst({
+    where: { id, status: "DRAFT" },
+    select: { scheduledFor: true },
+  });
+  if (!current) {
+    return NextResponse.json(
+      { error: "Утвердить можно только черновик" },
+      { status: 409 },
+    );
+  }
 
   const updated = await db.externalPublication.updateMany({
     where: { id, status: "DRAFT" },
-    data: { status: "SCHEDULED", updatedBy: session.user.id },
+    data: {
+      status: "SCHEDULED",
+      scheduledFor: current.scheduledFor ?? new Date(),
+      updatedBy: session.user.id,
+    },
   });
 
   if (updated.count === 0) {

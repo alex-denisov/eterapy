@@ -14,11 +14,11 @@
 
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
-import { CONTENT_PLAN, nextPlanSlots } from "@/lib/marketing/content-plan";
+import { CONTENT_PLAN, nextPlanSlots, plannedAtFor } from "@/lib/marketing/content-plan";
 import { generatePost } from "@/lib/marketing/post-generator";
 
 /** Сколько черновиков держим наготове. Больше — не читает никто. */
-export const DRAFT_QUEUE_TARGET = 3;
+export const DRAFT_QUEUE_TARGET = CONTENT_PLAN.length;
 
 export interface GenerateDraftsResult {
   created: number;
@@ -33,16 +33,15 @@ export async function generateMarketingDrafts(input: {
   const now = input.now ?? new Date();
   const target = input.target ?? DRAFT_QUEUE_TARGET;
 
-  const [existing, pendingCount] = await Promise.all([
-    db.externalPublication.findMany({
-      where: { planSlot: { not: null } },
-      select: { planSlot: true },
-    }),
-    db.externalPublication.count({ where: { status: { in: ["DRAFT", "SCHEDULED"] } } }),
-  ]);
+  const existing = await db.externalPublication.findMany({
+    where: { planSlot: { not: null } },
+    select: { planSlot: true },
+  });
 
   const taken = existing.map((row) => row.planSlot).filter((slot): slot is string => Boolean(slot));
-  const shortfall = Math.max(0, target - pendingCount);
+  // Comments discovered by the SMM agent and ad-hoc drafts must not crowd
+  // scheduled content out of the plan. The target applies only to plan slots.
+  const shortfall = Math.max(0, target - taken.length);
   const slots = nextPlanSlots(taken, shortfall);
 
   const skippedNoArticle: string[] = [];
@@ -77,6 +76,7 @@ export async function generateMarketingDrafts(input: {
           cluster: slot.cluster,
           source: "CRON_B589",
           autoPublish: false,
+          scheduledFor: plannedAtFor(slot),
           createdAt: now,
         },
       });

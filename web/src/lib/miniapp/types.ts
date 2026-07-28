@@ -130,6 +130,8 @@ export type MiniAppInitialData = {
     telegramLinkAvailable: boolean;
   };
   dialogues: MiniAppDialogue[];
+  /** Курсор следующей порции активных диалогов. */
+  dialogueNextCursor: string | null;
   diaryItems: MiniAppDiaryItem[];
   journalEntries: MiniAppJournalEntry[];
   libraryItems: MiniAppLibraryItem[];

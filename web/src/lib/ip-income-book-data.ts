@@ -54,6 +54,9 @@ export async function loadIncomeRecords(range: { from: Date; to: Date }): Promis
         invoiceId: true,
         description: true,
         metadata: true,
+        fiscalReceiptRef: true,
+        fiscalReceiptStatus: true,
+        fiscalReceiptError: true,
         createdAt: true,
       },
       orderBy: { createdAt: "asc" },
@@ -107,6 +110,8 @@ export async function loadIncomeRecords(range: { from: Date; to: Date }): Promis
       notes.push(`${metadata.starsAmount} ★ по курсу ${metadata.starsRubRate} ₽ на дату оплаты`);
     }
     if (transaction.description) notes.push(transaction.description);
+    if (transaction.fiscalReceiptStatus) notes.push(`чек: ${transaction.fiscalReceiptStatus}`);
+    if (transaction.fiscalReceiptError) notes.push(`ошибка чека: ${transaction.fiscalReceiptError}`);
 
     return {
       id: transaction.id,
@@ -124,7 +129,7 @@ export async function loadIncomeRecords(range: { from: Date; to: Date }): Promis
       // подставляет дату платежа: база уменьшается ДАТОЙ ВОЗВРАТА.
       refundedAt: null,
       reference: transaction.providerPaymentId ?? String(transaction.invoiceId),
-      receiptReference: metadata.fiscalReceiptId ?? null,
+      receiptReference: transaction.fiscalReceiptRef ?? metadata.fiscalReceiptId ?? null,
       note: notes.length ? notes.join(" · ") : null,
     };
   });

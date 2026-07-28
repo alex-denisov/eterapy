@@ -42,7 +42,10 @@ export function LibrarySearch({
     const raw = new URLSearchParams(window.location.search).get("topic");
     // Тот же разбор, что был на сервере: старые названия тем из разосланных
     // ссылок продолжают работать, мусор в параметре — игнорируется.
-    setActiveTopic(resolveLibraryTopic(raw ?? undefined));
+    const timer = window.setTimeout(() => {
+      setActiveTopic(resolveLibraryTopic(raw ?? undefined));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   /**

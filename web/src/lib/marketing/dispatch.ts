@@ -16,6 +16,8 @@ import { findMarketingEvent, type MarketingChannel } from "@/lib/marketing/event
 import { marketingDecision, type MarketingRecipientState } from "@/lib/marketing/gates";
 import { unsubscribeUrl, withUnsubscribeFooter } from "@/lib/marketing/unsubscribe";
 import { absoluteMainUrl } from "@/lib/subdomain";
+import { sendMarketingEmail } from "@/lib/email-send";
+import { sendTelegram } from "@/lib/telegram";
 
 /**
  * Выключатель. По умолчанию ВЫКЛЮЧЕН: матрица едет на прод раньше, чем владелец
@@ -96,6 +98,69 @@ async function recipientState(userId: string, eventKey: string, now: Date): Prom
   };
 }
 
+type MarketingDeliveryRecipient = {
+  email: string;
+  name: string;
+  telegramId: string | null;
+};
+
+async function deliveryRecipient(userId: string): Promise<MarketingDeliveryRecipient | null> {
+  return db.user.findUnique({
+    where: { id: userId },
+    select: { email: true, name: true, telegramId: true },
+  });
+}
+
+function bestChannel(
+  channels: readonly MarketingChannel[],
+  recipient: MarketingDeliveryRecipient | null,
+): MarketingChannel {
+  return channels.find((channel) =>
+    channel === "push"
+    || (channel === "telegram" && Boolean(recipient?.telegramId))
+    || (channel === "email" && Boolean(recipient?.email))
+  ) ?? channels[0];
+}
+
+function escapeTelegram(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+async function deliverMarketing(input: {
+  userId: string;
+  channel: MarketingChannel;
+  recipient: MarketingDeliveryRecipient | null;
+  subject: string;
+  body: string;
+}): Promise<{ body: string }> {
+  if (!input.recipient) throw new Error("Marketing recipient not found");
+  if (input.channel === "email") {
+    const sent = await sendMarketingEmail({
+      to: input.recipient.email,
+      subject: input.subject,
+      body: input.body,
+    });
+    if (!sent.delivered) throw new Error("Email provider did not confirm delivery");
+    return { body: sent.html };
+  }
+  if (input.channel === "telegram") {
+    if (!input.recipient.telegramId) throw new Error("Telegram is not linked");
+    const rendered = `<b>${escapeTelegram(input.subject)}</b>\n\n${escapeTelegram(input.body)}`;
+    await sendTelegram(input.recipient.telegramId, rendered);
+    return { body: rendered };
+  }
+  await db.notification.create({
+    data: {
+      userId: input.userId,
+      event: "MOMENT_OF_NEED",
+      title: input.subject,
+      body: input.body,
+      href: "/cabinet",
+    },
+  });
+  return { body: input.body };
+}
+
 export interface SendMarketingInput {
   userId: string;
   eventKey: string;
@@ -129,7 +194,8 @@ export async function sendMarketingMessage(input: SendMarketingInput): Promise<S
     now,
   });
 
-  const channel = event.channels[0];
+  const recipientDelivery = await deliveryRecipient(input.userId);
+  const channel = bestChannel(event.channels, recipientDelivery);
 
   if (!decision.allowed) {
     await db.marketingDispatch.create({
@@ -155,7 +221,15 @@ export async function sendMarketingMessage(input: SendMarketingInput): Promise<S
   );
 
   try {
-    if (input.deliver) await input.deliver(channel, subject, body);
+    const delivered = input.deliver
+      ? (await input.deliver(channel, subject, body), { body })
+      : await deliverMarketing({
+        userId: input.userId,
+        channel,
+        recipient: recipientDelivery,
+        subject,
+        body,
+      });
     await db.marketingDispatch.create({
       data: {
         userId: input.userId,
@@ -164,7 +238,7 @@ export async function sendMarketingMessage(input: SendMarketingInput): Promise<S
         channel,
         status: "sent",
         subject,
-        body,
+        body: delivered.body,
         sentAt: now,
       },
     });

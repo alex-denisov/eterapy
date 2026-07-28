@@ -32,6 +32,14 @@ export interface ContentPlanSlot {
   order: number;
 }
 
+/** Первая волна выходит по понедельникам в 12:00 МСК, не чаще раза в неделю. */
+export const CONTENT_PLAN_START_AT = new Date("2026-08-03T09:00:00.000Z");
+const WEEK_MS = 7 * 86_400_000;
+
+export function plannedAtFor(slot: Pick<ContentPlanSlot, "order">): Date {
+  return new Date(CONTENT_PLAN_START_AT.getTime() + (slot.order - 1) * WEEK_MS);
+}
+
 /**
  * Первая волна: восемь слотов под замеренный спрос B601 части 3.
  *

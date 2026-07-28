@@ -19,6 +19,6 @@ export interface CardBooking {
 export function analysisState(b: CardBooking): "ready" | "pending" | null {
   if (!b.videoSession) return null;
   if (b.videoSession.summaryText) return "ready";
-  if (b.videoSession.serverSttStatus === "processing" || b.videoSession.serverSttStatus === "requested") return "pending";
+  if (["queued", "processing", "requested"].includes(b.videoSession.serverSttStatus)) return "pending";
   return null;
 }

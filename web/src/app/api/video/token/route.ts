@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Создаём или обновляем VideoSession
-  await db.videoSession.upsert({
+  const videoSession = await db.videoSession.upsert({
     where: { bookingId },
     create: { bookingId, roomName, status: "WAITING" },
     update: {},
@@ -66,5 +66,12 @@ export async function GET(req: NextRequest) {
     metadata: JSON.stringify({ role, bookingId }),
   });
 
-  return NextResponse.json({ token, roomName, role, participantName });
+  return NextResponse.json({
+    token,
+    roomName,
+    role,
+    participantName,
+    videoSessionId: videoSession.id,
+    startedAt: videoSession.startedAt,
+  });
 }

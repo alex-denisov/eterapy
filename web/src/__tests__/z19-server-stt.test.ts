@@ -85,7 +85,7 @@ function job(overrides: Partial<Job> = {}): Job {
     payload: {
       videoSessionId: "vs-1",
       bookingId: "booking-1",
-      audioUrl: "/uploads/recordings/stt_booking-1.webm",
+      audioUrl: "/uploads/recordings/stt_booking-1.ogg",
       egressId: "egress-1",
       requestedByUserId: "practitioner-user",
     },
@@ -115,10 +115,9 @@ function booking(overrides: Record<string, unknown> = {}) {
       id: "vs-1",
       bookingId: "booking-1",
       roomName: "room-booking-1",
+      status: "ACTIVE",
       transcriptText: null,
       summaryText: null,
-      recordingConsentClientAt: now,
-      recordingConsentPractitionerAt: now,
       serverSttStatus: "not_requested",
       serverSttJobId: null,
       serverSttAudioUrl: null,
@@ -138,8 +137,8 @@ describe("Z19 server STT orchestration", () => {
     mockEnqueueJob.mockResolvedValue(job({ id: "job-stt-1" }));
     mockStartAudioEgress.mockResolvedValue({
       egressId: "egress-1",
-      filename: "stt_booking-1.webm",
-      url: "/uploads/recordings/stt_booking-1.webm",
+      filename: "stt_booking-1.ogg",
+      url: "/uploads/recordings/stt_booking-1.ogg",
       expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
     });
     mockDeleteLocalRecording.mockResolvedValue(true);
@@ -177,19 +176,14 @@ describe("Z19 server STT orchestration", () => {
     jest.useRealTimers();
   });
 
-  it("refuses to start audio egress until the client and practitioner both consent", async () => {
-    mockDb.booking.findUnique.mockResolvedValue(booking({
-      videoSession: {
-        ...booking().videoSession,
-        recordingConsentClientAt: null,
-      },
-    }));
+  it("lets only the practitioner enable the AI notes stream", async () => {
+    mockDb.booking.findUnique.mockResolvedValue(booking());
 
     await expect(startServerSttForBooking({
       bookingId: "booking-1",
-      actorUserId: "practitioner-user",
+      actorUserId: "client-user",
       requestId: "z19-request",
-    })).rejects.toMatchObject({ statusCode: 409 });
+    })).rejects.toMatchObject({ statusCode: 403 });
 
     expect(mockStartAudioEgress).not.toHaveBeenCalled();
     expect(mockEnqueueJob).not.toHaveBeenCalled();
@@ -232,7 +226,7 @@ describe("Z19 server STT orchestration", () => {
       payload: expect.objectContaining({
         videoSessionId: "vs-1",
         bookingId: "booking-1",
-        audioUrl: "/uploads/recordings/stt_booking-1.webm",
+        audioUrl: "/uploads/recordings/stt_booking-1.ogg",
         egressId: "egress-1",
         requestedByUserId: "practitioner-user",
       }),
@@ -242,7 +236,7 @@ describe("Z19 server STT orchestration", () => {
       data: expect.objectContaining({
         serverSttStatus: "queued",
         serverSttJobId: "job-stt-1",
-        serverSttAudioUrl: "/uploads/recordings/stt_booking-1.webm",
+        serverSttAudioUrl: "/uploads/recordings/stt_booking-1.ogg",
         serverSttAudioExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
       }),
     }));
@@ -291,7 +285,7 @@ describe("Z19 server STT orchestration", () => {
     }));
 
     expect(mockTranscribe).toHaveBeenCalledWith(expect.objectContaining({
-      audioUrl: "/uploads/recordings/stt_booking-1.webm",
+      audioUrl: "/uploads/recordings/stt_booking-1.ogg",
       feature: "session-stt",
       requestId: "job-stt-1",
       userId: "practitioner-user",
@@ -316,7 +310,7 @@ describe("Z19 server STT orchestration", () => {
         }),
       }),
     }));
-    expect(mockDeleteLocalRecording).toHaveBeenCalledWith("/uploads/recordings/stt_booking-1.webm");
+    expect(mockDeleteLocalRecording).toHaveBeenCalledWith("/uploads/recordings/stt_booking-1.ogg");
   });
 
   it("cleans expired transcript, summary, compliance evidence, and temporary STT audio independently", async () => {
@@ -326,7 +320,7 @@ describe("Z19 server STT orchestration", () => {
       .mockResolvedValueOnce({ count: 3 })
       .mockResolvedValueOnce({ count: 4 });
     mockDb.videoSession.findMany.mockResolvedValueOnce([
-      { serverSttAudioUrl: "/uploads/recordings/stt_booking-1.webm" },
+      { serverSttAudioUrl: "/uploads/recordings/stt_booking-1.ogg" },
       { serverSttAudioUrl: null },
     ]);
 
@@ -353,6 +347,6 @@ describe("Z19 server STT orchestration", () => {
       where: { serverSttAudioExpiresAt: { lte: now } },
       data: expect.objectContaining({ serverSttAudioUrl: null, serverSttAudioExpiresAt: null }),
     }));
-    expect(mockDeleteLocalRecording).toHaveBeenCalledWith("/uploads/recordings/stt_booking-1.webm");
+    expect(mockDeleteLocalRecording).toHaveBeenCalledWith("/uploads/recordings/stt_booking-1.ogg");
   });
 });

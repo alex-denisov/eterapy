@@ -21,6 +21,10 @@ import { cleanupExpiredMiniAppAuthGrants } from "@/lib/miniapp/telegram/auth";
 import { reconcileRobokassaBacklog } from "@/lib/payments/reconcile-robokassa";
 import { runIpObligationReminders } from "@/lib/ip-obligation-reminders";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
+import { publishScheduledMarketing } from "@/lib/marketing/publish";
+import { marketingAgentEnabled } from "@/lib/marketing/agent";
+import { cleanupExpiredVideoChats } from "@/lib/video-chat-retention";
+import { runMarketingTriggers } from "@/lib/marketing/triggers";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -475,6 +479,31 @@ export async function runMarketingGenerateJob(job: Job): Promise<JobResult> {
   return { ...result, timestamp: now.toISOString() };
 }
 
+/** B589 фаза 2: выпускает только утверждённые записи и только при флаге. */
+export async function runMarketingPublishJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  if (!await marketingAgentEnabled()) {
+    return { enabled: false, due: 0, published: 0, failed: 0, timestamp: now.toISOString() };
+  }
+  const result = await publishScheduledMarketing({ now });
+  log.info("cron-marketing-publish-completed", { jobId: job.id, ...result });
+  return { ...result, timestamp: now.toISOString() };
+}
+
+export async function runVideoChatRetentionJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const result = await cleanupExpiredVideoChats(now);
+  log.info("cron-video-chat-retention-completed", { jobId: job.id, ...result });
+  return { ok: result.fileFailures === 0, ...result, timestamp: now.toISOString() };
+}
+
+export async function runMarketingTriggersJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const result = await runMarketingTriggers(now);
+  log.info("cron-marketing-triggers-completed", { jobId: job.id, ...result });
+  return { ok: result.failed === 0, ...result, timestamp: now.toISOString() };
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.billing-reconcile-pending": runBillingReconcilePendingJob as JobHandler,
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
@@ -488,4 +517,7 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.session-escrow-capture": runSessionEscrowCaptureJob as JobHandler,
   "cron.ip-obligation-reminders": runIpObligationRemindersJob as JobHandler,
   "cron.marketing-generate": runMarketingGenerateJob as JobHandler,
+  "cron.marketing-publish": runMarketingPublishJob as JobHandler,
+  "cron.marketing-triggers": runMarketingTriggersJob as JobHandler,
+  "cron.video-chat-retention": runVideoChatRetentionJob as JobHandler,
 };

@@ -3,11 +3,10 @@ import db from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { stopRecording } from "@/lib/livekit-egress";
 import {
-  recordServerSttConsent,
   ServerSttError,
   startServerSttForBooking,
 } from "@/lib/server-stt";
-import { DELETE, GET, PATCH, POST } from "@/app/api/video/recording/route";
+import { DELETE, GET, POST } from "@/app/api/video/recording/route";
 
 jest.mock("@/lib/auth", () => ({
   auth: jest.fn(),
@@ -34,7 +33,6 @@ jest.mock("@/lib/server-stt", () => {
     }
   }
   return {
-    recordServerSttConsent: jest.fn(),
     ServerSttError: MockServerSttError,
     startServerSttForBooking: jest.fn(),
   };
@@ -44,11 +42,10 @@ const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockDb = db as unknown as {
   videoSession: { findFirst: jest.Mock; update: jest.Mock };
 };
-const mockRecordConsent = recordServerSttConsent as jest.MockedFunction<typeof recordServerSttConsent>;
 const mockStartServerStt = startServerSttForBooking as jest.MockedFunction<typeof startServerSttForBooking>;
 const mockStopRecording = stopRecording as jest.MockedFunction<typeof stopRecording>;
 
-function request(method: "DELETE" | "GET" | "PATCH" | "POST", body?: Record<string, unknown>) {
+function request(method: "DELETE" | "GET" | "POST", body?: Record<string, unknown>) {
   const url = method === "GET"
     ? "https://app.eterapy.com/api/video/recording?bookingId=booking-1"
     : "https://app.eterapy.com/api/video/recording";
@@ -68,12 +65,6 @@ describe("Z19 recording route server STT contract", () => {
       user: { id: "practitioner-user", role: "PRACTITIONER" },
       expires: "2026-07-06T00:00:00.000Z",
     });
-    mockRecordConsent.mockResolvedValue({
-      ok: true,
-      videoSessionId: "vs-1",
-      recordingConsentClientAt: new Date("2026-06-06T12:00:00.000Z"),
-      recordingConsentPractitionerAt: null,
-    });
     mockStartServerStt.mockResolvedValue({
       ok: true,
       status: "queued",
@@ -85,17 +76,13 @@ describe("Z19 recording route server STT contract", () => {
     mockDb.videoSession.update.mockResolvedValue({});
   });
 
-  it("records consent from the authenticated participant before server STT can start", async () => {
-    const response = await PATCH(request("PATCH", { bookingId: "booking-1", consent: true }));
+  it("does not expose the legacy full-session recording path", async () => {
+    const response = await POST(request("POST", { bookingId: "booking-1" }));
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.ok).toBe(true);
-    expect(mockRecordConsent).toHaveBeenCalledWith({
-      bookingId: "booking-1",
-      actorUserId: "practitioner-user",
-      actorRole: "PRACTITIONER",
-    });
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("Полная видеозапись недоступна");
+    expect(mockStartServerStt).not.toHaveBeenCalled();
   });
 
   it("starts server STT through the Pro+ orchestration path instead of raw MP4 recording", async () => {

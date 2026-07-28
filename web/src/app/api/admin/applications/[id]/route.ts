@@ -27,7 +27,10 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { sendPasswordResetEmail } from "@/lib/email";
+import {
+  sendPractitionerApplicationApprovedEmail,
+  sendPractitionerApplicationDecisionEmail,
+} from "@/lib/email";
 import { generateUniqueSlug } from "@/lib/slug";
 import { parsePractitionerVerificationMarker } from "@/lib/practitioner-verification";
 import { assignFoundingCohortIfEligible } from "@/lib/byoc";
@@ -79,6 +82,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!isFirstApproval) {
     await db.practitionerApplication.update({ where: { id }, data: { status } });
     await logAudit(session.user!.id!, "PRACTITIONER_STATUS", id, `Заявка → ${status}`);
+    if (status === "REJECTED" && application.status !== "REJECTED") {
+      await sendPractitionerApplicationDecisionEmail(
+        application.email,
+        application.name,
+        false,
+      ).catch((error) => log.error("admin.applications.rejection_email_failed", { error }));
+    }
     return NextResponse.json({ ok: true, status, accountCreated: false });
   }
 
@@ -109,6 +119,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       practitioner.userId,
       `Верификация по заявке ${application.id}`,
     );
+    await sendPractitionerApplicationDecisionEmail(
+      application.email,
+      application.name,
+      true,
+    ).catch((error) => log.error("admin.applications.verification_email_failed", { error }));
     return NextResponse.json({ ok: true, status: "APPROVED", verificationCompleted: true, practitionerId: practitioner.id });
   }
 
@@ -180,8 +195,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     createdUserId = result.user.id;
 
-    sendPasswordResetEmail(result.user.email, result.user.name, resetToken).catch((e) =>
-      log.error("admin.applications.reset_email_failed", { err: e }),
+    await sendPractitionerApplicationApprovedEmail(result.user.email, result.user.name, resetToken).catch((e) =>
+      log.error("admin.applications.approval_email_failed", { err: e }),
     );
 
     await logAudit(

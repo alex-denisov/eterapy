@@ -33,6 +33,7 @@ import {
   type NotificationCategory,
   type UserRole,
 } from "@/lib/notification-events";
+import { renderNotificationEmailSnapshot } from "@/lib/email-send";
 
 export type SystemChannel = "email" | "telegram" | "web";
 
@@ -147,7 +148,7 @@ export const ACCOUNT_EVENTS: readonly SystemEventRow[] = [
     label: "Приглашение задать пароль",
     category: "system",
     audience: "Заведённый администратором или вошедший через соцсеть",
-    trigger: "При создании аккаунта из админки или по запросу пароля к соцвходу. ⚠ Доставляется тем же письмом «Сброс пароля» — отдельного текста «вас пригласили» сегодня нет",
+    trigger: "При создании аккаунта из админки или по запросу пароля к соцвходу; письмо прямо объясняет, что аккаунт создан и нужно задать пароль",
     channels: ["email"],
     optional: false,
   },
@@ -167,7 +168,7 @@ export const ACCOUNT_EVENTS: readonly SystemEventRow[] = [
     label: "Приглашение модератора",
     category: "system",
     audience: "Приглашённый в служебную роль",
-    trigger: "Суперадмин создал модератора или администратора. ⚠ Доставляется письмом «Сброс пароля»: приглашённый видит письмо о сбросе пароля, которого не запрашивал",
+    trigger: "Суперадмин создал модератора или администратора; отдельное приглашение в команду со ссылкой задания пароля",
     channels: ["email"],
     optional: false,
   },
@@ -177,7 +178,7 @@ export const ACCOUNT_EVENTS: readonly SystemEventRow[] = [
     label: "Решение по заявке специалиста",
     category: "system",
     audience: "Подавший заявку на работу на платформе",
-    trigger: "Заявка одобрена — заводится аккаунт и уходит письмо «Сброс пароля». ⚠ При ОТКЛОНЕНИИ заявки не уходит ничего",
+    trigger: "При одобрении, отклонении или завершении верификации; одобрение нового аккаунта содержит ссылку задания пароля",
     channels: ["email"],
     optional: false,
   },
@@ -207,6 +208,103 @@ export function systemEventCatalog(): SystemEventRow[] {
   }));
 
   return [...notifyRows, ...ACCOUNT_EVENTS];
+}
+
+const PREVIEW_DATA: Record<string, string> = {
+  clientName: "Клиент",
+  practitionerName: "Специалист",
+  withName: "Специалист",
+  date: "12 августа",
+  time: "18:00",
+  in: "24 часа",
+  amountRub: "2 000",
+  totalRub: "12 000",
+  practitionerCount: "3",
+  planKey: "Стандарт",
+  productKey: "reframe",
+  points: "300",
+  amount: "300",
+  balance: "500",
+  expiresAt: "25 августа",
+  days: "3",
+  title: "Ваш вопрос",
+  question: "Стоит ли менять работу?",
+  bookingId: "пример",
+  sessionUrl: "https://app.eterapy.com/cabinet/bookings",
+  reviewUrl: "https://app.eterapy.com/cabinet/bookings",
+  walletUrl: "https://app.eterapy.com/cabinet/wallet",
+  href: "/cabinet",
+  rating: "5",
+  text: "Спасибо за встречу",
+  type: "RESCHEDULE",
+  byName: "Клиент",
+  proposed: "13 августа, 19:00",
+  preview: "Материал к следующей встрече",
+  reason: "По вашему обращению",
+  lateCancels: "1",
+  noShows: "0",
+};
+
+const ACCOUNT_PREVIEWS: Record<string, { subject: string; body: string }> = {
+  ACCOUNT_EMAIL_VERIFY: {
+    subject: "Подтвердите email — ETerapy",
+    body: "Здравствуйте!\n\nПодтвердите адрес электронной почты, чтобы завершить регистрацию.\n\nКнопка: Подтвердить email\nСсылка действует 24 часа.",
+  },
+  ACCOUNT_EMAIL_VERIFY_RESEND: {
+    subject: "Подтвердите email — ETerapy",
+    body: "Здравствуйте!\n\nЭто повторное письмо для подтверждения адреса электронной почты.\n\nКнопка: Подтвердить email\nСсылка действует 24 часа.",
+  },
+  ACCOUNT_PASSWORD_RESET: {
+    subject: "Сброс пароля — ETerapy",
+    body: "Получен запрос на сброс пароля.\n\nКнопка: Задать новый пароль\nСсылка действует 1 час. Если вы не запрашивали сброс, ничего делать не нужно.",
+  },
+  ACCOUNT_PASSWORD_SET_INVITE: {
+    subject: "Ваш аккаунт ETerapy готов",
+    body: "Администратор создал аккаунт.\n\nКнопка: Задать пароль\nОдноразовая ссылка действует 1 час.",
+  },
+  ACCOUNT_DELETION_REQUESTED: {
+    subject: "Запрос на удаление аккаунта — ETerapy",
+    body: "Аккаунт деактивирован. В письме указана дата окончательного удаления и способ отменить запрос до этой даты.",
+  },
+  ACCOUNT_MODERATOR_INVITE: {
+    subject: "Приглашение в команду ETerapy",
+    body: "Для служебной роли создан аккаунт. Приглашённый задаёт собственный пароль по одноразовой ссылке; ссылка в журнале не сохраняется.",
+  },
+  ACCOUNT_APPLICATION_DECISION: {
+    subject: "Решение по заявке специалиста — ETerapy",
+    body: "При одобрении создаётся кабинет и отправляется ссылка для задания пароля. При отклонении заявитель получает понятное решение и канал для уточнений.",
+  },
+};
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|h1|h2|h3|tr|table|div)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Пример текста из того же рендера, которым реально отправляется email. */
+export function systemEventPreview(row: SystemEventRow): {
+  subject: string;
+  body: string;
+} {
+  if (row.kind === "account") {
+    return ACCOUNT_PREVIEWS[row.key] ?? { subject: row.label, body: row.trigger };
+  }
+  const snapshot = renderNotificationEmailSnapshot({
+    event: row.key as NotifEvent,
+    name: "Алексей",
+    data: PREVIEW_DATA,
+  });
+  return { subject: snapshot.subject, body: htmlToText(snapshot.html) };
 }
 
 export const SYSTEM_CATEGORY_LABELS: Record<NotificationCategory, string> = Object.fromEntries(
