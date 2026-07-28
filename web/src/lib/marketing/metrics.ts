@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { upsertMarketingSignal } from "@/lib/marketing/agent";
 
 const DAY_MS = 86_400_000;
@@ -70,7 +71,7 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
     };
   },
   reddit: async (publication) => {
-    const token = requiredEnv("REDDIT_ACCESS_TOKEN");
+    const token = await redditAccessToken();
     const fullname = publication.externalPostId.startsWith("t")
       ? publication.externalPostId
       : `${publication.contentType === "COMMENT" ? "t1" : "t3"}_${publication.externalPostId}`;

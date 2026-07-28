@@ -60,7 +60,10 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
       </MetricGrid>
 
       <div className="mt-6">
-        <AnalyticsSection title={`Очередь черновиков — ${draftRows.length} из ${CONTENT_PLAN.length} слотов плана`}>
+        <AnalyticsSection title="Реестр и контроль материалов">
+          <h2 className="mb-1 text-base font-semibold text-[var(--soft-ink-strong)]">
+            Запланированные публикации — {draftRows.length} из {CONTENT_PLAN.length} слотов плана
+          </h2>
           <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
             Черновики собирает ночной джоб <code>cron.marketing-generate</code> по
             контент-плану: каждый пост ведёт на уже существующую статью
@@ -70,11 +73,9 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
             служебном Telegram-канале.
           </p>
           <DraftQueue rows={draftRows} />
-        </AnalyticsSection>
-      </div>
-
-      <div className="mt-6">
-        <AnalyticsSection title="Реестр и контроль материалов">
+          <h2 className="mb-3 mt-8 text-base font-semibold text-[var(--soft-ink-strong)]">
+            Опубликованные материалы и контрольные срезы
+          </h2>
           <PublicationsManager registry={registry} />
         </AnalyticsSection>
       </div>

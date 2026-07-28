@@ -164,12 +164,29 @@ jobs:
           NODE_ENV: production
         run: npm run build
 
+  devvit:
+    name: Reddit Devvit companion
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: eterapy-smm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: eterapy-smm/package-lock.json
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm test
+
   # PR pipelines used to be silent on Telegram, so a red CI only ever showed up
   # as a GitHub e-mail while the chat kept reporting green deploys. Same rich
   # block as staging/production now.
   notify:
     name: Notify Telegram
-    needs: [install, test, lint, build]
+    needs: [install, test, lint, build, devvit]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -186,6 +203,7 @@ jobs:
             test=${{ needs.test.result }}
             lint=${{ needs.lint.result }}
             build=${{ needs.build.result }}
+            devvit=${{ needs.devvit.result }}
           # Untrusted PR-controlled values stay in env — never interpolated
           # into the shell command line.
           PR_NUMBER: ${{ github.event.pull_request.number }}

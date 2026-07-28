@@ -62,9 +62,35 @@ export function providerConfigToRouting(row: AIProviderConfig): AIRoutingProvide
 }
 
 export function resolvedProviderBaseUrl(input: {
-  credential?: Pick<DecryptedAICredential, "baseUrlOverride"> | null;
+  credential?: Pick<DecryptedAICredential, "baseUrlOverride">
+    & Partial<Pick<DecryptedAICredential, "provider">> | null;
   providerConfig?: Pick<AIRoutingProviderConfig, "provider" | "baseUrl" | "cloudflareGatewayEnabled"> | null;
+  /**
+   * A narrow fail-closed route for public workloads that are explicitly
+   * allowed to use foreign providers. It bypasses the RU user-data toggle,
+   * but never bypasses Cloudflare AI Gateway itself.
+   */
+  requireCloudflareAIGateway?: boolean;
 }) {
+  const provider = input.providerConfig?.provider ?? input.credential?.provider;
+  if (input.requireCloudflareAIGateway) {
+    if (!provider || provider === AIProvider.YANDEX) {
+      throw new Error("Cloudflare AI Gateway is required only for a supported foreign provider");
+    }
+    const gateway = getCloudflareGatewayConfig();
+    const cfUrl = gateway
+      ? buildCloudflareGatewayUrlForAIProvider({
+        accountId: gateway.accountId,
+        gatewayId: gateway.gatewayId,
+        provider,
+      })
+      : null;
+    if (!cfUrl) {
+      throw new Error(`Cloudflare AI Gateway is not configured for ${provider}`);
+    }
+    return cfUrl;
+  }
+
   const cfGatewayEnabled = cloudflareAIGatewayEnabledForRU();
   if (input.credential?.baseUrlOverride) {
     if (!isCloudflareAIGatewayUrl(input.credential.baseUrlOverride) || cfGatewayEnabled) {
@@ -112,8 +138,13 @@ export function resolvedProviderBaseUrl(input: {
 export function buildAdapterForCredential(
   credential: DecryptedAICredential,
   providerConfig?: AIRoutingProviderConfig | null,
+  options?: { requireCloudflareAIGateway?: boolean },
 ): AIGatewayAdapter {
-  const baseURL = resolvedProviderBaseUrl({ credential, providerConfig });
+  const baseURL = resolvedProviderBaseUrl({
+    credential,
+    providerConfig,
+    requireCloudflareAIGateway: options?.requireCloudflareAIGateway,
+  });
   const opts = {
     apiKey: credential.apiKey,
     ...(baseURL ? { baseURL } : {}),

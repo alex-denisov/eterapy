@@ -68,6 +68,13 @@ services:
       # No client/practitioner data enters the foreign LLM prompt. This narrow
       # flag does not re-enable foreign LLMs for the main application contour.
       MARKETING_FOREIGN_LLM_ENABLED: "true"
+      # Owner-approved autonomous publishing of independently reviewed owned
+      # posts. Comments on third-party materials still require TG moderation.
+      MARKETING_AUTOPUBLISH: "true"
+      TELEGRAM_CHANNEL_ID: "${TELEGRAM_CHANNEL_ID:--1004301988677}"
+      # Reddit is executed by the installation-scoped Devvit companion. Until
+      # its shared secret and installation exist, Reddit stays fail-closed.
+      REDDIT_DEVVIT_ENABLED: "true"
     command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:
