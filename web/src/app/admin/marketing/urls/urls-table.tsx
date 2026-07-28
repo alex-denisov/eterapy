@@ -18,6 +18,11 @@ export type UrlRegistryTableRow = {
   corePhrases: number;
   coreDemand: number;
   decision: string | null;
+  httpStatus: number | null;
+  finalUrl: string | null;
+  inSitemap: boolean | null;
+  trafficTouches: number;
+  checkedAt: string | null;
 };
 
 function formatNumber(value: number) {
@@ -59,6 +64,21 @@ export function UrlRegistryTable({ rows }: { rows: UrlRegistryTableRow[] }) {
         { value: "Пропал без решения", label: "Пропал без решения" },
       ],
     },
+    { key: "http", label: "HTTP", sortable: true, filterKind: "text", align: "center" },
+    {
+      key: "sitemap",
+      label: "Sitemap",
+      sortable: true,
+      filterKind: "select",
+      options: [
+        { value: "Да", label: "Да" },
+        { value: "Нет", label: "Нет" },
+        { value: "—", label: "Не проверено" },
+      ],
+    },
+    { key: "traffic", label: "Переходы", sortable: true, filterKind: "none", align: "right" },
+    { key: "finalUrl", label: "Конечный адрес", sortable: true, filterKind: "text" },
+    { key: "checkedAt", label: "Проверено", sortable: true, filterKind: "text" },
     { key: "demand", label: "Спрос ядра / мес", sortable: true, filterKind: "none", align: "right" },
     { key: "phrases", label: "Фраз", sortable: true, filterKind: "none", align: "right" },
     { key: "sources", label: "Откуда вес", sortable: true, filterKind: "text" },
@@ -83,6 +103,27 @@ export function UrlRegistryTable({ rows }: { rows: UrlRegistryTableRow[] }) {
         filterValue: row.statusLabel,
         sortValue: row.statusLabel,
       },
+      http: {
+        value: row.httpStatus === null ? "—" : String(row.httpStatus),
+        sortValue: row.httpStatus ?? -1,
+        filterValue: row.httpStatus === null ? "—" : String(row.httpStatus),
+      },
+      sitemap: {
+        value: row.inSitemap === null ? "—" : row.inSitemap ? "Да" : "Нет",
+        sortValue: row.inSitemap === null ? -1 : row.inSitemap ? 1 : 0,
+        filterValue: row.inSitemap === null ? "—" : row.inSitemap ? "Да" : "Нет",
+      },
+      traffic: { value: formatNumber(row.trafficTouches), sortValue: row.trafficTouches },
+      finalUrl: {
+        value: row.finalUrl ?? "—",
+        sortValue: row.finalUrl ?? "",
+        filterValue: row.finalUrl ?? "",
+      },
+      checkedAt: {
+        value: row.checkedAt ? new Date(row.checkedAt).toLocaleString("ru-RU") : "—",
+        sortValue: row.checkedAt ? new Date(row.checkedAt).getTime() : 0,
+        filterValue: row.checkedAt ?? "",
+      },
       demand: { value: formatNumber(row.coreDemand), sortValue: row.coreDemand },
       phrases: { value: formatNumber(row.corePhrases), sortValue: row.corePhrases },
       sources: { value: row.sources, sortValue: row.sources },
@@ -95,7 +136,7 @@ export function UrlRegistryTable({ rows }: { rows: UrlRegistryTableRow[] }) {
       columns={columns}
       rows={tableRows}
       pageSize={25}
-      minWidth="1100px"
+      minWidth="1680px"
       empty="Реестр пуст — проверьте сборку данных"
     />
   );

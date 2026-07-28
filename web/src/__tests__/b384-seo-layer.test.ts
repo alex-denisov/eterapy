@@ -74,7 +74,7 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     // Число растёт вместе с каталогом (B601 часть 3 добавила 14 карточек).
     // Жёсткое число здесь ловит не размер, а РАСХОЖДЕНИЕ карты сайта с
     // каталогом — его и проверяет цикл ниже; сам размер сверяем с каталогом.
-    expect(indexable.length).toBe(164);
+    expect(indexable.length).toBe(169);
     for (const entry of indexable) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
     }

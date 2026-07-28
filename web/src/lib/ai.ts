@@ -95,11 +95,12 @@ interface AIResponse {
 function adaptersForCredentials(
   credentials: DecryptedAICredential[],
   providerConfig?: AIRoutingProviderConfig | null,
+  options?: { requireCloudflareAIGateway?: boolean },
 ): AICredentialAdapter[] {
   return credentials.map((credential) => ({
     credentialId: credential.id,
     credentialLabel: credential.label,
-    adapter: buildAdapterForCredential(credential, providerConfig),
+    adapter: buildAdapterForCredential(credential, providerConfig, options),
   }));
 }
 
@@ -247,7 +248,10 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       status: AIRequestStatus.RUNNING,
       metadata: {
         ...(requestId ? { requestId } : {}),
-        ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
+        ...(publicMarketingRequest ? {
+          dataClass: "PUBLIC_MARKETING",
+          egress: "CLOUDFLARE_AI_GATEWAY",
+        } : {}),
         messages: adminMessages,
       },
       startedAt,
@@ -266,6 +270,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         return adaptersForCredentials(
           await listActiveCredentialsForProvider({ provider }),
           providerConfig,
+          { requireCloudflareAIGateway: publicMarketingRequest },
         );
       },
     });
@@ -287,6 +292,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       proof: attemptRoutingProof({
         attempt,
         providerConfig: providerConfigByName.get(attempt.provider) ?? null,
+        requireCloudflareAIGateway: publicMarketingRequest,
       }),
     }));
     const requestProof = combineRoutingProofs(attemptProofs.map(({ proof }) => proof));
@@ -331,7 +337,10 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           estimatedCostMicros,
           metadata: {
             ...(requestId ? { requestId } : {}),
-            ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
+            ...(publicMarketingRequest ? {
+              dataClass: "PUBLIC_MARKETING",
+              egress: "CLOUDFLARE_AI_GATEWAY",
+            } : {}),
             messages: adminMessages,
             responseText: response.text.slice(0, 30_000),
             responseProvider: response.provider,
@@ -397,6 +406,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       proof: attemptRoutingProof({
         attempt,
         providerConfig: providerConfigByName.get(attempt.provider) ?? null,
+        requireCloudflareAIGateway: publicMarketingRequest,
       }),
     }));
     const failedRequestProof = combineRoutingProofs(failedAttemptProofs.map(({ proof }) => proof));
@@ -413,7 +423,10 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         fallbackReason: failedAttempts.find((attempt) => attempt.status !== "succeeded")?.code ?? null,
         metadata: {
           ...(requestId ? { requestId } : {}),
-          ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
+          ...(publicMarketingRequest ? {
+            dataClass: "PUBLIC_MARKETING",
+            egress: "CLOUDFLARE_AI_GATEWAY",
+          } : {}),
           messages: adminMessages,
           error: err instanceof Error ? err.message : String(err),
           attempts: failedAttempts.map((attempt) => ({

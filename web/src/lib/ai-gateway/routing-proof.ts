@@ -47,9 +47,13 @@ export function providerConfigUsesCloudflareAIGateway(config?: Pick<AIRoutingPro
 export function routingProofForProvider(input: {
   provider: AIProvider;
   providerConfig?: Pick<AIRoutingProviderConfig, "baseUrl" | "cloudflareGatewayEnabled"> | null;
+  requireCloudflareAIGateway?: boolean;
 }): AIRoutingProof {
   const foreignLLMUsed = providerForeignLLMUsed(input.provider);
-  const cloudflareAIGatewayUsed = providerConfigUsesCloudflareAIGateway(input.providerConfig);
+  const cloudflareAIGatewayUsed = (
+    input.requireCloudflareAIGateway === true
+    && foreignLLMUsed
+  ) || providerConfigUsesCloudflareAIGateway(input.providerConfig);
   return {
     providerGroup: providerGroup(input.provider),
     providerRegion: providerRegion(input.provider),
@@ -98,9 +102,11 @@ export function enforceYandexOnlyRoutingProof(input: {
 export function attemptRoutingProof(input: {
   attempt: Pick<AICredentialAttempt, "provider">;
   providerConfig?: AIRoutingProviderConfig | null;
+  requireCloudflareAIGateway?: boolean;
 }) {
   return routingProofForProvider({
     provider: input.attempt.provider,
     providerConfig: input.providerConfig,
+    requireCloudflareAIGateway: input.requireCloudflareAIGateway,
   });
 }

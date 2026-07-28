@@ -10,6 +10,7 @@ import {
   resolvedProviderBaseUrl,
 } from "@/lib/ai-gateway/provider-runtime";
 import type { DecryptedAICredential } from "@/lib/ai-gateway/credentials";
+import { routingProofForProvider } from "@/lib/ai-gateway/routing-proof";
 
 const yandexCredential = (overrides: Partial<DecryptedAICredential> = {}): DecryptedAICredential => ({
   id: "cred_yandex",
@@ -97,6 +98,82 @@ describe("Yandex provider runtime", () => {
       global.fetch = originalFetch;
       if (originalFolderId === undefined) delete process.env.YANDEX_FOLDER_ID;
       else process.env.YANDEX_FOLDER_ID = originalFolderId;
+    }
+  });
+
+  it("forces every permitted foreign marketing request through Cloudflare AI Gateway", () => {
+    const originalAccountId = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    const originalGatewayId = process.env.CF_AI_GATEWAY_ID;
+    const originalRuGatewayFlag = process.env.CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU;
+    process.env.CF_AI_GATEWAY_ACCOUNT_ID = "cf-account";
+    process.env.CF_AI_GATEWAY_ID = "eterapy";
+    process.env.CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU = "false";
+
+    try {
+      const providers = [
+        AIProvider.OPENROUTER,
+        AIProvider.GEMINI,
+        AIProvider.GROQ,
+        AIProvider.CEREBRAS,
+      ];
+
+      for (const provider of providers) {
+        const url = resolvedProviderBaseUrl({
+          credential: {
+            provider,
+            baseUrlOverride: DIRECT_PROVIDER_BASE_URLS[provider],
+          },
+          providerConfig: {
+            provider,
+            baseUrl: DIRECT_PROVIDER_BASE_URLS[provider],
+            cloudflareGatewayEnabled: false,
+          },
+          requireCloudflareAIGateway: true,
+        });
+        expect(url).toMatch(/^https:\/\/gateway\.ai\.cloudflare\.com\//);
+        expect(routingProofForProvider({
+          provider,
+          requireCloudflareAIGateway: true,
+        })).toMatchObject({
+          cloudflareAIGatewayUsed: true,
+          foreignLLMUsed: true,
+          crossBorderProcessing: true,
+        });
+      }
+    } finally {
+      if (originalAccountId === undefined) delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+      else process.env.CF_AI_GATEWAY_ACCOUNT_ID = originalAccountId;
+      if (originalGatewayId === undefined) delete process.env.CF_AI_GATEWAY_ID;
+      else process.env.CF_AI_GATEWAY_ID = originalGatewayId;
+      if (originalRuGatewayFlag === undefined) delete process.env.CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU;
+      else process.env.CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU = originalRuGatewayFlag;
+    }
+  });
+
+  it("fails closed when the mandatory foreign Cloudflare route is not configured", () => {
+    const originalAccountId = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    const originalGatewayId = process.env.CF_AI_GATEWAY_ID;
+    delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    delete process.env.CF_AI_GATEWAY_ID;
+
+    try {
+      expect(() => resolvedProviderBaseUrl({
+        credential: {
+          provider: AIProvider.OPENROUTER,
+          baseUrlOverride: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENROUTER],
+        },
+        providerConfig: {
+          provider: AIProvider.OPENROUTER,
+          baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENROUTER],
+          cloudflareGatewayEnabled: false,
+        },
+        requireCloudflareAIGateway: true,
+      })).toThrow("Cloudflare AI Gateway is not configured");
+    } finally {
+      if (originalAccountId === undefined) delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+      else process.env.CF_AI_GATEWAY_ACCOUNT_ID = originalAccountId;
+      if (originalGatewayId === undefined) delete process.env.CF_AI_GATEWAY_ID;
+      else process.env.CF_AI_GATEWAY_ID = originalGatewayId;
     }
   });
 });

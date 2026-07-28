@@ -1301,7 +1301,8 @@ model ExternalPublication {
   /// Слот контент-плана. Уникален: генератор не должен занимать слот дважды.
   planSlot         String?                     @unique @map("plan_slot")
   /// B610: for an engagement draft, where and in reply to what it is intended.
-  /// The excerpt is deliberately short and is never sent to an LLM verbatim.
+  /// Public third-party post context supplied verbatim to the marketing writer.
+  /// It must never contain internal ETerapy client or practitioner data.
   engagementTargetUrl String?                  @map("engagement_target_url")
   engagementTargetId String?                   @map("engagement_target_id")
   engagementTargetLabel String?                @map("engagement_target_label")

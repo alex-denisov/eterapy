@@ -30,22 +30,25 @@ export interface ContentPlanSlot {
   targetQuery: string;
   /** Порядок выпуска. Меньше — раньше. */
   order: number;
+  /** Явная дата для отдельных редакционных серий. */
+  scheduledAt?: string;
 }
 
 /** Первая волна выходит по понедельникам в 12:00 МСК, не чаще раза в неделю. */
 export const CONTENT_PLAN_START_AT = new Date("2026-08-03T09:00:00.000Z");
 const WEEK_MS = 7 * 86_400_000;
 
-export function plannedAtFor(slot: Pick<ContentPlanSlot, "order">): Date {
+export function plannedAtFor(slot: Pick<ContentPlanSlot, "order" | "scheduledAt">): Date {
+  if (slot.scheduledAt) return new Date(slot.scheduledAt);
   return new Date(CONTENT_PLAN_START_AT.getTime() + (slot.order - 1) * WEEK_MS);
 }
 
 /**
  * Первая волна: восемь слотов под замеренный спрос B601 части 3.
  *
- * Каналы расставлены не поровну: VK — единственный, где у нас есть готовое
- * сообщество и кит оформления (B603). Telegram добавлен двумя слотами, чтобы
- * адаптер второго канала проверялся на практике, а не «когда-нибудь».
+ * Первая восьмёрка сохраняет исходную SEO-волну для VK и Telegram. Вторая —
+ * отдельная редакционная серия Telegram Mini App: сны, символические практики
+ * и истории, которые полезны без персонального гадания и без перехода по CTA.
  */
 export const CONTENT_PLAN: readonly ContentPlanSlot[] = [
   {
@@ -111,6 +114,78 @@ export const CONTENT_PLAN: readonly ContentPlanSlot[] = [
     articleSlug: "ne-mogu-nayti-sebya-posle-tridtsati",
     targetQuery: "не могу найти себя",
     order: 8,
+  },
+  {
+    key: "b589-tg-channel-dreams-water",
+    channel: "telegram",
+    cluster: "сны и символы",
+    articleSlug: "snitsya-voda-zalivaet-dom",
+    targetQuery: "к чему снится вода",
+    order: 9,
+    scheduledAt: "2026-07-28T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-tarot-death",
+    channel: "telegram",
+    cluster: "Таро без фатализма",
+    articleSlug: "vypala-karta-smert-na-otnosheniya",
+    targetQuery: "карта смерть значение",
+    order: 10,
+    scheduledAt: "2026-08-01T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-zodiac-not-me",
+    channel: "telegram",
+    cluster: "астрология и самонаблюдение",
+    articleSlug: "opisanie-znaka-zodiaka-na-menya-ne-pohozhe",
+    targetQuery: "характер знаков зодиака",
+    order: 11,
+    scheduledAt: "2026-08-05T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-dream-house",
+    channel: "telegram",
+    cluster: "мистические истории о снах",
+    articleSlug: "snitsya-odin-i-tot-zhe-neznakomyi-dom",
+    targetQuery: "повторяющийся сон про дом",
+    order: 12,
+    scheduledAt: "2026-08-08T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-matrix-program",
+    channel: "telegram",
+    cluster: "матрица судьбы без страха",
+    articleSlug: "v-matrice-sudby-nashla-negativnuyu-programmu",
+    targetQuery: "негативная программа матрица судьбы",
+    order: 13,
+    scheduledAt: "2026-08-12T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-tarot-repeat",
+    channel: "telegram",
+    cluster: "истории и совпадения Таро",
+    articleSlug: "odna-karta-taro-vypadaet-tri-raza",
+    targetQuery: "повторяется одна карта таро",
+    order: 14,
+    scheduledAt: "2026-08-15T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-dream-falling",
+    channel: "telegram",
+    cluster: "сны и ощущения тела",
+    articleSlug: "padaju-vo-sne-i-prosypayus-ot-straha",
+    targetQuery: "падать во сне",
+    order: 15,
+    scheduledAt: "2026-08-19T09:00:00.000Z",
+  },
+  {
+    key: "b589-tg-channel-compatibility-story",
+    channel: "telegram",
+    cluster: "истории о совместимости",
+    articleSlug: "nizkaya-sovmestimost-po-date-no-my-schastlivy",
+    targetQuery: "совместимость по дате рождения",
+    order: 16,
+    scheduledAt: "2026-08-22T09:00:00.000Z",
   },
 ] as const;
 

@@ -5,12 +5,14 @@ import { runEngagementDiscovery } from "@/lib/marketing/discovery";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
+import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
 let stopping = false;
 let lastDiscovery = 0;
 let lastSeoAudit = 0;
+let lastUrlAudit = 0;
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -48,6 +50,10 @@ async function main() {
       if (now - lastSeoAudit >= 6 * 60 * 60_000) {
         lastSeoAudit = now;
         await guarded("seo", runSeoAudit);
+      }
+      if (now - lastUrlAudit >= 6 * 60 * 60_000) {
+        lastUrlAudit = now;
+        await guarded("urls", runMarketingUrlAudit);
       }
     }
     await wait(pollMs);

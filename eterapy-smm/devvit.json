@@ -1,0 +1,45 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "eterapy-smm",
+  "server": {},
+  "permissions": {
+    "http": {
+      "enable": true,
+      "domains": ["app.eterapy.com", "staging.app.eterapy.com"]
+    },
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "scope": "user"
+    }
+  },
+  "settings": {
+    "global": {
+      "eterapy_api_base_url": {
+        "type": "string",
+        "label": "ETerapy API base URL",
+        "helpText": "Production default. Staging is allowed for playtests only.",
+        "defaultValue": "https://app.eterapy.com"
+      },
+      "eterapy_api_secret": {
+        "type": "string",
+        "label": "ETerapy bridge secret",
+        "helpText": "Shared bearer secret generated and stored outside source control.",
+        "isSecret": true
+      }
+    }
+  },
+  "scheduler": {
+    "tasks": {
+      "sync-eterapy-publications": {
+        "endpoint": "/internal/scheduler/sync",
+        "cron": "*/5 * * * *"
+      }
+    }
+  },
+  "scripts": {
+    "dev": "npm run watch",
+    "build": "npm run build"
+  },
+  "sourceIgnores": ["src/**/*.test.ts", ".github/", ".vscode/"]
+}

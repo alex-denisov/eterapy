@@ -12,6 +12,7 @@ import {
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
 import { MARKETING_FREE_PROVIDERS } from "@/lib/marketing/model-pool";
+import { redditOAuthConnected } from "@/lib/marketing/reddit-oauth";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
@@ -25,7 +26,7 @@ export default async function MarketingAgentPage() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
-  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs] = await Promise.all([
+  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs, redditConnected] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { contentType: "COMMENT", status: "REVIEW" } }),
     db.marketingAutomationSignal.findMany({
@@ -56,8 +57,20 @@ export default async function MarketingAgentPage() {
       where: { provider: { in: [...MARKETING_FREE_PROVIDERS] } },
       select: { provider: true, defaultModel: true },
     }),
+    redditOAuthConnected().catch(() => false),
   ]);
-  const connectors = marketingConnectorStates();
+  const connectors = marketingConnectorStates().map((connector) => {
+    if (connector.platform !== "Reddit" || !redditConnected) return connector;
+    const hasPostTarget = Boolean(process.env.REDDIT_POST_SUBREDDIT?.trim());
+    const hasDiscoveryTargets = Boolean(process.env.REDDIT_SUBREDDITS?.trim());
+    return {
+      ...connector,
+      ownedPublishing: hasPostTarget,
+      discovery: hasDiscoveryTargets,
+      comments: true,
+      missing: connector.missing.filter((key) => key !== "REDDIT_ACCESS_TOKEN"),
+    };
+  });
   const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
   const modelColumns: AdminCompactColumn[] = [
     { key: "provider", label: "Коннектор", sortable: true, filterKind: "text" },
@@ -211,6 +224,14 @@ export default async function MarketingAgentPage() {
                 <p className="mt-3 break-words text-[11px] text-[var(--soft-ink-faint)]">
                   Не заданы: {connector.missing.join(", ")}
                 </p>
+              ) : null}
+              {connector.platform === "Reddit" ? (
+                <Link
+                  className="soft-admin-action mt-3 inline-flex"
+                  href="/api/admin/marketing/reddit/connect"
+                >
+                  {redditConnected ? "Переподключить Reddit" : "Подключить Reddit"}
+                </Link>
               ) : null}
             </article>
           ))}
