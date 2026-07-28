@@ -14,6 +14,10 @@ const sensitiveFilePatterns = [
   /\.(p12|pfx|jks)$/i,
 ];
 
+const allowedTemplatePatterns = [
+  /(^|\/)\.env\.example$/,
+];
+
 const contentPatterns = [
   { name: "private-key", regex: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   { name: "openai-key", regex: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/ },
@@ -34,7 +38,7 @@ for (const file of trackedFiles) {
   if (ignoredPaths.has(file)) continue;
 
   for (const pattern of sensitiveFilePatterns) {
-    if (pattern.test(file)) {
+    if (pattern.test(file) && !allowedTemplatePatterns.some((allowed) => allowed.test(file))) {
       findings.push({ file, line: 1, type: "sensitive-filename" });
     }
   }

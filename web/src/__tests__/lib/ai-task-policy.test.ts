@@ -62,10 +62,21 @@ describe("AI task taxonomy and default routing policy", () => {
     expect((getDefaultAIRoutingPolicy("session-stt")?.perUserDailyTokenBudget ?? 0)).toBeGreaterThan(0);
   });
 
-  it("defaults every active task to the Yandex provider family", () => {
+  it("keeps platform-user tasks on Yandex and isolates public SMM in the free foreign pool", () => {
     const policies = listDefaultAITaskPolicies();
 
     for (const policy of policies) {
+      if (["marketing-agent-writer", "marketing-agent-reviewer"].includes(policy.feature)) {
+        expect(policy.providerOrder).not.toContain(AIProvider.YANDEX);
+        expect(policy.providerOrder).toEqual(expect.arrayContaining([
+          AIProvider.OPENROUTER,
+          AIProvider.GEMINI,
+          AIProvider.CEREBRAS,
+          AIProvider.GROQ,
+        ]));
+        expect(policy.modelPreferences ?? {}).toEqual({});
+        continue;
+      }
       expect(policy.providerOrder).toEqual([AIProvider.YANDEX]);
       expect(Object.keys(policy.modelPreferences ?? {})).toEqual([AIProvider.YANDEX]);
     }

@@ -8,6 +8,11 @@ import {
   managementSpecialOrderId,
 } from "@/lib/env";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import {
+  MARKETING_FREE_PROVIDERS,
+  isPublicMarketingAIFeature,
+  marketingForeignLLMEnabled,
+} from "@/lib/marketing/model-pool";
 
 export const LEGAL_CROSS_BORDER_PERMISSION = "legal.cross_border.manage" as const;
 
@@ -92,9 +97,24 @@ async function assertForeignProviderRegistryActive(providers: AIProvider[]) {
 export async function assertCrossBorderProcessingAllowed(params: {
   providers: AIProvider[];
   scenario?: string | null;
+  dataClass?: "PUBLIC_MARKETING" | null;
 }) {
   const foreignProviders = foreignProvidersIn(params.providers);
   if (foreignProviders.length === 0) return;
+
+  // Owner-approved public-social SMM contour. The allow-list is deliberately
+  // narrow: dialogue, video, practitioner and client features cannot use it.
+  if (
+    params.dataClass === "PUBLIC_MARKETING"
+    && params.scenario
+    && isPublicMarketingAIFeature(params.scenario)
+    && marketingForeignLLMEnabled()
+    && foreignProviders.every(
+      (provider) => (MARKETING_FREE_PROVIDERS as readonly AIProvider[]).includes(provider),
+    )
+  ) {
+    return;
+  }
 
   if (
     getLLMProviderMode() !== "LEGACY"

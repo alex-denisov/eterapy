@@ -7,6 +7,10 @@ import {
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
+import {
+  marketingProviderFromLabel,
+  marketingProviderOrder,
+} from "@/lib/marketing/model-pool";
 
 type WriterOutput = {
   title: string;
@@ -94,21 +98,30 @@ export async function processMarketingDraft(publicationId: string) {
 
   const isComment = publication.contentType === "COMMENT";
   const platform = safePlatform(publication.platform);
-  // Never send somebody else's post or author identity to any LLM. The worker
-  // receives only our campaign metadata and a locally assigned topic.
+  // Public social content is part of the SMM task. Internal ETerapy user,
+  // practitioner, dialogue, booking and session data is never attached here.
   const task = {
     kind: isComment ? "COMMENT" : "OWNED_POST",
     platform,
     title: publication.title,
     topic: publication.cluster ?? publication.targetQuery ?? "саморефлексия",
     destinationUrl: isComment ? null : publication.destinationUrl,
+    publicPost: isComment ? {
+      text: publication.engagementExcerpt,
+      url: publication.engagementTargetUrl,
+      label: publication.engagementTargetLabel,
+      platformPostId: publication.engagementTargetId,
+    } : null,
     scheduledFor: publication.scheduledFor?.toISOString() ?? null,
     revisionRequested: publication.status === "REVIEW",
   };
 
   try {
+    const cycleSeed = `${publication.id}:${publication.attemptCount + 1}`;
     const writer = await aiComplete({
       feature: "marketing-agent-writer",
+      dataClass: "PUBLIC_MARKETING",
+      providerOrder: marketingProviderOrder(`writer:${cycleSeed}`),
       maxTokens: 1_500,
       temperature: 0.55,
       requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}`,
@@ -122,8 +135,14 @@ export async function processMarketingDraft(publicationId: string) {
       throw new Error(`writer safety block: ${(draft.safetyFlags ?? []).join(", ") || "empty text"}`);
     }
 
+    const writerProvider = marketingProviderFromLabel(writer.provider);
     const reviewer = await aiComplete({
       feature: "marketing-agent-reviewer",
+      dataClass: "PUBLIC_MARKETING",
+      providerOrder: marketingProviderOrder(
+        `reviewer:${cycleSeed}`,
+        writerProvider ? [writerProvider] : [],
+      ),
       maxTokens: 1_200,
       temperature: 0.1,
       requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}`,
@@ -222,4 +241,12 @@ export async function runMarketingAgentCycle() {
 
 export async function upsertMarketingSignal(input: Parameters<typeof recordSignal>[0]) {
   return recordSignal(input);
+}
+
+export async function resolveMarketingSignal(key: string) {
+  const now = new Date();
+  return db.marketingAutomationSignal.updateMany({
+    where: { key, status: "OPEN" },
+    data: { status: "RESOLVED", resolvedAt: now, lastSeenAt: now },
+  });
 }

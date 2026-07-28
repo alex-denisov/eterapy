@@ -1,6 +1,7 @@
 import { AIProvider, type AIRoutingPolicy } from "@prisma/client";
 import { normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import type { AIRoutingPolicyConfig } from "@/lib/ai-gateway/routing";
+import { isPublicMarketingAIFeature } from "@/lib/marketing/model-pool";
 
 export type AITaskTier = "free" | "cheap" | "premium" | "sensitive" | "vision" | "speech" | "compliance";
 
@@ -407,21 +408,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Кризис → safety-сообщение и хэндофф; «ты бот?» → мягкий уход; не раскрывает ИИ/живого специалиста.",
   },
   {
-    // B610: writer and reviewer are deliberately different default models.
-    // Admin can route either feature through any already registered connector,
-    // subject to the existing cross-border registry gate.
+    // B610: public, no-PII marketing uses only free-quota foreign connectors.
+    // Runtime rotates the order and excludes writer's provider from review.
     feature: "marketing-agent-writer",
     enabled: true,
-    tier: "premium",
+    tier: "free",
     title: "SMM-агент · автор",
     purpose: "Создание собственных постов и обезличенных рекламных комментариев по контент-плану.",
-    providerOrder: [...directPremiumOrder],
-    modelPreferences: { [AIProvider.YANDEX]: YANDEX_PRO_MODEL },
+    providerOrder: [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.CEREBRAS, AIProvider.GROQ],
     maxTokens: 1500,
     temperature: 0.55,
     timeoutMs: 45_000,
     dailyTokenBudget: 80_000,
-    fallbackNotes: "Не получает чужой пост или персональные данные; комментарий всегда идёт в Telegram-премодерацию.",
+    fallbackNotes: "Получает публичный пост, но не внутренние данные пользователей ETerapy; комментарий всегда идёт в Telegram-премодерацию.",
   },
   {
     feature: "marketing-agent-reviewer",
@@ -429,8 +428,7 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     tier: "cheap",
     title: "SMM-агент · выпускающий редактор",
     purpose: "Независимая проверка полезности, честности, безопасности и соответствия правилам площадки.",
-    providerOrder: [...cheapStructuredOrder],
-    modelPreferences: { [AIProvider.YANDEX]: YANDEX_LITE_MODEL },
+    providerOrder: [AIProvider.GEMINI, AIProvider.CEREBRAS, AIProvider.GROQ, AIProvider.OPENROUTER],
     maxTokens: 1200,
     temperature: 0.1,
     timeoutMs: 35_000,
@@ -480,10 +478,12 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
 
 export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = DEFAULT_AI_TASK_POLICY_DEFINITIONS.map((policy) => ({
   ...policy,
-  modelPreferences: {
-    ...defaultModelPreferencesForTier(policy.tier),
-    ...(policy.modelPreferences ?? {}),
-  },
+  modelPreferences: isPublicMarketingAIFeature(policy.feature)
+    ? { ...(policy.modelPreferences ?? {}) }
+    : {
+      ...defaultModelPreferencesForTier(policy.tier),
+      ...(policy.modelPreferences ?? {}),
+    },
 }));
 
 const defaultPolicyByFeature = new Map(

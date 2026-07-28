@@ -33,6 +33,7 @@ services:
     # перекрывает `env_file`.
     environment:
       ETERAPY_CONTOUR: staging
+      MARKETING_FOREIGN_LLM_ENABLED: "false"
     # Loopback bind: staging must never be reachable except through the
     # Basic-Auth nginx vhosts. 3201 ≠ 3200 (prod web on the same host).
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3201}", "--hostname", "127.0.0.1"]
@@ -68,6 +69,7 @@ services:
     environment:
       ETERAPY_CONTOUR: staging
       MARKETING_AGENT_ENABLED: "false"
+      MARKETING_FOREIGN_LLM_ENABLED: "false"
     command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:

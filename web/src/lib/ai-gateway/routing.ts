@@ -164,6 +164,7 @@ export function resolveAIRoutingPlan(input: {
   feature: string;
   providerConfigs: AIRoutingProviderConfig[];
   policy?: AIRoutingPolicyConfig | null;
+  allowForeignInYandexOnlyMode?: boolean;
 }): AIRoutingPlan {
   const feature = normalizeAIFeatureKey(input.feature);
   const policy = input.policy;
@@ -172,7 +173,7 @@ export function resolveAIRoutingPlan(input: {
     throw new AIGatewayRoutingError(`AI routing policy is disabled for ${feature}`, "POLICY_DISABLED");
   }
 
-  if (isYandexOnlyLLMMode()) {
+  if (isYandexOnlyLLMMode() && !input.allowForeignInYandexOnlyMode) {
     return resolveYandexOnlyRoutingPlan({
       feature,
       providerConfigs: input.providerConfigs,
