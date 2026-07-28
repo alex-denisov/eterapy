@@ -5,6 +5,7 @@
     "web"
   ],
   "scripts": {
+    "ci:monitor:test": "npm --workspace web test -- --runInBand src/__tests__/b611-ci-monitor.test.ts",
     "security:secrets": "node scripts/security-secret-scan.mjs",
     "security:sast": "node scripts/security-sast-scan.mjs",
     "security:audit": "node scripts/security-audit-summary.mjs",

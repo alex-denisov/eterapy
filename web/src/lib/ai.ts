@@ -49,6 +49,11 @@ import {
   assertCrossBorderProcessingAllowed,
 } from "@/lib/ai-gateway/cross-border-gate";
 import { log, serializeError } from "@/lib/logger";
+import {
+  MARKETING_FREE_PROVIDERS,
+  isPublicMarketingAIFeature,
+  marketingForeignLLMEnabled,
+} from "@/lib/marketing/model-pool";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
   { provider: AIProvider.YANDEX, enabled: true, priority: 10, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
@@ -70,6 +75,12 @@ interface AIRequestOptions {
   requestId?: string;
   feature?: string;
   userId?: string | null;
+  /**
+   * Restricted public-social route used only by the autonomous marketing
+   * service. Internal ETerapy user data is excluded at the call site.
+   */
+  dataClass?: "PUBLIC_MARKETING";
+  providerOrder?: AIProvider[];
 }
 
 interface AIResponse {
@@ -156,13 +167,55 @@ function attemptStatus(attempt: { status: "succeeded" | "failed" | "skipped"; co
 export async function aiComplete(options: AIRequestOptions): Promise<AIResponse> {
   const { messages, maxTokens = 2000, temperature = 0.7, requestId, userId } = options;
   const feature = normalizeAIFeatureKey(options.feature ?? "legacy.ai-complete");
+  const publicMarketingRequest = (
+    options.dataClass === "PUBLIC_MARKETING"
+    && isPublicMarketingAIFeature(feature)
+    && !userId
+    && marketingForeignLLMEnabled()
+  );
+  if ((options.dataClass || options.providerOrder) && !publicMarketingRequest) {
+    throw new AIRoutingPolicyViolationError(
+      "Public marketing routing overrides are restricted to SMM writer/reviewer calls without internal ETerapy user data",
+      "PUBLIC_MARKETING_ROUTE_FORBIDDEN",
+    );
+  }
+  if (
+    options.providerOrder?.some(
+      (provider) => !(MARKETING_FREE_PROVIDERS as readonly AIProvider[]).includes(provider),
+    )
+  ) {
+    throw new AIRoutingPolicyViolationError(
+      "The SMM agent may use only providers from the free marketing pool",
+      "MARKETING_PAID_PROVIDER_BLOCKED",
+    );
+  }
   const startedAt = new Date();
-  const [providerConfigs, policy] = await Promise.all([
+  const [storedProviderConfigs, storedPolicy] = await Promise.all([
     loadProviderConfigs(),
     loadPolicy(feature),
   ]);
+  const providerConfigs = publicMarketingRequest
+    ? MARKETING_FREE_PROVIDERS.map((provider) => ({
+      ...(storedProviderConfigs.find((config) => config.provider === provider)
+        ?? DEFAULT_PROVIDER_CONFIGS.find((config) => config.provider === provider)!),
+      enabled: true,
+    }))
+    : storedProviderConfigs;
+  const policy = publicMarketingRequest
+    ? {
+      ...storedPolicy,
+      feature,
+      enabled: storedPolicy?.enabled ?? true,
+      providerOrder: options.providerOrder ?? [...MARKETING_FREE_PROVIDERS],
+    }
+    : storedPolicy;
   const providerConfigByName = new Map(providerConfigs.map((config) => [config.provider, config]));
-  const plan = resolveAIRoutingPlan({ feature, providerConfigs, policy });
+  const plan = resolveAIRoutingPlan({
+    feature,
+    providerConfigs,
+    policy,
+    allowForeignInYandexOnlyMode: publicMarketingRequest,
+  });
   const requestPlan = {
     ...plan,
     attempts: plan.attempts.map((attempt) => ({
@@ -171,10 +224,13 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       temperature: attempt.temperature ?? temperature,
     })),
   };
-  enforceYandexOnlyRoutingProof({ plan: requestPlan, providerConfigsByName: providerConfigByName });
+  if (!publicMarketingRequest) {
+    enforceYandexOnlyRoutingProof({ plan: requestPlan, providerConfigsByName: providerConfigByName });
+  }
   await assertCrossBorderProcessingAllowed({
     providers: requestPlan.attempts.map((attempt) => attempt.provider),
     scenario: feature,
+    dataClass: publicMarketingRequest ? "PUBLIC_MARKETING" : null,
   });
   enforceAIBudget({
     requestedTokens: maxTokens,
@@ -191,6 +247,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       status: AIRequestStatus.RUNNING,
       metadata: {
         ...(requestId ? { requestId } : {}),
+        ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
         messages: adminMessages,
       },
       startedAt,
@@ -274,6 +331,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           estimatedCostMicros,
           metadata: {
             ...(requestId ? { requestId } : {}),
+            ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
             messages: adminMessages,
             responseText: response.text.slice(0, 30_000),
             responseProvider: response.provider,
@@ -355,6 +413,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         fallbackReason: failedAttempts.find((attempt) => attempt.status !== "succeeded")?.code ?? null,
         metadata: {
           ...(requestId ? { requestId } : {}),
+          ...(publicMarketingRequest ? { dataClass: "PUBLIC_MARKETING" } : {}),
           messages: adminMessages,
           error: err instanceof Error ? err.message : String(err),
           attempts: failedAttempts.map((attempt) => ({

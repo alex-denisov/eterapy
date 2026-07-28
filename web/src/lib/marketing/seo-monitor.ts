@@ -1,10 +1,11 @@
 import { createHash } from "crypto";
 import { APP_URL } from "@/lib/env";
-import { upsertMarketingSignal } from "@/lib/marketing/agent";
+import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 
 type PageAudit = {
   url: string;
   status: number;
+  contentType: string;
   title: boolean;
   description: boolean;
   canonical: boolean;
@@ -32,9 +33,11 @@ async function auditPage(url: string): Promise<PageAudit> {
       signal: AbortSignal.timeout(12_000),
     });
     const html = (await response.text()).slice(0, 500_000);
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
     return {
       url,
       status: response.status,
+      contentType,
       title: /<title[^>]*>\s*[^<]{3,}\s*<\/title>/i.test(html),
       description: /<meta[^>]+name=["']description["'][^>]+content=["'][^"']{20,}/i.test(html)
         || /<meta[^>]+content=["'][^"']{20,}["'][^>]+name=["']description["']/i.test(html),
@@ -43,8 +46,27 @@ async function auditPage(url: string): Promise<PageAudit> {
       noindex: /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html),
     };
   } catch {
-    return { url, status: 0, title: false, description: false, canonical: false, noindex: false };
+    return {
+      url,
+      status: 0,
+      contentType: "",
+      title: false,
+      description: false,
+      canonical: false,
+      noindex: false,
+    };
   }
+}
+
+function pageProblems(page: PageAudit) {
+  const html = page.contentType.includes("text/html");
+  return [
+    page.status !== 200 ? `HTTP ${page.status}` : null,
+    html && !page.title ? "нет title" : null,
+    html && !page.description ? "нет description" : null,
+    html && !page.canonical ? "нет canonical" : null,
+    html && page.noindex ? "noindex" : null,
+  ].filter((problem): problem is string => Boolean(problem));
 }
 
 export async function runSeoAudit() {
@@ -65,6 +87,7 @@ export async function runSeoAudit() {
     });
     return { checked: 0, failures: 1 };
   }
+  await resolveMarketingSignal("seo:sitemap");
   const urls = urlsFromSitemap(await sitemapResponse.text(), base.origin);
   const results: PageAudit[] = [];
   for (let index = 0; index < urls.length; index += 5) {
@@ -72,18 +95,16 @@ export async function runSeoAudit() {
   }
   let failures = 0;
   for (const page of results) {
-    const problems = [
-      page.status !== 200 ? `HTTP ${page.status}` : null,
-      !page.title ? "нет title" : null,
-      !page.description ? "нет description" : null,
-      !page.canonical ? "нет canonical" : null,
-      page.noindex ? "noindex" : null,
-    ].filter(Boolean);
-    if (problems.length === 0) continue;
-    failures += 1;
+    const problems = pageProblems(page);
     const key = createHash("sha256").update(page.url).digest("hex").slice(0, 20);
+    const signalKey = `seo:page:${key}`;
+    if (problems.length === 0) {
+      await resolveMarketingSignal(signalKey);
+      continue;
+    }
+    failures += 1;
     await upsertMarketingSignal({
-      key: `seo:page:${key}`,
+      key: signalKey,
       kind: "SEO_AUDIT",
       severity: page.status === 0 || page.status >= 500 || page.noindex ? "INCIDENT" : "WARNING",
       title: `SEO-контроль: ${new URL(page.url).pathname}`,
@@ -94,4 +115,4 @@ export async function runSeoAudit() {
   return { checked: results.length, failures };
 }
 
-export const seoMonitorTestables = { urlsFromSitemap };
+export const seoMonitorTestables = { pageProblems, urlsFromSitemap };

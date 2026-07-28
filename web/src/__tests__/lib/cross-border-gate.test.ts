@@ -31,6 +31,7 @@ describe("cross-border AI legal gate", () => {
     CROSS_BORDER_PROCESSING_ENABLED: process.env.CROSS_BORDER_PROCESSING_ENABLED,
     LEGAL_CROSS_BORDER_READY: process.env.LEGAL_CROSS_BORDER_READY,
     MANAGEMENT_SPECIAL_ORDER_ID: process.env.MANAGEMENT_SPECIAL_ORDER_ID,
+    MARKETING_FOREIGN_LLM_ENABLED: process.env.MARKETING_FOREIGN_LLM_ENABLED,
   };
 
   beforeEach(() => {
@@ -40,6 +41,7 @@ describe("cross-border AI legal gate", () => {
     process.env.CROSS_BORDER_PROCESSING_ENABLED = "false";
     process.env.LEGAL_CROSS_BORDER_READY = "false";
     delete process.env.MANAGEMENT_SPECIAL_ORDER_ID;
+    delete process.env.MARKETING_FOREIGN_LLM_ENABLED;
     (mockDb.foreignProviderRegistry.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.managementSpecialOrder.findFirst as jest.Mock).mockResolvedValue(null);
     (mockDb.user.findUnique as jest.Mock).mockResolvedValue({ id: "legal-1", role: "SUPERADMIN" });
@@ -52,6 +54,7 @@ describe("cross-border AI legal gate", () => {
     process.env.CROSS_BORDER_PROCESSING_ENABLED = originalEnv.CROSS_BORDER_PROCESSING_ENABLED;
     process.env.LEGAL_CROSS_BORDER_READY = originalEnv.LEGAL_CROSS_BORDER_READY;
     process.env.MANAGEMENT_SPECIAL_ORDER_ID = originalEnv.MANAGEMENT_SPECIAL_ORDER_ID;
+    process.env.MARKETING_FOREIGN_LLM_ENABLED = originalEnv.MARKETING_FOREIGN_LLM_ENABLED;
   });
 
   it("allows pure Yandex plans without legal checks", async () => {
@@ -74,6 +77,28 @@ describe("cross-border AI legal gate", () => {
 
     expect(mockDb.foreignProviderRegistry.findMany).not.toHaveBeenCalled();
     expect(mockDb.managementSpecialOrder.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows only the free provider pool for public SMM content without platform user data", async () => {
+    process.env.MARKETING_FOREIGN_LLM_ENABLED = "true";
+
+    await expect(assertCrossBorderProcessingAllowed({
+      providers: [AIProvider.OPENROUTER, AIProvider.GEMINI],
+      scenario: "marketing-agent-writer",
+      dataClass: "PUBLIC_MARKETING",
+    })).resolves.toBeUndefined();
+
+    await expect(assertCrossBorderProcessingAllowed({
+      providers: [AIProvider.OPENAI],
+      scenario: "marketing-agent-writer",
+      dataClass: "PUBLIC_MARKETING",
+    })).rejects.toMatchObject({ code: "CROSS_BORDER_FLAGS_DISABLED" });
+
+    await expect(assertCrossBorderProcessingAllowed({
+      providers: [AIProvider.OPENROUTER],
+      scenario: "dialogue-clarifier",
+      dataClass: "PUBLIC_MARKETING",
+    })).rejects.toMatchObject({ code: "CROSS_BORDER_FLAGS_DISABLED" });
   });
 
   it("blocks foreign providers while their registry status is dormant for RU", async () => {

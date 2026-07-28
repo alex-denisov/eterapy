@@ -16,4 +16,37 @@ describe("B552 · production SEO monitor", () => {
       "https://eterapy.com/library/two",
     ]);
   });
+
+  it("does not demand HTML metadata from healthy machine-readable resources", () => {
+    expect(seoMonitorTestables.pageProblems({
+      url: "https://eterapy.com/llms.txt",
+      status: 200,
+      contentType: "text/plain; charset=utf-8",
+      title: false,
+      description: false,
+      canonical: false,
+      noindex: false,
+    })).toEqual([]);
+  });
+
+  it("still checks HTML metadata and availability for every content type", () => {
+    expect(seoMonitorTestables.pageProblems({
+      url: "https://eterapy.com/library",
+      status: 200,
+      contentType: "text/html; charset=utf-8",
+      title: true,
+      description: false,
+      canonical: false,
+      noindex: false,
+    })).toEqual(["нет description", "нет canonical"]);
+    expect(seoMonitorTestables.pageProblems({
+      url: "https://eterapy.com/llms.txt",
+      status: 503,
+      contentType: "text/plain",
+      title: false,
+      description: false,
+      canonical: false,
+      noindex: false,
+    })).toEqual(["HTTP 503"]);
+  });
 });
