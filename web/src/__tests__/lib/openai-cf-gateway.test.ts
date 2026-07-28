@@ -72,6 +72,11 @@ describe("OpenAI Cloudflare AI Gateway integration", () => {
         gatewayId: "eterapy-openai",
         provider: AIProvider.COHERE,
       })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/cohere/compatibility/v1");
+      expect(buildCloudflareGatewayUrlForAIProvider({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: AIProvider.GEMINI,
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/google-ai-studio/v1beta");
     });
   });
 
