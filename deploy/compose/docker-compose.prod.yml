@@ -68,6 +68,9 @@ services:
       # No client/practitioner data enters the foreign LLM prompt. This narrow
       # flag does not re-enable foreign LLMs for the main application contour.
       MARKETING_FOREIGN_LLM_ENABLED: "true"
+      # Production defaults on; staging's contour-specific .env keeps this
+      # false unless a deliberate staging run is requested.
+      MARKETING_AGENT_ENABLED: "${MARKETING_AGENT_ENABLED:-true}"
       # Owner-approved autonomous publishing of independently reviewed owned
       # posts. Comments on third-party materials still require TG moderation.
       MARKETING_AUTOPUBLISH: "true"
