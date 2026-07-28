@@ -23,7 +23,7 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
   // B589 фаза 1: очередь черновиков. Отдельный запрос, а не часть реестра за
   // период: черновик ещё не опубликован, и датой публикации его не отфильтровать.
   const drafts = await db.externalPublication.findMany({
-    where: { status: { in: ["DRAFT", "SCHEDULED"] } },
+    where: { status: { in: ["DRAFT", "REVIEW", "SCHEDULED", "FAILED"] } },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -36,11 +36,12 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
     title: draft.title,
     body: draft.body ?? "",
     destinationUrl: draft.destinationUrl,
+    scheduledFor: draft.scheduledFor?.toISOString() ?? null,
     createdAt: draft.createdAt.toISOString(),
   }));
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-external-publications-page">
+    <main className="mx-auto w-full min-w-0 max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-external-publications-page">
       <AdminHero
         eyebrow="контент и дистрибуция"
         title="Внешние публикации"
@@ -63,9 +64,10 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
           <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
             Черновики собирает ночной джоб <code>cron.marketing-generate</code> по
             контент-плану: каждый пост ведёт на уже существующую статью
-            библиотеки. <strong>Наружу пока не уходит ничего</strong> — адаптеры
-            каналов и выпуск это фаза 2. «Утвердить» означает «человек прочитал и
-            не возражает», а не «опубликовать».
+            библиотеки. Публикуется только утверждённый материал, когда для
+            площадки настроен официальный API и включён общий флаг выпуска.
+            Рекламные комментарии всегда проходят отдельную премодерацию в
+            служебном Telegram-канале.
           </p>
           <DraftQueue rows={draftRows} />
         </AnalyticsSection>

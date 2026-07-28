@@ -5,7 +5,7 @@ import { Role, Specialty } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendAccountInvitationEmail } from "@/lib/email";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { generateUniqueSlug } from "@/lib/slug";
 import { ensurePractitionerForUser, suspendPractitionerForUser } from "@/lib/practitioner-provisioning";
@@ -173,7 +173,16 @@ export async function POST(req: NextRequest) {
 
   if (resetToken) {
     try {
-      await sendPasswordResetEmail(created.user.email, created.user.name, resetToken);
+      await sendAccountInvitationEmail(
+        created.user.email,
+        created.user.name,
+        resetToken,
+        requestedRole === Role.ADMIN
+          ? "moderator"
+          : requestedRole === Role.PRACTITIONER
+            ? "practitioner"
+            : "client",
+      );
     } catch {
       // non-blocking — user still created, admin can resend from panel
     }

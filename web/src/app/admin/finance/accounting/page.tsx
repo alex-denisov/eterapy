@@ -21,6 +21,7 @@ import { summarizeManualLedger } from "@/lib/ip-manual-ledger";
 import db from "@/lib/db";
 import { IncomeBookTable } from "./income-book-table";
 import { ManualLedger } from "./manual-ledger";
+import { ReconciliationImport } from "./reconciliation-import";
 
 // B591 фаза 1 (владелец 2026-07-27: «УСН Доходы 6 % уже стоит, продолжай
 // работу»). Экран отвечает ровно на один вопрос владельца: «что мне, как ИП,
@@ -259,6 +260,15 @@ export default async function FinanceAccountingPage() {
 
       <ManualLedger year={year} />
 
+      <section className="soft-card p-5" data-testid="accounting-reconciliation-import">
+            <h2 className="soft-h3">Сверка с чеками и импорт выписки</h2>
+        <p className="mt-1 mb-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          Загрузка всегда двухшаговая: сначала распознавание без записи в базу,
+          затем явное подтверждение. Повторный файл не дублирует банковские строки.
+        </p>
+        <ReconciliationImport />
+      </section>
+
       <section className="soft-card p-5" data-testid="accounting-recognition-rules">
         <h2 className="soft-h3">Как признаётся доход</h2>
         <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
@@ -297,24 +307,6 @@ export default async function FinanceAccountingPage() {
         </div>
       </section>
 
-      <section className="soft-card p-5" data-testid="accounting-next-phases">
-        <h2 className="soft-h3">Чего здесь ещё нет</h2>
-        <ul className="mt-2 grid gap-1.5 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-          <li>
-            <b>Сверка с чеками</b> (фаза 3) — оплата без фискального чека это нарушение 54-ФЗ,
-            и видеть его надо в день появления. Сверять пока нечего: живых оплат почти нет.
-          </li>
-          <li>
-            <b>Годовой пакет и напоминания в Telegram</b> (фаза 4) — за 10 и за 3 дня до срока,
-            уже работают.
-          </li>
-          <li>
-            <b>Импорт выписки банка</b> — прочие приходы и расходы пока заводятся по одной строке
-            руками; разбор выписки файлом появится, когда строк станет столько, что это будет
-            дешевле ручного ввода.
-          </li>
-        </ul>
-      </section>
     </div>
   );
 }

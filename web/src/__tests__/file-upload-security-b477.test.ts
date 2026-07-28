@@ -1,5 +1,5 @@
 import path from "node:path";
-import { File } from "node:buffer";
+import { File as BufferFile } from "node:buffer";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { NextRequest } from "next/server";
 import db from "@/lib/db";
@@ -46,7 +46,7 @@ describe("B477 file upload security", () => {
   });
 
   it("ignores a traversal-bearing client filename and writes a canonical safe suffix", async () => {
-    const file = new File([Buffer.from("%PDF-1.7\nfixture")], "proof./../../../../../.env.local", {
+    const file = new BufferFile([Buffer.from("%PDF-1.7\nfixture")], "proof./../../../../../.env.local", {
       type: "application/pdf",
     });
 
@@ -62,7 +62,7 @@ describe("B477 file upload security", () => {
   });
 
   it("rejects content that does not match its claimed image MIME", async () => {
-    const file = new File(["<script>alert(1)</script>"], "avatar.png", { type: "image/png" });
+    const file = new BufferFile(["<script>alert(1)</script>"], "avatar.png", { type: "image/png" });
 
     await expect(storeFile("user-1", file, "AVATAR")).rejects.toThrow(
       "Содержимое файла не соответствует заявленному типу",
@@ -74,7 +74,7 @@ describe("B477 file upload security", () => {
     (mockDb.storedFile.aggregate as jest.Mock).mockResolvedValue({
       _sum: { sizeBytes: 250 * 1024 * 1024 },
     });
-    const file = new File([Buffer.from("%PDF-1.7\nfixture")], "document.pdf", { type: "application/pdf" });
+    const file = new BufferFile([Buffer.from("%PDF-1.7\nfixture")], "document.pdf", { type: "application/pdf" });
 
     await expect(storeFile("user-1", file, "DOCUMENT")).rejects.toThrow("Лимит хранилища исчерпан");
     expect(writeFile).not.toHaveBeenCalled();
@@ -83,8 +83,9 @@ describe("B477 file upload security", () => {
   it("does not expose the server-only REPORT kind through the client upload route", async () => {
     const form = new FormData();
     form.set("kind", "REPORT");
-    form.set("file", new File(["{}"], "report.json", { type: "application/json" }));
-    const request = new NextRequest("https://app.eterapy.com/api/files", { method: "POST", body: form });
+    form.set("file", "not-read-before-kind-validation");
+    const request = new NextRequest("https://app.eterapy.com/api/files", { method: "POST" });
+    jest.spyOn(request, "formData").mockResolvedValue(form);
 
     const response = await POST(request);
 
@@ -95,7 +96,7 @@ describe("B477 file upload security", () => {
 
   it("removes a file if its database record cannot be created", async () => {
     (mockDb.storedFile.create as jest.Mock).mockRejectedValue(new Error("database unavailable"));
-    const file = new File([Buffer.from("%PDF-1.7\nfixture")], "document.pdf", { type: "application/pdf" });
+    const file = new BufferFile([Buffer.from("%PDF-1.7\nfixture")], "document.pdf", { type: "application/pdf" });
 
     await expect(storeFile("user-1", file, "DOCUMENT")).rejects.toThrow("database unavailable");
     expect(unlink).toHaveBeenCalledTimes(1);

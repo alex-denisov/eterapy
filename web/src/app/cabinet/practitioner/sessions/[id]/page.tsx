@@ -122,7 +122,9 @@ export default async function PractitionerSessionAnalysisPage({
   const vs = booking.videoSession;
   const clientLabel = booking.client.name ?? booking.client.email ?? "Клиент";
   const retentionDays = daysLeft(vs?.summaryExpiresAt ?? vs?.transcriptExpiresAt ?? null);
-  const processing = vs && !vs.summaryText && ["processing", "requested"].includes(vs.serverSttStatus);
+  const processing = vs && !vs.summaryText && ["queued", "processing", "requested"].includes(vs.serverSttStatus);
+  const processingFailed = vs?.serverSttStatus === "failed" || vs?.serverSttStatus === "audio_expired";
+  const recordingProcessed = vs?.serverSttStatus === "completed";
   const dateLabel = booking.slot
     ? `${formatMskDayMonth(booking.slot.startAt)} · ${formatMskTime(booking.slot.startAt)}–${formatMskTime(booking.slot.endAt)}`
     : formatMskDayMonth(booking.createdAt);
@@ -160,6 +162,8 @@ export default async function PractitionerSessionAnalysisPage({
         dateLabel={dateLabel}
         retentionDays={retentionDays}
         processing={!!processing}
+        processingFailed={processingFailed}
+        recordingProcessed={recordingProcessed}
         hasVs={!!vs}
         summaryText={vs?.summaryText ?? null}
         notesText={vs?.practitionerNotesText ?? null}
@@ -203,7 +207,7 @@ export default async function PractitionerSessionAnalysisPage({
             <p className="mt-0.5 text-sm text-[var(--soft-ink-soft)]">{headMeta}</p>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {vs && (
+            {recordingProcessed && (
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
                 style={{ background: "var(--soft-sage,#E4EADF)", color: "var(--soft-sage-ink,#4B6146)" }}
@@ -255,6 +259,14 @@ export default async function PractitionerSessionAnalysisPage({
             <p className="text-sm font-medium" style={{ color: "var(--soft-amber-ink,#6E5114)" }}>Разбор готовится</p>
             <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
               Расшифровка обрабатывается — резюме, заметки и черновик сообщения появятся здесь автоматически.
+            </p>
+          </section>
+        ) : processingFailed ? (
+          <section className="soft-card mt-5 border border-red-200 p-5" data-testid="session-analysis-failed">
+            <p className="text-sm font-medium text-red-700">Не удалось подготовить AI-разбор</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+              Автоматические повторы исчерпаны. Исходная аудиозапись будет удалена по сроку хранения;
+              обратитесь в поддержку, указав эту сессию.
             </p>
           </section>
         ) : !vs.summaryText && seg !== "transcript" && seg !== "message" ? (

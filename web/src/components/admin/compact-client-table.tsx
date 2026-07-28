@@ -786,6 +786,39 @@ function CompactDetailsCell({
   cell: Extract<AdminCompactCell, { kind: "details" }>;
 }) {
   const [open, setOpen] = useState(false);
+  const modal = open && typeof document !== "undefined" ? createPortal(
+    <div
+      className="fixed inset-0 z-[200] grid place-items-center bg-black/35 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={cell.title}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setOpen(false);
+      }}
+    >
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-[980px] overflow-hidden rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--soft-paper-edge)] px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{cell.title}</h3>
+            {cell.meta ? <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{cell.meta}</p> : null}
+          </div>
+          <button
+            type="button"
+            className="soft-admin-icon-button shrink-0"
+            onClick={() => setOpen(false)}
+            aria-label="Закрыть"
+            title="Закрыть"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
+        <pre className="max-h-[calc(100dvh-8rem)] overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink)]">
+          {cell.body || "Нет деталей"}
+        </pre>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
   return (
     <>
       <button
@@ -798,38 +831,7 @@ function CompactDetailsCell({
         <ExternalLink className="size-3.5" aria-hidden="true" />
         {cell.label ? <span className="sr-only">{cell.label}</span> : null}
       </button>
-      {open ? (
-        <dialog
-          open
-          className="soft-admin-detail-dialog"
-          aria-modal="true"
-          aria-label={cell.title}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          <div className="soft-admin-detail-dialog__panel">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--soft-paper-edge)] px-4 py-3">
-              <div className="min-w-0">
-                <h3 className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{cell.title}</h3>
-                {cell.meta ? <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{cell.meta}</p> : null}
-              </div>
-              <button
-                type="button"
-                className="soft-admin-icon-button shrink-0"
-                onClick={() => setOpen(false)}
-                aria-label="Закрыть"
-                title="Закрыть"
-              >
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
-            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink)]">
-              {cell.body || "Нет деталей"}
-            </pre>
-          </div>
-        </dialog>
-      ) : null}
+      {modal}
     </>
   );
 }

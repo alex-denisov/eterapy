@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { IMPERSONATION_MARKER_COOKIE } from "@/lib/impersonation.shared";
 import { mainUrl } from "@/lib/subdomain";
@@ -21,15 +21,13 @@ import { mainUrl } from "@/lib/subdomain";
  * остаются в httpOnly-куке и проверяются на сервере, как и раньше.
  */
 export function ImpersonationBanner() {
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    setActive(
-      document.cookie
-        .split("; ")
-        .some((entry) => entry.startsWith(`${IMPERSONATION_MARKER_COOKIE}=1`)),
-    );
-  }, []);
+  const active = useSyncExternalStore(
+    () => () => undefined,
+    () => document.cookie
+      .split("; ")
+      .some((entry) => entry.startsWith(`${IMPERSONATION_MARKER_COOKIE}=1`)),
+    () => false,
+  );
 
   if (!active) return null;
 

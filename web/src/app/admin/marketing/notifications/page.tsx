@@ -14,6 +14,7 @@ import {
 import { MARKETING_BLOCK_LABELS } from "@/lib/marketing/gates";
 import {
   SYSTEM_CATEGORY_LABELS,
+  systemEventPreview,
   systemEventCatalog,
 } from "@/lib/notifications/system-catalog";
 import {
@@ -126,18 +127,23 @@ export default async function MarketingNotificationsPage() {
   }));
 
   const catalog = systemEventCatalog();
-  const systemCatalogRows: SystemRow[] = catalog.map((row) => ({
-    key: row.key,
-    label: row.label,
-    kind: row.kind === "account" ? "Письмо аккаунта" : "Настройки кабинета",
-    category: SYSTEM_CATEGORY_LABELS[row.category] ?? row.category,
-    audience: row.audience,
-    trigger: row.trigger,
-    channels: row.channels.join(", "),
-    optional: row.optional ? "Можно отключить" : "Нельзя отключить",
-  }));
+  const systemCatalogRows: SystemRow[] = catalog.map((row) => {
+    const preview = systemEventPreview(row);
+    return {
+      key: row.key,
+      label: row.label,
+      kind: row.kind === "account" ? "Письмо аккаунта" : "Настройки кабинета",
+      category: SYSTEM_CATEGORY_LABELS[row.category] ?? row.category,
+      audience: row.audience,
+      trigger: row.trigger,
+      channels: row.channels.join(", "),
+      optional: row.optional ? "Можно отключить" : "Нельзя отключить",
+      subject: preview.subject,
+      body: preview.body,
+    };
+  });
 
-  const marketingCategoryOptions = Object.entries(MARKETING_CATEGORY_LABELS).map(([value, label]) => ({
+  const marketingCategoryOptions = Object.values(MARKETING_CATEGORY_LABELS).map((label) => ({
     value: label,
     label,
   }));
@@ -146,7 +152,7 @@ export default async function MarketingNotificationsPage() {
   ).map((label) => ({ value: label, label }));
 
   return (
-    <div className="space-y-8">
+    <main className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-8 sm:px-6">
       <AdminHero eyebrow="поиск и маркетинг" title="Уведомления: что уходит и что ушло">
         <p>
           {enabled
@@ -228,6 +234,6 @@ export default async function MarketingNotificationsPage() {
         </p>
         <DispatchJournal rows={journalRows} />
       </AnalyticsSection>
-    </div>
+    </main>
   );
 }

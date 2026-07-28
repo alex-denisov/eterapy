@@ -59,6 +59,7 @@ describe("B212 session STT, summary, and compliance pipeline", () => {
     const migration = source("prisma/migrations/20260514014000_add_session_ai_pipeline_fields/migration.sql");
     const transcriptRoute = source("src/app/api/video/transcript/route.ts");
     const controls = source("src/components/video/video-controls.tsx");
+    const aiPanel = source("src/components/video/session-ai-panel.tsx");
     const room = source("src/components/video/video-room.tsx");
     const complaintsPage = source("src/app/admin/product/quality/page.tsx");
     const complaintsManager = source("src/app/admin/complaints/complaints-manager.tsx");
@@ -72,7 +73,11 @@ describe("B212 session STT, summary, and compliance pipeline", () => {
     expect(transcriptRoute).toContain("holdPractitionerPayoutsForBooking");
     expect(transcriptRoute).toContain("practitioner_external_payment_detected");
     expect(transcriptRoute).toContain("clientFollowupDraft: result.clientFollowupDraft");
-    expect(controls).toContain("Черновик для клиента");
+    expect(controls).toContain("AI-конспект");
+    expect(aiPanel).toContain("Включить для этой сессии");
+    expect(aiPanel).not.toContain("Согласен на аудиозапись");
+    expect(aiPanel).not.toContain("Расшифровываем");
+    expect(aiPanel).not.toContain("toast.");
     expect(room).toContain("webkitSpeechRecognition");
     expect(room).toContain('sttSource: "browser_speech_recognition"');
     expect(room).toContain("await flushTranscript(true)");

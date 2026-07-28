@@ -19,11 +19,13 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(serviceDetail).toContain("redirect(service.href)");
   });
 
-  it("keeps completed answers in the Diary instead of duplicating them in Dialogues", () => {
+  it("keeps the searchable dialogue history while retaining completed result cards in the Diary", () => {
     const serverData = source("src/lib/miniapp/server-data.ts");
     const dialogues = source("src/components/miniapp/screens/dialogues-screen.tsx");
 
-    expect(serverData).toContain('status: { in: ["OPEN", "AWAITING_USER", "PROCESSING"] }');
+    expect(serverData).toContain("where: { userId: viewer.id, deletedAt: null }");
+    expect(serverData).toContain("dialogueNextCursor");
+    expect(dialogues).toContain("Поиск по всей истории вопросов");
     expect(dialogues).toContain("messagesLabel(dialogue.messageCount)");
   });
 

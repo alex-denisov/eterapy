@@ -333,9 +333,20 @@ export interface SentEmailSnapshot {
   delivered: boolean;
 }
 
+/** Собирает снимок без отправки — для каталога и безопасного предпросмотра. */
+export function renderNotificationEmailSnapshot({
+  event,
+  name,
+  data,
+}: Pick<EmailPayload, "event" | "name" | "data">): Omit<SentEmailSnapshot, "delivered"> {
+  return {
+    subject: subjectFor(event, data),
+    html: emailWrapper(buildBody(event, name, data)),
+  };
+}
+
 export async function sendEmail({ to, event, name, data }: EmailPayload): Promise<SentEmailSnapshot> {
-  const html = emailWrapper(buildBody(event, name, data));
-  const subject = subjectFor(event, data);
+  const { html, subject } = renderNotificationEmailSnapshot({ event, name, data });
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -356,4 +367,42 @@ export async function sendEmail({ to, event, name, data }: EmailPayload): Promis
   }
 
   return { subject, html, delivered: true };
+}
+
+function escapeMarketingText(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" style="color:#d67558;text-decoration:underline">$1</a>',
+    )
+    .replaceAll("\n", "<br>");
+}
+
+/** B599: exact rendered marketing snapshot plus confirmed Resend delivery. */
+export async function sendMarketingEmail(input: {
+  to: string;
+  subject: string;
+  body: string;
+}): Promise<{ delivered: boolean; html: string }> {
+  const html = emailWrapper(`
+    ${heading(input.subject)}
+    <p style="margin:0;color:${INK_SOFT};line-height:1.65;font-size:15px">
+      ${escapeMarketingText(input.body)}
+    </p>
+  `);
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { delivered: false, html };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: FROM, to: input.to, subject: input.subject, html }),
+  });
+  if (!response.ok) {
+    log.error("email.marketing_resend_failed", { status: response.status });
+  }
+  return { delivered: response.ok, html };
 }

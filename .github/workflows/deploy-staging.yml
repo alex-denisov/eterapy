@@ -161,6 +161,12 @@ jobs:
             $SSH "sudo docker logs eterapy-staging-worker-1 --tail 100" || true
             exit 1
           fi
+          MARKETING_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-staging-marketing-agent-1" || echo missing)
+          echo "eterapy-staging-marketing-agent container → $MARKETING_STATUS"
+          if [ "$MARKETING_STATUS" != "running" ]; then
+            $SSH "sudo docker logs eterapy-staging-marketing-agent-1 --tail 100" || true
+            exit 1
+          fi
 
       - name: Cleanup SSH key
         if: always()

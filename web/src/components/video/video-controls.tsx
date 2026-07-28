@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Room, LocalParticipant } from "livekit-client";
+import { useMediaDeviceSelect, useTrackToggle } from "@livekit/components-react";
+import { Room, Track } from "livekit-client";
 import { toast } from "sonner";
 import {
   Volume2,
@@ -14,55 +15,62 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  StopCircle,
-  Circle,
   Sparkles,
   LogOut,
+  MonitorUp,
+  Settings2,
+  LoaderCircle,
 } from "lucide-react";
 
 interface VideoControlsProps {
   room: Room;
-  localParticipant: LocalParticipant;
-  onLeave: () => void;
+  onLeave: () => Promise<boolean>;
   onFullscreen: () => void;
   isFullscreen: boolean;
   role: "client" | "practitioner";
-  videoSessionId: string | null;
-  bookingId: string;
   bgBlur: boolean;
-  onBgBlurChange: () => void;
+  bgBlurBusy: boolean;
+  onBgBlurChange: (enabled: boolean) => Promise<boolean>;
+  onOpenAiPanel: () => void;
+  aiCaptureActive: boolean;
 }
 
 export function VideoControls({
   room,
-  localParticipant,
   onLeave,
   onFullscreen,
   isFullscreen,
   role,
-  videoSessionId,
-  bookingId,
   bgBlur,
+  bgBlurBusy,
   onBgBlurChange,
+  onOpenAiPanel,
+  aiCaptureActive,
 }: VideoControlsProps) {
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [camEnabled, setCamEnabled] = useState(true);
   const [volume, setVolume] = useState(100);
   const [showVolume, setShowVolume] = useState(false);
-  const [summarizing, setSummarizing] = useState(false);
+  const [showDevices, setShowDevices] = useState(false);
+  const [screenShareSupported] = useState(
+    () => typeof navigator !== "undefined"
+      && typeof navigator.mediaDevices?.getDisplayMedia === "function",
+  );
   const [leaving, setLeaving] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [egressId, setEgressId] = useState<string | null>(null);
 
-  function toggleMic() {
-    localParticipant.setMicrophoneEnabled(!micEnabled);
-    setMicEnabled(!micEnabled);
-  }
-
-  function toggleCam() {
-    localParticipant.setCameraEnabled(!camEnabled);
-    setCamEnabled(!camEnabled);
-  }
+  const mic = useTrackToggle({
+    source: Track.Source.Microphone,
+    room,
+    onDeviceError: (error) => toast.error("Не удалось включить микрофон", { description: error.message }),
+  });
+  const camera = useTrackToggle({
+    source: Track.Source.Camera,
+    room,
+    onDeviceError: (error) => toast.error("Не удалось включить камеру", { description: error.message }),
+  });
+  const screen = useTrackToggle({
+    source: Track.Source.ScreenShare,
+    room,
+    onDeviceError: (error) => toast.error("Не удалось показать экран", { description: error.message }),
+  });
 
   function handleVolume(v: number) {
     setVolume(v);
@@ -76,30 +84,10 @@ export function VideoControls({
     });
   }
 
-  async function handleSummarize() {
-    if (!videoSessionId) { toast.error("Сессия не найдена"); return; }
-    setSummarizing(true);
-    try {
-      const res = await fetch("/api/video/transcript", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoSessionId }),
-      });
-      const d = await res.json();
-      if (d.summary) {
-        toast.success("Резюме сессии готово", {
-          description: d.clientFollowupDraft ? "Черновик для клиента и заметки практика сохранены" : "Доступно в кабинете практика",
-        });
-      } else {
-        toast.error(d.error ?? "Нет транскрипта для резюме");
-      }
-    } catch { toast.error("Ошибка"); }
-    finally { setSummarizing(false); }
-  }
-
   async function handleLeave() {
     setLeaving(true);
-    await onLeave();
+    const left = await onLeave();
+    if (!left) setLeaving(false);
   }
 
   return (
@@ -107,7 +95,10 @@ export function VideoControls({
     // (~352px), а родитель обрезан `overflow: hidden` — с краёв срезало
     // громкость и, что важнее, кнопку «Завершить». Клиент не мог выйти из
     // звонка. Разрешаем перенос на вторую строку вместо обрезки.
-    <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-3 sm:gap-3 sm:px-6 bg-video-surface border-t border-white/10">
+    <div
+      className="relative flex flex-wrap items-center justify-center gap-2 border-t border-white/10 bg-video-surface px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:gap-3 sm:px-6 sm:py-3"
+      aria-label="Управление видеосессией"
+    >
       {/* Громкость */}
       <div className="relative">
         <button
@@ -130,39 +121,93 @@ export function VideoControls({
 
       {/* Микрофон */}
       <button
-        onClick={toggleMic}
+        {...mic.buttonProps}
+        onClick={() => void mic.toggle()}
+        disabled={mic.pending}
         className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
-          micEnabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80 hover:bg-red-500"
+          mic.enabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80 hover:bg-red-500"
         }`}
-        aria-label={micEnabled ? "Выключить микрофон" : "Включить микрофон"}
-        title={micEnabled ? "Выключить микрофон" : "Включить микрофон"}
+        aria-label={mic.enabled ? "Выключить микрофон" : "Включить микрофон"}
+        title={mic.enabled ? "Выключить микрофон" : "Включить микрофон"}
       >
-        {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+        {mic.pending
+          ? <LoaderCircle className="h-5 w-5 animate-spin" />
+          : mic.enabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
       </button>
 
       {/* Камера */}
       <button
-        onClick={toggleCam}
+        {...camera.buttonProps}
+        onClick={() => void camera.toggle()}
+        disabled={camera.pending}
         className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
-          camEnabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80 hover:bg-red-500"
+          camera.enabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80 hover:bg-red-500"
         }`}
-        aria-label={camEnabled ? "Выключить камеру" : "Включить камеру"}
-        title={camEnabled ? "Выключить камеру" : "Включить камеру"}
+        aria-label={camera.enabled ? "Выключить камеру" : "Включить камеру"}
+        title={camera.enabled ? "Выключить камеру" : "Включить камеру"}
       >
-        {camEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+        {camera.pending
+          ? <LoaderCircle className="h-5 w-5 animate-spin" />
+          : camera.enabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
       </button>
 
       {/* Фон (блюр) */}
       <button
-        onClick={() => { onBgBlurChange(); toast.info(bgBlur ? "Блюр фона выключен" : "Блюр фона включён"); }}
+        onClick={async () => {
+          const enabled = await onBgBlurChange(!bgBlur);
+          if (enabled) toast.success(bgBlur ? "Размытие фона выключено" : "Размытие фона включено");
+        }}
+        disabled={bgBlurBusy || !camera.enabled}
         className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
           bgBlur ? "bg-primary/30 text-primary" : "bg-white/10 hover:bg-white/20 text-muted-foreground"
-        }`}
-        aria-label="Размытие фона"
-        title="Размытие фона"
+        } disabled:cursor-not-allowed disabled:opacity-45`}
+        aria-label={bgBlur ? "Выключить размытие моего фона" : "Размыть мой фон"}
+        title={bgBlur ? "Выключить размытие моего фона" : "Размыть мой фон"}
       >
-        <Eye className="h-5 w-5" />
+        {bgBlurBusy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Eye className="h-5 w-5" />}
       </button>
+
+      {/* Демонстрация экрана */}
+      {screenShareSupported && (
+        <button
+          {...screen.buttonProps}
+          onClick={() => void screen.toggle()}
+          disabled={screen.pending}
+          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
+            screen.enabled ? "bg-primary/30 text-primary" : "bg-white/10 hover:bg-white/20"
+          }`}
+          aria-label={screen.enabled ? "Остановить демонстрацию экрана" : "Показать экран"}
+          title={screen.enabled ? "Остановить демонстрацию экрана" : "Показать экран"}
+        >
+          {screen.pending
+            ? <LoaderCircle className="h-5 w-5 animate-spin" />
+            : <MonitorUp className="h-5 w-5" />}
+        </button>
+      )}
+
+      {/* Выбор камеры, микрофона и динамика */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setShowDevices((current) => !current)}
+          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
+            showDevices ? "bg-primary/30 text-primary" : "bg-white/10 hover:bg-white/20"
+          }`}
+          aria-expanded={showDevices}
+          aria-label="Выбрать камеру, микрофон и динамик"
+          title="Устройства"
+        >
+          <Settings2 className="h-5 w-5" />
+        </button>
+        {showDevices && (
+          <div className="absolute bottom-14 right-0 z-50 w-[min(21rem,calc(100vw-1rem))] space-y-3 rounded-2xl border border-white/15 bg-video-surface p-4 text-left shadow-2xl">
+            <p className="text-sm font-semibold">Устройства</p>
+            <DeviceSelect room={room} kind="audioinput" label="Микрофон" />
+            <DeviceSelect room={room} kind="videoinput" label="Камера" />
+            <DeviceSelect room={room} kind="audiooutput" label="Динамик" />
+          </div>
+        )}
+      </div>
 
       {/* Полный экран */}
       <button
@@ -174,76 +219,70 @@ export function VideoControls({
         {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
       </button>
 
-      {/* Запись (только для практика) */}
-      {role === "practitioner" && (
+      {/* AI-конспект — рабочий инструмент практика, клиенту не показывается. */}
+      {role === "practitioner" && !aiCaptureActive && (
         <button
-          onClick={async () => {
-            if (recording && egressId) {
-              await fetch("/api/video/recording", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ egressId, bookingId }),
-              });
-              setRecording(false);
-              setEgressId(null);
-              toast.success("Запись остановлена. Файл будет доступен 24 часа.");
-            } else {
-              const res = await fetch("/api/video/recording", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bookingId }),
-              });
-              const d = await res.json();
-              if (d.ok) {
-                setRecording(true);
-                setEgressId(d.egressId);
-                toast.success("Запись начата");
-              } else {
-                toast.error(d.error ?? "Egress сервер недоступен");
-              }
-            }
-          }}
-          className={`flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${
-            recording
-              ? "bg-red-500/80 text-white animate-pulse hover:bg-red-500"
-              : "bg-white/10 text-muted-foreground hover:bg-white/20"
-          }`}
-          aria-label={recording ? "Остановить запись" : "Начать запись"}
-          title={recording ? "Остановить запись" : "Начать запись"}
-        >
-          {recording ? <StopCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-          {recording ? "Стоп" : "Запись"}
-        </button>
-      )}
-
-      {/* AI Резюме (только для практика) */}
-      {role === "practitioner" && (
-        <button
-          onClick={handleSummarize}
-          disabled={summarizing}
-          className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary/20 px-4 text-xs font-medium text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
-          aria-label="Создать AI резюме сессии"
-          title="Создать AI резюме сессии"
+          type="button"
+          onClick={onOpenAiPanel}
+          className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary/20 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/30 sm:px-4"
+          aria-label="Настроить AI-конспект сессии"
+          title="AI-конспект сессии"
         >
           <Sparkles className="h-4 w-4" />
-          {summarizing ? "..." : "Резюме"}
+          <span className="hidden sm:inline">AI-конспект</span>
         </button>
       )}
 
       {/* Разделитель */}
-      <div className="h-8 w-px bg-white/10 mx-1" />
+      <div className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
 
       {/* Завершить */}
       <button
         onClick={handleLeave}
         disabled={leaving}
-        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-red-500/80 px-5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full bg-red-500/80 px-4 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50 sm:px-5"
         aria-label="Завершить сессию"
         title="Завершить сессию"
       >
         <LogOut className="h-4 w-4" />
-        {leaving ? "..." : "Завершить"}
+        <span className="hidden min-[380px]:inline">{leaving ? "..." : "Завершить"}</span>
       </button>
     </div>
+  );
+}
+
+function DeviceSelect({
+  room,
+  kind,
+  label,
+}: {
+  room: Room;
+  kind: MediaDeviceKind;
+  label: string;
+}) {
+  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({
+    kind,
+    room,
+    requestPermissions: false,
+    onError: (error) => toast.error(`Не удалось выбрать: ${label.toLowerCase()}`, { description: error.message }),
+  });
+
+  return (
+    <label className="block text-xs text-muted-foreground">
+      <span className="mb-1 block">{label}</span>
+      <select
+        value={activeDeviceId}
+        disabled={devices.length === 0}
+        onChange={(event) => void setActiveMediaDevice(event.target.value)}
+        className="min-h-[44px] w-full rounded-xl border border-white/15 bg-video-bg px-3 text-sm text-foreground outline-none focus:border-primary/60 disabled:opacity-50"
+      >
+        {devices.length === 0 && <option value="">Недоступно в этом браузере</option>}
+        {devices.map((device, index) => (
+          <option key={device.deviceId} value={device.deviceId}>
+            {device.label || `${label} ${index + 1}`}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

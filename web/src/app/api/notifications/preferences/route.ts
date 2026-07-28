@@ -30,6 +30,7 @@ const preferenceSchema = z.object({
 const putSchema = z.object({
   prefs: z.array(preferenceSchema).max(200),
   quietHours: quietHoursSchema.optional(),
+  marketingConsent: z.boolean().optional(),
 });
 const patchSchema = preferenceSchema.partial({ enabled: true, remindBeforeHours: true }).required({
   event: true,
@@ -49,7 +50,15 @@ export async function GET() {
   const availableEvents = getEventsForRole((session.user.role ?? "CLIENT") as UserRole);
   const [prefs, user] = await Promise.all([
     db.notificationPreference.findMany({ where: { userId } }),
-    db.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+    db.user.findUnique({
+      where: { id: userId },
+      select: {
+        timezone: true,
+        marketingConsentAt: true,
+        marketingConsentSource: true,
+        marketingOptOutAt: true,
+      },
+    }),
   ]);
 
   // Merge with defaults — return full matrix.
@@ -72,6 +81,8 @@ export async function GET() {
   return NextResponse.json({
     prefs: result,
     quietHours: await getUserQuietHours(userId, user?.timezone),
+    marketingConsent: Boolean(user?.marketingConsentAt && !user.marketingOptOutAt),
+    marketingConsentSource: user?.marketingConsentSource ?? null,
   });
 }
 
@@ -108,7 +119,7 @@ export async function PUT(req: NextRequest) {
   const userId = session.user.id;
   const parsed = putSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid preferences payload" }, { status: 400 });
-  const { prefs, quietHours } = parsed.data;
+  const { prefs, quietHours, marketingConsent } = parsed.data;
   const allowedEvents = new Set<string>(getEventsForRole((session.user.role ?? "CLIENT") as UserRole).map((item) => item.event));
   if (prefs.some((pref) => !allowedEvents.has(pref.event))) {
     return NextResponse.json({ error: "Notification event is not available for this account" }, { status: 403 });
@@ -130,6 +141,22 @@ export async function PUT(req: NextRequest) {
 
   await db.$transaction(writes);
   if (quietHours) await setUserQuietHours(userId, quietHours);
+  if (marketingConsent !== undefined) {
+    await db.user.update({
+      where: { id: userId },
+      data: marketingConsent
+        ? {
+            marketingConsentAt: new Date(),
+            marketingConsentSource: "cabinet-notification-settings",
+            marketingOptOutAt: null,
+          }
+        : {
+            marketingConsentAt: null,
+            marketingConsentSource: null,
+            marketingOptOutAt: new Date(),
+          },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

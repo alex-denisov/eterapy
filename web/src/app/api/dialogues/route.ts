@@ -6,7 +6,12 @@ import { auth } from "@/lib/auth";
 import { authRateLimitKey, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
-import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
+import {
+  classifyDialogueQuestion,
+  DIALOGUE_TOPICS,
+  dialogueStatusLabelRu,
+  dialogueTopicLabelRu,
+} from "@/lib/dialogue-router";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
 import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
 import { claimGuestDialoguesForUser } from "@/lib/claim-guest-dialogues";
@@ -69,11 +74,22 @@ export async function GET(request: NextRequest) {
 
   const cursor = request.nextUrl.searchParams.get("cursor");
   const limit = parseLimit(request);
+  const scope = request.nextUrl.searchParams.get("scope");
+  const rawQuery = request.nextUrl.searchParams.get("q")?.trim() ?? "";
+  const query = rawQuery.slice(0, 100);
+  const activeOnly = scope === "active";
 
   const dialogues = await db.dialogue.findMany({
     where: {
       ...whereOwner,
       deletedAt: null,
+      ...(activeOnly ? { status: { in: ["OPEN", "AWAITING_USER", "PROCESSING"] as const } } : {}),
+      ...(query ? {
+        OR: [
+          { title: { contains: query, mode: "insensitive" as const } },
+          { messages: { some: { content: { contains: query, mode: "insensitive" as const } } } },
+        ],
+      } : {}),
     },
     orderBy: [
       { updatedAt: "desc" },
@@ -108,6 +124,9 @@ export async function GET(request: NextRequest) {
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messageCount: dialogue._count.messages,
+      topicLabel: dialogueTopicLabelRu(dialogue.topic),
+      statusLabel: dialogueStatusLabelRu(dialogue.status),
+      updatedLabel: relativeDialogueDate(dialogue.updatedAt),
     })),
     nextCursor,
   }, { status: 200 }, context);
@@ -125,6 +144,15 @@ export async function GET(request: NextRequest) {
   }
 
   return response;
+}
+
+function relativeDialogueDate(date: Date): string {
+  const delta = Math.floor((Date.now() - date.getTime()) / 86_400_000);
+  if (delta <= 0) {
+    return `Сегодня, ${date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  if (delta === 1) return "Вчера";
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
 export async function POST(request: NextRequest) {

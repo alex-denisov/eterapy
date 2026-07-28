@@ -32,6 +32,8 @@ export function SessionMobile(props: {
   dateLabel: string;
   retentionDays: number | null;
   processing: boolean;
+  processingFailed: boolean;
+  recordingProcessed: boolean;
   hasVs: boolean;
   summaryText: string | null;
   notesText: string | null;
@@ -42,7 +44,7 @@ export function SessionMobile(props: {
 }) {
   const {
     bookingId, clientId, clientLabel, seg, dateLabel, retentionDays,
-    processing, hasVs, summaryText, notesText, transcriptText, followupDraft, vsId, transcriptWords,
+    processing, processingFailed, recordingProcessed, hasVs, summaryText, notesText, transcriptText, followupDraft, vsId, transcriptWords,
   } = props;
   const segBase = appUrl(`/practitioner/sessions/${bookingId}`);
   const planEditHref = appUrl(`/practitioner/clients/${clientId}/plan/edit`);
@@ -68,7 +70,7 @@ export function SessionMobile(props: {
           <div className="pcab-sess-name">{clientLabel}</div>
           <div className="pcab-sess-meta">{dateLabel}</div>
           <div className="pcab-sess-chips">
-            {hasVs && (
+            {recordingProcessed && (
               <span className="pcab-mini sage">
                 <Check width={11} height={11} strokeWidth={2.4} aria-hidden="true" />
                 запись обработана
@@ -103,6 +105,10 @@ export function SessionMobile(props: {
               <div className="pcab-sec-head"><span className="pcab-h-sec">Резюме</span><span className="pcab-ai-chip">готовится</span></div>
               <p className="pcab-msg-cap">Расшифровка обрабатывается — резюме, заметки и черновик сообщения появятся здесь автоматически.</p>
             </>
+          ) : processingFailed ? (
+            <p className="pcab-msg-cap">
+              Не удалось подготовить AI-разбор после автоматических повторов. Обратитесь в поддержку, указав эту сессию.
+            </p>
           ) : !summaryText ? (
             <>
               <p className="pcab-msg-cap">AI-разбор по этой сессии не создавался{transcriptText ? " — можно сгенерировать по транскрипту (потратит 1 разбор)" : ""}.</p>

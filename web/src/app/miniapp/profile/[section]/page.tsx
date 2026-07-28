@@ -26,9 +26,12 @@ export default async function MiniAppProfileSectionPage({ params }: { params: Pr
 async function WalletSection() {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return <MiniAppWalletScreen balance={0} breakdown={[]} history={[]} nearestExpiry={null} />;
+  if (!userId) return <MiniAppWalletScreen balance={0} breakdown={[]} history={[]} nearestExpiry={null} loadError={false} />;
 
-  const snapshot = await getCreditWalletSnapshot(userId);
+  const snapshot = await getCreditWalletSnapshot(userId).catch(() => null);
+  if (!snapshot) {
+    return <MiniAppWalletScreen balance={0} breakdown={[]} history={[]} nearestExpiry={null} loadError />;
+  }
   const expiring = snapshot.breakdown
     .filter((item) => item.expiresAt)
     .sort((a, b) => (a.expiresAt?.getTime() ?? 0) - (b.expiresAt?.getTime() ?? 0))[0];
@@ -52,6 +55,7 @@ async function WalletSection() {
         dateLabel: item.createdAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }),
       }))}
       nearestExpiry={expiring ? { amount: expiring.amount, label: expiring.expiryLabel } : null}
+      loadError={false}
     />
   );
 }

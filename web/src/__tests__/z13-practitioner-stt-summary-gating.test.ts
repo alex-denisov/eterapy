@@ -81,7 +81,7 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
     expect(transcriptRoute).toContain("generateSessionSummary");
     expect(transcriptRoute).toContain("summaryText: result.summaryText");
     expect(room).toContain('sttSource: "browser_speech_recognition"');
-    expect(controls).toContain("Создать AI резюме сессии");
+    expect(controls).toContain("AI-конспект сессии");
     expect(prompts).toContain('"session-summary"');
     expect(prompts).toContain("верни только JSON с полями practitionerNotesText");
     expect(prompts).toContain("помощник практикующего специалиста ETerapy");

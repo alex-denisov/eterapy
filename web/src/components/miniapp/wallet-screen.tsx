@@ -32,11 +32,12 @@ export type WalletHistoryRow = {
   dateLabel: string;
 };
 
-export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry }: {
+export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry, loadError }: {
   balance: number;
   breakdown: WalletBreakdownRow[];
   history: WalletHistoryRow[];
   nearestExpiry: { amount: number; label: string } | null;
+  loadError: boolean;
 }) {
   const { data } = useMiniAppV21();
   const [visible, setVisible] = useState(HISTORY_PAGE_SIZE);
@@ -57,7 +58,14 @@ export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry
       <div className={styles.subpage} data-testid="miniapp-wallet">
         <Head />
 
-        <section className={styles["wallet-balance"]}>
+        {loadError ? (
+          <section className={styles["empty-state"]} role="alert">
+            <Coins size={30} />
+            <h2>Кошелёк не загрузился</h2>
+            <p>Баланс неизвестен — ноль здесь не означает, что баллов нет.</p>
+            <button type="button" onClick={() => window.location.reload()}>Повторить</button>
+          </section>
+        ) : <section className={styles["wallet-balance"]}>
           <Coins size={26} weight="fill" />
           <div>
             <strong>{balance} {pluralRu(balance, ["балл", "балла", "баллов"])}</strong>
@@ -65,9 +73,9 @@ export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry
               ? `${nearestExpiry.amount} ${pluralRu(nearestExpiry.amount, ["балл", "балла", "баллов"])} — ${nearestExpiry.label}`
               : "Срок действия — 12 месяцев с покупки"}</p>
           </div>
-        </section>
+        </section>}
 
-        {breakdown.length ? (
+        {!loadError && breakdown.length ? (
           <section className={styles["wallet-block"]}>
             <p className={styles.eyebrow}>откуда баллы</p>
             <div className={styles["wallet-rows"]}>
@@ -82,7 +90,7 @@ export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry
           </section>
         ) : null}
 
-        <section className={styles["wallet-block"]}>
+        {!loadError ? <section className={styles["wallet-block"]}>
           <p className={styles.eyebrow}>движение баллов</p>
           {history.length ? (
             <>
@@ -104,10 +112,14 @@ export function MiniAppWalletScreen({ balance, breakdown, history, nearestExpiry
           ) : (
             <p className={styles["flow-note"]}><Receipt size={16} />Списаний и начислений пока не было.</p>
           )}
-        </section>
+        </section> : null}
 
-        <Link className={styles["journey-primary"]} href="/miniapp/packages?tab=credits">Купить баллы<ArrowRight size={18} /></Link>
-        <Link className={styles["journey-secondary"]} href="/miniapp/services"><StarFour size={17} />На что потратить</Link>
+        {!loadError ? (
+          <>
+            <Link className={styles["journey-primary"]} href="/miniapp/packages?tab=credits">Купить баллы<ArrowRight size={18} /></Link>
+            <Link className={styles["journey-secondary"]} href="/miniapp/services"><StarFour size={17} />На что потратить</Link>
+          </>
+        ) : null}
       </div>
     </MiniAppChrome>
   );

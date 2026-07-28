@@ -37,6 +37,8 @@ jest.mock("@/lib/dialogue-router", () => ({
   __esModule: true,
   DIALOGUE_TOPICS: ["relationships", "career", "money", "family", "self", "anxiety", "other"],
   classifyDialogueQuestion: jest.fn(),
+  dialogueStatusLabelRu: (status: string) => `Статус: ${status}`,
+  dialogueTopicLabelRu: (topic: string | null) => topic ? `Тема: ${topic}` : "Другое",
 }));
 
 jest.mock("@/lib/dialogue-safety", () => ({
@@ -395,6 +397,47 @@ describe("v5 dialogue API", () => {
     expect(mockDb.dialogue.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { userId: "user-1", deletedAt: null },
       take: 51,
+    }));
+  });
+
+  it("searches the complete server-side history, including message text", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-1", role: "CLIENT" },
+      expires: "2026-04-29T12:00:00.000Z",
+    } as never);
+    (mockDb.dialogue.findMany as jest.Mock).mockResolvedValue([{
+      id: "dlg_35",
+      title: "Старый вопрос",
+      status: "ANSWERED",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      createdAt: now,
+      updatedAt: now,
+      _count: { messages: 8 },
+    }]);
+
+    const response = await listDialogues(request(
+      "https://app.eterapy.com/api/dialogues?limit=12&q=%D1%83%D0%BD%D0%B8%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F",
+    ));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.dialogues[0]).toMatchObject({
+      id: "dlg_35",
+      statusLabel: "Статус: ANSWERED",
+      topicLabel: "Тема: career",
+    });
+    expect(mockDb.dialogue.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        userId: "user-1",
+        deletedAt: null,
+        OR: [
+          { title: { contains: "уникальная", mode: "insensitive" } },
+          { messages: { some: { content: { contains: "уникальная", mode: "insensitive" } } } },
+        ],
+      },
+      take: 13,
     }));
   });
 

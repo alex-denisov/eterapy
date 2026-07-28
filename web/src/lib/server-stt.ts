@@ -51,6 +51,16 @@ function stringPayload(payload: Record<string, unknown>, key: string) {
 }
 
 function allowedServerSttAudioUrl(audioUrl: string) {
+  if (audioUrl.startsWith("yandex-s3://")) {
+    try {
+      const object = new URL(audioUrl);
+      return object.hostname === process.env.YANDEX_S3_BUCKET?.trim()
+        && object.pathname.startsWith("/session-stt/")
+        && object.pathname.endsWith(".ogg");
+    } catch {
+      return false;
+    }
+  }
   if (audioUrl.startsWith("/uploads/recordings/")) return true;
   const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (!publicAppUrl) return false;
@@ -87,44 +97,6 @@ export async function resolveSessionAiRetentionDates(input: {
   };
 }
 
-export async function recordServerSttConsent(input: {
-  bookingId: string;
-  actorUserId: string;
-  actorRole?: ActorRole;
-  now?: Date;
-}) {
-  const now = input.now ?? new Date();
-  const booking = await db.booking.findUnique({
-    where: { id: input.bookingId },
-    include: {
-      practitioner: { select: { userId: true } },
-      videoSession: true,
-    },
-  });
-  if (!booking?.videoSession) throw new ServerSttError("Сессия не найдена", 404);
-
-  const isClient = booking.clientId === input.actorUserId;
-  const isPractitioner = booking.practitioner.userId === input.actorUserId;
-  if (!isClient && !isPractitioner && !isAdminRole(input.actorRole)) {
-    throw new ServerSttError("Нет доступа к этой сессии", 403);
-  }
-
-  const data = isClient
-    ? { recordingConsentClientAt: booking.videoSession.recordingConsentClientAt ?? now }
-    : { recordingConsentPractitionerAt: booking.videoSession.recordingConsentPractitionerAt ?? now };
-
-  const updated = await db.videoSession.update({
-    where: { id: booking.videoSession.id },
-    data,
-  });
-  return {
-    ok: true,
-    videoSessionId: updated.id,
-    recordingConsentClientAt: updated.recordingConsentClientAt,
-    recordingConsentPractitionerAt: updated.recordingConsentPractitionerAt,
-  };
-}
-
 export async function startServerSttForBooking(input: {
   bookingId: string;
   actorUserId: string;
@@ -141,6 +113,9 @@ export async function startServerSttForBooking(input: {
   });
   if (!booking) throw new ServerSttError("Бронирование не найдено", 404);
   if (!booking.videoSession) throw new ServerSttError("Нет активной видеосессии", 404);
+  if (booking.videoSession.status !== "ACTIVE") {
+    throw new ServerSttError("AI-конспект можно включить только во время активной сессии", 409);
+  }
 
   const isPractitioner = booking.practitioner.userId === input.actorUserId;
   if (!isPractitioner && !isAdminRole(input.actorRole)) {
@@ -149,10 +124,6 @@ export async function startServerSttForBooking(input: {
 
   const allowed = await practitionerHasFeature(booking.practitioner.userId, "server_stt");
   if (!allowed) throw new ServerSttError("Серверная расшифровка доступна в Practitioner Pro+", 403);
-
-  if (!booking.videoSession.recordingConsentClientAt || !booking.videoSession.recordingConsentPractitionerAt) {
-    throw new ServerSttError("Для серверной расшифровки нужно согласие клиента и практика на запись", 409);
-  }
 
   if (
     ["queued", "processing"].includes(booking.videoSession.serverSttStatus)
@@ -302,10 +273,6 @@ export async function handleServerSttJob(job: Job, options: { now?: Date } = {})
     },
   });
   if (!videoSession) throw new Error("Video session not found for server STT job");
-  if (!videoSession.recordingConsentClientAt || !videoSession.recordingConsentPractitionerAt) {
-    throw new Error("Server STT job cannot run without recording consent");
-  }
-
   const practitionerUserId = videoSession.booking.practitioner.userId;
   const allowed = await practitionerHasFeature(practitionerUserId, "server_stt", db, now);
   if (!allowed) throw new Error("Practitioner no longer has server STT entitlement");
@@ -438,6 +405,38 @@ export async function handleServerSttJob(job: Job, options: { now?: Date } = {})
     transcriptExpiresAt: retention.transcriptExpiresAt?.toISOString() ?? null,
     summaryExpiresAt: retention.summaryExpiresAt?.toISOString() ?? null,
   };
+}
+
+export async function markServerSttJobFailed(jobId: string, error: unknown) {
+  const sessions = await db.videoSession.findMany({
+    where: {
+      serverSttJobId: jobId,
+      serverSttStatus: { not: "completed" },
+    },
+    select: { serverSttAudioUrl: true },
+  });
+  if (sessions.length > 0) {
+    const { deleteLocalRecording } = await import("@/lib/livekit-egress");
+    await Promise.allSettled(sessions.flatMap((session) => (
+      session.serverSttAudioUrl ? [deleteLocalRecording(session.serverSttAudioUrl)] : []
+    )));
+  }
+  return db.videoSession.updateMany({
+    where: {
+      serverSttJobId: jobId,
+      serverSttStatus: { not: "completed" },
+    },
+    data: {
+      serverSttStatus: "failed",
+      serverSttAudioUrl: null,
+      serverSttAudioExpiresAt: null,
+      transcriptMetadata: {
+        source: "server_stt",
+        failedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500),
+      },
+    },
+  });
 }
 
 export async function cleanupExpiredSessionAiData(input: { now?: Date } = {}) {

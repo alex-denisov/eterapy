@@ -8,7 +8,11 @@ import {
   handleNotificationDeliveryJob,
   NOTIFICATION_DELIVERY_JOB_TYPE,
 } from "@/lib/notification-delivery";
-import { handleServerSttJob, SERVER_STT_JOB_TYPE } from "@/lib/server-stt";
+import {
+  handleServerSttJob,
+  markServerSttJobFailed,
+  SERVER_STT_JOB_TYPE,
+} from "@/lib/server-stt";
 
 const DEFAULT_POLL_MS = 2_000;
 const DEFAULT_STALE_AFTER_MS = 10 * 60_000;
@@ -71,6 +75,15 @@ export async function processNextJob(input: ProcessNextJobInput): Promise<Proces
     return { status: "completed", jobId: job.id, type: job.type };
   } catch (err) {
     await failJob(job, err, input.requestId);
+    if (job.type === SERVER_STT_JOB_TYPE && job.attempts >= job.maxAttempts) {
+      await markServerSttJobFailed(job.id, err).catch((statusError) => {
+        log.error("server-stt-final-status-failed", {
+          requestId: input.requestId,
+          jobId: job.id,
+          err: statusError,
+        });
+      });
+    }
     return {
       status: "failed",
       jobId: job.id,

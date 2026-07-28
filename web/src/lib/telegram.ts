@@ -26,6 +26,7 @@ type TelegramInlineKeyboard = {
     text: string;
     url?: string;
     web_app?: { url: string };
+    callback_data?: string;
   }>>;
 };
 
@@ -86,12 +87,12 @@ export async function sendTelegram(
   chatId: string,
   text: string,
   options?: { replyMarkup?: TelegramInlineKeyboard },
-): Promise<void> {
+): Promise<number | null> {
   if (!BOT_TOKEN) {
     log.warn("telegram.bot_token_missing");
-    return;
+    return null;
   }
-  const result = await telegramApi("sendMessage", {
+  const result = await telegramApi<{ message_id?: number }>("sendMessage", {
     chat_id: chatId,
     text,
     parse_mode: "HTML",
@@ -99,6 +100,7 @@ export async function sendTelegram(
     ...(options?.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
   });
   if (!result.ok) throw new Error(`Telegram API error: ${result.description ?? "unknown error"}`);
+  return result.result?.message_id ?? null;
 }
 
 /** Configures product-facing bot copy, commands and the persistent Mini App menu button. */

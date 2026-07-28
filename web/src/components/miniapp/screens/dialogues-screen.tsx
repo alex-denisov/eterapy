@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChatCircleDots, MagnifyingGlass, Plus, Trash } from "@phosphor-icons/react";
 import { MiniAppChrome, useMiniAppV21 } from "@/components/miniapp/miniapp-shell";
 import { MiniAppDiaryPinGate } from "@/components/miniapp/diary-pin";
 import { styles } from "@/components/miniapp/styles";
+import type { MiniAppDialogue } from "@/lib/miniapp/types";
 
 function messagesLabel(value: number) {
   const mod100 = value % 100;
@@ -17,6 +18,11 @@ function messagesLabel(value: number) {
 export function DialoguesScreen() {
   const { data } = useMiniAppV21();
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<MiniAppDialogue[]>(data.dialogues);
+  const [nextCursor, setNextCursor] = useState<string | null>(data.dialogueNextCursor);
+  const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   // B554 п.26: в вебе вопрос можно удалить (/cabinet/questions), в мини-аппе
   // удаления не было нигде. Эндпоинт уже есть — DELETE /api/dialogues/[id],
   // тот же мягкий delete (status DELETED + deletedAt), что и у веба.
@@ -24,6 +30,91 @@ export function DialoguesScreen() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [removed, setRemoved] = useState<string[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const fromApi = useCallback((item: {
+    id: string;
+    title: string;
+    topicLabel?: string;
+    statusLabel?: string;
+    updatedLabel?: string;
+    messageCount: number;
+  }): MiniAppDialogue => ({
+    id: item.id,
+    title: item.title,
+    topic: item.topicLabel ?? "Другое",
+    status: item.statusLabel ?? "Разбор",
+    updated: item.updatedLabel ?? "",
+    messageCount: item.messageCount,
+    href: `/miniapp/checkin?dialogueId=${encodeURIComponent(item.id)}`,
+  }), []);
+
+  const loadPage = useCallback(async (options: {
+    query: string;
+    cursor?: string | null;
+    append?: boolean;
+    signal?: AbortSignal;
+  }) => {
+    const params = new URLSearchParams({ limit: "12" });
+    if (options.query) params.set("q", options.query);
+    if (options.cursor) params.set("cursor", options.cursor);
+    const response = await fetch(`/api/dialogues?${params.toString()}`, {
+      cache: "no-store",
+      signal: options.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload) {
+      throw new Error(response.status === 401
+        ? "Сессия истекла. Войдите и попробуйте ещё раз."
+        : "Не удалось загрузить историю.");
+    }
+    const page = (payload.dialogues as Parameters<typeof fromApi>[0][]).map(fromApi);
+    setResults((current) => options.append ? [...current, ...page] : page);
+    setNextCursor(payload.nextCursor ?? null);
+  }, [fromApi]);
+
+  // Поиск уходит на сервер: локальная фильтрация первых 12 строк делала
+  // невидимым любой вопрос ниже первой страницы.
+  useEffect(() => {
+    const value = query.trim();
+    if (!value) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      void loadPage({ query: value, signal: controller.signal })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setSearchError(error instanceof Error ? error.message : "Не удалось найти вопрос.");
+        })
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [data.dialogueNextCursor, data.dialogues, loadPage, query]);
+
+  function changeQuery(value: string) {
+    setQuery(value);
+    setSearchError(null);
+    if (!value.trim()) {
+      setResults(data.dialogues);
+      setNextCursor(data.dialogueNextCursor);
+      setSearching(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setSearchError(null);
+    try {
+      await loadPage({ query: query.trim(), cursor: nextCursor, append: true });
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Не удалось загрузить историю.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function remove(id: string) {
     setDeleting(id);
@@ -45,11 +136,10 @@ export function DialoguesScreen() {
     }
   }
 
-  const visible = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase("ru");
-    const list = data.dialogues.filter((item) => !removed.includes(item.id));
-    return value ? list.filter((item) => item.title.toLocaleLowerCase("ru").includes(value)) : list;
-  }, [data.dialogues, query, removed]);
+  const visible = useMemo(
+    () => results.filter((item) => !removed.includes(item.id)),
+    [removed, results],
+  );
   const focus = visible[0];
 
   return (
@@ -59,7 +149,7 @@ export function DialoguesScreen() {
           <div className={styles["page-heading-copy"]}>
             <p className={styles.eyebrow}>разговор продолжается</p>
             <h1>Диалоги</h1>
-            <p className={styles["page-description"]}>Здесь только вопросы, к которым ещё можно вернуться. Готовые выводы хранятся в Дневнике.</p>
+            <p className={styles["page-description"]}>Вся история вопросов: найдите нужный диалог и продолжите его или откройте готовый итог в Дневнике.</p>
           </div>
           <Link className={styles["round-action"]} href="/miniapp/dialogues/new" aria-label="Новый вопрос"><Plus size={22} /></Link>
         </section>
@@ -86,9 +176,10 @@ export function DialoguesScreen() {
             <div className={styles["dialogue-tools"]}>
               <label className={styles["search-field"]}>
                 <MagnifyingGlass size={18} />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти вопрос" aria-label="Поиск по вопросам" />
+                <input value={query} onChange={(event) => changeQuery(event.target.value)} placeholder="Найти вопрос" aria-label="Поиск по всей истории вопросов" />
               </label>
             </div>
+            {searching ? <p className={styles["dialogue-search-status"]} role="status">Ищем во всей истории…</p> : null}
             <div className={styles["dialogues-list"]}>
               {visible.slice(focus ? 1 : 0).map((dialogue) => (
                 <article key={dialogue.id} className={styles["dialogue-row"]}>
@@ -126,8 +217,14 @@ export function DialoguesScreen() {
                 </article>
               ))}
             </div>
+            {nextCursor && !searching ? (
+              <button className={styles["load-more"]} type="button" disabled={loadingMore} onClick={() => void loadMore()}>
+                {loadingMore ? "Загружаем…" : "Показать ещё"}
+              </button>
+            ) : null}
             {deleteError ? <p className={styles["form-error"]} role="alert">{deleteError}</p> : null}
-            {visible.length === 0 ? <section className={styles["empty-state"]}><MagnifyingGlass size={30} /><h2>Ничего не найдено</h2><p>Попробуйте другой запрос.</p><button type="button" onClick={() => setQuery("")}>Сбросить поиск</button></section> : null}
+            {searchError ? <p className={styles["form-error"]} role="alert">{searchError} <button type="button" onClick={() => query.trim() ? void loadPage({ query: query.trim() }) : setQuery("")}>Повторить</button></p> : null}
+            {!searching && visible.length === 0 ? <section className={styles["empty-state"]}><MagnifyingGlass size={30} /><h2>{query.trim() ? "Ничего не найдено" : "Диалогов пока нет"}</h2><p>{query.trim() ? "Попробуйте другой запрос." : "Задайте новый вопрос — он появится здесь."}</p>{query.trim() ? <button type="button" onClick={() => changeQuery("")}>Сбросить поиск</button> : null}</section> : null}
           </MiniAppDiaryPinGate>
         ) : (
           <section className={styles["empty-state"]}>

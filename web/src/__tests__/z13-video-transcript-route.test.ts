@@ -156,7 +156,7 @@ describe("Z13 video transcript route gates", () => {
     expect(mockDb.videoSession.update.mock.calls[0][0].data).not.toHaveProperty("transcriptMetadata");
   });
 
-  it("stores final transcript and auto-generates summary for active Practitioner Pro", async () => {
+  it("stores the practitioner's browser fallback without treating one microphone as a full-session summary", async () => {
     mockHasFeature.mockResolvedValue(true);
 
     const response = await POST(request("POST", {
@@ -168,17 +168,16 @@ describe("Z13 video transcript route gates", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.summary).toBe("Итог сессии");
+    expect(body.summary).toBeUndefined();
     expect(mockHasFeature).toHaveBeenCalledWith("practitioner-user", "browser_stt");
     expect(mockHasFeature).toHaveBeenCalledWith("practitioner-user", "session_summary");
+    expect(mockGenerateSummary).not.toHaveBeenCalled();
     expect(mockDb.videoSession.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         transcriptText: "Практик: подробный финальный транскрипт сессии",
-        summaryText: "Итог сессии",
-        practitionerNotesText: "Заметки практика",
-        clientFollowupDraft: "Черновик клиенту",
       }),
     }));
+    expect(mockDb.videoSession.update.mock.calls[0][0].data).not.toHaveProperty("summaryText");
   });
 
   it("gates manual summary before loading transcript content", async () => {

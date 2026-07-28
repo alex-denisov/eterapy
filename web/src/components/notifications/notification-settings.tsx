@@ -65,6 +65,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     timezone: "Europe/Moscow",
   });
   const [loading, setLoading] = useState(true);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tgStatus, setTgStatus] = useState(telegramStatus);
   const [tgLinkUrl, setTgLinkUrl] = useState<string | null>(telegramStatus.url ?? null);
@@ -83,6 +84,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
         if (cancelled) return;
         setPrefs(d.prefs ?? []);
         if (d.quietHours) setQuietHours(d.quietHours);
+        setMarketingConsent(Boolean(d.marketingConsent));
         setLoading(false);
       })
       .catch(() => {
@@ -233,7 +235,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     const res = await fetch("/api/notifications/preferences", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prefs, quietHours }),
+      body: JSON.stringify({ prefs, quietHours, marketingConsent }),
     });
     if ((await res.json()).ok) toast.success("Настройки уведомлений сохранены");
     else toast.error("Ошибка сохранения");
@@ -355,6 +357,27 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           )}
         </div>
       </div>
+
+      {role === "CLIENT" ? (
+        <div className="soft-card p-5" data-testid="marketing-consent-setting">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[var(--soft-ink-strong)]">Полезные материалы и предложения</h3>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                Разрешить не более двух рекламных сообщений в неделю: о начисленных
+                баллах, новых материалах и подходящих услугах. Отписаться можно
+                здесь или одной кнопкой из любого письма; уведомления об оплатах и
+                записях останутся.
+              </p>
+            </div>
+            <ToggleSwitch
+              enabled={marketingConsent}
+              onToggle={() => setMarketingConsent((value) => !value)}
+              label="Разрешить рекламные сообщения"
+            />
+          </div>
+        </div>
+      ) : null}
 
       <div className="soft-card p-5" data-testid="notification-quiet-hours">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

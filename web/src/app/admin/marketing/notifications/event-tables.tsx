@@ -41,6 +41,8 @@ export type SystemRow = {
   trigger: string;
   channels: string;
   optional: string;
+  subject: string;
+  body: string;
 };
 
 export function MarketingMatrixTable({
@@ -119,6 +121,7 @@ export function SystemCatalogTable({
       { key: "trigger", label: "Когда уходит", sortable: false, filterKind: "text" },
       { key: "channels", label: "Каналы", sortable: true, filterKind: "text" },
       { key: "optional", label: "Отключаемо", sortable: true, filterKind: "text" },
+      { key: "text", label: "Текст", sortable: false, filterKind: "text" },
     ],
     [categories],
   );
@@ -143,6 +146,14 @@ export function SystemCatalogTable({
             tone: row.optional === "Нельзя отключить" ? ("neutral" as const) : ("ok" as const),
             filterValue: row.optional,
             sortValue: row.optional,
+          },
+          text: {
+            kind: "details" as const,
+            label: "Показать",
+            title: row.subject,
+            body: row.body,
+            meta: `${row.key} · ${row.channels}`,
+            filterValue: `${row.subject} ${row.body}`,
           },
         },
       })),

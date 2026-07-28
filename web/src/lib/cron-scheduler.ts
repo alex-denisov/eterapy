@@ -69,6 +69,11 @@ export const CRON_SCHEDULES: CronSchedule[] = [
   // безопасен к позднему первому запуску — джоб только доводит число
   // неопубликованных черновиков до целевого и наружу ничего не отправляет.
   { type: "cron.marketing-generate", cadence: "daily", keyPrefix: "marketing-generate" },
+  // B589 фаза 2: сам обработчик дополнительно проверяет
+  // MARKETING_AUTOPUBLISH и утверждённое состояние строки.
+  { type: "cron.marketing-publish", cadence: "hourly", keyPrefix: "marketing-publish" },
+  { type: "cron.marketing-triggers", cadence: "daily", keyPrefix: "marketing-triggers" },
+  { type: "cron.video-chat-retention", cadence: "daily", keyPrefix: "video-chat-retention" },
   {
     type: "cron.session-escrow-capture",
     cadence: "hourly",

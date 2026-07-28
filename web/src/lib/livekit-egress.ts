@@ -7,6 +7,13 @@
  *
  * Egress docs: https://docs.livekit.io/egress/
  */
+import { randomUUID } from "node:crypto";
+import {
+  AudioMixing,
+  EncodedFileOutput,
+  EncodedFileType,
+  S3Upload,
+} from "@livekit/protocol";
 import { EgressClient } from "livekit-server-sdk";
 import path from "path";
 import { log } from "./logger";
@@ -69,20 +76,55 @@ export async function startRoomRecording(roomName: string, bookingId: string): P
  * Файл временный: воркер обязан удалить его сразу после транскрипции,
  * а serverSttAudioExpiresAt страхует хвосты максимум на 1 час.
  */
-export async function startRoomAudioEgress(roomName: string, bookingId: string): Promise<RecordingInfo | null> {
+export async function startRoomAudioEgress(roomName: string, _bookingId: string): Promise<RecordingInfo | null> {
   try {
     const egress = getEgress();
-    const filename = `stt_${bookingId}_${Date.now()}.mp4`;
-    const filepath = path.join(RECORDINGS_DIR, filename);
+    const accessKey = process.env.YANDEX_S3_ACCESS_KEY_ID?.trim();
+    const secret = process.env.YANDEX_S3_SECRET_ACCESS_KEY?.trim();
+    const bucket = process.env.YANDEX_S3_BUCKET?.trim();
+    if (!accessKey || !secret || !bucket) {
+      throw new Error("Yandex Object Storage credentials are required for server STT egress");
+    }
+    const endpoint = process.env.YANDEX_S3_ENDPOINT?.trim() || "https://storage.yandexcloud.net";
+    const region = process.env.YANDEX_S3_REGION?.trim() || "ru-central1";
+    const filename = `${randomUUID()}.ogg`;
+    const objectKey = `session-stt/${new Date().toISOString().slice(0, 10)}/${filename}`;
+    const file = new EncodedFileOutput({
+      filepath: objectKey,
+      fileType: EncodedFileType.OGG,
+      disableManifest: true,
+      output: {
+        case: "s3",
+        value: new S3Upload({
+          accessKey,
+          secret,
+          bucket,
+          endpoint,
+          region,
+          forcePathStyle: false,
+          metadata: {
+            purpose: "eterapy-session-stt",
+          },
+        }),
+      },
+    });
 
     const info = await egress.startRoomCompositeEgress(
       roomName,
-      { file: { filepath, disableManifest: true } } as never,
-      { audioOnly: true } as never,
+      { file },
+      {
+        audioOnly: true,
+        // Preserve the two sides of a normal 1:1 session as separate channels.
+        // SpeechKit returns channelTag, which is materially better than a mixed
+        // mono transcript for summaries and compliance review.
+        audioMixing: AudioMixing.DUAL_CHANNEL_ALTERNATE,
+      },
     );
 
     const expiresAt = new Date(Date.now() + AUDIO_TTL_HOURS * 60 * 60 * 1000);
-    const url = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/uploads/recordings/${filename}`;
+    // An internal opaque locator, never exposed to the browser. SpeechKit
+    // receives the corresponding HTTPS Object Storage URL.
+    const url = `yandex-s3://${bucket}/${objectKey}`;
 
     return {
       egressId: info.egressId,
@@ -98,6 +140,36 @@ export async function startRoomAudioEgress(roomName: string, bookingId: string):
 
 export async function deleteLocalRecording(urlOrPath: string): Promise<boolean> {
   try {
+    if (urlOrPath.startsWith("yandex-s3://")) {
+      const parsed = new URL(urlOrPath);
+      const bucket = process.env.YANDEX_S3_BUCKET?.trim();
+      const accessKeyId = process.env.YANDEX_S3_ACCESS_KEY_ID?.trim();
+      const secretAccessKey = process.env.YANDEX_S3_SECRET_ACCESS_KEY?.trim();
+      const objectKey = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
+      if (
+        !bucket
+        || parsed.hostname !== bucket
+        || !accessKeyId
+        || !secretAccessKey
+        || !objectKey.startsWith("session-stt/")
+        || objectKey.includes("..")
+      ) {
+        throw new Error("Invalid or unconfigured Yandex session STT object");
+      }
+      const { DeleteObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
+      const s3 = new S3Client({
+        endpoint: process.env.YANDEX_S3_ENDPOINT?.trim() || "https://storage.yandexcloud.net",
+        region: process.env.YANDEX_S3_REGION?.trim() || "ru-central1",
+        forcePathStyle: false,
+        credentials: { accessKeyId, secretAccessKey },
+      });
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
+      } finally {
+        s3.destroy();
+      }
+      return true;
+    }
     const { unlink } = await import("fs/promises");
     const filename = path.basename(urlOrPath);
     const filepath = path.join(process.cwd(), "public", "uploads", "recordings", filename);
