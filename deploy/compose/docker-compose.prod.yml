@@ -68,6 +68,10 @@ services:
       # No client/practitioner data enters the foreign LLM prompt. This narrow
       # flag does not re-enable foreign LLMs for the main application contour.
       MARKETING_FOREIGN_LLM_ENABLED: "true"
+      # The dedicated production worker is enabled by the release itself.
+      # Staging remains fail-closed in marketingAgentEnabled() unless its
+      # explicit MARKETING_AGENT_ALLOW_STAGING flag is set.
+      MARKETING_AGENT_ENABLED: "true"
       # Owner-approved autonomous publishing of independently reviewed owned
       # posts. Comments on third-party materials still require TG moderation.
       MARKETING_AUTOPUBLISH: "true"
