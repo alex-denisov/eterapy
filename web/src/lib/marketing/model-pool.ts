@@ -10,6 +10,9 @@ export const MARKETING_FREE_PROVIDERS = [
   AIProvider.GEMINI,
   AIProvider.CEREBRAS,
   AIProvider.GROQ,
+  AIProvider.MISTRAL,
+  AIProvider.COHERE,
+  AIProvider.OPENAI,
 ] as const;
 
 export const PUBLIC_MARKETING_AI_FEATURES = [

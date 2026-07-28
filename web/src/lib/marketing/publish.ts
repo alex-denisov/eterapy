@@ -12,6 +12,11 @@ import { log } from "@/lib/logger";
 import { callTelegramApi } from "@/lib/telegram";
 import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
+import {
+  marketingPlatformEnabled,
+  marketingPlatformValue,
+  requiredMarketingPlatformValue,
+} from "@/lib/marketing/platform-settings";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -41,17 +46,18 @@ export type PublicationAdapter = (
   },
 ) => Promise<PublishedPost>;
 
-function requiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not configured`);
-  return value;
+async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram") {
+  if (!await marketingPlatformEnabled(platform)) {
+    throw new Error(`${platform} connector is disabled`);
+  }
 }
 
 export async function publishToVk(
   publication: { body: string },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("VK_COMMUNITY_TOKEN");
-  const communityId = requiredEnv("VK_COMMUNITY_ID").replace(/^-/, "");
+  await ensurePlatformEnabled("VK");
+  const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
+  const communityId = (await requiredMarketingPlatformValue("VK_COMMUNITY_ID")).replace(/^-/, "");
   if (!/^\d+$/.test(communityId)) {
     throw new Error("VK_COMMUNITY_ID must be numeric");
   }
@@ -87,7 +93,8 @@ export async function publishToVk(
 export async function publishToTelegram(
   publication: { body: string },
 ): Promise<PublishedPost> {
-  const channelId = requiredEnv("TELEGRAM_CHANNEL_ID");
+  await ensurePlatformEnabled("Telegram");
+  const channelId = await requiredMarketingPlatformValue("TELEGRAM_CHANNEL_ID");
   const response = await callTelegramApi<{
     message_id?: number;
     chat?: { username?: string };
@@ -113,6 +120,7 @@ export async function publishToTelegram(
 export async function publishRedditComment(
   publication: { body: string; engagementTargetId: string | null },
 ): Promise<PublishedPost> {
+  await ensurePlatformEnabled("Reddit");
   const token = await redditAccessToken();
   const thingId = publication.engagementTargetId;
   if (!thingId || !/^t[13]_[a-z0-9]+$/i.test(thingId)) {
@@ -123,7 +131,7 @@ export async function publishRedditComment(
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": process.env.REDDIT_USER_AGENT?.trim() || "ETerapySMM/1.0",
+      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
     },
     body: new URLSearchParams({ api_type: "json", thing_id: thingId, text: publication.body }),
   });
@@ -147,8 +155,9 @@ export async function publishRedditComment(
 export async function publishVkComment(
   publication: { body: string; engagementTargetId: string | null; engagementTargetUrl: string | null },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("VK_COMMUNITY_TOKEN");
-  const groupId = requiredEnv("VK_COMMUNITY_ID").replace(/^-/, "");
+  await ensurePlatformEnabled("VK");
+  const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
+  const groupId = (await requiredMarketingPlatformValue("VK_COMMUNITY_ID")).replace(/^-/, "");
   const match = publication.engagementTargetId?.match(/^(-?\d+)_([0-9]+)$/)
     ?? publication.engagementTargetUrl?.match(/wall(-?\d+)_([0-9]+)/);
   if (!match) throw new Error("VK wall target id is missing or invalid");
@@ -182,8 +191,9 @@ export async function publishVkComment(
 export async function publishThreadsReply(
   publication: { body: string; engagementTargetId: string | null },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("THREADS_ACCESS_TOKEN");
-  const userId = requiredEnv("THREADS_USER_ID");
+  await ensurePlatformEnabled("Threads");
+  const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
+  const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
   if (!publication.engagementTargetId) throw new Error("Threads target media id is missing");
   const create = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
@@ -217,8 +227,9 @@ export async function publishThreadsReply(
 export async function publishToThreads(
   publication: { body: string },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("THREADS_ACCESS_TOKEN");
-  const userId = requiredEnv("THREADS_USER_ID");
+  await ensurePlatformEnabled("Threads");
+  const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
+  const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
   const create = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -250,14 +261,15 @@ export async function publishToThreads(
 export async function publishToReddit(
   publication: { title: string; body: string },
 ): Promise<PublishedPost> {
+  await ensurePlatformEnabled("Reddit");
   const token = await redditAccessToken();
-  const subreddit = requiredEnv("REDDIT_POST_SUBREDDIT").replace(/^r\//i, "");
+  const subreddit = (await requiredMarketingPlatformValue("REDDIT_POST_SUBREDDIT")).replace(/^r\//i, "");
   const response = await fetch("https://oauth.reddit.com/api/submit", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": process.env.REDDIT_USER_AGENT?.trim() || "ETerapySMM/1.0",
+      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
     },
     body: new URLSearchParams({
       api_type: "json",
@@ -290,8 +302,9 @@ export async function publishToReddit(
 export async function publishToInstagram(
   publication: { body: string; mediaUrl: string | null },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("INSTAGRAM_ACCESS_TOKEN");
-  const userId = requiredEnv("INSTAGRAM_USER_ID");
+  await ensurePlatformEnabled("Instagram");
+  const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
+  const userId = await requiredMarketingPlatformValue("INSTAGRAM_USER_ID");
   if (!publication.mediaUrl || !/^https:\/\//i.test(publication.mediaUrl)) {
     throw new Error("Instagram requires a public HTTPS mediaUrl");
   }

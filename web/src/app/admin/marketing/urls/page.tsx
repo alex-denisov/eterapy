@@ -13,7 +13,7 @@ import {
   routeMapLivePaths,
   urlStatus,
 } from "@/lib/marketing/url-registry";
-import { isMarketingUrlAuditEvidence, marketingPathFromUrl } from "@/lib/marketing/url-monitor";
+import { isMarketingUrlAuditEvidence, marketingPathFromUrl, sitemapPaths } from "@/lib/marketing/url-monitor";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid, formatNumber } from "../../admin-analytics-ui";
 import { UrlRegistryTable, type UrlRegistryTableRow } from "./urls-table";
 
@@ -31,7 +31,8 @@ export default async function MarketingUrlsPage() {
 
   const live = routeMapLivePaths();
   const registry = marketingUrlRegistry();
-  const [auditSignals, publicationDestinations, attributedDestinations] = await Promise.all([
+  const origin = new URL(APP_URL).origin;
+  const [auditSignals, publicationDestinations, attributedDestinations, sitemapResponse] = await Promise.all([
     db.marketingAutomationSignal.findMany({
       where: { kind: "URL_AUDIT" },
       select: { evidence: true },
@@ -50,16 +51,34 @@ export default async function MarketingUrlsPage() {
       },
       _count: { _all: true },
     }).catch(() => []),
+    fetch(new URL("/sitemap.xml", origin), { next: { revalidate: 300 } }).catch(() => null),
   ]);
-  const origin = new URL(APP_URL).origin;
+  const sitemap = sitemapResponse?.ok
+    ? sitemapPaths(await sitemapResponse.text(), origin)
+    : new Set<string>();
+  for (const path of sitemap) {
+    if (registry.some((entry) => entry.path === path)) continue;
+    registry.push({
+      path,
+      weight: "P3",
+      sources: [path.startsWith("/library/") ? "library" : "seo-route"],
+      corePhrases: 0,
+      coreDemand: 0,
+    });
+    live.add(path);
+  }
   const dynamicPaths = [
     ...publicationDestinations.flatMap(({ destinationUrl }) => {
       const path = destinationUrl ? marketingPathFromUrl(destinationUrl, origin) : null;
-      return path ? [{ path, source: "publication" as const }] : [];
+      return path && (sitemap.has(path) || RETIRED_URLS[path])
+        ? [{ path, source: "publication" as const }]
+        : [];
     }),
     ...attributedDestinations.flatMap(({ firstEntryPath }) => {
       const path = marketingPathFromUrl(firstEntryPath, origin);
-      return path ? [{ path, source: "publication" as const }] : [];
+      return path && (sitemap.has(path) || RETIRED_URLS[path])
+        ? [{ path, source: "publication" as const }]
+        : [];
     }),
   ];
   for (const candidate of dynamicPaths) {

@@ -21,8 +21,8 @@ describe("B610 · Reddit OAuth contract", () => {
     process.env = originalEnv;
   });
 
-  it("creates a permanent web authorization request with the required scopes", () => {
-    const url = new URL(redditAuthorizationUrl({ state: "signed-state" }));
+  it("creates a permanent web authorization request with the required scopes", async () => {
+    const url = new URL(await redditAuthorizationUrl({ state: "signed-state" }));
 
     expect(url.origin + url.pathname).toBe("https://www.reddit.com/api/v1/authorize");
     expect(url.searchParams.get("client_id")).toBe("reddit-client-id");

@@ -5,7 +5,7 @@ import { Bell, Megaphone, PauseCircle, ShieldAlert } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { marketingNotificationsEnabled } from "@/lib/marketing/dispatch";
+import { marketingNotificationsRuntimeEnabled } from "@/lib/marketing/dispatch";
 import {
   MARKETING_CATEGORY_LABELS,
   MARKETING_EVENTS,
@@ -31,6 +31,7 @@ import {
   type MatrixRow,
   type SystemRow,
 } from "./event-tables";
+import { MarketingNotificationsToggle } from "./notifications-toggle";
 
 /**
  * B599 · «Кому, когда, куда и что было отправлено».
@@ -54,7 +55,7 @@ export default async function MarketingNotificationsPage() {
   const session = await auth();
   if (!session?.user?.id || session.user.role !== "SUPERADMIN") redirect("/admin");
 
-  const enabled = marketingNotificationsEnabled();
+  const enabled = await marketingNotificationsRuntimeEnabled();
 
   const [marketing, system, sentCount, blockedCount, consented, systemSentCount] = await Promise.all([
     db.marketingDispatch.findMany({
@@ -153,7 +154,11 @@ export default async function MarketingNotificationsPage() {
 
   return (
     <main className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-8 sm:px-6">
-      <AdminHero eyebrow="поиск и маркетинг" title="Уведомления: что уходит и что ушло">
+      <AdminHero
+        eyebrow="поиск и маркетинг"
+        title="Уведомления: что уходит и что ушло"
+        actions={<MarketingNotificationsToggle enabled={enabled} />}
+      >
         <p>
           {enabled
             ? "Рекламная рассылка ВКЛЮЧЕНА. Каждое сообщение — в журнале ниже вместе с текстом, который получил человек."
@@ -166,7 +171,7 @@ export default async function MarketingNotificationsPage() {
           icon={enabled ? <Megaphone className="size-4" /> : <PauseCircle className="size-4" />}
           label="Рекламная рассылка"
           value={enabled ? "Включена" : "Выключена"}
-          hint="Переключается переменной MARKETING_NOTIFICATIONS через выкатку, а не из админки"
+          hint="Переключается здесь; состояние хранится в БД и применяется сразу"
         />
         <MetricCard label="Рекламных отправлено" value={formatNumber(sentCount)} hint="всего за историю" />
         <MetricCard

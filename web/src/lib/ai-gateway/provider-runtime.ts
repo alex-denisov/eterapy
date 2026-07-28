@@ -143,7 +143,11 @@ export function buildAdapterForCredential(
   const baseURL = resolvedProviderBaseUrl({
     credential,
     providerConfig,
-    requireCloudflareAIGateway: options?.requireCloudflareAIGateway,
+    // Owner policy: every foreign connector is fail-closed behind Cloudflare,
+    // not only the public-marketing exception. Yandex remains direct.
+    requireCloudflareAIGateway: credential.provider === AIProvider.YANDEX
+      ? false
+      : (options?.requireCloudflareAIGateway ?? true),
   });
   const opts = {
     apiKey: credential.apiKey,

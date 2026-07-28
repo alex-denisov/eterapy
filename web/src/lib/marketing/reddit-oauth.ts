@@ -4,18 +4,16 @@ import {
   decryptSecret,
   encryptSecret,
 } from "@/lib/ai-gateway/credentials-crypto";
+import {
+  marketingPlatformValue,
+  requiredMarketingPlatformValue,
+} from "@/lib/marketing/platform-settings";
 
 const REDDIT_REFRESH_TOKEN_SETTING = "marketing.reddit.refresh_token";
 const DEFAULT_REDIRECT_URI = "https://app.eterapy.com/api/integrations/reddit/callback";
 const TOKEN_EARLY_REFRESH_MS = 60_000;
 
 let tokenCache: { value: string; expiresAt: number } | null = null;
-
-function requiredEnv(name: "REDDIT_CLIENT_ID" | "REDDIT_CLIENT_SECRET"): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not configured`);
-  return value;
-}
 
 export function redditRedirectUri(): string {
   return process.env.REDDIT_REDIRECT_URI?.trim() || DEFAULT_REDIRECT_URI;
@@ -65,12 +63,12 @@ export function verifyRedditOAuthState(
   }
 }
 
-export function redditAuthorizationUrl(input: {
+export async function redditAuthorizationUrl(input: {
   state: string;
   clientId?: string;
-}): string {
+}): Promise<string> {
   const url = new URL("https://www.reddit.com/api/v1/authorize");
-  url.searchParams.set("client_id", input.clientId ?? requiredEnv("REDDIT_CLIENT_ID"));
+  url.searchParams.set("client_id", input.clientId ?? await requiredMarketingPlatformValue("REDDIT_CLIENT_ID"));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", input.state);
   url.searchParams.set("redirect_uri", redditRedirectUri());
@@ -80,14 +78,14 @@ export function redditAuthorizationUrl(input: {
 }
 
 async function tokenRequest(params: URLSearchParams) {
-  const clientId = requiredEnv("REDDIT_CLIENT_ID");
-  const clientSecret = requiredEnv("REDDIT_CLIENT_SECRET");
+  const clientId = await requiredMarketingPlatformValue("REDDIT_CLIENT_ID");
+  const clientSecret = await requiredMarketingPlatformValue("REDDIT_CLIENT_SECRET");
   const response = await fetch("https://www.reddit.com/api/v1/access_token", {
     method: "POST",
     headers: {
       Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": process.env.REDDIT_USER_AGENT?.trim() || "web:com.eterapy.smm:v1.0 (by /u/eterapy)",
+      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "web:com.eterapy.smm:v1.0 (by /u/eterapy)",
     },
     body: params,
     signal: AbortSignal.timeout(10_000),

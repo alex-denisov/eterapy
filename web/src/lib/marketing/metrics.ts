@@ -1,6 +1,10 @@
 import db from "@/lib/db";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { upsertMarketingSignal } from "@/lib/marketing/agent";
+import {
+  marketingPlatformValue,
+  requiredMarketingPlatformValue,
+} from "@/lib/marketing/platform-settings";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -29,12 +33,6 @@ function optionalInt(value: unknown): number | null {
     : null;
 }
 
-function requiredEnv(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not configured`);
-  return value;
-}
-
 async function json(url: string, init?: RequestInit) {
   const response = await fetch(url, {
     ...init,
@@ -47,8 +45,8 @@ async function json(url: string, init?: RequestInit) {
 
 export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> = {
   vk: async (publication) => {
-    const token = requiredEnv("VK_COMMUNITY_TOKEN");
-    const communityId = requiredEnv("VK_COMMUNITY_ID").replace(/^-/, "");
+    const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
+    const communityId = (await requiredMarketingPlatformValue("VK_COMMUNITY_ID")).replace(/^-/, "");
     const payload = await json("https://api.vk.com/method/wall.getById", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -80,7 +78,7 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "User-Agent": process.env.REDDIT_USER_AGENT?.trim() || "ETerapySMM/1.0",
+          "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
         },
       },
     );
@@ -96,7 +94,7 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
     };
   },
   instagram: async (publication) => {
-    const token = requiredEnv("INSTAGRAM_ACCESS_TOKEN");
+    const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
     const base = `https://graph.facebook.com/v23.0/${encodeURIComponent(publication.externalPostId)}`;
     const [media, insights] = await Promise.all([
       json(`${base}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`),
@@ -116,7 +114,7 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
     };
   },
   threads: async (publication) => {
-    const token = requiredEnv("THREADS_ACCESS_TOKEN");
+    const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
     const payload = await json(
       `https://graph.threads.net/v1.0/${encodeURIComponent(publication.externalPostId)}/insights`
       + `?metric=views,likes,replies,reposts,quotes,shares&access_token=${encodeURIComponent(token)}`,

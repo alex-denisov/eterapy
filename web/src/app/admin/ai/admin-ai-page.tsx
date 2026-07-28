@@ -8,6 +8,8 @@ import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
 import { formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../admin-currency";
 import { AdminCurrencySelector } from "../admin-currency-selector";
+import { PeriodToolbar } from "../admin-analytics-ui";
+import { resolveAdminPeriod } from "../admin-analytics-data";
 import { AIControlCenter, type AIProvider } from "./ai-control-center";
 
 type RawProvider = {
@@ -145,9 +147,13 @@ export default async function AdminAIPage({ searchParams }: PageProps) {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("ai.configure")) redirect("/admin");
   const currency = resolveAdminCurrency(params);
+  const period = resolveAdminPeriod(params);
 
   const [data, currencyRates] = await Promise.all([
-    getAIControlCenterData(undefined, { includeSecrets: role === "SUPERADMIN" }),
+    getAIControlCenterData(period.endInput, {
+      includeSecrets: role === "SUPERADMIN",
+      range: { start: period.start, end: period.end },
+    }),
     getAdminCurrencyRates(),
   ]);
   const rawProviders = data.providers as RawProvider[];
@@ -259,6 +265,7 @@ export default async function AdminAIPage({ searchParams }: PageProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AdminCurrencySelector basePath="/admin/ops/ai" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
+          <PeriodToolbar basePath="/admin/ops/ai" start={period.startInput} end={period.endInput} />
           <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
             Активных политик:{" "}
             <span className="font-medium text-[var(--soft-bordeaux)]">
@@ -282,7 +289,7 @@ export default async function AdminAIPage({ searchParams }: PageProps) {
         usdRub={currencyRates.usdRub}
         currency={currency}
         currencyRateLabel={formatCbrRateLabel(currencyRates)}
-        usagePeriod={formatUsagePeriod(data.period)}
+        usagePeriod={`${formatUsagePeriod(period.startInput)} — ${formatUsagePeriod(period.endInput)}`}
       />
     </PageContainer>
   );
