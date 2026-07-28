@@ -127,16 +127,47 @@
   --surface-inset-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.32);
 }
 
-/* B614: no control, link, card or portal-owned button may grow a focus frame.
-   Tailwind rings are two box-shadow custom properties, so clearing only
-   `outline` is insufficient. `!important` is intentional: CSS modules used by
-   the Telegram mini-app and portal content are loaded after this file. */
+/* B614: nothing may grow an outline or a ring on focus. Tailwind rings are two
+   box-shadow custom properties, so clearing `outline` alone is insufficient.
+   `!important` is intentional: CSS modules used by the Telegram mini-app and
+   portal content are loaded after this file. */
 :focus,
 :focus-visible {
   outline: none !important;
   outline-offset: 0 !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
   --tw-ring-offset-shadow: 0 0 #0000 !important;
   --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+/* Border- and shadow-based focus frames are cleared on the things a person
+   actually activates. This is deliberately NOT applied to every `:focus`:
+   dialogs, sheets and cards receive programmatic focus when they open, and a
+   blanket `box-shadow: none` would strip their elevation at the moment they
+   appear. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible,
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+summary:focus,
+summary:focus-visible,
+[contenteditable]:focus,
+[contenteditable]:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+[role="tab"]:focus,
+[role="tab"]:focus-visible,
+[role="option"]:focus,
+[role="option"]:focus-visible,
+[role="menuitem"]:focus,
+[role="menuitem"]:focus-visible,
+[role="switch"]:focus,
+[role="switch"]:focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
