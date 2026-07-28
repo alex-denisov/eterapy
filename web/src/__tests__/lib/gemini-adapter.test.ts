@@ -86,7 +86,7 @@ describe("Gemini adapter", () => {
     }), { status: 200 }));
     const adapter = createGeminiAdapter({
       apiKey: "gemini-key",
-      baseURL: "https://gateway.ai.cloudflare.com/v1/account/gateway/google-ai-studio/v1",
+      baseURL: "https://gateway.ai.cloudflare.com/v1/account/gateway/google-ai-studio/v1beta",
       defaultModel: "gemini-2.5-flash",
       fetchImpl,
     });

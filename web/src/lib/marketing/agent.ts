@@ -32,10 +32,106 @@ type ReviewerOutput = {
 const LOOP_LIMIT = 3;
 
 function jsonObject<T>(raw: string): T {
-  const candidate = raw.trim()
+  const unfenced = raw.trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
+  const firstBrace = unfenced.indexOf("{");
+  const lastBrace = unfenced.lastIndexOf("}");
+  const candidate = firstBrace >= 0 && lastBrace > firstBrace
+    ? unfenced.slice(firstBrace, lastBrace + 1)
+    : unfenced;
   return JSON.parse(candidate) as T;
+}
+
+function jsonStringField(raw: string, field: string) {
+  const marker = `"${field}"`;
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const colonIndex = raw.indexOf(":", markerIndex + marker.length);
+  const quoteIndex = raw.indexOf('"', colonIndex + 1);
+  if (colonIndex < 0 || quoteIndex < 0) return null;
+  let escaped = false;
+  let value = "";
+  for (let index = quoteIndex + 1; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (escaped) {
+      value += char === "n" ? "\n" : char === "t" ? "\t" : char;
+      escaped = false;
+    } else if (char === "\\") {
+      escaped = true;
+    } else if (char === '"') {
+      return value.trim();
+    } else {
+      value += char;
+    }
+  }
+  return value.trim();
+}
+
+function writerObject(raw: string, fallbackTitle: string): WriterOutput {
+  try {
+    return jsonObject<WriterOutput>(raw);
+  } catch {
+    // Free routing pools occasionally return a valid draft wrapped in prose or
+    // truncate the JSON after the `text` field. Preserve the model-written
+    // copy, but never turn a short safety-classifier answer into a publication.
+    const extractedText = jsonStringField(raw, "text");
+    const plainText = raw.trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "");
+    const text = extractedText && extractedText.length >= 160
+      ? extractedText
+      : !plainText.includes('"text"') && plainText.length >= 240
+        ? plainText
+        : "";
+    if (!text) throw new Error("writer returned invalid or incomplete structured output");
+    return {
+      title: jsonStringField(raw, "title") || fallbackTitle,
+      text,
+      audienceNeed: jsonStringField(raw, "audienceNeed") || "саморефлексия",
+      goal: jsonStringField(raw, "goal") || "полезный отклик аудитории",
+      disclosure: jsonStringField(raw, "disclosure") || "",
+      safetyFlags: [],
+    };
+  }
+}
+
+async function completeWithValidStructure<T>(input: {
+  feature: "marketing-agent-writer" | "marketing-agent-reviewer";
+  providerOrder: ReturnType<typeof marketingProviderOrder>;
+  maxTokens: number;
+  temperature: number;
+  requestId: string;
+  messages: Parameters<typeof aiComplete>[0]["messages"];
+  parse: (raw: string) => T;
+}) {
+  const failures: string[] = [];
+  for (const provider of input.providerOrder) {
+    try {
+      const response = await aiComplete({
+        feature: input.feature,
+        dataClass: "PUBLIC_MARKETING",
+        providerOrder: [provider],
+        maxTokens: input.maxTokens,
+        temperature: input.temperature,
+        requestId: `${input.requestId}:${provider.toLowerCase()}`,
+        messages: input.messages,
+      });
+      try {
+        return { response, value: input.parse(response.text) };
+      } catch (error) {
+        failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
+        log.warn("marketing-agent.invalid-structured-output", {
+          feature: input.feature,
+          provider,
+          model: response.model,
+        });
+      }
+    } catch (error) {
+      failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`No free provider returned valid structured output (${failures.join("; ")})`);
 }
 
 function safePlatform(value: string) {
@@ -118,9 +214,8 @@ export async function processMarketingDraft(publicationId: string) {
 
   try {
     const cycleSeed = `${publication.id}:${publication.attemptCount + 1}`;
-    const writer = await aiComplete({
+    const writerResult = await completeWithValidStructure({
       feature: "marketing-agent-writer",
-      dataClass: "PUBLIC_MARKETING",
       providerOrder: marketingProviderOrder(`writer:${cycleSeed}`),
       maxTokens: 1_500,
       temperature: 0.55,
@@ -129,16 +224,17 @@ export async function processMarketingDraft(publicationId: string) {
         { role: "system", content: MARKETING_AGENT_SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify(task) },
       ],
+      parse: (raw) => writerObject(raw, publication.title),
     });
-    const draft = jsonObject<WriterOutput>(writer.text);
+    const writer = writerResult.response;
+    const draft = writerResult.value;
     if (!draft.text?.trim() || (draft.safetyFlags?.length ?? 0) > 0) {
       throw new Error(`writer safety block: ${(draft.safetyFlags ?? []).join(", ") || "empty text"}`);
     }
 
     const writerProvider = marketingProviderFromLabel(writer.provider);
-    const reviewer = await aiComplete({
+    const reviewerResult = await completeWithValidStructure({
       feature: "marketing-agent-reviewer",
-      dataClass: "PUBLIC_MARKETING",
       providerOrder: marketingProviderOrder(
         `reviewer:${cycleSeed}`,
         writerProvider ? [writerProvider] : [],
@@ -150,11 +246,13 @@ export async function processMarketingDraft(publicationId: string) {
         { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify({ task, candidate: draft }) },
       ],
+      parse: jsonObject<ReviewerOutput>,
     });
+    const reviewer = reviewerResult.response;
     if (writer.provider === reviewer.provider && writer.model === reviewer.model) {
       throw new Error("writer and reviewer resolved to the same model; configure separate model policies");
     }
-    const review = jsonObject<ReviewerOutput>(reviewer.text);
+    const review = reviewerResult.value;
     const approvedText = review.decision === "APPROVE"
       ? draft.text.trim()
       : review.decision === "REVISE"
