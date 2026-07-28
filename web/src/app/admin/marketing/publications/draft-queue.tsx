@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -42,7 +42,6 @@ const STATUS_LABELS: Record<string, string> = {
 export function DraftQueue({ rows }: { rows: DraftRow[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [preview, setPreview] = useState<DraftRow | null>(null);
 
   async function approve(id: string) {
     const response = await fetch(`/api/admin/marketing/publications/${id}/approve`, {
@@ -90,8 +89,16 @@ export function DraftQueue({ rows }: { rows: DraftRow[] }) {
         sortValue: row.status,
       },
       text: {
-        kind: "actions" as const,
-        actions: [{ label: "Показать", onClick: () => setPreview(row) }],
+        kind: "details" as const,
+        label: "Показать",
+        title: row.title,
+        body: row.body || "Текст ещё не сгенерирован.",
+        meta: `${row.platform} · ${new Intl.DateTimeFormat("ru-RU", {
+          dateStyle: "short",
+          timeStyle: "short",
+          timeZone: "Europe/Moscow",
+        }).format(new Date(row.scheduledFor ?? row.createdAt))}`,
+        filterValue: `${row.title} ${row.body}`,
       },
       actions: {
         kind: "actions" as const,
@@ -108,45 +115,12 @@ export function DraftQueue({ rows }: { rows: DraftRow[] }) {
   }));
 
   return (
-    <>
-      <AdminCompactDataTable
-        columns={columns}
-        rows={tableRows}
-        pageSize={25}
-        minWidth="1250px"
-        empty="Очередь пуста — джоб пополнит её в ближайшие сутки"
-      />
-
-      {preview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Текст поста"
-          onClick={() => setPreview(null)}
-        >
-          <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--soft-ink-faint)]">
-                  {preview.platform} · {preview.cluster ?? "—"}
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-[var(--soft-ink-strong)]">{preview.title}</h3>
-              </div>
-              <button type="button" className="soft-chip" onClick={() => setPreview(null)}>
-                Закрыть
-              </button>
-            </div>
-            {/* Текст поста — обычный текст, не HTML: в ленту уходит именно он. */}
-            <pre className="mt-4 whitespace-pre-wrap font-sans text-sm text-[var(--soft-ink)]">
-              {preview.body}
-            </pre>
-          </div>
-        </div>
-      )}
-    </>
+    <AdminCompactDataTable
+      columns={columns}
+      rows={tableRows}
+      pageSize={25}
+      minWidth="1250px"
+      empty="Очередь пуста — джоб пополнит её в ближайшие сутки"
+    />
   );
 }

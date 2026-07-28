@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import db from "@/lib/db";
+import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { log, serializeError } from "@/lib/logger";
 import { upsertMarketingSignal } from "@/lib/marketing/agent";
 
@@ -92,7 +93,7 @@ function matchingTopic(value: string) {
 }
 
 async function discoverReddit(): Promise<Candidate[]> {
-  const token = process.env.REDDIT_ACCESS_TOKEN?.trim();
+  const token = await redditAccessToken().catch(() => null);
   const subreddits = process.env.REDDIT_SUBREDDITS?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
   if (!token || subreddits.length === 0) return [];
   const result: Candidate[] = [];

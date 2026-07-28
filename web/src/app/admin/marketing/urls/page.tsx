@@ -4,6 +4,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Link2, ShieldAlert, ShieldCheck, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/auth";
+import db from "@/lib/db";
+import { APP_URL } from "@/lib/env";
 import {
   RETIRED_URLS,
   URL_STATUS_LABELS,
@@ -11,6 +13,7 @@ import {
   routeMapLivePaths,
   urlStatus,
 } from "@/lib/marketing/url-registry";
+import { isMarketingUrlAuditEvidence, marketingPathFromUrl } from "@/lib/marketing/url-monitor";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid, formatNumber } from "../../admin-analytics-ui";
 import { UrlRegistryTable, type UrlRegistryTableRow } from "./urls-table";
 
@@ -28,10 +31,59 @@ export default async function MarketingUrlsPage() {
 
   const live = routeMapLivePaths();
   const registry = marketingUrlRegistry();
+  const [auditSignals, publicationDestinations, attributedDestinations] = await Promise.all([
+    db.marketingAutomationSignal.findMany({
+      where: { kind: "URL_AUDIT" },
+      select: { evidence: true },
+    }).catch(() => []),
+    db.externalPublication.findMany({
+      where: { destinationUrl: { not: null } },
+      select: { destinationUrl: true },
+    }).catch(() => []),
+    db.channelAttribution.groupBy({
+      by: ["firstEntryPath"],
+      where: {
+        OR: [
+          { utmSource: { not: null } },
+          { source: { not: "direct" } },
+        ],
+      },
+      _count: { _all: true },
+    }).catch(() => []),
+  ]);
+  const origin = new URL(APP_URL).origin;
+  const dynamicPaths = [
+    ...publicationDestinations.flatMap(({ destinationUrl }) => {
+      const path = destinationUrl ? marketingPathFromUrl(destinationUrl, origin) : null;
+      return path ? [{ path, source: "publication" as const }] : [];
+    }),
+    ...attributedDestinations.flatMap(({ firstEntryPath }) => {
+      const path = marketingPathFromUrl(firstEntryPath, origin);
+      return path ? [{ path, source: "publication" as const }] : [];
+    }),
+  ];
+  for (const candidate of dynamicPaths) {
+    const existing = registry.find((entry) => entry.path === candidate.path);
+    if (existing) {
+      if (!existing.sources.includes(candidate.source)) existing.sources.push(candidate.source);
+    } else {
+      registry.push({
+        path: candidate.path,
+        weight: "P2",
+        sources: [candidate.source],
+        corePhrases: 0,
+        coreDemand: 0,
+      });
+    }
+  }
+  const audits = new Map(auditSignals.flatMap(({ evidence }) =>
+    isMarketingUrlAuditEvidence(evidence) ? [[evidence.path, evidence] as const] : []
+  ));
 
   const rows: UrlRegistryTableRow[] = registry.map((entry) => {
     const status = urlStatus(entry.path, live);
     const decision = RETIRED_URLS[entry.path];
+    const audit = audits.get(entry.path);
     return {
       path: entry.path,
       weight: entry.weight,
@@ -45,6 +97,11 @@ export default async function MarketingUrlsPage() {
           ? `→ ${decision.target} · ${decision.decidedAt}`
           : `${decision.reason} · ${decision.decidedAt}`
         : null,
+      httpStatus: audit?.status ?? null,
+      finalUrl: audit?.finalUrl ?? null,
+      inSitemap: audit?.inSitemap ?? null,
+      trafficTouches: audit?.trafficTouches ?? 0,
+      checkedAt: audit?.checkedAt ?? null,
     };
   });
 
@@ -63,6 +120,11 @@ export default async function MarketingUrlsPage() {
       decision: decision.kind === "redirect"
         ? `→ ${decision.target} · ${decision.decidedAt}`
         : `${decision.reason} · ${decision.decidedAt}`,
+      httpStatus: audits.get(path)?.status ?? null,
+      finalUrl: audits.get(path)?.finalUrl ?? null,
+      inSitemap: audits.get(path)?.inSitemap ?? null,
+      trafficTouches: audits.get(path)?.trafficTouches ?? 0,
+      checkedAt: audits.get(path)?.checkedAt ?? null,
     });
   }
 
@@ -118,10 +180,10 @@ export default async function MarketingUrlsPage() {
       </div>
 
       <p className="mt-4 text-xs leading-relaxed text-slate-500">
-        Состояние считается по карте маршрутов, а не HTTP-обходом: параметризованные
-        адреса библиотеки живы по префиксу. Реальные коды ответа, цепочки редиректов и
-        статус индексации приедут вместе с обходом реестра (B589, фаза 3) — до этого
-        экран показывает то, что знает карта, и не выдаёт догадку за проверку.
+        Карта маршрутов защищает сборку, а production-агент раз в шесть часов
+        перепроверяет фактический HTTP-код, конечный адрес и sitemap. Переходы —
+        число последних касаний, зафиксированных платформой; «—» означает, что
+        первый живой обход ещё не завершён.
       </p>
     </main>
   );

@@ -10,6 +10,8 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { callTelegramApi } from "@/lib/telegram";
+import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
+import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -111,7 +113,7 @@ export async function publishToTelegram(
 export async function publishRedditComment(
   publication: { body: string; engagementTargetId: string | null },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("REDDIT_ACCESS_TOKEN");
+  const token = await redditAccessToken();
   const thingId = publication.engagementTargetId;
   if (!thingId || !/^t[13]_[a-z0-9]+$/i.test(thingId)) {
     throw new Error("Reddit target id is missing or invalid");
@@ -248,7 +250,7 @@ export async function publishToThreads(
 export async function publishToReddit(
   publication: { title: string; body: string },
 ): Promise<PublishedPost> {
-  const token = requiredEnv("REDDIT_ACCESS_TOKEN");
+  const token = await redditAccessToken();
   const subreddit = requiredEnv("REDDIT_POST_SUBREDDIT").replace(/^r\//i, "");
   const response = await fetch("https://oauth.reddit.com/api/submit", {
     method: "POST",
@@ -360,10 +362,15 @@ export async function publishScheduledMarketing(input: {
 } = {}): Promise<PublishScheduledResult> {
   const now = input.now ?? new Date();
   const enabled = input.enabled ?? marketingAutopublishEnabled();
+  const redditHandledByDevvit = devvitBridgeEnabled()
+    && !input.adapters?.reddit;
 
   const publications = await db.externalPublication.findMany({
     where: {
       status: "SCHEDULED",
+      ...(redditHandledByDevvit
+        ? { platform: { notIn: ["reddit", "Reddit", "REDDIT"] } }
+        : {}),
       ...(enabled ? {} : { contentType: "COMMENT" }),
       OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
     },
