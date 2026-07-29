@@ -367,11 +367,27 @@ jobs:
           # releases piled up until the disk filled and `docker load` failed.
           # Drop every eterapy-web image except the one the running container
           # uses (never touches the live container's image).
+          # INC-095: the same must happen for `eterapy-web-staging`. eterapy-1
+          # hosts both stacks plus Postgres on a 30GB disk, so two superseded
+          # staging images (~4.5GB each) were enough to fill it — Postgres then
+          # failed mid-migration and the workers crash-looped on ENOSPC, which
+          # read as "the new migration broke". Each repository keeps only the
+          # image its own running container uses, plus the one being shipped.
           $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-web-1 2>/dev/null || true); \
             sudo docker images eterapy-web --format '{{.Repository}}:{{.Tag}}' \
             | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web:${GITHUB_SHA::8}\$\" \
             | xargs -r sudo docker rmi 2>/dev/null || true; \
+            STAGING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-staging-web-1 2>/dev/null || true); \
+            sudo docker images eterapy-web-staging --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v \"^\${STAGING}\$\" \
+            | xargs -r sudo docker rmi 2>/dev/null || true; \
             sudo docker image prune -f >/dev/null 2>&1 || true"
+          DISK_FREE=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 99)
+          echo "▶ свободно на ноде перед загрузкой образа: ${DISK_FREE}G"
+          if [ "${DISK_FREE:-99}" -lt 6 ]; then
+            echo "::error::На ноде осталось ${DISK_FREE}G — образа ~4.5GB не хватит места. Выкатка остановлена до освобождения диска."
+            exit 1
+          fi
           docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           # B541/B537: stamp the node's identity and role into its .env.
           # Values come from env (NODE_SLUG/NODE_STANDBY), never interpolated
@@ -461,27 +477,10 @@ jobs:
             --filter until=24h" || echo "prune пропущен (не критично)"
           echo "▶ следы прошлых выкаток убраны"
 
-          # INC-095: `docker image prune -f` выше убирает только dangling-слои.
-          # Образы `eterapy-web:<sha>` остаются с тегом навсегда, а весит каждый
-          # ~4.5 GB — на диске 30 GB это отказ примерно каждые шесть выкаток.
-          # Так и случилось: Postgres упёрся в «No space left on device», и это
-          # выглядело как падение миграции, хотя миграция ни при чём.
-          # Оставляем ДВА последних образа семейства: текущий и предыдущий —
-          # предыдущий нужен для мгновенного отката.
-          $SSH "for repo in eterapy-web eterapy-web-staging; do
-                  sudo docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' \
-                    | awk -v r=\"\$repo\" '\$1 ~ \"^\" r \":\" {print}' \
-                    | sort -k2,3 -r | tail -n +3 | awk '{print \$1}' \
-                    | while read -r image; do
-                        sudo docker rmi \"\$image\" >/dev/null 2>&1 \
-                          && echo \"снят старый образ \$image\"
-                      done
-                done" || echo "чистка образов пропущена (не критично)"
-          DISK_FREE=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 0)
-          echo "▶ свободно на ноде: ${DISK_FREE}G"
-          if [ "${DISK_FREE:-0}" -lt 5 ]; then
-            echo "::warning::На ноде осталось ${DISK_FREE}G — следующая выкатка может упасть на миграции"
-          fi
+          # INC-095: чистка образов выполняется ДО загрузки нового (см. выше).
+          # Здесь она бессмысленна: если места не хватило, converge уже упал.
+          DISK_FREE_AFTER=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 99)
+          echo "▶ свободно на ноде после выкатки: ${DISK_FREE_AFTER}G"
           echo "▶ worker health"
           sleep 5
           if [ "$NODE_STANDBY" = "1" ]; then
