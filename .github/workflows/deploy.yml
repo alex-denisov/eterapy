@@ -460,6 +460,28 @@ jobs:
             --filter label=com.docker.compose.project=eterapy \
             --filter until=24h" || echo "prune пропущен (не критично)"
           echo "▶ следы прошлых выкаток убраны"
+
+          # INC-095: `docker image prune -f` выше убирает только dangling-слои.
+          # Образы `eterapy-web:<sha>` остаются с тегом навсегда, а весит каждый
+          # ~4.5 GB — на диске 30 GB это отказ примерно каждые шесть выкаток.
+          # Так и случилось: Postgres упёрся в «No space left on device», и это
+          # выглядело как падение миграции, хотя миграция ни при чём.
+          # Оставляем ДВА последних образа семейства: текущий и предыдущий —
+          # предыдущий нужен для мгновенного отката.
+          $SSH "for repo in eterapy-web eterapy-web-staging; do
+                  sudo docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' \
+                    | awk -v r=\"\$repo\" '\$1 ~ \"^\" r \":\" {print}' \
+                    | sort -k2,3 -r | tail -n +3 | awk '{print \$1}' \
+                    | while read -r image; do
+                        sudo docker rmi \"\$image\" >/dev/null 2>&1 \
+                          && echo \"снят старый образ \$image\"
+                      done
+                done" || echo "чистка образов пропущена (не критично)"
+          DISK_FREE=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 0)
+          echo "▶ свободно на ноде: ${DISK_FREE}G"
+          if [ "${DISK_FREE:-0}" -lt 5 ]; then
+            echo "::warning::На ноде осталось ${DISK_FREE}G — следующая выкатка может упасть на миграции"
+          fi
           echo "▶ worker health"
           sleep 5
           if [ "$NODE_STANDBY" = "1" ]; then
