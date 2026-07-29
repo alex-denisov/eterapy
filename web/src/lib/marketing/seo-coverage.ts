@@ -60,6 +60,22 @@ async function webmasterJson(url: string, token: string, init?: RequestInit) {
   return payload ?? {};
 }
 
+function numberField(source: Record<string, unknown>, ...names: string[]): number {
+  for (const name of names) {
+    const value = Number(source[name]);
+    if (Number.isFinite(value)) return value;
+  }
+  return 0;
+}
+
+/** Tolerant of both the documented `*_count` fields and the short aliases. */
+export function parseCoverageSummary(summary: Record<string, unknown>) {
+  return {
+    searchablePages: numberField(summary, "searchable_pages_count", "searchable_pages"),
+    excludedPages: numberField(summary, "excluded_pages_count", "excluded_pages"),
+  };
+}
+
 async function sitemapUrls(origin: string): Promise<string[]> {
   const response = await fetch(new URL("/sitemap.xml", origin).toString(), {
     headers: { "User-Agent": "ETerapy-SEO-Coverage/1.0" },
@@ -155,8 +171,10 @@ export async function runSeoCoverageCycle(
     recentlySubmitted(now),
   ]);
 
-  const searchablePages = Number(summary.searchable_pages ?? 0);
-  const excludedPages = Number(summary.excluded_pages ?? 0);
+  // Webmaster v4 names these `*_count`. Reading the short form silently
+  // reported zero indexed pages, which both fired a false "coverage" alarm and
+  // hid the genuinely different "pages were excluded" case.
+  const { searchablePages, excludedPages } = parseCoverageSummary(summary);
   const quotaRemaining = Number(quota.quota_remainder ?? 0);
   const dailyQuota = Number(quota.daily_quota ?? 0);
   const budget = Math.max(0, Math.min(quotaRemaining, input.maxSubmissions ?? quotaRemaining));
