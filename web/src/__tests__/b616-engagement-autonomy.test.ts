@@ -15,7 +15,7 @@ import {
   pickEngagementTone,
 } from "@/lib/marketing/engagement-tone";
 import { providerProbeDue } from "@/lib/marketing/provider-health";
-import { prioritiseRecrawl } from "@/lib/marketing/seo-coverage";
+import { parseCoverageSummary, prioritiseRecrawl } from "@/lib/marketing/seo-coverage";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
@@ -216,5 +216,24 @@ describe("B470/B550/B578 · index coverage cycle", () => {
       recentlySubmitted: [],
       budget: 40,
     })).toHaveLength(40);
+  });
+});
+
+describe("B470 · Webmaster summary field names", () => {
+  it("reads the documented *_count fields", () => {
+    expect(parseCoverageSummary({
+      sqi: 0,
+      searchable_pages_count: 1,
+      excluded_pages_count: 0,
+    })).toEqual({ searchablePages: 1, excludedPages: 0 });
+  });
+
+  it("still understands the short aliases", () => {
+    expect(parseCoverageSummary({ searchable_pages: 12, excluded_pages: 3 }))
+      .toEqual({ searchablePages: 12, excludedPages: 3 });
+  });
+
+  it("treats a missing field as zero rather than NaN", () => {
+    expect(parseCoverageSummary({})).toEqual({ searchablePages: 0, excludedPages: 0 });
   });
 });
