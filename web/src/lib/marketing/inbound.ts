@@ -206,7 +206,9 @@ export async function queueInboundReplies(input: {
           scheduledFor: now,
           autoPublish: false,
           inboundReplyToId: row.id,
-          cluster: row.kind,
+          // `cluster` и `targetQuery` намеренно пусты: это SEO-поля собственных
+          // материалов, и подстановка в них типа входящего сделала бы «COMMENT»
+          // темой исследования и строкой в отчётах по кластерам.
         },
       });
       await db.marketingInboundMessage.update({
