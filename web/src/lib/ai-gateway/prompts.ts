@@ -260,6 +260,10 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
   "companion-chat": buildCompanionSystemPrompt("explore"),
   "marketing-agent-writer": MARKETING_AGENT_SYSTEM_PROMPT,
   "marketing-agent-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
+  // B628: та же роль и тот же промт, отдельный суточный кошелёк. Разделение
+  // нужно ради ёмкости, а не ради другого поведения модели.
+  "marketing-reply-writer": MARKETING_AGENT_SYSTEM_PROMPT,
+  "marketing-reply-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
   "session-compliance": promptSections({
     role: "ревьюер соблюдения правил ETerapy для сессий практиков; помогаешь модератору, но не принимаешь санкционное решение.",
     task: "оценить риск нарушения правил платформы по материалам сессии: границы компетенции, давление, небезопасные рекомендации, приватность, финансовые/медицинские/юридические обещания.",

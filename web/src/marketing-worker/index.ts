@@ -8,10 +8,12 @@ import {
 } from "@/lib/marketing/agent";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
 import {
+  auditInboundSla,
   auditUnansweredInbound,
   pollInboundSources,
   queueInboundReplies,
 } from "@/lib/marketing/inbound";
+import { sweepOwnPublicationComments } from "@/lib/marketing/engagement-sweep";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
@@ -41,6 +43,7 @@ let lastPlanSync = 0;
 let lastProviderProbe = 0;
 let lastInboundPoll = 0;
 let lastInboundAudit = 0;
+let lastCommentSweep = 0;
 let lastRegistryRecovery = 0;
 let lastSnapshotCheck = 0;
 
@@ -73,6 +76,18 @@ async function main() {
         lastPlanSync = now;
         await guarded("plan", () => generateMarketingDrafts({ now: new Date(now) }));
         await guarded("registry-audit", () => auditStalledPublications({ now: new Date(now) }));
+      }
+      // B630 — обход комментариев под собственными публикациями каждые 15
+      // минут. Это не дубль webhook'а, а страховка: у Meta обратный вызов не
+      // подтверждается вовсе (B631), у VK он зависит от настройки в сообществе.
+      // Обход не зависит ни от того, ни от другого, и держит обещание срока —
+      // ответ в течение часа.
+      if (now - lastCommentSweep >= 15 * 60_000) {
+        lastCommentSweep = now;
+        await guarded("comment-sweep", () => sweepOwnPublicationComments({ now: new Date(now) }));
+        // Сразу после обхода — постановка ответов в очередь и проверка срока:
+        // так найденный комментарий попадает в тот же проход writer → редактор.
+        await guarded("inbound-sla", () => auditInboundSla({ now: new Date(now) }));
       }
       // B618: входящее — единственный разговорный канал после B617, и человек
       // на другой стороне ждёт ответа минутами, а не часами. Очередь ответов

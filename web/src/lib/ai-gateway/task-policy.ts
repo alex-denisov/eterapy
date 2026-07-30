@@ -449,6 +449,38 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Другая модель, чем writer. REVIEW/REJECT блокирует выпуск; комментарий не публикуется без человека.",
   },
   {
+    // B628 — ответы людям и плановые публикации больше не делят один кошелёк.
+    // Потолок здесь заведомо меньше: ответ короче поста, редакторских кругов у
+    // него столько же, но объём в разы ниже. Смысл не в размере, а в том, что
+    // эту ёмкость невозможно занять генерацией контент-плана.
+    feature: "marketing-reply-writer",
+    enabled: true,
+    tier: "free",
+    title: "SMM-агент · автор ответов",
+    purpose: "Ответы на комментарии, упоминания и сообщения — отдельная ёмкость, чтобы выпуск плана не мог их заблокировать.",
+    providerOrder: [...MARKETING_ACTIVE_PROVIDERS],
+    modelPreferences: { ...MARKETING_WRITER_MODEL_PREFERENCES },
+    maxTokens: 1200,
+    temperature: 0.55,
+    timeoutMs: 45_000,
+    dailyTokenBudget: 220_000,
+    fallbackNotes: "Разговорный регистр, обязательная премодерация человеком, кризисные формулировки уходят человеку без ответа агента.",
+  },
+  {
+    feature: "marketing-reply-reviewer",
+    enabled: true,
+    tier: "cheap",
+    title: "SMM-агент · редактор ответов",
+    purpose: "Независимая проверка ответа: тон, честность, безопасность, правила площадки.",
+    providerOrder: [...MARKETING_ACTIVE_PROVIDERS].reverse(),
+    modelPreferences: { ...MARKETING_REVIEWER_MODEL_PREFERENCES },
+    maxTokens: 1000,
+    temperature: 0.1,
+    timeoutMs: 35_000,
+    dailyTokenBudget: 160_000,
+    fallbackNotes: "Другая модель, чем у автора ответа. Без утверждения ответ не уходит.",
+  },
+  {
     feature: "session-compliance",
     enabled: true,
     tier: "compliance",

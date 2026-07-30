@@ -283,6 +283,8 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
           REDDIT_SUBREDDITS: ${{ secrets.REDDIT_SUBREDDITS }}
           REDDIT_POST_SUBREDDIT: ${{ secrets.REDDIT_POST_SUBREDDIT }}
+          META_GRAPH_PROXY_BASE: ${{ secrets.META_GRAPH_PROXY_BASE }}
+          META_GRAPH_PROXY_SECRET: ${{ secrets.META_GRAPH_PROXY_SECRET }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -361,6 +363,36 @@ jobs:
             $SSH "sudo systemctl disable --now eterapy-seo-report.timer >/dev/null 2>&1 || true"
             echo "▶ SEO-отчёт: не primary — таймер выключен"
           fi
+          # B631: вход для вебхуков Meta (`hooks.eterapy.com`). Прежде vhost'ы
+          # nginx на нодах правились руками и в репозитории их не было вовсе —
+          # то есть механизма доставки не существовало. Ставим только там, где
+          # публичный nginx действительно есть, и только после `nginx -t`:
+          # битый конфиг не должен уронить основной контур. Ничего из события
+          # GitHub здесь не подставляется — только файл репозитория.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/nginx-hooks-eterapy.conf "$VM_USER@$VM_HOST:/tmp/"
+          $SSH "set -e
+            if [ ! -f /etc/nginx/sites-enabled/eterapy ]; then
+              rm -f /tmp/nginx-hooks-eterapy.conf
+              echo '▶ hooks: публичного nginx на ноде нет — пропуск'
+              exit 0
+            fi
+            if sudo cmp -s /tmp/nginx-hooks-eterapy.conf /etc/nginx/sites-available/eterapy-hooks; then
+              rm -f /tmp/nginx-hooks-eterapy.conf
+              echo '▶ hooks: конфиг не изменился'
+              exit 0
+            fi
+            sudo install -m 0644 /tmp/nginx-hooks-eterapy.conf /etc/nginx/sites-available/eterapy-hooks
+            sudo ln -sf /etc/nginx/sites-available/eterapy-hooks /etc/nginx/sites-enabled/eterapy-hooks
+            rm -f /tmp/nginx-hooks-eterapy.conf
+            if sudo nginx -t; then
+              sudo systemctl reload nginx
+              echo '▶ hooks: vhost обновлён, nginx перезагружен'
+            else
+              sudo rm -f /etc/nginx/sites-enabled/eterapy-hooks
+              echo '▶ hooks: конфиг отвергнут проверкой, vhost снят' >&2
+              exit 1
+            fi"
           # INC-080: конфиг контурного балансировщика тоже едет выкаткой. До
           # сих пор haproxy.cfg ставился руками (deploy/lb/README.md) — то есть
           # правка в репозитории могла молча не доехать до ноды, ровно как это
@@ -487,6 +519,7 @@ jobs:
                      INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET \
                      REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET REDDIT_USER_AGENT \
                      REDDIT_SUBREDDITS REDDIT_POST_SUBREDDIT \
+                     META_GRAPH_PROXY_BASE META_GRAPH_PROXY_SECRET \
                      YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue

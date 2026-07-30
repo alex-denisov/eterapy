@@ -4,7 +4,7 @@ import {
   listDefaultAITaskPolicies,
   mergeAITaskPolicies,
 } from "@/lib/ai-gateway/task-policy";
-import { marketingModelPreferences } from "@/lib/marketing/model-pool";
+import { isPublicMarketingAIFeature, marketingModelPreferences } from "@/lib/marketing/model-pool";
 
 describe("AI task taxonomy and default routing policy", () => {
   it("maps v5 product tasks to free, premium, sensitive, vision, speech, and compliance tiers", () => {
@@ -67,7 +67,9 @@ describe("AI task taxonomy and default routing policy", () => {
     const policies = listDefaultAITaskPolicies();
 
     for (const policy of policies) {
-      if (["marketing-agent-writer", "marketing-agent-reviewer"].includes(policy.feature)) {
+      // B628: список публичных маркетинговых ключей — один на всё приложение.
+      // Перечисление их здесь строкой уже однажды разошлось с кодом.
+      if (isPublicMarketingAIFeature(policy.feature)) {
         expect(policy.providerOrder).not.toContain(AIProvider.YANDEX);
         expect(policy.providerOrder).toEqual(expect.arrayContaining([
           AIProvider.OPENROUTER,

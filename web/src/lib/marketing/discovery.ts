@@ -16,6 +16,7 @@ import {
   type EngagementPlatform,
 } from "@/lib/marketing/engagement-plan";
 import { pickEngagementTone } from "@/lib/marketing/engagement-tone";
+import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 
 export type MarketingConnectorState = {
   platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen";
@@ -235,12 +236,12 @@ async function discoverThreads(): Promise<Candidate[]> {
   if (!token) return [];
   const result: Candidate[] = [];
   for (const topic of TOPICS.slice(0, 6)) {
-    const url = new URL("https://graph.threads.net/v1.0/keyword_search");
+    const url = new URL(`${metaEndpoint("threads")}/v1.0/keyword_search`);
     url.searchParams.set("q", topic);
     url.searchParams.set("search_type", "TOP");
     url.searchParams.set("fields", "id,text,permalink,username");
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: metaRequestHeaders({ Authorization: `Bearer ${token}` }),
       signal: AbortSignal.timeout(15_000),
     });
     const payload = await response.json().catch(() => null) as {

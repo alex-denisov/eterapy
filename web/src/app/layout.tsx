@@ -50,6 +50,10 @@ export const metadata: Metadata = {
   verification: {
     yandex: "2c1d83026c573683",
     google: "zCKEvZUd6Kqbvl2iqyC1Tc_dl52ot9kFbSevY9hYRwU",
+    // B632: подтверждение прав на сайт для Дзена (владелец, 2026-07-30).
+    // Дзен не даёт подключить RSS, пока сайт не подтверждён, поэтому метатег
+    // идёт раньше самой ленты, а не вместе с ней.
+    other: { "zen-verification": "QzapAMyUsnQtQhOY4tFAbMugvcP0slYEHwQRai97Q4VjaUMXolzxXbvx1r5tWbBy" },
   },
   icons: {
     icon: [

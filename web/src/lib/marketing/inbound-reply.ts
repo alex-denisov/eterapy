@@ -19,6 +19,7 @@ import {
   type MarketingPlatform,
 } from "@/lib/marketing/platform-settings";
 import type { PublishedPost } from "@/lib/marketing/publish";
+import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 
 const VK_API_VERSION = "5.199";
 const META_GRAPH_VERSION = "v25.0";
@@ -108,9 +109,9 @@ async function replyOnThreads(input: { body: string; target: InboundReplyTarget 
   await ensureEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
-  const create = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads`, {
+  const create = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
       access_token: token,
       media_type: "TEXT",
@@ -122,9 +123,9 @@ async function replyOnThreads(input: { body: string; target: InboundReplyTarget 
   if (!create.ok || !created?.id) {
     throw new Error(`Threads reply creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
+  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
   });
   const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -143,10 +144,10 @@ async function replyOnInstagram(input: { body: string; target: InboundReplyTarge
   // Официальный путь: ответ на комментарий к СВОЕМУ медиа. Комментировать
   // произвольные чужие публикации этот эндпоинт не умеет, и это правильно.
   const response = await fetch(
-    `https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(input.target.externalId)}/replies`,
+    `${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(input.target.externalId)}/replies`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
       body: new URLSearchParams({ access_token: token, message: input.body }),
     },
   );
