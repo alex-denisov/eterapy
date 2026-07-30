@@ -95,8 +95,36 @@ export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolea
 }
 
 export function cloudflareGatewayAuthHeaders(baseURL: string | undefined | null): Record<string, string> {
+  // B633: у адреса может быть два вида — шлюз Cloudflare и наш собственный
+  // шлюз на зарубежной ноде. Обе проверки живут здесь, потому что через эту
+  // функцию проходят ВСЕ адаптеры: развести их по семи файлам значило бы
+  // однажды забыть один и получить 403 без объяснения.
+  const relay = eterapyRelayAuthHeaders(baseURL);
+  if (Object.keys(relay).length > 0) return relay;
   if (!isCloudflareAIGatewayUrl(baseURL)) return {};
   const token = process.env.CF_AI_GATEWAY_TOKEN?.trim();
   if (!token) return {};
   return { "cf-aig-authorization": `Bearer ${token}` };
+}
+
+/**
+ * Наш шлюз на зарубежной ноде (B633). Узнаём его по началу адреса из
+ * `META_GRAPH_PROXY_BASE` — той же переменной, что включает шлюз для Meta:
+ * нода и секрет у них общие, и держать два имени для одного шлюза значило бы
+ * однажды настроить половину.
+ */
+export function isEterapyRelayUrl(baseURL: string | undefined | null): boolean {
+  const relayBase = process.env.META_GRAPH_PROXY_BASE?.trim();
+  if (!relayBase || !baseURL) return false;
+  try {
+    return new URL(baseURL).host === new URL(relayBase).host;
+  } catch {
+    return false;
+  }
+}
+
+export function eterapyRelayAuthHeaders(baseURL: string | undefined | null): Record<string, string> {
+  if (!isEterapyRelayUrl(baseURL)) return {};
+  const secret = process.env.META_GRAPH_PROXY_SECRET?.trim();
+  return secret ? { "x-eterapy-proxy": secret } : {};
 }
