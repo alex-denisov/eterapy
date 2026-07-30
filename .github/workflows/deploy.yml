@@ -107,21 +107,51 @@ jobs:
           TG_PRODUCT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_DEPLOY_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
         run: |
-          set -euo pipefail
-          verify() {
+          set -uo pipefail
+          # Возвращает 0, только если токен принадлежит ожидаемому боту.
+          identity_ok() {
             local token="$1" expected="$2" secret="$3"
-            [ -n "$token" ] || { echo "::error::$secret is missing"; exit 1; }
+            if [ -z "$token" ]; then
+              echo "$secret is missing"
+              return 1
+            fi
             local response username
-            response=$(curl -fsS --retry 2 --max-time 15 "https://api.telegram.org/bot${token}/getMe")
+            response=$(curl -fsS --retry 2 --max-time 15 "https://api.telegram.org/bot${token}/getMe" || true)
             username=$(printf '%s' "$response" | jq -r 'select(.ok == true) | .result.username // empty')
             if [ "$username" != "$expected" ]; then
-              echo "::error::$secret must belong to @$expected; received @${username:-unknown}"
-              exit 1
+              echo "$secret does not belong to @$expected (Telegram returned @${username:-nothing})"
+              return 1
             fi
-            echo "@$expected identity verified"
+            return 0
           }
-          verify "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"
-          verify "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"
+
+          # Продуктовый бот — блокирующая проверка. Его токен едет на ноды в
+          # `.env` и обслуживает пользователей: Mini App, вход, платежи Stars.
+          # Выкатить чужой токен сюда значит сломать продукт.
+          if ! reason=$(identity_ok "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"); then
+            echo "::error::$reason"
+            exit 1
+          fi
+          echo "@eterapy_bot identity verified"
+
+          # Деплой-бот — НЕ блокирующая. Он пишет только в служебный канал и к
+          # пользователям не ходит. Первая версия этой проверки останавливала
+          # выкатку — и остановила её на самом деле (run 30564617461): Telegram
+          # ответил 401 на выданный токен. Это перевёрнутый приоритет: релиз не
+          # должен зависеть от исправности уведомления о релизе.
+          #
+          # Молчаливого отката на продуктовый токен при этом нет: если деплой-бот
+          # не подтверждён, уведомление просто не отправляется, и в сводке run
+          # написано почему.
+          if reason=$(identity_ok "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"); then
+            echo "@eterapy_deploy_bot identity verified"
+            echo "deploy_bot_ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::$reason — уведомления о выкатке отправлены не будут. Выкатка продолжается."
+            echo "### ⚠ Telegram: уведомление о выкатке пропущено" >> "$GITHUB_STEP_SUMMARY"
+            echo "$reason" >> "$GITHUB_STEP_SUMMARY"
+            echo "deploy_bot_ok=0" >> "$GITHUB_OUTPUT"
+          fi
       - id: select
         # NODES is untrusted (dispatch input): it is only ever compared against
         # the fixed slug list by jq, never interpolated into a shell command.

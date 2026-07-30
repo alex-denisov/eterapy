@@ -71,6 +71,6 @@ describe("B204 Telegram growth surfaces", () => {
     // B627: шаг проверяет личность обоих ботов — продуктового и деплойного.
     // Подробности разделения держит b627-deploy-bot-identity.test.ts.
     expect(deploy).toContain("Verify Telegram bot identities");
-    expect(deploy).toContain('verify "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"');
+    expect(deploy).toContain('identity_ok "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"');
   });
 });

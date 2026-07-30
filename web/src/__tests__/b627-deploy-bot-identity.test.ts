@@ -38,8 +38,26 @@ describe("B627 — разделение продуктового и деплой
 
   it("production проверяет личность ОБОИХ ботов до внешних вызовов", () => {
     const content = workflow(".github/workflows/deploy.yml");
-    expect(content).toContain('verify "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"');
-    expect(content).toContain('verify "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"');
+    expect(content).toContain('identity_ok "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"');
+    expect(content).toContain('identity_ok "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"');
+  });
+
+  it("чужой продуктовый токен останавливает выкатку", () => {
+    // Токен продуктового бота едет на ноды и обслуживает пользователей:
+    // Mini App, вход, платежи Stars. Выкатить сюда чужой токен — сломать продукт.
+    const content = workflow(".github/workflows/deploy.yml");
+    expect(content).toMatch(/identity_ok "\$TG_PRODUCT_TOKEN"[\s\S]{0,80}echo "::error::\$reason"\n\s+exit 1/);
+  });
+
+  it("неисправный деплой-бот НЕ останавливает выкатку, но и не подменяется продуктовым", () => {
+    // Перевёрнутый приоритет, стоивший одной остановленной выкатки
+    // (run 30564617461, Telegram ответил 401): релиз не должен зависеть от
+    // исправности уведомления о релизе. Молчаливого отката при этом нет —
+    // уведомление просто не уходит, и в сводке run написано почему.
+    const content = workflow(".github/workflows/deploy.yml");
+    expect(content).toContain("уведомления о выкатке отправлены не будут. Выкатка продолжается.");
+    expect(content).toContain("deploy_bot_ok=0");
+    expect(content).not.toContain("TELEGRAM_DEPLOY_BOT_TOKEN || secrets.TELEGRAM_BOT_TOKEN");
   });
 
   it("id группы обсуждений канала доставляется выкаткой, а не вводится руками", () => {
