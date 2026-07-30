@@ -547,8 +547,12 @@ export async function publishScheduledMarketing(input: {
   const publications = await db.externalPublication.findMany({
     where: {
       status: "SCHEDULED",
+      // Мост Devvit забирает у нас ТОЛЬКО собственные посты Reddit. Ответы на
+      // входящее он не умеет, и исключать их вместе с постами значило бы
+      // оставить человека без ответа молча — ровно тот класс тишины, из-за
+      // которого появился сторож очереди (B618).
       ...(redditHandledByDevvit
-        ? { platform: { notIn: ["reddit", "Reddit", "REDDIT"] } }
+        ? { NOT: { platform: { in: ["reddit", "Reddit", "REDDIT"] }, contentType: "POST" } }
         : {}),
       // Премодерированный разговорный материал (комментарий и ответ на
       // входящее) выпускается независимо от общего выключателя автопубликации:
