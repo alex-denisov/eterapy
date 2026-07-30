@@ -666,27 +666,61 @@ export async function processMarketingDraft(publicationId: string) {
   }
 }
 
-export async function runMarketingAgentCycle() {
+/**
+ * B625 — генерация привязана к слоту, а не к длине очереди.
+ *
+ * Замер прода 2026-07-30: цикл брал по три черновика КАЖДУЮ минуту по всей
+ * очереди, отсортированной по плановой дате. План двухнедельный, поэтому за
+ * 00:01–02:27 writer израсходовал 603 001 токен (78 запросов) на материалы
+ * вплоть до 7 августа — и следующие девять часов каждый проход отвечал «нет
+ * ёмкости». Публикации сегодняшнего дня при этом ждали полуночи: данные не
+ * терялись (строка остаётся черновиком), простаивала очередь.
+ *
+ * Потолок токенов тут ни при чём — его уже поднимали в B622 с 80k до 600k.
+ * Причина в том, что суточная ёмкость тратилась на две недели вперёд. Окно
+ * опережения возвращает суточному потолку смысл суточной нормы: в работу
+ * попадает то, что выходит сегодня и завтра.
+ */
+export const MARKETING_GENERATION_LEAD_MS = 30 * 60 * 60_000;
+
+export function marketingGenerationHorizon(now: Date) {
+  return new Date(now.getTime() + MARKETING_GENERATION_LEAD_MS);
+}
+
+export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
   if (!await marketingAgentEnabled()) {
-    return { enabled: false, processed: 0 };
+    return { enabled: false, processed: 0, deferred: 0 };
   }
-  const drafts = await db.externalPublication.findMany({
-    where: {
-      OR: [
-        { status: "DRAFT", agentReviewedAt: null },
-        {
-          status: "REVIEW",
-          contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] },
-          lastError: "REVISION_REQUESTED",
-        },
-      ],
-    },
-    orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
-    take: LOOP_LIMIT,
-    select: { id: true },
-  });
+  const now = input.now ?? new Date();
+  const horizon = marketingGenerationHorizon(now);
+  // Материал без плановой даты — это ответ на входящее или ручной черновик:
+  // ждать нечего, он идёт в этот же проход.
+  const dueNow = {
+    OR: [{ scheduledFor: null }, { scheduledFor: { lte: horizon } }],
+  };
+  const readyForWork = {
+    OR: [
+      { status: "DRAFT", agentReviewedAt: null },
+      {
+        status: "REVIEW",
+        contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] },
+        lastError: "REVISION_REQUESTED",
+      },
+    ],
+  };
+  const [drafts, deferred] = await Promise.all([
+    db.externalPublication.findMany({
+      where: { AND: [readyForWork, dueNow] },
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: LOOP_LIMIT,
+      select: { id: true },
+    }),
+    db.externalPublication.count({
+      where: { AND: [readyForWork, { scheduledFor: { gt: horizon } }] },
+    }),
+  ]);
   for (const draft of drafts) await processMarketingDraft(draft.id);
-  return { enabled: true, processed: drafts.length };
+  return { enabled: true, processed: drafts.length, deferred };
 }
 
 export async function upsertMarketingSignal(input: Parameters<typeof recordSignal>[0]) {

@@ -16,6 +16,7 @@ import {
   PUBLICATION_INDEX_STATUSES,
   PUBLICATION_PLATFORMS,
   PUBLICATION_STATUSES,
+  archiveReasonLabel,
 } from "@/lib/external-publication-shared";
 import {
   createExternalPublicationAction,
@@ -61,6 +62,7 @@ const contentLabels: Record<string, string> = {
   ARTICLE: "Статья",
   POST: "Пост",
   COMMENT: "Комментарий",
+  INBOUND_REPLY: "Ответ на входящее",
   VIDEO: "Видео",
   PROFILE: "Профиль",
   DIRECTORY_CARD: "Карточка каталога",
@@ -255,21 +257,34 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
     value: label,
     label,
   })), []);
+  const contentOptions = useMemo(() => Object.entries(contentLabels).map(([, label]) => ({
+    value: label,
+    label,
+  })), []);
   const columns: AdminCompactColumn[] = useMemo(() => [
     { key: "plannedAt", label: "Плановая дата", sortable: true, filterKind: "date" },
     { key: "material", label: "Материал", sortable: true, filterKind: "text" },
     { key: "platform", label: "Площадка", sortable: true, filterKind: "select", options: platformOptions },
+    { key: "kind", label: "Тип", sortable: true, filterKind: "select", options: contentOptions },
     { key: "status", label: "Статус", sortable: true, filterKind: "select", options: statusOptions },
+    // B626: «Архив» и «Ошибка» без причины — не отчёт, а загадка.
+    { key: "reason", label: "Причина", sortable: true, filterKind: "text" },
     { key: "query", label: "Запрос / UTM", sortable: true, filterKind: "text" },
     { key: "text", label: "Текст", sortable: false, filterKind: "text" },
     { key: "metrics", label: "Внешние метрики", sortable: true, filterKind: "none", align: "right" },
     { key: "touches", label: "UTM", sortable: true, filterKind: "none", align: "right" },
     { key: "control", label: "Контроль", sortable: true, filterKind: "text" },
     { key: "actions", label: "Действия", sortable: false, filterKind: "none" },
-  ], [platformOptions, statusOptions]);
+  ], [contentOptions, platformOptions, statusOptions]);
 
   const rows: AdminCompactRow[] = useMemo(() => registry.rows.map((row) => {
     const status = statusLabels[row.status] ?? row.status;
+    // Причина архивации и причина отказа — разные вопросы. Архив отвечает
+    // «почему строки больше нет в плане», ошибка — «на чём упала последняя
+    // попытка»; смешивать их в одну колонку значит потерять первый ответ.
+    const reason = row.status === "ARCHIVED"
+      ? archiveReasonLabel(row.archiveReason) ?? archiveReasonLabel(row.lastError) ?? "Причина не записана"
+      : row.lastError ?? "—";
     const control = row.lastError
       ? `Ошибка: ${row.lastError}`
       : row.indexCheckDue
@@ -293,6 +308,17 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
         platform: {
           value: platformLabels[row.platform.toUpperCase()] ?? row.platform,
           sortValue: row.platform,
+        },
+        kind: {
+          value: contentLabels[row.contentType] ?? row.contentType,
+          sortValue: row.contentType,
+          filterValue: contentLabels[row.contentType] ?? row.contentType,
+        },
+        reason: {
+          value: reason,
+          subvalue: row.recoveryCount > 0 ? `возвратов в работу: ${row.recoveryCount}` : undefined,
+          filterValue: reason,
+          sortValue: reason,
         },
         status: {
           kind: "status" as const,
@@ -364,7 +390,7 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
   }), [registry.rows]);
 
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="mr-auto text-sm text-[var(--soft-ink-soft)]">
           В таблице видны и будущие слоты контент-плана, и опубликованные материалы.
@@ -379,7 +405,7 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
         columns={columns}
         rows={rows}
         pageSize={25}
-        minWidth="1620px"
+        minWidth="1820px"
         empty="В реестре пока нет материалов"
       />
 

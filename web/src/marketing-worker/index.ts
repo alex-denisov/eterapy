@@ -21,6 +21,14 @@ import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
 import { probeMarketingProviders } from "@/lib/marketing/provider-health";
 import { auditStalledPublications } from "@/lib/marketing/publication-queue";
+import {
+  reconcileMarketingSignals,
+  recoverFailedPublications,
+} from "@/lib/marketing/registry-recovery";
+import {
+  captureMarketingDailySnapshot,
+  marketingSnapshotDue,
+} from "@/lib/marketing/daily-snapshot";
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
@@ -33,6 +41,8 @@ let lastPlanSync = 0;
 let lastProviderProbe = 0;
 let lastInboundPoll = 0;
 let lastInboundAudit = 0;
+let lastRegistryRecovery = 0;
+let lastSnapshotCheck = 0;
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -96,7 +106,19 @@ async function main() {
         lastInboundAudit = now;
         await guarded("inbound-watchdog", () => auditUnansweredInbound({ now: new Date(now) }));
       }
-      if (now - lastProviderProbe >= 30 * 60_000) {
+      // B626: восстановление реестра и гигиена сигналов. Раз в час — этого
+      // достаточно, чтобы технический отказ вернулся в работу задолго до слота,
+      // и мало, чтобы сама сверка стала фоновым шумом.
+      if (now - lastRegistryRecovery >= 60 * 60_000) {
+        lastRegistryRecovery = now;
+        await guarded("registry-recovery", () => recoverFailedPublications({ now: new Date(now) }));
+        await guarded("signal-reconcile", () => reconcileMarketingSignals({ now: new Date(now) }));
+      }
+      // Владелец 2026-07-30: состояние пула должно обновляться каждые 15 минут.
+      // Прежние 30 минут в воркере поверх 45-минутного шага самой пробы давали
+      // худший случай в 75 минут — за это время заменённый ключ успевал
+      // выглядеть «нужна настройка» на глазах у владельца.
+      if (now - lastProviderProbe >= 15 * 60_000) {
         lastProviderProbe = now;
         await guarded("provider-health", () => probeMarketingProviders({ now: new Date(now) }));
       }
@@ -109,6 +131,15 @@ async function main() {
           now: new Date(now),
           maxSubmissions: 40,
         }));
+      }
+      // B626: суточный срез поисковой аналитики. Проверка «нужен ли срез» —
+      // это запрос по уникальному ключу дня, а не таймер в памяти: перезапуск
+      // воркера не должен ни пропускать сутки, ни снимать срез повторно.
+      if (now - lastSnapshotCheck >= 30 * 60_000) {
+        lastSnapshotCheck = now;
+        if (await marketingSnapshotDue(new Date(now)).catch(() => false)) {
+          await guarded("daily-snapshot", () => captureMarketingDailySnapshot({ now: new Date(now) }));
+        }
       }
       if (now - lastUrlAudit >= 6 * 60 * 60_000) {
         lastUrlAudit = now;

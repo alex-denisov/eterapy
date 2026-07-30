@@ -86,6 +86,7 @@ export default async function MarketingAgentPage() {
         lastSuccessAt: true,
         lastErrorAt: true,
         lastErrorCode: true,
+        lastErrorMessage: true,
       },
       orderBy: [{ provider: "asc" }, { priority: "asc" }],
     }),
@@ -125,15 +126,11 @@ export default async function MarketingAgentPage() {
   // B617: у Reddit больше нет отдельного режима комментирования, который надо
   // было доуточнять состоянием OAuth — остались только свои посты и входящее.
   const effectiveConnectors = connectors;
-  // B613: VK issues a read-only user token through the implicit flow only, and
-  // the value lands in the browser address bar. Building the exact authorize
-  // URL here removes the guesswork about client id and scopes.
-  const vkClientId = process.env.VK_CLIENT_ID?.trim();
-  const vkUserTokenUrl = vkClientId
-    ? `https://oauth.vk.com/authorize?client_id=${encodeURIComponent(vkClientId)}`
-      + "&display=page&redirect_uri=https://oauth.vk.com/blank.html"
-      + "&scope=wall,offline&response_type=token&v=5.199"
-    : null;
+  // B613/B626: ссылка выдачи VK user token жила прямо в кокпите. Владелец
+  // 2026-07-30: это инструкция для одного человека, а не элемент интерфейса
+  // суперадминки, и кнопка всё равно не работала без client_id. Инструкция
+  // переехала в B610-owner-social-accounts-setup.md; поле ввода токена
+  // осталось на месте, в настройках площадки VK.
 
   const now = new Date();
   const engagementToday = await Promise.all(ENGAGEMENT_PLATFORMS.map(async (platform) => {
@@ -162,6 +159,87 @@ export default async function MarketingAgentPage() {
     };
   }));
 
+  // B626: карточки коннекторов занимали три экрана и повторяли одни и те же
+  // подписи. Та же информация в компактной таблице суперадминки читается
+  // строкой и фильтруется.
+  const connectorColumns: AdminCompactColumn[] = [
+    { key: "platform", label: "Площадка", sortable: true, filterKind: "text" },
+    { key: "state", label: "Состояние", sortable: true, filterKind: "select" },
+    { key: "abilities", label: "Возможности", sortable: false, filterKind: "text" },
+    { key: "missing", label: "Не заданы", sortable: false, filterKind: "text" },
+    { key: "note", label: "Пояснение", filterKind: "none" },
+    { key: "connect", label: "Подключение", sortable: false, filterKind: "none" },
+  ];
+  const connectorRows = effectiveConnectors.map((connector) => {
+    const abilities = [
+      connector.ownedPublishing ? "свои посты" : null,
+      connector.discovery ? "поиск" : null,
+      connector.inboundReplies ? "ответы на входящее" : null,
+    ].filter(Boolean).join(" · ") || "нет";
+    const oauthHref = connector.platform === "Reddit"
+      ? "/api/admin/marketing/reddit/connect"
+      : connector.platform === "Threads" || connector.platform === "Instagram"
+        ? `/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`
+        : null;
+    return {
+      id: connector.platform,
+      cells: {
+        platform: connector.platform,
+        state: {
+          kind: "status" as const,
+          label: connector.missing.length ? "нужна настройка" : "готово",
+          tone: connector.missing.length ? ("warn" as const) : ("ok" as const),
+          filterValue: connector.missing.length ? "нужна настройка" : "готово",
+        },
+        abilities,
+        missing: connector.missing.length ? connector.missing.join(", ") : "—",
+        note: {
+          kind: "details" as const,
+          label: "Показать",
+          title: connector.platform,
+          body: connector.note,
+          meta: abilities,
+        },
+        connect: oauthHref
+          ? {
+            kind: "actions" as const,
+            actions: [{
+              label: connector.platform === "Reddit" && redditConnected
+                ? "Переподключить Reddit"
+                : `Подключить ${connector.platform}`,
+              href: oauthHref,
+              // B624: без внешней цели Next префетчит ссылку и вызывает
+              // эндпоинт без нажатия (класс INC-070).
+              external: true,
+              icon: "open" as const,
+            }],
+          }
+          : "—",
+      },
+    };
+  });
+
+  const engagementColumns: AdminCompactColumn[] = [
+    { key: "platform", label: "Площадка", sortable: true, filterKind: "text" },
+    { key: "plan", label: "План на сегодня", sortable: true, filterKind: "none", align: "right" },
+    { key: "sessions", label: "Заходов", sortable: true, filterKind: "none", align: "right" },
+    { key: "times", label: "Минуты выхода", filterKind: "none" },
+  ];
+  const engagementRows = engagementToday.map((row) => ({
+    id: row.platform,
+    cells: {
+      platform: row.platform,
+      plan: {
+        kind: "status" as const,
+        label: `${row.planned}/${row.target}`,
+        tone: row.planned >= row.target ? ("ok" as const) : ("warn" as const),
+        sortValue: row.planned,
+      },
+      sessions: { value: row.sessions, sortValue: row.sessions },
+      times: row.times.join(" · ") || "—",
+    },
+  }));
+
   const configByProvider = new Map(modelConfigs.map((row) => [row.provider, row]));
   const modelColumns: AdminCompactColumn[] = [
     { key: "provider", label: "Коннектор", sortable: true, filterKind: "text" },
@@ -169,6 +247,9 @@ export default async function MarketingAgentPage() {
     { key: "credentials", label: "Ключи", sortable: true, filterKind: "text" },
     { key: "status", label: "Статус", sortable: true, filterKind: "select" },
     { key: "lastSuccess", label: "Последний успех", sortable: true, filterKind: "date" },
+    // B626: без времени последней пробы «нужна настройка» неотличима от
+    // «проверяли утром, с тех пор молчим» — именно это и увидел владелец.
+    { key: "checked", label: "Проверено", sortable: true, filterKind: "date" },
     { key: "role", label: "Балансировка", filterKind: "none" },
   ];
   const modelRows = MARKETING_FREE_PROVIDERS.map((provider) => {
@@ -191,6 +272,26 @@ export default async function MarketingAgentPage() {
     const freshness = marketingModelFreshness(writerModel);
     const admitted = (MARKETING_ACTIVE_PROVIDERS as readonly string[]).includes(provider);
     const eligible = ready.length > 0 && admitted && freshness.eligible;
+    // B626 / владелец 2026-07-30: «нужна настройка» стояло и там, где ключа нет
+    // вовсе, и там, где ключ есть, но апстрим ответил отказом. Это разные
+    // действия владельца, поэтому и подписи разные, а причина видна прямо в
+    // строке — раньше за ней надо было идти в центр управления моделями.
+    const failing = credentials.find((row) => (
+      row.enabled && row.lastErrorAt && (!row.lastSuccessAt || row.lastSuccessAt <= row.lastErrorAt)
+    ));
+    const lastChecked = credentials
+      .flatMap((row) => [row.lastSuccessAt, row.lastErrorAt])
+      .filter((value): value is Date => Boolean(value))
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const statusLabel = eligible
+      ? "в активном пуле"
+      : ready.length > 0
+        ? "только мониторинг"
+        : credentials.length === 0
+          ? "ключ не добавлен"
+          : failing
+            ? `ошибка провайдера${failing.lastErrorCode ? `: ${failing.lastErrorCode}` : ""}`
+            : "нужна настройка";
     return {
       id: provider,
       cells: {
@@ -207,13 +308,18 @@ export default async function MarketingAgentPage() {
         },
         status: {
           kind: "status" as const,
-          label: eligible ? "в активном пуле" : ready.length ? "только мониторинг" : "нужна настройка",
-          tone: eligible ? ("ok" as const) : ("warn" as const),
-          filterValue: eligible ? "активный" : ready.length ? "мониторинг" : "нужна настройка",
+          label: statusLabel,
+          tone: eligible ? ("ok" as const) : failing && ready.length === 0 ? ("danger" as const) : ("warn" as const),
+          filterValue: statusLabel,
         },
         lastSuccess: {
           value: dateTime(lastSuccess),
           sortValue: lastSuccess?.getTime() ?? 0,
+        },
+        checked: {
+          value: dateTime(lastChecked),
+          subvalue: failing?.lastErrorMessage?.slice(0, 90) ?? undefined,
+          sortValue: lastChecked?.getTime() ?? 0,
         },
         role: eligible
           ? "writer + reviewer; модели разделяются, порядок ротируется"
@@ -363,43 +469,7 @@ export default async function MarketingAgentPage() {
       </MetricGrid>
 
       <AnalyticsSection title="Площадки и возможности">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {effectiveConnectors.map((connector) => (
-            <article key={connector.platform} className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-[var(--soft-ink-strong)]">{connector.platform}</h3>
-                <span className="soft-chip">{connector.missing.length ? "нужна настройка" : "готово"}</span>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">{connector.note}</p>
-              <dl className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                <div><dt className="text-[var(--soft-ink-faint)]">Свои посты</dt><dd>{connector.ownedPublishing ? "да" : "нет"}</dd></div>
-                <div><dt className="text-[var(--soft-ink-faint)]">Поиск</dt><dd>{connector.discovery ? "да" : "нет"}</dd></div>
-                <div><dt className="text-[var(--soft-ink-faint)]">Ответы на входящее</dt><dd>{connector.inboundReplies ? "да" : "нет"}</dd></div>
-              </dl>
-              {connector.missing.length > 0 ? (
-                <p className="mt-3 break-words text-[11px] text-[var(--soft-ink-faint)]">
-                  Не заданы: {connector.missing.join(", ")}
-                </p>
-              ) : null}
-              {connector.platform === "Reddit" ? (
-                <Link
-                  className="soft-admin-action mt-3 inline-flex"
-                  href="/api/admin/marketing/reddit/connect"
-                >
-                  {redditConnected ? "Переподключить Reddit" : "Подключить Reddit"}
-                </Link>
-              ) : null}
-              {connector.platform === "Threads" || connector.platform === "Instagram" ? (
-                <Link
-                  className="soft-admin-action mt-3 inline-flex"
-                  href={`/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`}
-                >
-                  Подключить через OAuth
-                </Link>
-              ) : null}
-            </article>
-          ))}
-        </div>
+        <AdminCompactDataTable columns={connectorColumns} rows={connectorRows} pageSize={10} minWidth="1050px" empty="Коннекторы не объявлены" />
       </AnalyticsSection>
 
       <AnalyticsSection title="Входящее: комментарии, упоминания, сообщения">
@@ -444,68 +514,23 @@ export default async function MarketingAgentPage() {
       ) : null}
 
       <AnalyticsSection title="План живого присутствия на сегодня">
-        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
-          Агент читает ленты несколькими заходами в день и отвечает в назначенные
-          минуты, а не по ровному расписанию. Каждый комментарий получает свой
-          регистр и всё равно уходит на премодерацию в Telegram.
+        <p className="mb-3 text-xs text-[var(--soft-ink-soft)]">
+          Заходы несколькими сессиями в день, а не ровным расписанием. Минимум по
+          решению владельца — {ENGAGEMENT_DAILY_MINIMUM} материалов в сутки на
+          площадку; каждый уходит на премодерацию в Telegram.
         </p>
-        <div className="grid gap-3 md:grid-cols-3">
-          {engagementToday.map((row) => (
-            <article key={row.platform} className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-[var(--soft-ink-strong)]">{row.platform}</h3>
-                <span className="soft-chip">{row.planned}/{row.target} на сегодня</span>
-              </div>
-              <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">
-                Заходы: {row.sessions}. Минимум по решению владельца — {ENGAGEMENT_DAILY_MINIMUM} комментариев в сутки.
-              </p>
-              <p className="mt-2 break-words font-mono text-[11px] text-[var(--soft-ink-faint)]">
-                {row.times.join(" · ")}
-              </p>
-            </article>
-          ))}
-        </div>
+        <AdminCompactDataTable columns={engagementColumns} rows={engagementRows} pageSize={10} minWidth="820px" empty="Площадки живого присутствия не объявлены" />
       </AnalyticsSection>
 
       <AnalyticsSection title="Настройки площадок">
-        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
-          Изменения применяются сразу после сохранения. Секреты шифруются тем же
-          production-ключом, что и LLM-ключи, и никогда не возвращаются в браузер.
+        <p className="mb-3 text-xs text-[var(--soft-ink-soft)]">
+          Изменения применяются сразу после сохранения; выкатка не нужна. Секреты
+          шифруются тем же production-ключом, что и LLM-ключи, и никогда не
+          возвращаются в браузер. Пошаговая инструкция по каждой площадке —
+          вне кокпита, в{" "}
+          <code>docs/v5-release/tasks/tickets/B610-owner-social-accounts-setup.md</code>.
         </p>
         <MarketingPlatformSettings configs={platformConfigs} />
-        {vkUserTokenUrl ? (
-          <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            <p className="font-semibold text-[var(--soft-ink-strong)]">Как получить VK user token для поиска (B613)</p>
-            <p className="mt-2">
-              Токен сообщества не умеет <code>newsfeed.search</code> — это другой тип
-              авторизации, а не поломка. Откройте ссылку ниже, подтвердите доступ и
-              скопируйте значение <code>access_token</code> из адресной строки в поле
-              «Пользовательский токен». Права запрашиваются только на чтение ленты.
-            </p>
-            <a className="soft-admin-action mt-3 inline-flex" href={vkUserTokenUrl} target="_blank" rel="noreferrer">
-              Открыть форму выдачи токена VK
-            </a>
-          </div>
-        ) : null}
-        <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-          <p className="font-semibold text-[var(--soft-ink-strong)]">Адреса для настройки площадок</p>
-          <dl className="mt-2 grid gap-1 font-mono">
-            <div><dt className="inline font-sans">Threads redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/oauth/callback</dd></div>
-            <div><dt className="inline font-sans">Threads deauthorize: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/deauthorize</dd></div>
-            <div><dt className="inline font-sans">Threads webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/webhook</dd></div>
-            <div><dt className="inline font-sans">Instagram redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/oauth/callback</dd></div>
-            <div><dt className="inline font-sans">Instagram webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/webhook</dd></div>
-            <div><dt className="inline font-sans">Data deletion: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/data-deletion</dd></div>
-            <div><dt className="inline font-sans">VK Callback API: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/vk/callback</dd></div>
-            <div><dt className="inline font-sans">Лента для Дзена: </dt><dd className="inline break-all">https://eterapy.com/api/marketing/dzen/rss</dd></div>
-          </dl>
-          <p className="mt-2 font-sans">
-            Маркеры подтверждения webhook (Threads и Instagram) создаются сами при
-            первом сохранении настроек площадки — придумывать их не нужно. Для VK
-            нужны строка подтверждения и секретный ключ из настроек Callback API
-            сообщества: без секрета маршрут не принимает ничего.
-          </p>
-        </div>
       </AnalyticsSection>
 
       <AnalyticsSection title="Последние циклы writer → reviewer">

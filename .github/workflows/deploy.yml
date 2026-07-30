@@ -91,19 +91,37 @@ jobs:
       selection: ${{ steps.select.outputs.selection }}
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Telegram product-bot identity
+      # B627: два разных бота, и путать их нельзя.
+      #
+      #  * @eterapy_bot — продуктовый: Mini App, вход, платежи Stars. Его токен
+      #    едет на ноды в `.env` и обслуживает пользователей.
+      #  * @eterapy_deploy_bot — служебный: пишет в канал выкатки. Наружу к
+      #    пользователям он не ходит вовсе.
+      #
+      # До этой правки уведомления о выкатке слал продуктовый бот — владелец
+      # 2026-07-30 заметил это как раз тогда, когда деплой-бота взломали и
+      # рассылали через него рекламу. Проверка личности теперь у обоих: чужой
+      # токен в любом из двух секретов останавливает выкатку до внешних вызовов.
+      - name: Verify Telegram bot identities
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_PRODUCT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_DEPLOY_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
         run: |
           set -euo pipefail
-          [ -n "$TG_TOKEN" ] || { echo "::error::TELEGRAM_BOT_TOKEN is missing"; exit 1; }
-          response=$(curl -fsS --retry 2 --max-time 15 "https://api.telegram.org/bot${TG_TOKEN}/getMe")
-          username=$(printf '%s' "$response" | jq -r 'select(.ok == true) | .result.username // empty')
-          if [ "$username" != "eterapy_bot" ]; then
-            echo "::error::TELEGRAM_BOT_TOKEN must belong to @eterapy_bot; received @${username:-unknown}"
-            exit 1
-          fi
-          echo "Telegram product-bot identity verified"
+          verify() {
+            local token="$1" expected="$2" secret="$3"
+            [ -n "$token" ] || { echo "::error::$secret is missing"; exit 1; }
+            local response username
+            response=$(curl -fsS --retry 2 --max-time 15 "https://api.telegram.org/bot${token}/getMe")
+            username=$(printf '%s' "$response" | jq -r 'select(.ok == true) | .result.username // empty')
+            if [ "$username" != "$expected" ]; then
+              echo "::error::$secret must belong to @$expected; received @${username:-unknown}"
+              exit 1
+            fi
+            echo "@$expected identity verified"
+          }
+          verify "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"
+          verify "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"
       - id: select
         # NODES is untrusted (dispatch input): it is only ever compared against
         # the fixed slug list by jq, never interpolated into a shell command.
@@ -213,6 +231,10 @@ jobs:
           # ноды — GitHub роняет и опаздывает на часы (замер в тикете).
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # B627: группа обсуждений маркетингового канала. Без её id бот не
+          # видит ни одного комментария к постам канала — у самого канала
+          # комментариев нет вовсе, они живут в связанной группе (B618).
+          TELEGRAM_ETERAPY_CHAT_ID: ${{ secrets.TELEGRAM_ETERAPY_CHAT_ID }}
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
           YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
@@ -430,6 +452,7 @@ jobs:
                      CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN \
                      FLEET_GITHUB_TOKEN \
                      TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_CHANNEL_ID \
+                     TELEGRAM_ETERAPY_CHAT_ID \
                      THREADS_APP_ID THREADS_APP_SECRET \
                      INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET \
                      REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET REDDIT_USER_AGENT \
@@ -642,7 +665,7 @@ jobs:
 
       - name: Send Telegram message
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           TITLE: PRODUCTION deploy
           EMOJI: "🚀"

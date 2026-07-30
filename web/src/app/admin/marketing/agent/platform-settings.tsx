@@ -32,33 +32,44 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    // B626: шесть всегда раскрытых форм занимали высоту нескольких экранов, а
+    // открыты одновременно они не нужны никогда — площадку настраивают по
+    // одной. Свёрнутая строка показывает главное (активна ли, сколько полей не
+    // заполнено), а форма открывается по клику.
+    <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
       {configs.map((config) => {
         const draft = drafts[config.platform];
+        const missing = config.fields.filter((field) => !field.configured && !draft.values[field.key]?.trim());
         return (
-          <form
+          <details
             key={config.platform}
-            className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4"
+            className="rounded-lg border border-[var(--soft-paper-edge)] bg-white"
+          >
+            <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
+              <span className="font-semibold text-[var(--soft-ink-strong)]">{config.platform}</span>
+              <span className="soft-admin-status-pill" data-tone={draft.enabled && missing.length === 0 ? "ok" : draft.enabled ? "warn" : "neutral"}>
+                {draft.enabled ? (missing.length === 0 ? "активна" : `не задано: ${missing.length}`) : "выключена"}
+              </span>
+            </summary>
+          <form
+            className="border-t border-[var(--soft-paper-edge)] p-3"
             onSubmit={(event) => {
               event.preventDefault();
               void save(config.platform);
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="font-semibold text-[var(--soft-ink-strong)]">{config.platform}</h3>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={draft.enabled}
-                  onChange={(event) => setDrafts((current) => ({
-                    ...current,
-                    [config.platform]: { ...current[config.platform], enabled: event.target.checked },
-                  }))}
-                />
-                Активна
-              </label>
-            </div>
-            <div className="mt-3 grid gap-3">
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={draft.enabled}
+                onChange={(event) => setDrafts((current) => ({
+                  ...current,
+                  [config.platform]: { ...current[config.platform], enabled: event.target.checked },
+                }))}
+              />
+              Активна
+            </label>
+            <div className="mt-3 grid gap-2">
               {config.fields.map((field) => (
                 <label key={field.key} className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">
                   <span>{field.label}</span>
@@ -95,10 +106,11 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
                 </label>
               ))}
             </div>
-            <button className="soft-admin-action mt-4" data-variant="primary" type="submit" disabled={pending}>
+            <button className="soft-admin-action mt-3" data-variant="primary" type="submit" disabled={pending}>
               Сохранить и применить
             </button>
           </form>
+          </details>
         );
       })}
     </div>

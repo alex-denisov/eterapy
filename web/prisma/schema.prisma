@@ -1327,6 +1327,15 @@ model ExternalPublication {
   /// коде: повторная доставка того же webhook не может создать вторую реплику.
   inboundReplyToId String?                     @unique @map("inbound_reply_to_id")
   inboundReplyTo   MarketingInboundMessage?    @relation("MarketingInboundReply", fields: [inboundReplyToId], references: [id], onDelete: SetNull)
+  /// B626: почему строка ушла в архив. Раньше причина пряталась в `lastError`
+  /// машинным кодом (`SUPERSEDED_BY_B610_TWO_WEEK_PLAN`), и владелец видел
+  /// «Архив» без объяснения. Отдельное поле не смешивает «почему архив» с
+  /// «на чём упала последняя попытка».
+  archiveReason    String?                     @map("archive_reason")
+  /// B626: сколько раз строку возвращали в работу после технического отказа.
+  /// Ограничитель: бесконечный автоперезапуск сжёг бы ёмкость на материале,
+  /// который не чинится.
+  recoveryCount    Int                         @default(0) @map("recovery_count")
 
   @@index([status, scheduledFor])
   @@index([status, publishedAt])
@@ -1376,6 +1385,36 @@ model MarketingInboundMessage {
 /// B610: durable SEO/marketing findings. Production does not write Markdown
 /// tracker files, so the service creates a database ticket first; the admin
 /// register and ops channel expose it for triage/export into the local board.
+/// B626 — суточный срез поисковой аналитики.
+///
+/// Блоки на `/admin/marketing` собираются живыми запросами к Вебмастеру,
+/// Метрике и Wordstat при каждом открытии страницы. Пока источник молчит (у
+/// Яндекса одна страница в индексе), таблицы выглядят «незаполненными», и
+/// отличить «данных нет» от «мы перестали спрашивать» по экрану невозможно.
+/// Суточный срез делает движение наблюдаемым: у каждого дня есть отметка
+/// времени, значения и разница с предыдущим днём.
+model MarketingDailySnapshot {
+  id          String   @id @default(cuid())
+  /// Московская дата среза, `YYYY-MM-DD`. Один срез в сутки — уникальность в
+  /// базе, а не в порядке вызовов: воркер тикает часто.
+  dayKey      String   @unique @map("day_key")
+  capturedAt  DateTime @default(now()) @map("captured_at")
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  /// Средняя позиция взвешена по показам. `null` — замера не было вовсе, и это
+  /// не то же самое, что «позиция ноль».
+  averagePosition Float? @map("average_position")
+  searchablePages Int   @default(0) @map("searchable_pages")
+  organicVisits   Int   @default(0) @map("organic_visits")
+  observedQueries Int   @default(0) @map("observed_queries")
+  /// Состояние каждого источника на момент среза: живой замер это или отказ.
+  sources     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([dayKey])
+  @@map("marketing_daily_snapshots")
+}
+
 model MarketingAutomationSignal {
   id              String   @id @default(cuid())
   key             String   @unique

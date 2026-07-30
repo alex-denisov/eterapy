@@ -37,6 +37,7 @@ export default async function AdminFleetMonitoringPage() {
     health: status.health ?? null,
     uptimeSec: status.uptimeSec ?? null,
     diskUsedPct: status.disk?.usedPct ?? null,
+    diskFreeBytes: status.disk?.freeBytes ?? null,
     memoryUsedPct: status.memory?.usedPct ?? null,
     latencyMs: status.latencyMs ?? null,
     error: status.error ?? null,
