@@ -11,7 +11,10 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false, multiline: false },
   { platform: "Reddit", key: "REDDIT_POST_SUBREDDIT", label: "Subreddit для своих постов", secret: false, multiline: false },
   { platform: "Reddit", key: "REDDIT_SUBREDDITS", label: "Subreddit для поиска, через запятую", secret: false, multiline: false },
-  { platform: "Reddit", key: "REDDIT_BROWSER_STORAGE_STATE", label: "Резервная браузерная сессия (Playwright storageState JSON)", secret: true, multiline: true },
+  // B617: браузерная сессия Reddit убрана. Вход по сохранённой сессии — ровно
+  // то, что правила площадок называют нарушением, и для Reddit он не нужен:
+  // там есть OAuth. Браузерный публикатор остаётся только у Дзена, где API
+  // не существует, и только для собственных публикаций.
   { platform: "Threads", key: "THREADS_APP_ID", label: "Threads App ID", secret: false, multiline: false },
   { platform: "Threads", key: "THREADS_APP_SECRET", label: "Threads App Secret", secret: true, multiline: false },
   { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },

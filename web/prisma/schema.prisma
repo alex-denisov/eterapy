@@ -35,6 +35,11 @@ model User {
   resetExpires          DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  /// Последняя наблюдаемая активность. «Последний вход» в суперадминке брался
+  /// только из LOGIN-аудита, а он пишется лишь в момент самой аутентификации:
+  /// при живой JWT-сессии человек ходит по сайту неделями, не создавая ни
+  /// одного события, и столбец замирал на дате регистрации.
+  lastSeenAt            DateTime? @map("last_seen_at")
   practiceStreakCount   Int       @default(0) @map("practice_streak_count")
   practiceStreakLongest Int       @default(0) @map("practice_streak_longest")
   practiceLastDoneDate  DateTime? @map("practice_last_done_date")

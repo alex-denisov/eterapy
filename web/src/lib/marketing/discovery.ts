@@ -21,7 +21,8 @@ export type MarketingConnectorState = {
   platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen";
   ownedPublishing: boolean;
   discovery: boolean;
-  comments: boolean;
+  /** B617: ответы на ВХОДЯЩЕЕ (комментарии к своим постам, упоминания). Комментариев под чужими публикациями больше нет ни на одной площадке. */
+  inboundReplies: boolean;
   missing: string[];
   note: string;
 };
@@ -30,7 +31,6 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
   const keys = [
     "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN",
     "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
-    "REDDIT_BROWSER_STORAGE_STATE",
     "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
     "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID",
@@ -48,33 +48,25 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "VK",
       ownedPublishing: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
       discovery: Boolean(enabled.get("VK")) && has("VK_USER_TOKEN"),
-      comments: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
+      inboundReplies: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
       missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN"),
       note: "Официальный VK API: токен сообщества — wall.post/wall.createComment; отдельный пользовательский токен — newsfeed.search. Права не смешиваются.",
     },
     {
       platform: "Reddit",
-      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_POST_SUBREDDIT") && (
-        (has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"))
-        || has("REDDIT_BROWSER_STORAGE_STATE")
-      ),
+      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_POST_SUBREDDIT")
+        && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
       discovery: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_SUBREDDITS"),
-      comments: Boolean(enabled.get("Reddit")) && (
-        (has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"))
-        || has("REDDIT_BROWSER_STORAGE_STATE")
-      ),
-      missing: [
-        ...missing("REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT"),
-        ...(!has("REDDIT_CLIENT_ID") && !has("REDDIT_BROWSER_STORAGE_STATE") ? ["REDDIT_CLIENT_ID или REDDIT_BROWSER_STORAGE_STATE"] : []),
-        ...(!has("REDDIT_CLIENT_SECRET") && !has("REDDIT_BROWSER_STORAGE_STATE") ? ["REDDIT_CLIENT_SECRET или REDDIT_BROWSER_STORAGE_STATE"] : []),
-      ],
-      note: "Основной путь — официальный OAuth Data API. Если доступ не выдан, собственные посты и утверждённые комментарии используют изолированную Playwright-сессию; CAPTCHA и проверки безопасности никогда не обходятся.",
+      // B617: комментариев под чужими постами больше нет ни на одной площадке.
+      inboundReplies: false,
+      missing: missing("REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"),
+      note: "Только официальный OAuth Data API: собственные посты в свой сабреддит и ответы на входящее. Браузерная сессия убрана (B617) — вход по сохранённой сессии правила площадок называют нарушением.",
     },
     {
       platform: "Threads",
       ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       discovery: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN"),
-      comments: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
+      inboundReplies: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
       note: "Официальный Threads API публикует посты и ответы. Поиск чужих постов идёт через официальный keyword search; без выданного разрешения он отвечает пустым списком и включается сам, когда разрешение появится.",
     },
@@ -82,7 +74,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Instagram",
       ownedPublishing: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN") && has("INSTAGRAM_USER_ID"),
       discovery: false,
-      comments: false,
+      inboundReplies: false,
       missing: missing("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
       note: "Instagram API для Professional account: свои публикации и управление комментариями на своих медиа. Официальный API не даёт публиковать рекламные комментарии под произвольными чужими постами — этот путь не подменяется cookies-автоматизацией.",
     },
@@ -90,7 +82,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Telegram",
       ownedPublishing: Boolean(enabled.get("Telegram")) && has("TELEGRAM_BOT_TOKEN") && has("TELEGRAM_CHANNEL_ID"),
       discovery: false,
-      comments: false,
+      inboundReplies: false,
       missing: missing("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID"),
       note: "Bot API публикует в собственный канал; массового поиска и комментариев к чужим каналам нет.",
     },
@@ -98,7 +90,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Dzen",
       ownedPublishing: Boolean(enabled.get("Dzen")) && has("DZEN_CHANNEL_URL") && has("DZEN_BROWSER_STORAGE_STATE"),
       discovery: false,
-      comments: false,
+      inboundReplies: false,
       missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE"),
       note: "У Дзена нет поддерживаемого серверного API публикации. Выпуск выполняется из изолированной авторизованной Playwright-сессии; истёкшая сессия или CAPTCHA переводит коннектор в требующий участия человека, без обхода защиты.",
     },
@@ -267,9 +259,20 @@ function engagementKey(candidate: Pick<Candidate, "platform" | "targetId">) {
     .update(`${candidate.platform}:${candidate.targetId}`)
     .digest("hex")
     .slice(0, 24);
-  return `smm-comment-${digest}`;
+  // B617: ключ остался прежним, чтобы уже заведённые строки обновлялись, а не
+  // задваивались, но смысл другой — это тема, а не адрес чужого поста.
+  return `smm-topic-${digest}`;
 }
 
+/**
+ * B617: наблюдение публичного поста порождает НАШУ публикацию на ту же тему, а
+ * не ответ его автору. Чтение публичных данных официальным API законно везде;
+ * плановый комментарий под чужим постом — нет. Охват собственного поста на
+ * горячую тему к тому же выше, чем реплики в чужой ветке.
+ *
+ * Адрес и идентификатор исходного поста намеренно НЕ сохраняются: пока их нет
+ * в строке, ни один исполнитель не сможет отправить туда ответ даже по ошибке.
+ */
 export async function ingestEngagementCandidate(
   candidate: Candidate,
   placement: { scheduledFor: Date; toneId: string },
@@ -280,25 +283,22 @@ export async function ingestEngagementCandidate(
     create: {
       key,
       platform: candidate.platform,
-      title: `Комментарий: ${candidate.topic}`,
-      contentType: "COMMENT",
+      title: `Тема дня: ${candidate.topic}`,
+      contentType: "POST",
       status: "DRAFT",
       cluster: candidate.topic,
       targetQuery: candidate.topic,
       body: null,
       source: "AGENT_DISCOVERY",
-      engagementTargetId: candidate.targetId,
-      engagementTargetUrl: candidate.targetUrl,
-      engagementTargetLabel: candidate.targetLabel,
+      // Выдержка остаётся как свидетельство живого спроса на тему — из неё
+      // пишется свой материал, цитировать и адресовать её нельзя.
       engagementExcerpt: candidate.excerpt,
       engagementTone: placement.toneId,
       scheduledFor: placement.scheduledFor,
       autoPublish: false,
     },
     update: {
-      engagementTargetLabel: candidate.targetLabel,
       engagementExcerpt: candidate.excerpt,
-      engagementTargetUrl: candidate.targetUrl,
     },
   });
 }
@@ -319,18 +319,23 @@ async function plannedToday(platform: EngagementPlatform, now: Date) {
   const rows = await db.externalPublication.findMany({
     where: {
       platform,
-      contentType: "COMMENT",
+      // B617: discovery больше не заводит COMMENT — только собственные посты по
+      // найденной теме. Старые COMMENT-строки в выборку не попадают, они уходят
+      // в архив отдельным проходом.
+      contentType: "POST",
       source: "AGENT_DISCOVERY",
       status: { notIn: ["ARCHIVED"] },
       scheduledFor: { gte: dayStart, lt: dayEnd },
     },
-    select: { scheduledFor: true, engagementTone: true, engagementTargetId: true },
+    select: { scheduledFor: true, engagementTone: true, key: true },
     orderBy: { scheduledFor: "desc" },
   });
   return {
     slots: rows.map((row) => row.scheduledFor).filter((value): value is Date => Boolean(value)),
     toneIds: rows.map((row) => row.engagementTone).filter((value): value is string => Boolean(value)),
-    targetIds: new Set(rows.map((row) => row.engagementTargetId).filter(Boolean) as string[]),
+    // Ключ темы детерминирован по исходному посту, поэтому по нему же
+    // отсеиваются повторы — без хранения адреса чужой публикации.
+    takenKeys: new Set(rows.map((row) => row.key)),
   };
 }
 
@@ -359,7 +364,7 @@ export async function runEngagementDiscovery(
     const existing = await plannedToday(platform, now).catch(() => ({
       slots: [] as Date[],
       toneIds: [] as string[],
-      targetIds: new Set<string>(),
+      takenKeys: new Set<string>(),
     }));
     const target = engagementDailyTarget(platform, now);
     const wanted = engagementDeficit({ platform, now, existingToday: existing.slots });
@@ -376,7 +381,7 @@ export async function runEngagementDiscovery(
 
     try {
       const candidates = (await DISCOVERERS[platform]())
-        .filter((candidate) => !existing.targetIds.has(candidate.targetId));
+        .filter((candidate) => !existing.takenKeys.has(engagementKey(candidate)));
       const slots = openEngagementSlots({ platform, now, taken: existing.slots }).slice(0, wanted);
       const recentTones = [...existing.toneIds];
       let ingested = 0;

@@ -108,6 +108,10 @@ export interface AdminUserRow {
     // B372: клиентский отпечаток устройства (64 hex) из LOGIN/REGISTER-аудита.
     fingerprint: string | null;
   } | null;
+  /// Последняя активность. `lastLogin` отмечает только саму аутентификацию, а
+  /// при живой сессии её месяцами не происходит — по нему нельзя понять, жив
+  /// ли аккаунт.
+  lastSeenAt: string | null;
 }
 
 export interface UserPermissions {
