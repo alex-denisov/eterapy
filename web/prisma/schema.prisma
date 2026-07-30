@@ -1323,6 +1323,10 @@ model ExternalPublication {
   agentReviewedAt     DateTime?                @map("agent_reviewed_at")
   moderationDecisionBy String?                 @map("moderation_decision_by")
   moderationDecisionAt DateTime?               @map("moderation_decision_at")
+  /// B618: строка — ответ на конкретное входящее. Уникальность в базе, а не в
+  /// коде: повторная доставка того же webhook не может создать вторую реплику.
+  inboundReplyToId String?                     @unique @map("inbound_reply_to_id")
+  inboundReplyTo   MarketingInboundMessage?    @relation("MarketingInboundReply", fields: [inboundReplyToId], references: [id], onDelete: SetNull)
 
   @@index([status, scheduledFor])
   @@index([status, publishedAt])
@@ -1331,6 +1335,42 @@ model ExternalPublication {
   @@index([nextReviewAt])
   @@index([utmSource, utmCampaign])
   @@map("external_publications")
+}
+
+/// B618 — единая очередь входящего из соцсетей: комментарии к нашим
+/// публикациям, упоминания бренда и сообщения сообщества.
+///
+/// Одна таблица, одна машина состояний: RECEIVED → DRAFTED → ANSWERED, плюс
+/// ESCALATED (кризисная формулировка — только человек) и IGNORED (адресовано не
+/// нам). Дедупликация обеспечена парой (platform, externalId), а «один ответ на
+/// одно входящее» — уникальным `ExternalPublication.inboundReplyToId`, то есть
+/// базой, а не последовательностью вызовов.
+model MarketingInboundMessage {
+  id           String    @id @default(cuid())
+  platform     String
+  /// COMMENT — комментарий к нашей публикации, MENTION — упоминание бренда,
+  /// DIRECT — сообщение сообществу.
+  kind         String
+  externalId   String    @map("external_id")
+  /// Наш пост/медиа/чат, внутри которого пришло входящее.
+  threadId     String?   @map("thread_id")
+  authorLabel  String?   @map("author_label")
+  text         String    @db.Text
+  permalink    String?
+  status       String    @default("RECEIVED")
+  /// Балл риска вреда по общей шкале платформы (`dialogue-safety`).
+  harmScore    Int?      @map("harm_score")
+  receivedAt   DateTime  @default(now()) @map("received_at")
+  answeredAt   DateTime? @map("answered_at")
+  lastError    String?   @map("last_error")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  reply        ExternalPublication? @relation("MarketingInboundReply")
+
+  @@unique([platform, externalId])
+  @@index([status, receivedAt])
+  @@index([platform, receivedAt])
+  @@map("marketing_inbound_messages")
 }
 
 /// B610: durable SEO/marketing findings. Production does not write Markdown

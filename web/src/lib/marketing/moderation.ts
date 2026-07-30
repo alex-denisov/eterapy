@@ -2,6 +2,10 @@ import { createHmac, timingSafeEqual } from "crypto";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { engagementToneById } from "@/lib/marketing/engagement-tone";
+import {
+  INBOUND_REPLY_CONTENT_TYPE,
+  isConversationalContentType,
+} from "@/lib/marketing/perimeter";
 import { resolveOpsChannel } from "@/lib/ops-notification-channel";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
@@ -55,9 +59,14 @@ function short(value: string | null, limit: number) {
 
 export async function requestMarketingModeration(publicationId: string) {
   const publication = await db.externalPublication.findUnique({ where: { id: publicationId } });
-  if (!publication || publication.contentType !== "COMMENT" || publication.status !== "REVIEW") {
+  if (
+    !publication
+    || !isConversationalContentType(publication.contentType)
+    || publication.status !== "REVIEW"
+  ) {
     return { sent: false, reason: "not-reviewable" };
   }
+  const isInboundReply = publication.contentType === INBOUND_REPLY_CONTENT_TYPE;
   const channel = await resolveOpsChannel();
   if (channel.chatIds.length === 0) throw new Error("Ops Telegram channel is not configured");
 
@@ -67,7 +76,9 @@ export async function requestMarketingModeration(publicationId: string) {
     timeZone: "Europe/Moscow",
   });
   const message = [
-    "<b>Премодерация рекламного комментария</b>",
+    isInboundReply
+      ? "<b>Премодерация ответа на входящее</b>"
+      : "<b>Премодерация рекламного комментария</b>",
     "",
     `<b>Когда:</b> ${html(planned)} МСК`,
     `<b>Площадка:</b> ${html(publication.platform)}`,
@@ -76,7 +87,9 @@ export async function requestMarketingModeration(publicationId: string) {
     publication.engagementTargetUrl
       ? `<b>Ссылка:</b> ${html(publication.engagementTargetUrl)}`
       : "<b>Ссылка:</b> —",
-    `<b>Контекст:</b> ${html(short(publication.engagementExcerpt, 500))}`,
+    isInboundReply
+      ? `<b>Нам написали:</b> ${html(short(publication.engagementExcerpt, 500))}`
+      : `<b>Контекст:</b> ${html(short(publication.engagementExcerpt, 500))}`,
     "",
     "<b>Предлагаемый текст:</b>",
     html(short(publication.body, 2_400)),
@@ -121,7 +134,7 @@ export async function applyMarketingModeration(input: {
   const publication = await db.externalPublication.findUnique({
     where: { id: input.publicationId },
   });
-  if (!publication || publication.contentType !== "COMMENT") {
+  if (!publication || !isConversationalContentType(publication.contentType)) {
     throw new Error("Comment proposal not found");
   }
   if (publication.status !== "REVIEW") {
@@ -151,6 +164,14 @@ export async function applyMarketingModeration(input: {
       moderationDecisionAt: now,
     },
   });
+  // B618: отклонённый ответ закрывает и входящее — иначе сторож будет вечно
+  // сообщать о «неотвеченном» сообщении, по которому решение уже принято.
+  if (input.action === "reject" && publication.inboundReplyToId) {
+    await db.marketingInboundMessage.updateMany({
+      where: { id: publication.inboundReplyToId },
+      data: { status: "IGNORED", lastError: "REJECTED_BY_MODERATOR" },
+    }).catch(() => undefined);
+  }
 
   await callTelegramApi("answerCallbackQuery", {
     callback_query_id: input.callbackQueryId,

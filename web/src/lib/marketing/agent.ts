@@ -12,6 +12,11 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import {
+  CONVERSATIONAL_CONTENT_TYPES,
+  INBOUND_REPLY_CONTENT_TYPE,
+  isConversationalContentType,
+} from "@/lib/marketing/perimeter";
+import {
   marketingModelFreshness,
   marketingProviderFromLabel,
   marketingProviderOrder,
@@ -32,6 +37,18 @@ export class MarketingCapacityError extends Error {
   }
 }
 
+/**
+ * B623 — писатель и редактор сошлись на одной модели. Это тоже состояние пула,
+ * а не брак материала: сузился набор живых провайдеров. Материал ждёт, пока
+ * появится вторая независимая модель, и не сжигает попытку.
+ */
+export class MarketingModelSeparationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingModelSeparationError";
+  }
+}
+
 const CAPACITY_ERROR_MARKERS = [
   "daily token budget exceeded",
   "rate limit",
@@ -46,6 +63,15 @@ export function isCapacityError(error: unknown): boolean {
   if (error instanceof Error && error.name === "AIBudgetExceededError") return true;
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
   return CAPACITY_ERROR_MARKERS.some((marker) => message.includes(marker));
+}
+
+/**
+ * Отказ, который пройдёт сам: кончилась ёмкость или в пуле не осталось второй
+ * независимой модели. Такая строка остаётся черновиком и уходит в следующий
+ * проход — FAILED здесь означал бы «материал негоден», а он не при чём.
+ */
+export function isDeferrableError(error: unknown): boolean {
+  return isCapacityError(error) || error instanceof MarketingModelSeparationError;
 }
 
 type WriterOutput = {
@@ -202,32 +228,63 @@ function assertFreshMarketingModel(model: string) {
   }
 }
 
-function assertPublishableDraft(input: {
+/**
+ * B623 — контрактные поля не зависят от послушности модели.
+ *
+ * Замер прода 2026-07-30: сразу после снятия потолка токенов (B622) выпуск
+ * встал на двух отказах, которые система умеет исправить сама — автор не
+ * вставил в текст обязательную ссылку и не заполнил CTA. Целевой адрес известен
+ * из плана, поэтому он подставляется программно, а материал всё равно идёт
+ * редактору — с явной пометкой, что́ дописала система.
+ *
+ * Браковать остаётся только то, чего взять негде: пустой текст, safety-флаг,
+ * отсутствие адреса в плане и превышение лимита площадки уже ПОСЛЕ подстановки.
+ */
+export interface DraftRepair {
+  field: "destinationUrl" | "cta";
+  note: string;
+}
+
+export function repairPublishableDraft(input: {
   draft: WriterOutput;
-  isComment: boolean;
+  isConversational: boolean;
   destinationUrl: string | null;
   platform: string;
-}) {
+}): { draft: WriterOutput; repairs: DraftRepair[] } {
   const text = input.draft.text?.trim() ?? "";
   if (!text || (input.draft.safetyFlags?.length ?? 0) > 0) {
     throw new Error(`writer safety block: ${(input.draft.safetyFlags ?? []).join(", ") || "empty text"}`);
   }
-  if (input.isComment) return;
-  if (!input.destinationUrl || !text.includes(input.destinationUrl)) {
-    throw new Error("owned publication omitted the exact destination URL");
+  if (input.isConversational) return { draft: { ...input.draft, text }, repairs: [] };
+  if (!input.destinationUrl) {
+    throw new Error("owned publication has no destination URL in the plan");
   }
-  if (!input.draft.cta?.trim()) {
-    throw new Error("owned publication omitted CTA metadata");
+
+  const repairs: DraftRepair[] = [];
+  let repairedText = text;
+  if (!repairedText.includes(input.destinationUrl)) {
+    repairedText = `${repairedText}\n\n${input.destinationUrl}`;
+    repairs.push({
+      field: "destinationUrl",
+      note: `Ссылку из плана дописала система: ${input.destinationUrl}`,
+    });
   }
-  if (input.platform === "telegram" && text.length > 1_000) {
+  let cta = input.draft.cta?.trim() ?? "";
+  if (!cta) {
+    cta = `Открыть по ссылке в тексте: ${input.destinationUrl}`;
+    repairs.push({ field: "cta", note: "CTA заполнила система по целевой ссылке плана" });
+  }
+
+  if (input.platform === "telegram" && repairedText.length > 1_000) {
     throw new Error("Telegram publication exceeds the 1000-character media caption budget");
   }
-  if (input.platform === "threads" && text.length > 480) {
+  if (input.platform === "threads" && repairedText.length > 480) {
     throw new Error("Threads publication exceeds the 480-character editorial budget");
   }
   if (["telegram", "instagram", "dzen"].includes(input.platform) && !input.draft.mediaBrief?.trim()) {
     throw new Error(`${input.platform} publication omitted the required media brief`);
   }
+  return { draft: { ...input.draft, text: repairedText, cta }, repairs };
 }
 
 function approvedByScorecard(
@@ -247,9 +304,17 @@ async function completeWithValidStructure<T>(input: {
   requestId: string;
   messages: Parameters<typeof aiComplete>[0]["messages"];
   parse: (raw: string) => T;
+  /**
+   * B623: модель, которой роль пользоваться не имеет права. Редактор обязан
+   * отличаться от автора не провайдером, а именно моделью: один провайдер может
+   * отдать обеим ролям одну и ту же модель, и тогда «независимая проверка»
+   * перестаёт быть независимой.
+   */
+  excludeModel?: string | null;
 }) {
   const failures: string[] = [];
   let capacityFailures = 0;
+  let separationFailures = 0;
   for (const provider of input.providerOrder) {
     try {
       const response = await aiComplete({
@@ -262,6 +327,11 @@ async function completeWithValidStructure<T>(input: {
         messages: input.messages,
       });
       assertFreshMarketingModel(response.model);
+      if (input.excludeModel && response.model === input.excludeModel) {
+        separationFailures += 1;
+        failures.push(`${provider}: resolved to the writer's model ${response.model}`);
+        continue;
+      }
       try {
         return { response, value: input.parse(response.text) };
       } catch (error) {
@@ -282,6 +352,13 @@ async function completeWithValidStructure<T>(input: {
   // публикацию навсегда там, где достаточно попробовать позже.
   if (capacityFailures > 0 && capacityFailures === failures.length) {
     throw new MarketingCapacityError(`Не осталось свободной ёмкости провайдеров (${summary})`);
+  }
+  // B623: то же и для сузившегося пула. Единственная живая модель уже занята
+  // автором — материал ждёт вторую, а не отбраковывается.
+  if (separationFailures > 0 && separationFailures + capacityFailures === failures.length) {
+    throw new MarketingModelSeparationError(
+      `В пуле не осталось модели, отличной от модели автора (${summary})`,
+    );
   }
   throw new Error(`No free provider returned valid structured output (${summary})`);
 }
@@ -344,22 +421,32 @@ export async function processMarketingDraft(publicationId: string) {
     return { status: "skipped" as const };
   }
 
-  const isComment = publication.contentType === "COMMENT";
+  // B618: ответ на входящее — такой же разговорный материал, как комментарий:
+  // свой регистр, отдельная оценка тона, обязательная премодерация человеком.
+  const isInboundReply = publication.contentType === INBOUND_REPLY_CONTENT_TYPE;
+  const isConversational = isConversationalContentType(publication.contentType);
   const platform = safePlatform(publication.platform);
-  const tone = isComment ? engagementToneById(publication.engagementTone) : null;
-  const scoreKeys = isComment
+  const tone = isConversational ? engagementToneById(publication.engagementTone) : null;
+  const scoreKeys = isConversational
     ? [...REVIEW_SCORE_KEYS, COMMENT_REVIEW_SCORE_KEY]
     : REVIEW_SCORE_KEYS;
   // Public social content is part of the SMM task. Internal ETerapy user,
   // practitioner, dialogue, booking and session data is never attached here.
   const task = {
-    kind: isComment ? "COMMENT" : "OWNED_POST",
+    kind: isInboundReply ? "INBOUND_REPLY" : isConversational ? "COMMENT" : "OWNED_POST",
     platform,
     title: publication.title,
     topic: publication.cluster ?? publication.targetQuery ?? "саморефлексия",
     editorialBrief: publication.notes,
-    destinationUrl: isComment ? null : publication.destinationUrl,
-    publicPost: isComment ? {
+    destinationUrl: isConversational ? null : publication.destinationUrl,
+    // Для ответа на входящее это НАШ разговор: человек написал нам сам, и его
+    // текст — адресат ответа, а не свидетельство спроса.
+    inbound: isInboundReply ? {
+      text: publication.engagementExcerpt,
+      author: publication.engagementTargetLabel,
+      url: publication.engagementTargetUrl,
+    } : null,
+    publicPost: isConversational && !isInboundReply ? {
       text: publication.engagementExcerpt,
       url: publication.engagementTargetUrl,
       label: publication.engagementTargetLabel,
@@ -370,7 +457,7 @@ export async function processMarketingDraft(publicationId: string) {
     // Register is assigned by the engagement planner, not by the model, so the
     // mix of voices across a day stays observable and reproducible.
     tone: tone ? { id: tone.id, label: tone.label, brief: tone.brief } : null,
-    toneHardLimits: isComment ? ENGAGEMENT_TONE_HARD_LIMITS : null,
+    toneHardLimits: isConversational ? ENGAGEMENT_TONE_HARD_LIMITS : null,
   };
 
   try {
@@ -380,6 +467,8 @@ export async function processMarketingDraft(publicationId: string) {
       round: number;
       writer: { provider: string; model: string };
       candidate: WriterOutput;
+      /** B623: что дописала система за автора — видно и редактору, и в кокпите. */
+      repairs: DraftRepair[];
       reviewer: { provider: string; model: string };
       review: ReviewerOutput;
     }> = [];
@@ -419,40 +508,56 @@ export async function processMarketingDraft(publicationId: string) {
         parse: (raw) => writerObject(raw, publication.title),
       });
       const writer: AICompletion = writerResult.response;
-      const draft: WriterOutput = writerResult.value;
-      assertPublishableDraft({
-        draft,
-        isComment,
+      const { draft, repairs } = repairPublishableDraft({
+        draft: writerResult.value,
+        isConversational,
         destinationUrl: publication.destinationUrl,
         platform,
       });
 
+      // B623: редактор предпочитает другого провайдера, но окончательный
+      // критерий — другая МОДЕЛЬ. Провайдер автора остаётся в конце очереди как
+      // последний вариант: он допустим, если отдаст не ту же модель.
       const writerProvider = marketingProviderFromLabel(writer.provider);
-      const reviewerProviderOrder = marketingProviderOrder(
-        `reviewer:${cycleSeed}`,
-        writerProvider && writerProvider !== "OPENROUTER" ? [writerProvider] : [],
-      );
+      const rotated = marketingProviderOrder(`reviewer:${cycleSeed}`);
+      const reviewerProviderOrder = [
+        ...rotated.filter((provider) => provider !== writerProvider),
+        ...rotated.filter((provider) => provider === writerProvider),
+      ];
       const reviewerResult = await completeWithValidStructure({
         feature: "marketing-agent-reviewer",
         providerOrder: reviewerProviderOrder,
+        excludeModel: writer.model,
         maxTokens: 1_600,
         temperature: 0.05,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
-          { role: "user", content: JSON.stringify({ task, research, editorialRound: round, candidate: draft }) },
+          {
+            role: "user",
+            content: JSON.stringify({
+              task,
+              research,
+              editorialRound: round,
+              candidate: draft,
+              systemRepairs: repairs,
+            }),
+          },
         ],
         parse: (raw) => reviewerObject(raw, scoreKeys),
       });
       const reviewer = reviewerResult.response;
-      if (writer.provider === reviewer.provider && writer.model === reviewer.model) {
-        throw new Error("writer and reviewer resolved to the same model; configure separate model policies");
+      if (writer.model === reviewer.model) {
+        throw new MarketingModelSeparationError(
+          `writer and reviewer resolved to the same model ${writer.model}`,
+        );
       }
       const review = reviewerResult.value;
       iterationHistory.push({
         round,
         writer: { provider: writer.provider, model: writer.model },
         candidate: draft,
+        repairs,
         reviewer: { provider: reviewer.provider, model: reviewer.model },
         review,
       });
@@ -494,17 +599,17 @@ export async function processMarketingDraft(publicationId: string) {
       return { status: "rejected" as const };
     }
 
-    const nextStatus = isComment ? "REVIEW" : "SCHEDULED";
+    const nextStatus = isConversational ? "REVIEW" : "SCHEDULED";
     const updated = await db.externalPublication.update({
       where: { id: publication.id },
       data: {
         title: approvedDraft.title?.trim() || publication.title,
         body: approvedDraft.text.trim(),
-        mediaUrl: isComment
+        mediaUrl: isConversational
           ? null
           : `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`,
         status: nextStatus,
-        autoPublish: !isComment,
+        autoPublish: !isConversational,
         attemptCount: { increment: 1 },
         lastError: null,
         agentWriterProvider: lastWriter.provider,
@@ -515,30 +620,33 @@ export async function processMarketingDraft(publicationId: string) {
         agentReviewedAt: new Date(),
       },
     });
-    if (isComment) await requestMarketingModeration(updated.id);
+    if (isConversational) await requestMarketingModeration(updated.id);
     await resolveMarketingSignal(`agent-draft:${publication.id}`).catch(() => undefined);
     // Прошла хоть одна генерация — ёмкость вернулась.
     await resolveMarketingSignal("agent:capacity").catch(() => undefined);
     return { status: nextStatus.toLowerCase() as "review" | "scheduled" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const capacity = isCapacityError(error);
-    // Ёмкость вернётся сама: строка остаётся черновиком и попадёт в следующий
-    // проход. FAILED здесь означал бы «материал негоден», а он не при чём.
+    // Ёмкость и сузившийся пул моделей вернутся сами: строка остаётся
+    // черновиком и попадёт в следующий проход. FAILED здесь означал бы
+    // «материал негоден», а он не при чём.
+    const deferrable = isDeferrableError(error);
     await db.externalPublication.update({
       where: { id: publication.id },
-      data: capacity
+      data: deferrable
         ? { lastError: message }
         : { status: "FAILED", lastError: message, attemptCount: { increment: 1 } },
     }).catch(() => undefined);
-    await recordSignal(capacity
+    await recordSignal(deferrable
       ? {
         // Один сигнал на исчерпание, а не инцидент на каждый пост: иначе
         // кокпит владельца заливает сотней одинаковых строк.
         key: "agent:capacity",
         kind: "AGENT_RUN",
         severity: "WARNING",
-        title: "SMM-агент остановлен: кончилась ёмкость провайдеров",
+        title: error instanceof MarketingModelSeparationError
+          ? "SMM-агент ждёт вторую независимую модель"
+          : "SMM-агент остановлен: кончилась ёмкость провайдеров",
         summary: message,
         evidence: { platform },
       }
@@ -566,7 +674,11 @@ export async function runMarketingAgentCycle() {
     where: {
       OR: [
         { status: "DRAFT", agentReviewedAt: null },
-        { status: "REVIEW", contentType: "COMMENT", lastError: "REVISION_REQUESTED" },
+        {
+          status: "REVIEW",
+          contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] },
+          lastError: "REVISION_REQUESTED",
+        },
       ],
     },
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],

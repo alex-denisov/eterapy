@@ -76,11 +76,94 @@ export async function metaDeletionConfirmed(code: string) {
 }
 
 export async function verifyInstagramWebhookSignature(rawBody: string, signature: string | null) {
+  return verifyMetaWebhookSignature("Instagram", rawBody, signature);
+}
+
+export async function verifyMetaWebhookSignature(
+  platform: MetaMarketingPlatform,
+  rawBody: string,
+  signature: string | null,
+) {
   if (!signature?.startsWith("sha256=")) return false;
-  const secret = await requiredMarketingPlatformValue("INSTAGRAM_APP_SECRET");
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return safeEqual(
-    Buffer.from(expected, "hex"),
-    Buffer.from(signature.slice("sha256=".length), "hex"),
+  const secret = await requiredMarketingPlatformValue(
+    platform === "Threads" ? "THREADS_APP_SECRET" : "INSTAGRAM_APP_SECRET",
   );
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const supplied = signature.slice("sha256=".length);
+  if (!/^[0-9a-f]+$/i.test(supplied)) return false;
+  return safeEqual(Buffer.from(expected, "hex"), Buffer.from(supplied, "hex"));
+}
+
+/**
+ * B618 — разбор полезной нагрузки Meta.
+ *
+ * Подпись проверялась и раньше, но событие никуда не шло. Здесь оно
+ * превращается в плоский список входящих. Формат один и тот же у Threads и
+ * Instagram: `entry[].changes[]` с полем `comments`/`mentions`, где `value`
+ * описывает конкретный комментарий.
+ *
+ * Наш собственный комментарий отбрасывается: иначе агент отвечал бы сам себе —
+ * ответ к своему посту тоже приходит webhook'ом.
+ */
+export interface MetaInboundEvent {
+  kind: "COMMENT" | "MENTION";
+  externalId: string;
+  threadId: string | null;
+  authorLabel: string | null;
+  text: string;
+  permalink: string | null;
+}
+
+type MetaWebhookPayload = {
+  entry?: Array<{
+    id?: string;
+    time?: number;
+    changes?: Array<{
+      field?: string;
+      value?: {
+        id?: string;
+        text?: string;
+        message?: string;
+        permalink?: string;
+        media?: { id?: string };
+        media_id?: string;
+        parent_id?: string;
+        from?: { id?: string; username?: string };
+        username?: string;
+        comment_id?: string;
+      };
+    }>;
+  }>;
+};
+
+export function parseMetaInboundEvents(
+  payload: unknown,
+  selfUserId: string | null,
+): MetaInboundEvent[] {
+  const typed = payload as MetaWebhookPayload | null;
+  const events: MetaInboundEvent[] = [];
+  for (const entry of typed?.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      const field = (change.field ?? "").toLowerCase();
+      if (!["comments", "mentions", "comment", "mention"].includes(field)) continue;
+      const value = change.value ?? {};
+      const externalId = value.id ?? value.comment_id;
+      const text = (value.text ?? value.message ?? "").trim();
+      if (!externalId || !text) continue;
+      if (selfUserId && value.from?.id && value.from.id === selfUserId) continue;
+      events.push({
+        kind: field.startsWith("mention") ? "MENTION" : "COMMENT",
+        externalId,
+        threadId: value.media?.id ?? value.media_id ?? value.parent_id ?? entry.id ?? null,
+        authorLabel: value.from?.username
+          ? `@${value.from.username}`
+          : value.username
+            ? `@${value.username}`
+            : value.from?.id ?? null,
+        text,
+        permalink: value.permalink ?? null,
+      });
+    }
+  }
+  return events;
 }

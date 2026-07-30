@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bot, Cable, SearchCheck, ShieldCheck } from "lucide-react";
+import { Bot, Cable, MessagesSquare, Rss, SearchCheck, ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { marketingAgentEnabled } from "@/lib/marketing/agent";
@@ -11,6 +11,11 @@ import {
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
+import {
+  DZEN_FEED_MINIMUM_ITEMS,
+  dzenFeedReadiness,
+} from "@/lib/marketing/dzen-feed";
+import { INBOUND_STALE_MS } from "@/lib/marketing/inbound";
 import {
   ENGAGEMENT_DAILY_MINIMUM,
   ENGAGEMENT_PLATFORMS,
@@ -43,9 +48,22 @@ export default async function MarketingAgentPage() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
-  const [enabled, proposals, signals, recent, modelCredentials, modelConfigs, redditConnected, connectors, platformConfigs] = await Promise.all([
+  const [
+    enabled,
+    proposals,
+    signals,
+    recent,
+    modelCredentials,
+    modelConfigs,
+    redditConnected,
+    connectors,
+    platformConfigs,
+    inboundCounts,
+    inboundRecent,
+    dzenFeed,
+  ] = await Promise.all([
     marketingAgentEnabled(),
-    db.externalPublication.count({ where: { source: "AGENT_DISCOVERY", status: "REVIEW" } }),
+    db.externalPublication.count({ where: { status: "REVIEW" } }),
     db.marketingAutomationSignal.findMany({
       where: { status: "OPEN" },
       orderBy: [{ severity: "desc" }, { lastSeenAt: "desc" }],
@@ -78,6 +96,31 @@ export default async function MarketingAgentPage() {
     redditOAuthConnected().catch(() => false),
     marketingConnectorStates(),
     listMarketingPlatformAdminConfigs(),
+    // B618: очередь входящего. Группировка по статусу — это и есть машина
+    // состояний: пустой RECEIVED при живых площадках означает «нам не пишут», а
+    // не «мы не читаем».
+    db.marketingInboundMessage.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }).catch(() => [] as Array<{ status: string; _count: { _all: number } }>),
+    db.marketingInboundMessage.findMany({
+      orderBy: { receivedAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        platform: true,
+        kind: true,
+        status: true,
+        authorLabel: true,
+        text: true,
+        permalink: true,
+        harmScore: true,
+        receivedAt: true,
+        answeredAt: true,
+        reply: { select: { id: true, status: true } },
+      },
+    }).catch(() => []),
+    dzenFeedReadiness().catch(() => null),
   ]);
   // B617: у Reddit больше нет отдельного режима комментирования, который надо
   // было доуточнять состоянием OAuth — остались только свои посты и входящее.
@@ -218,6 +261,54 @@ export default async function MarketingAgentPage() {
     },
   }));
 
+  const inboundByStatus = new Map(inboundCounts.map((row) => [row.status, row._count._all]));
+  const inboundWaiting = (inboundByStatus.get("RECEIVED") ?? 0) + (inboundByStatus.get("DRAFTED") ?? 0);
+  const inboundStaleCutoff = new Date(now.getTime() - INBOUND_STALE_MS);
+  const inboundColumns: AdminCompactColumn[] = [
+    { key: "time", label: "Пришло", sortable: true, filterKind: "date" },
+    { key: "platform", label: "Площадка", sortable: true, filterKind: "select" },
+    { key: "kind", label: "Тип", sortable: true, filterKind: "select" },
+    { key: "author", label: "Автор", sortable: true, filterKind: "text" },
+    { key: "status", label: "Состояние", sortable: true, filterKind: "select" },
+    { key: "text", label: "Сообщение", filterKind: "none" },
+  ];
+  const inboundRows = inboundRecent.map((row) => {
+    const stale = ["RECEIVED", "DRAFTED"].includes(row.status) && row.receivedAt < inboundStaleCutoff;
+    return {
+      id: row.id,
+      cells: {
+        time: { value: dateTime(row.receivedAt), sortValue: row.receivedAt.getTime() },
+        platform: row.platform,
+        kind: row.kind === "COMMENT" ? "комментарий" : row.kind === "MENTION" ? "упоминание" : "сообщение",
+        author: row.authorLabel ?? "—",
+        status: {
+          kind: "status" as const,
+          label: stale ? `${row.status} · >24 ч` : row.status,
+          tone: row.status === "ANSWERED"
+            ? ("ok" as const)
+            : row.status === "ESCALATED" || stale
+              ? ("danger" as const)
+              : ("warn" as const),
+          filterValue: row.status,
+        },
+        text: {
+          kind: "details" as const,
+          label: "Показать",
+          title: `${row.platform} · ${row.authorLabel ?? "автор не указан"}`,
+          body: [
+            row.text,
+            "",
+            row.permalink ? `Ссылка: ${row.permalink}` : "Ссылки нет",
+            `Балл риска: ${row.harmScore ?? "—"}`,
+            row.reply ? `Ответ: ${row.reply.status}` : "Ответ ещё не заведён",
+            row.answeredAt ? `Отвечено: ${dateTime(row.answeredAt)}` : "",
+          ].filter(Boolean).join("\n"),
+          meta: row.status,
+        },
+      },
+    };
+  });
+
   const signalColumns: AdminCompactColumn[] = [
     { key: "time", label: "Последнее событие", sortable: true, filterKind: "date" },
     { key: "severity", label: "Уровень", sortable: true, filterKind: "select" },
@@ -265,7 +356,8 @@ export default async function MarketingAgentPage() {
 
       <MetricGrid>
         <MetricCard label="Сервис" value={enabled ? "работает" : "остановлен"} hint="переключатель хранится в БД" tone={enabled ? "ok" : "warn"} icon={<Bot className="size-4" />} />
-        <MetricCard label="На премодерации" value={proposals.toLocaleString("ru-RU")} hint="рекламных комментариев" tone={proposals ? "warn" : "ok"} icon={<ShieldCheck className="size-4" />} />
+        <MetricCard label="На премодерации" value={proposals.toLocaleString("ru-RU")} hint="ответов и комментариев" tone={proposals ? "warn" : "ok"} icon={<ShieldCheck className="size-4" />} />
+        <MetricCard label="Входящие в работе" value={inboundWaiting.toLocaleString("ru-RU")} hint={`отвечено: ${(inboundByStatus.get("ANSWERED") ?? 0).toLocaleString("ru-RU")}, человеку: ${(inboundByStatus.get("ESCALATED") ?? 0).toLocaleString("ru-RU")}`} tone={inboundWaiting ? "warn" : "ok"} icon={<MessagesSquare className="size-4" />} />
         <MetricCard label="Открытые сигналы" value={signals.length.toLocaleString("ru-RU")} hint="SEO, адаптеры и сбои" tone={signals.length ? "warn" : "ok"} icon={<SearchCheck className="size-4" />} />
         <MetricCard label="Готовые коннекторы" value={`${effectiveConnectors.filter((row) => row.ownedPublishing || row.inboundReplies).length}/${effectiveConnectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
       </MetricGrid>
@@ -309,6 +401,47 @@ export default async function MarketingAgentPage() {
           ))}
         </div>
       </AnalyticsSection>
+
+      <AnalyticsSection title="Входящее: комментарии, упоминания, сообщения">
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          Единственный разговорный канал после B617. Комментарии к нашим
+          публикациям и сообщения сообщества приходят webhook&apos;ами, Reddit и
+          упоминания в VK опрашиваются. Ответ пишет тот же конвейер
+          writer&nbsp;→&nbsp;независимый редактор и уходит только после
+          премодерации в Telegram. Сообщение с кризисной формулировкой агент не
+          отвечает вовсе — оно уходит человеку со статусом ESCALATED.
+        </p>
+        <AdminCompactDataTable columns={inboundColumns} rows={inboundRows} pageSize={25} minWidth="1100px" empty="Входящих пока не было" />
+      </AnalyticsSection>
+
+      {dzenFeed ? (
+        <AnalyticsSection title="Дзен: лента вместо браузерной сессии">
+          <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            <p className="flex items-center gap-2 font-semibold text-[var(--soft-ink-strong)]">
+              <Rss className="size-4" />
+              {dzenFeed.confirmed
+                ? "Лента подтверждена: выпуск идёт через неё"
+                : "Лента готовится, действующий путь выпуска не отключён"}
+            </p>
+            <p className="mt-2">
+              Материалов в ленте: <b>{dzenFeed.items}</b> из {DZEN_FEED_MINIMUM_ITEMS},
+              нужных площадке при первом подключении. В работе (черновики,
+              премодерация, расписание): <b>{dzenFeed.pending}</b>.
+              {dzenFeed.enough
+                ? " Порог пройден — ленту можно подключать в кабинете Дзена."
+                : " До порога лента ещё пополняется по контент-плану."}
+            </p>
+            <p className="mt-2 break-all font-mono text-xs">{dzenFeed.feedUrl}</p>
+            <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+              Тексты в ленте написаны под формат Дзена тем же конвейером, а не
+              скопированы со статьи сайта: прямой перенос площадка почти не
+              показывает, а дубль вредит SEO. После подтверждения ленты
+              переключатель «Лента подключена» в настройках Дзена выводит
+              браузерную сессию из периметра.
+            </p>
+          </div>
+        </AnalyticsSection>
+      ) : null}
 
       <AnalyticsSection title="План живого присутствия на сегодня">
         <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
@@ -355,14 +488,23 @@ export default async function MarketingAgentPage() {
           </div>
         ) : null}
         <div className="mt-4 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-          <p className="font-semibold text-[var(--soft-ink-strong)]">Callback URL для Meta App</p>
+          <p className="font-semibold text-[var(--soft-ink-strong)]">Адреса для настройки площадок</p>
           <dl className="mt-2 grid gap-1 font-mono">
             <div><dt className="inline font-sans">Threads redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/oauth/callback</dd></div>
             <div><dt className="inline font-sans">Threads deauthorize: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/deauthorize</dd></div>
+            <div><dt className="inline font-sans">Threads webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/threads/webhook</dd></div>
             <div><dt className="inline font-sans">Instagram redirect: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/oauth/callback</dd></div>
             <div><dt className="inline font-sans">Instagram webhook: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/instagram/webhook</dd></div>
             <div><dt className="inline font-sans">Data deletion: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/meta/data-deletion</dd></div>
+            <div><dt className="inline font-sans">VK Callback API: </dt><dd className="inline break-all">https://eterapy.com/api/integrations/vk/callback</dd></div>
+            <div><dt className="inline font-sans">Лента для Дзена: </dt><dd className="inline break-all">https://eterapy.com/api/marketing/dzen/rss</dd></div>
           </dl>
+          <p className="mt-2 font-sans">
+            Маркеры подтверждения webhook (Threads и Instagram) создаются сами при
+            первом сохранении настроек площадки — придумывать их не нужно. Для VK
+            нужны строка подтверждения и секретный ключ из настроек Callback API
+            сообщества: без секрета маршрут не принимает ничего.
+          </p>
         </div>
       </AnalyticsSection>
 

@@ -95,6 +95,37 @@ export function pickEngagementTone(input: {
   return tones[start];
 }
 
+/**
+ * B618 — регистры для ответа на входящее. Человек написал нам сам, поэтому набор
+ * уже: тёплый разговор, прямая помощь, наблюдение, сухая ирония. Сарказма и
+ * подначки здесь нет — подначивать того, кто пришёл с вопросом, незачем.
+ *
+ * Площадки входящего шире, чем у поиска (добавляются Instagram и Telegram), и
+ * своего списка регистров у них нет: для них берётся общий набор.
+ */
+const INBOUND_TONES: readonly EngagementTone[] = [
+  SHARED.warm,
+  SHARED.direct,
+  SHARED.story,
+  SHARED.dry,
+  SHARED.deadpan,
+];
+
+export function pickInboundTone(input: {
+  platform: string;
+  sequence: number;
+  recentToneIds?: readonly string[];
+}): EngagementTone {
+  const tones = INBOUND_TONES;
+  const blocked = new Set((input.recentToneIds ?? []).slice(0, 2));
+  const start = ((input.sequence % tones.length) + tones.length) % tones.length;
+  for (let offset = 0; offset < tones.length; offset += 1) {
+    const candidate = tones[(start + offset) % tones.length];
+    if (!blocked.has(candidate.id)) return candidate;
+  }
+  return tones[start];
+}
+
 export function engagementToneById(id: string | null | undefined): EngagementTone | null {
   if (!id) return null;
   return SHARED[id] ?? null;
