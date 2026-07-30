@@ -56,6 +56,10 @@ const FIELD_BY_KEY = new Map<string, typeof MARKETING_PLATFORM_FIELDS[number]>(
 
 const ENV_ALIASES: Partial<Record<MarketingPlatformFieldKey, readonly string[]>> = {
   TELEGRAM_CHANNEL_ID: ["TELEGRAM_ETERAPY_CHANNEL_ID"],
+  // Владелец 2026-07-30 создал группу обсуждений канала и передал её id. Он
+  // приезжает выкаткой, а не вводом руками: механизм с ручным шагом — это
+  // невыполненный механизм (урок стенда, открытого в интернет полторы недели).
+  TELEGRAM_DISCUSSION_CHAT_ID: ["TELEGRAM_ETERAPY_CHAT_ID"],
   REDDIT_CLIENT_ID: ["REDDIT_OAUTH_APP_CLIENT_ID"],
   REDDIT_CLIENT_SECRET: ["REDDIT_OAUTH_APP_CLIENT_SECRET"],
 };
@@ -127,13 +131,40 @@ export type MarketingPlatformAdminConfig = {
   fields: MarketingPlatformAdminField[];
 };
 
+/**
+ * B627 — маркер webhook, выведенный из секрета приложения.
+ *
+ * Импорт ленивый: `meta-webhook-handlers` тянет разбор входящего, и статическая
+ * связь сделала бы модуль настроек зависимым от половины маркетингового
+ * контура. Нужен здесь только для двух полей из тридцати.
+ */
+async function derivedWebhookTokenFor(key: string): Promise<string | null> {
+  const platform = key === "THREADS_WEBHOOK_VERIFY_TOKEN"
+    ? "Threads" as const
+    : key === "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"
+      ? "Instagram" as const
+      : null;
+  if (!platform) return null;
+  const appSecret = await marketingPlatformValue(
+    platform === "Threads" ? "THREADS_APP_SECRET" : "INSTAGRAM_APP_SECRET",
+  );
+  if (!appSecret) return null;
+  const { derivedWebhookVerifyToken } = await import("@/lib/marketing/meta-webhook-handlers");
+  return derivedWebhookVerifyToken(platform, appSecret);
+}
+
 export async function listMarketingPlatformAdminConfigs(): Promise<MarketingPlatformAdminConfig[]> {
   const platforms = [...new Set(MARKETING_PLATFORM_FIELDS.map((field) => field.platform))];
   return Promise.all(platforms.map(async (platform) => {
     const fields = MARKETING_PLATFORM_FIELDS.filter((field) => field.platform === platform);
     const values = await Promise.all(fields.map(async (field) => ({
       ...field,
-      value: await marketingPlatformValue(field.key),
+      // B627: маркер подтверждения webhook показывается, даже если он ещё не
+      // сохранён — он выводится из секрета приложения. Владельцу нужно
+      // скопировать его в Meta ДО того, как он что-либо сохранит у нас, иначе
+      // подтверждение адреса падает с «Callback verification failed».
+      value: await marketingPlatformValue(field.key)
+        ?? await derivedWebhookTokenFor(field.key),
     })));
     return {
       platform,

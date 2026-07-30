@@ -21,6 +21,10 @@ export type FleetRow = {
   health: string | null;
   uptimeSec: number | null;
   diskUsedPct: number | null;
+  // INC-095: процента мало. Диск eterapy-1 — 30 GB на прод-стек, стенд и
+  // Postgres, а каждый образ весит ~4,5 GB. «85%» и «осталось 4 GB» — это
+  // разные сообщения: второе прямо говорит, переживёт ли нода выкатку.
+  diskFreeBytes: number | null;
   memoryUsedPct: number | null;
   latencyMs: number | null;
   error: string | null;
@@ -106,10 +110,16 @@ function formatUptime(sec: number | null): string {
   return days > 0 ? `${days}д ${hours}ч` : `${hours}ч ${Math.floor((sec % 3600) / 60)}м`;
 }
 
-function Usage({ label, pct }: { label: string; pct: number | null }) {
+function Usage({ label, pct, freeBytes }: { label: string; pct: number | null; freeBytes?: number | null }) {
+  // Порог — вес одного образа релиза. Если свободного меньше, следующая выкатка
+  // на этой ноде упадёт: ровно так и случился INC-095.
+  const RELEASE_IMAGE_BYTES = 5 * 1024 ** 3;
+  const freeGb = typeof freeBytes === "number" ? freeBytes / 1024 ** 3 : null;
+  const tight = typeof freeBytes === "number" && freeBytes < RELEASE_IMAGE_BYTES;
   return (
-    <span className="text-xs" style={{ color: usageTone(pct) }}>
+    <span className="text-xs" style={{ color: tight ? "#B91C1C" : usageTone(pct) }}>
       {label} {pct === null ? "—" : `${pct}%`}
+      {freeGb === null ? null : ` · свободно ${freeGb.toFixed(1)} GB${tight ? " — меньше образа релиза" : ""}`}
     </span>
   );
 }
@@ -237,7 +247,7 @@ export function FleetTable({ rows, dispatchReady }: { rows: FleetRow[]; dispatch
                 </td>
                 <td className="py-2 pr-3">
                   <div className="flex flex-col">
-                    <Usage label="диск" pct={row.diskUsedPct} />
+                    <Usage label="диск" pct={row.diskUsedPct} freeBytes={row.diskFreeBytes} />
                     <Usage label="память" pct={row.memoryUsedPct} />
                   </div>
                 </td>

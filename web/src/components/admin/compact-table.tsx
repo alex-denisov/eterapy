@@ -63,8 +63,11 @@ export function CompactTableShell({
   minWidth?: string;
 }) {
   return (
-    <div className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
-      <div className="max-w-full overflow-auto">
+    // `min-w-0` парный к такому же в `AdminCompactDataTable`: обёртка таблицы
+    // не имеет права расширять родителя под свою `min-width`, иначе прокрутка
+    // уезжает за экран вместе с содержимым.
+    <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
+      <div className="min-w-0 max-w-full overflow-auto">
         <table className="soft-admin-compact-table w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth }}>
           {children}
         </table>

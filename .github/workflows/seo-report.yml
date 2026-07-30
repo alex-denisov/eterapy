@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and send report
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}

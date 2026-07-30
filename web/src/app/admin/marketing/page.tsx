@@ -17,15 +17,14 @@ import {
   formatNumber,
   formatPercent,
 } from "../admin-analytics-ui";
+import { listMarketingSnapshots } from "@/lib/marketing/daily-snapshot";
+import { ObservedQueriesTable } from "./observed-queries-table";
+import { MarketingSnapshotTable } from "./snapshot-table";
 import { SemanticCoreTable } from "./semantic-core-table";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 function formatPosition(value: number | null) {
   if (value === null) return "—";
@@ -38,23 +37,19 @@ function sourceTone(status: "ready" | "missing" | "error") {
   return "border-red-200 bg-red-50/70 text-red-800";
 }
 
-function opportunityTone(value: string) {
-  if (value === "Быстрый рост") return "bg-emerald-50 text-emerald-800";
-  if (value === "Сниппет") return "bg-blue-50 text-blue-800";
-  if (value === "Усилить страницу") return "bg-amber-50 text-amber-800";
-  return "bg-slate-100 text-slate-700";
-}
-
 export default async function AdminMarketingPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
   const params = await searchParams;
   const period = resolveAdminPeriod(params);
   const data = await getSearchMarketingData(period);
-  const query = first(params.q)?.trim().toLocaleLowerCase("ru-RU") ?? "";
-  const observedQueries = data.webmaster.queries
-    .filter((item) => !query || item.query.toLocaleLowerCase("ru-RU").includes(query))
-    .sort((a, b) => b.impressions - a.impressions);
+  // Фильтрация переехала в таблицу: она фильтрует на клиенте, без перезагрузки
+  // страницы и без параметра `?q=` в адресе.
+  const observedQueries = [...data.webmaster.queries].sort((a, b) => b.impressions - a.impressions);
+  const snapshots = (await listMarketingSnapshots(14)).map((row) => ({
+    ...row,
+    capturedAt: row.capturedAt.toISOString(),
+  }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-marketing-page">
@@ -93,49 +88,38 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
         </AnalyticsSection>
 
         <AnalyticsSection title="Запросы, по которым ETerapy уже показывается">
-          <form className="mb-4 flex max-w-xl gap-2" action="/admin/marketing" method="get">
-            <input type="hidden" name="start" value={period.startInput} />
-            <input type="hidden" name="end" value={period.endInput} />
-            <label className="sr-only" htmlFor="marketing-query">Найти поисковый запрос</label>
-            <input
-              id="marketing-query"
-              name="q"
-              type="search"
-              defaultValue={first(params.q)}
-              placeholder="Например, ии психолог"
-              className="min-h-10 min-w-0 flex-1 rounded-lg border border-[#D6DEE9] bg-white px-3 text-sm outline-none focus:bg-slate-50"
-            />
-            <button className="soft-admin-action" type="submit">Найти</button>
-          </form>
           {observedQueries.length === 0 ? (
-            <EmptyState>{query ? "По этому фрагменту запросов пока нет" : "Вебмастер пока не вернул наблюдаемые запросы"}</EmptyState>
+            <EmptyState>Вебмастер пока не вернул наблюдаемые запросы</EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-[#D6DEE9]">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-[0.68rem] uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2.5">Запрос</th>
-                    <th className="px-3 py-2.5 text-right">Показы</th>
-                    <th className="px-3 py-2.5 text-right">Клики</th>
-                    <th className="px-3 py-2.5 text-right">CTR</th>
-                    <th className="px-3 py-2.5 text-right">Позиция</th>
-                    <th className="px-3 py-2.5">Следующий ход</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {observedQueries.map((item) => (
-                    <tr key={item.query} className="hover:bg-slate-50/70">
-                      <td className="max-w-md px-3 py-2.5 font-medium text-slate-900">{item.query}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(item.impressions)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(item.clicks)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatPercent(item.ctr)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatPosition(item.averagePosition)}</td>
-                      <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${opportunityTone(item.opportunity)}`}>{item.opportunity}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            // B626: было — рукописная таблица без пагинации, сортировки и
+            // фильтров, с отдельной формой поиска, перезагружавшей страницу.
+            // Стало — та же компактная таблица, что в реестре пользователей.
+            <ObservedQueriesTable
+              rows={observedQueries.map((item) => ({
+                query: item.query,
+                impressions: item.impressions,
+                clicks: item.clicks,
+                ctr: item.ctr,
+                averagePosition: item.averagePosition,
+                opportunity: item.opportunity,
+              }))}
+            />
+          )}
+        </AnalyticsSection>
+
+        <AnalyticsSection title="Суточные срезы: что изменилось за день">
+          <p className="mb-3 text-xs text-slate-600">
+            Блоки выше собираются живым запросом при каждом открытии страницы.
+            Отличить «источник пуст» от «мы перестали спрашивать» по пустой
+            таблице невозможно, поэтому раз в московские сутки снимается срез с
+            отметкой времени. Ноль с вчерашней датой — это ответ; пустая ячейка —
+            нет. Пока в индексе Яндекса одна страница из 208, нулевые показы
+            здесь ожидаемы: это открытая работа B470/B550, а не сбой интеграции.
+          </p>
+          {snapshots.length === 0 ? (
+            <EmptyState>Первый суточный срез появится после ближайшего прохода воркера</EmptyState>
+          ) : (
+            <MarketingSnapshotTable rows={snapshots} />
           )}
         </AnalyticsSection>
 

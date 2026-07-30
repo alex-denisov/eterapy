@@ -193,7 +193,13 @@ export function AdminCompactDataTable({
   }
 
   return (
-    <div className="space-y-2" data-testid="admin-compact-data-table">
+    // `min-w-0` здесь не украшение. Таблица объявляет `min-width` под все
+    // колонки (у реестра публикаций — 1620px). Если этот контейнер стоит в
+    // grid- или flex-родителе, его собственный `min-width: auto` растягивается
+    // под содержимое: обёртка становится шире экрана, `overflow-auto` внутри
+    // ей больше не нужен, полосы прокрутки нет, а лишнее обрезает
+    // `overflow-hidden` секции — вместе с пагинацией под таблицей.
+    <div className="min-w-0 space-y-2" data-testid="admin-compact-data-table">
       {hasBulkActions ? (
         <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="admin-compact-bulk-actions">
           <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>

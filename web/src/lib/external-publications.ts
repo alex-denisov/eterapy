@@ -175,6 +175,11 @@ export async function getExternalPublicationRegistry(period: AdminPeriod) {
       scheduledFor: publication.scheduledFor?.toISOString() ?? null,
       attemptCount: publication.attemptCount,
       lastError: publication.lastError,
+      // B626: причина архивации и число автовозвратов. «Архив» без объяснения
+      // не отчёт, а загадка; счётчик показывает, что материал уже пробовали
+      // вернуть в работу, и сколько раз.
+      archiveReason: publication.archiveReason,
+      recoveryCount: publication.recoveryCount,
       externalPostId: publication.externalPostId,
       planSlot: publication.planSlot,
       latestMetric: metric ? {

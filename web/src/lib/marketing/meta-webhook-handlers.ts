@@ -6,6 +6,7 @@
  * секретов, поэтому маршруты остаются тонкими, а разбор — один.
  */
 
+import { createHmac } from "node:crypto";
 import { log, serializeError } from "@/lib/logger";
 import { ingestInboundMessage, type InboundPlatform } from "@/lib/marketing/inbound";
 import type { MetaMarketingPlatform } from "@/lib/marketing/meta-oauth";
@@ -35,6 +36,44 @@ const KEYS: Record<MetaMarketingPlatform, {
   },
 };
 
+/**
+ * B627 — маркер подтверждения webhook выводится из секрета приложения.
+ *
+ * Владелец 2026-07-30: «не смог заполнить Webhook ни для Threads, ни для
+ * Instagram — получил ошибку Callback verification failed, а маркер ты мне не
+ * дал». Причина ровно эта: прежде маркер рождался при ПЕРВОМ сохранении формы
+ * настроек площадки, а до сохранения его не существовало нигде. Владелец
+ * добросовестно шёл в Meta первым делом — и наш маршрут отвечал 403, потому
+ * что сравнивать было не с чем.
+ *
+ * Теперь маркер детерминированно выводится из App Secret: он существует ровно
+ * с того момента, как в суперадминке заполнен секрет приложения, и не зависит
+ * от того, в каком порядке владелец обходит два интерфейса. Ранее сохранённый
+ * случайный маркер продолжает работать — он проверяется первым.
+ */
+export function derivedWebhookVerifyToken(platform: MetaMarketingPlatform, appSecret: string) {
+  const digest = createHmac("sha256", appSecret)
+    .update(`eterapy:webhook-verify:${platform.toLowerCase()}`)
+    .digest("base64url");
+  return `eterapy_${digest.slice(0, 32)}`;
+}
+
+/**
+ * Маркер, который сейчас ждёт площадка: сохранённый, если он есть, иначе
+ * выведенный из секрета приложения. `null` означает «секрета приложения ещё
+ * нет» — тогда подтверждать webhook действительно рано.
+ */
+export async function expectedWebhookVerifyToken(
+  platform: MetaMarketingPlatform,
+): Promise<string | null> {
+  const stored = await marketingPlatformValue(KEYS[platform].verifyToken);
+  if (stored) return stored;
+  const appSecret = await marketingPlatformValue(
+    platform === "Threads" ? "THREADS_APP_SECRET" : "INSTAGRAM_APP_SECRET",
+  );
+  return appSecret ? derivedWebhookVerifyToken(platform, appSecret) : null;
+}
+
 export async function handleMetaWebhookVerification(
   platform: MetaMarketingPlatform,
   request: Request,
@@ -43,7 +82,7 @@ export async function handleMetaWebhookVerification(
   const mode = url.searchParams.get("hub.mode");
   const challenge = url.searchParams.get("hub.challenge");
   const suppliedToken = url.searchParams.get("hub.verify_token");
-  const expectedToken = await marketingPlatformValue(KEYS[platform].verifyToken);
+  const expectedToken = await expectedWebhookVerifyToken(platform);
   if (mode !== "subscribe" || !challenge || !expectedToken || suppliedToken !== expectedToken) {
     return new Response("Forbidden", { status: 403 });
   }

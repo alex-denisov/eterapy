@@ -149,12 +149,21 @@ describe("B616 · unattended provider health", () => {
   });
 
   it("leaves a recently healthy provider alone", () => {
+    // B627, владелец 2026-07-30: здоровый провайдер перепроверяется раз в час,
+    // а не раз в шесть. Проба — это настоящий запрос к модели, и она тратит ту
+    // же бесплатную квоту, что генерация, поэтому чаще часа здорового не трогаем.
     expect(providerProbeDue({
       now,
-      lastSuccessAt: new Date(now.getTime() - 60 * 60_000),
+      lastSuccessAt: new Date(now.getTime() - 20 * 60_000),
       lastErrorAt: null,
       lastErrorCode: null,
     })).toBe(false);
+    expect(providerProbeDue({
+      now,
+      lastSuccessAt: new Date(now.getTime() - 70 * 60_000),
+      lastErrorAt: null,
+      lastErrorCode: null,
+    })).toBe(true);
   });
 
   it("retries a transient failure within the hour", () => {
@@ -170,13 +179,15 @@ describe("B616 · unattended provider health", () => {
     expect(providerProbeDue({
       now,
       lastSuccessAt: null,
-      lastErrorAt: new Date(now.getTime() - 2 * 60 * 60_000),
+      lastErrorAt: new Date(now.getTime() - 10 * 60_000),
       lastErrorCode: "INSUFFICIENT_CREDITS",
     })).toBe(false);
+    // Полсуток были слишком долго: подставленный владельцем новый ключ обязан
+    // начать работать без выкатки и без клика, а не к вечеру.
     expect(providerProbeDue({
       now,
       lastSuccessAt: null,
-      lastErrorAt: new Date(now.getTime() - 13 * 60 * 60_000),
+      lastErrorAt: new Date(now.getTime() - 40 * 60_000),
       lastErrorCode: "INSUFFICIENT_CREDITS",
     })).toBe(true);
   });
