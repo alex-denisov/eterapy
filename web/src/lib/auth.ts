@@ -25,6 +25,9 @@ async function logLoginEvent(userId: string, channel: string): Promise<void> {
   await logAudit(userId, "LOGIN", undefined, details, meta.ip ?? undefined);
 }
 
+/** Как часто отмечаем присутствие в `User.lastSeenAt`. */
+const SEEN_TOUCH_INTERVAL_MS = 15 * 60_000;
+
 type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken" | "telegramGrant", unknown>>;
 
 function isBcryptHash(passwordHash: string) {
@@ -219,6 +222,20 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
           if (fresh?.emailVerified) {
             bag.emailVerified = "true";
           }
+        }
+      }
+
+      // «Последний вход» замирал у всех, кто не разлогинивается: LOGIN-аудит
+      // пишется только в момент аутентификации, а JWT-сессия живёт неделями.
+      // Отмечаем присутствие не чаще раза в 15 минут — этого достаточно, чтобы
+      // столбец был живым, и мало, чтобы не превратиться в запись на рендер.
+      if (typeof bag.id === "string") {
+        const lastSeen = typeof bag.seenAt === "number" ? bag.seenAt : 0;
+        if (Date.now() - lastSeen > SEEN_TOUCH_INTERVAL_MS) {
+          bag.seenAt = Date.now();
+          await db.user
+            .update({ where: { id: bag.id }, data: { lastSeenAt: new Date() } })
+            .catch(() => undefined);
         }
       }
 

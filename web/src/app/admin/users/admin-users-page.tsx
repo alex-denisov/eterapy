@@ -271,6 +271,8 @@ function postSortRows(rows: AdminUserRow[], params: SearchParams) {
         return row.clarityCredits;
       case "lastLogin":
         return row.lastLogin?.at ? Date.parse(row.lastLogin.at) : 0;
+      case "lastSeen":
+        return row.lastSeenAt ? Date.parse(row.lastSeenAt) : 0;
       case "status":
         return userStatusRank(row);
       case "bookings":
@@ -287,7 +289,7 @@ function postSortRows(rows: AdminUserRow[], params: SearchParams) {
         return "";
     }
   };
-  if (!["credits", "lastLogin", "status", "bookings", "entitlements", "subscriptions", "channel", "antifraud"].includes(params.sort ?? "")) {
+  if (!["credits", "lastLogin", "lastSeen", "status", "bookings", "entitlements", "subscriptions", "channel", "antifraud"].includes(params.sort ?? "")) {
     return rows;
   }
   return [...rows].sort((a, b) => {
@@ -344,6 +346,7 @@ export default async function AdminUsersPage(props: {
         email: true,
         role: true,
         createdAt: true,
+        lastSeenAt: true,
         deletedAt: true,
         blockedAt: true,
         emailVerified: true,
@@ -624,6 +627,7 @@ export default async function AdminUsersPage(props: {
     clientAntifraudScore: user.role === Role.CLIENT ? antifraudByUser.get(user.id) ?? 0 : null,
     registrationSource: user.registrationChannel ?? user.provider ?? null,
     lastLogin: lastLoginByUser.get(user.id) ?? null,
+    lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
   })), params);
 
   const canCreate = role === "SUPERADMIN"

@@ -12,11 +12,9 @@ import { log } from "@/lib/logger";
 import { callTelegramApi } from "@/lib/telegram";
 import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
+import { actionForPublication, isWithinPerimeter } from "@/lib/marketing/perimeter";
 import {
-  browserFallbackConfigured,
-  publishRedditCommentBrowser,
   publishToDzenBrowser,
-  publishToRedditBrowser,
 } from "@/lib/marketing/browser-publisher";
 import {
   marketingPlatformEnabled,
@@ -257,23 +255,10 @@ export async function publishRedditComment(
     engagementTargetUrl?: string | null;
   },
 ): Promise<PublishedPost> {
-  try {
-    return await publishRedditCommentApi(publication);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (
-      await browserFallbackConfigured("Reddit")
-      && /OAuth|not configured|HTTP 401|HTTP 403|unauthorized|forbidden/i.test(message)
-    ) {
-      return publishRedditCommentBrowser({
-        title: publication.title ?? "ETerapy",
-        body: publication.body,
-        mediaUrl: publication.mediaUrl ?? null,
-        engagementTargetUrl: publication.engagementTargetUrl ?? null,
-      });
-    }
-    throw error;
-  }
+  // B617: только официальный API. Браузерная сессия убрана вместе с режимом
+  // комментирования чужих постов; ответы на входящее (B618) пойдут тем же
+  // API-путём.
+  return publishRedditCommentApi(publication);
 }
 
 export async function publishVkComment(
@@ -424,25 +409,13 @@ async function publishToRedditApi(
   };
 }
 
+// B617: браузерный запасной путь у Reddit убран. Вход по сохранённой сессии —
+// ровно то, что правила площадок называют нарушением, а у Reddit есть OAuth:
+// обходить нечего. Нет доступа по API — публикация честно не выходит.
 export async function publishToReddit(
   publication: { title: string; body: string; mediaUrl?: string | null },
 ): Promise<PublishedPost> {
-  try {
-    return await publishToRedditApi(publication);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (
-      await browserFallbackConfigured("Reddit")
-      && /OAuth|not configured|HTTP 401|HTTP 403|unauthorized|forbidden/i.test(message)
-    ) {
-      return publishToRedditBrowser({
-        title: publication.title,
-        body: publication.body,
-        mediaUrl: publication.mediaUrl ?? null,
-      });
-    }
-    throw error;
-  }
+  return publishToRedditApi(publication);
 }
 
 export async function publishToDzen(
@@ -584,6 +557,26 @@ export async function publishScheduledMarketing(input: {
     ) {
       // Keep the row scheduled. Saving and enabling connector settings makes
       // the next worker tick pick it up without a deploy or a false incident.
+      continue;
+    }
+
+    // B617: строка, адресованная чужой публикации, наружу не идёт никогда — ни
+    // из старой очереди, ни по ошибке разработчика. Архивируем с причиной,
+    // вместо того чтобы удалять: след решения должен остаться.
+    const action = actionForPublication({
+      contentType: publication.contentType,
+      engagementTargetId: publication.engagementTargetId,
+    });
+    if (!isWithinPerimeter(action)) {
+      await db.externalPublication.updateMany({
+        where: { id: publication.id, status: "SCHEDULED" },
+        data: {
+          status: "ARCHIVED",
+          autoPublish: false,
+          lastError: "OUT_OF_PERIMETER_B617",
+        },
+      });
+      outcomes.push({ id: publication.id, status: "failed", error: "OUT_OF_PERIMETER_B617" });
       continue;
     }
 

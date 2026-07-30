@@ -33,9 +33,17 @@ describe("B610 · SMM-agent safety and routing contract", () => {
   it("comment premoderation and affiliation are non-negotiable prompt rules", () => {
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Telegram-премодерация");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("я из команды ETerapy");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("переданный публичный пост");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("внутренние данные клиентов или практиков ETerapy");
     expect(MARKETING_REVIEWER_SYSTEM_PROMPT).toContain("не может разрешить автопубликацию");
+  });
+
+  // B617: выдержка чужого поста — свидетельство спроса на тему, а не адресат.
+  // Промт обязан запрещать обращение к автору, иначе модель по привычке
+  // напишет ответ, и он уйдёт в очередь как «наш пост».
+  it("prompt treats a public post as topic evidence, never as a reply target", () => {
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("СВИДЕТЕЛЬСТВО ЖИВОГО СПРОСА");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Не отвечай");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).not.toContain("Комментарий к чужому посту —");
   });
 
   it("passes public social post context to the writer without ETerapy-specific redaction", () => {
@@ -48,7 +56,7 @@ describe("B610 · SMM-agent safety and routing contract", () => {
     const states = await marketingConnectorStates();
     expect(states.map((state) => state.platform)).toEqual(["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen"]);
     expect(states.find((state) => state.platform === "Threads")?.discovery).toBe(false);
-    expect(states.find((state) => state.platform === "Instagram")?.comments).toBe(false);
+    expect(states.find((state) => state.platform === "Instagram")?.inboundReplies).toBe(false);
     expect(states.find((state) => state.platform === "Instagram")?.note).toContain(
       "не даёт публиковать рекламные комментарии",
     );

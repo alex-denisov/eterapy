@@ -425,7 +425,12 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 1500,
     temperature: 0.55,
     timeoutMs: 45_000,
-    dailyTokenBudget: 80_000,
+    // Потолок — предохранитель от разгона, а не суточная норма. Прежние 80k
+    // выгорали за ~10 генераций (замер прода 2026-07-30: 78 699 токенов на 10
+    // запросов), после чего ВЕСЬ остаток суток падал с «budget exceeded», и
+    // ни один пост не выходил. Двухнедельный план — около 11 материалов в
+    // сутки, каждый до трёх редакторских итераций, плюс ответы на входящие.
+    dailyTokenBudget: 600_000,
     fallbackNotes: "Получает публичный пост, но не внутренние данные пользователей ETerapy; комментарий всегда идёт в Telegram-премодерацию.",
   },
   {
@@ -439,7 +444,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 1200,
     temperature: 0.1,
     timeoutMs: 35_000,
-    dailyTokenBudget: 60_000,
+    // См. комментарий у writer: редактор вызывается на каждой итерации автора.
+    dailyTokenBudget: 400_000,
     fallbackNotes: "Другая модель, чем writer. REVIEW/REJECT блокирует выпуск; комментарий не публикуется без человека.",
   },
   {

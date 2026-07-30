@@ -828,9 +828,12 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)">
+              <HeaderCell field="lastLogin" label="Последний вход" hint="Момент самой аутентификации (IP и устройство — в карточке). При живой сессии не обновляется — смотрите «Активность»">
                 <HeaderDateFilter param="lastLogin" />
               </HeaderCell>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <HeaderCell field="lastSeen" label="Активность" hint="Последнее присутствие на сайте, обновляется не чаще раза в 15 минут" />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <HeaderCell field="bookings" label="Брони">
@@ -905,6 +908,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 <td className={NUM_CELL}>{row.role === "CLIENT" ? row.clarityCredits : "—"}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{adminDateTime(row.createdAt)}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastLogin ? adminDateTime(row.lastLogin.at) : "—"}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastSeenAt ? adminDateTime(row.lastSeenAt) : "—"}</td>
                 <td className={NUM_CELL}>{row.bookingsCount}</td>
                 <td className={NUM_CELL}>{row.entitlementsCount}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{row.subscriptionLabel}</td>

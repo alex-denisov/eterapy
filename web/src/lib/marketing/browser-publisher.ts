@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { chromium, type BrowserContextOptions, type Locator, type Page } from "playwright-core";
 import { marketingPlatformValue, requiredMarketingPlatformValue } from "@/lib/marketing/platform-settings";
 
-type BrowserPlatform = "Dzen" | "Reddit";
+// B617: у Дзена нет серверного API публикации — это единственная площадка,
+// где браузерная сессия оправдана, и только для СВОИХ публикаций.
+type BrowserPlatform = "Dzen";
 
 type BrowserPublication = {
   title: string;
@@ -18,8 +20,8 @@ export type BrowserPublishedPost = {
   publicUrl: string;
 };
 
-function storageKey(platform: BrowserPlatform) {
-  return platform === "Dzen" ? "DZEN_BROWSER_STORAGE_STATE" : "REDDIT_BROWSER_STORAGE_STATE";
+function storageKey(_platform: BrowserPlatform) {
+  return "DZEN_BROWSER_STORAGE_STATE" as const;
 }
 
 function parseStorageState(raw: string) {
@@ -171,62 +173,4 @@ export async function publishToDzenBrowser(
   } finally {
     if (media) await rm(media.directory, { recursive: true, force: true }).catch(() => undefined);
   }
-}
-
-export async function publishToRedditBrowser(
-  publication: BrowserPublication,
-): Promise<BrowserPublishedPost> {
-  const subreddit = (await requiredMarketingPlatformValue("REDDIT_POST_SUBREDDIT")).replace(/^r\//i, "");
-  return withAuthenticatedPage("Reddit", async (page) => {
-    const url = new URL(`https://old.reddit.com/r/${encodeURIComponent(subreddit)}/submit`);
-    url.searchParams.set("selftext", "true");
-    await page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await assertNoAutomationChallenge(page);
-    if (/\/login(?:\/|$)/i.test(page.url())) {
-      throw new Error("Reddit browser session expired; refresh REDDIT_BROWSER_STORAGE_STATE");
-    }
-    const title = page.locator('textarea[name="title"], input[name="title"]').first();
-    const text = page.locator('textarea[name="text"]').first();
-    if (!await title.count() || !await text.count()) {
-      throw new Error("Old Reddit submit form changed or this subreddit does not accept text posts");
-    }
-    await title.fill(publication.title.slice(0, 300));
-    await text.fill(publication.body);
-    await page.locator('button[type="submit"], input[type="submit"]').first().click();
-    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-    await assertNoAutomationChallenge(page);
-    const publicUrl = page.url();
-    const match = publicUrl.match(/\/comments\/([a-z0-9]+)/i);
-    if (!match) throw new Error("Reddit browser submission did not return a post URL");
-    return { externalPostId: match[1], publicUrl: publicUrl.replace("old.reddit.com", "www.reddit.com") };
-  });
-}
-
-export async function publishRedditCommentBrowser(
-  publication: BrowserPublication,
-): Promise<BrowserPublishedPost> {
-  if (!publication.engagementTargetUrl || !/^https:\/\/(?:www\.|old\.)?reddit\.com\//i.test(publication.engagementTargetUrl)) {
-    throw new Error("Reddit browser comment target URL is missing or invalid");
-  }
-  return withAuthenticatedPage("Reddit", async (page) => {
-    const target = publication.engagementTargetUrl!.replace("www.reddit.com", "old.reddit.com");
-    await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await assertNoAutomationChallenge(page);
-    if (/\/login(?:\/|$)/i.test(page.url())) {
-      throw new Error("Reddit browser session expired; refresh REDDIT_BROWSER_STORAGE_STATE");
-    }
-    const form = page.locator('form.usertext.cloneable textarea[name="text"], .commentarea textarea[name="text"]').first();
-    if (!await form.count()) throw new Error("Old Reddit comment form was not found");
-    await form.fill(publication.body);
-    const submit = form.locator("xpath=ancestor::form[1]").locator('button[type="submit"]').first();
-    await submit.click();
-    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-    await assertNoAutomationChallenge(page);
-    const commentLink = await page.locator('a.bylink:has-text("permalink")').last().getAttribute("href").catch(() => null);
-    const publicUrl = commentLink
-      ? new URL(commentLink, page.url()).toString().replace("old.reddit.com", "www.reddit.com")
-      : publication.engagementTargetUrl!;
-    const id = publicUrl.match(/\/([a-z0-9]+)\/?$/i)?.[1] ?? `comment-${Date.now()}`;
-    return { externalPostId: id, publicUrl };
-  });
 }

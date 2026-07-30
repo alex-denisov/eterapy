@@ -95,12 +95,44 @@ function sourceState(
   return { key, label, status, note, refreshedAt: new Date().toISOString() };
 }
 
+/**
+ * Панель показывала одну и ту же фразу «Источник временно не отвечает» на любую
+ * причину, поэтому «токен протух», «хост не тот» и «Яндекс дал 500» выглядели
+ * одинаково — и неотличимо от честного нуля.
+ *
+ * Наружу уходит только КЛАСС причины, и классифицируем мы по типу ошибки, а не
+ * по её тексту: тело ответа апстрима может содержать эхо запроса вместе с
+ * токеном, и этот модуль не должен иметь к нему доступа даже случайно.
+ */
+class UpstreamError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`UPSTREAM_${status}`);
+    this.name = "UpstreamError";
+    this.status = status;
+  }
+}
+
+function describeSourceFailure(error: unknown): string {
+  if (error instanceof UpstreamError) {
+    if (error.status === 401 || error.status === 403) return "Яндекс отклонил токен — нужен новый OAuth-токен";
+    if (error.status === 404) return "Счётчик или хост не найден — проверьте id в настройках";
+    if (error.status === 429) return "Превышен лимит обращений к API";
+    return error.status >= 500 ? "Яндекс временно недоступен" : "Яндекс отклонил запрос";
+  }
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Источник не ответил за 8 секунд";
+  }
+  return "Обращение к источнику не удалось";
+}
+
 async function fetchJson(url: string, init: RequestInit = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     const response = await fetch(url, { ...init, cache: "no-store", signal: controller.signal });
-    if (!response.ok) throw new Error(`UPSTREAM_${response.status}`);
+    if (!response.ok) throw new UpstreamError(response.status);
     return await response.json() as unknown;
   } finally {
     clearTimeout(timeout);
@@ -135,10 +167,10 @@ async function getWebmaster(): Promise<ExternalResult<{ summary: WebmasterSummar
       data: { summary: parseWebmasterSummary(summaryPayload), queries: parseWebmasterQueries(queryPayload) },
       source: sourceState("webmaster", "Яндекс Вебмастер", "ready", "До 500 реально наблюдаемых запросов"),
     };
-  } catch {
+  } catch (error) {
     return {
       data: { summary: EMPTY_SUMMARY, queries: [] },
-      source: sourceState("webmaster", "Яндекс Вебмастер", "error", "Источник временно не отвечает"),
+      source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(error)),
     };
   }
 }
@@ -175,10 +207,10 @@ async function getMetrika(period: AdminPeriod): Promise<ExternalResult<{ totals:
       data: { totals: parseMetrikaTotals(totalsPayload), searchEngines: parseMetrikaTrafficSources(searchPayload) },
       source: sourceState("metrika", "Яндекс Метрика", "ready", `${period.startInput} — ${period.endInput}`),
     };
-  } catch {
+  } catch (error) {
     return {
       data: { totals: EMPTY_METRIKA, searchEngines: [] },
-      source: sourceState("metrika", "Яндекс Метрика", "error", "Источник временно не отвечает"),
+      source: sourceState("metrika", "Яндекс Метрика", "error", describeSourceFailure(error)),
     };
   }
 }
@@ -228,12 +260,12 @@ async function getWordstat(): Promise<ExternalResult<WordstatMetric[]>> {
     const hasData = data.some((item) => item.monthlyDemand !== null);
     return {
       data,
-      source: sourceState("wordstat", "Яндекс Wordstat", hasData ? "ready" : "error", hasData ? "Россия · broad match · кэш 24 часа" : "Источник временно не отвечает"),
+      source: sourceState("wordstat", "Яндекс Wordstat", hasData ? "ready" : "error", hasData ? "Россия · broad match · кэш 24 часа" : "Ни одна фраза не вернула частотность"),
     };
-  } catch {
+  } catch (error) {
     return {
       data: SEARCH_WATCHLIST.map((phrase) => ({ phrase, monthlyDemand: null })),
-      source: sourceState("wordstat", "Яндекс Wordstat", "error", "Источник временно не отвечает"),
+      source: sourceState("wordstat", "Яндекс Wordstat", "error", describeSourceFailure(error)),
     };
   }
 }
@@ -289,13 +321,13 @@ export async function getSearchMarketingData(period: AdminPeriod) {
     : { dialogueStarts: 0, primaryAnswers: 0, answerRate: 0, conversions: 0, organicConversions: 0, channels: [] };
   const webmasterValue = webmaster.status === "fulfilled"
     ? webmaster.value
-    : { data: { summary: EMPTY_SUMMARY, queries: [] }, source: sourceState("webmaster", "Яндекс Вебмастер", "error", "Источник временно не отвечает") };
+    : { data: { summary: EMPTY_SUMMARY, queries: [] }, source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(webmaster.reason)) };
   const metrikaValue = metrika.status === "fulfilled"
     ? metrika.value
-    : { data: { totals: EMPTY_METRIKA, searchEngines: [] }, source: sourceState("metrika", "Яндекс Метрика", "error", "Источник временно не отвечает") };
+    : { data: { totals: EMPTY_METRIKA, searchEngines: [] }, source: sourceState("metrika", "Яндекс Метрика", "error", describeSourceFailure(metrika.reason)) };
   const wordstatValue = wordstat.status === "fulfilled"
     ? wordstat.value
-    : { data: SEARCH_WATCHLIST.map((phrase) => ({ phrase, monthlyDemand: null })), source: sourceState("wordstat", "Яндекс Wordstat", "error", "Источник временно не отвечает") };
+    : { data: SEARCH_WATCHLIST.map((phrase) => ({ phrase, monthlyDemand: null })), source: sourceState("wordstat", "Яндекс Wordstat", "error", describeSourceFailure(wordstat.reason)) };
   const queryTotals = webmasterValue.data.queries.reduce(
     (totals, row) => ({ impressions: totals.impressions + row.impressions, clicks: totals.clicks + row.clicks }),
     { impressions: 0, clicks: 0 },

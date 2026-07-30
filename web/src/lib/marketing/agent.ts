@@ -18,6 +18,36 @@ import {
 } from "@/lib/marketing/model-pool";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 
+/**
+ * Кончилась ёмкость (суточный потолок токенов или квота провайдера) — это
+ * состояние инфраструктуры, а не брак материала. Прежде оба случая приводили
+ * к одному исходу: публикация помечалась FAILED навсегда и молча выпадала из
+ * плана. Замер прода 2026-07-30 показал 121 такую строку за сутки при нуле
+ * реальных выходов в VK и Telegram.
+ */
+export class MarketingCapacityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingCapacityError";
+  }
+}
+
+const CAPACITY_ERROR_MARKERS = [
+  "daily token budget exceeded",
+  "rate limit",
+  "rate_limit",
+  "quota",
+  "429",
+  "insufficient_quota",
+];
+
+export function isCapacityError(error: unknown): boolean {
+  if (error instanceof MarketingCapacityError) return true;
+  if (error instanceof Error && error.name === "AIBudgetExceededError") return true;
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return CAPACITY_ERROR_MARKERS.some((marker) => message.includes(marker));
+}
+
 type WriterOutput = {
   title: string;
   text: string;
@@ -219,6 +249,7 @@ async function completeWithValidStructure<T>(input: {
   parse: (raw: string) => T;
 }) {
   const failures: string[] = [];
+  let capacityFailures = 0;
   for (const provider of input.providerOrder) {
     try {
       const response = await aiComplete({
@@ -242,10 +273,17 @@ async function completeWithValidStructure<T>(input: {
         });
       }
     } catch (error) {
+      if (isCapacityError(error)) capacityFailures += 1;
       failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  throw new Error(`No free provider returned valid structured output (${failures.join("; ")})`);
+  const summary = failures.join("; ");
+  // Кончилась ёмкость — это не брак материала. Отличаем, чтобы не сжечь
+  // публикацию навсегда там, где достаточно попробовать позже.
+  if (capacityFailures > 0 && capacityFailures === failures.length) {
+    throw new MarketingCapacityError(`Не осталось свободной ёмкости провайдеров (${summary})`);
+  }
+  throw new Error(`No free provider returned valid structured output (${summary})`);
 }
 
 function safePlatform(value: string) {
@@ -479,21 +517,39 @@ export async function processMarketingDraft(publicationId: string) {
     });
     if (isComment) await requestMarketingModeration(updated.id);
     await resolveMarketingSignal(`agent-draft:${publication.id}`).catch(() => undefined);
+    // Прошла хоть одна генерация — ёмкость вернулась.
+    await resolveMarketingSignal("agent:capacity").catch(() => undefined);
     return { status: nextStatus.toLowerCase() as "review" | "scheduled" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const capacity = isCapacityError(error);
+    // Ёмкость вернётся сама: строка остаётся черновиком и попадёт в следующий
+    // проход. FAILED здесь означал бы «материал негоден», а он не при чём.
     await db.externalPublication.update({
       where: { id: publication.id },
-      data: { status: "FAILED", lastError: message, attemptCount: { increment: 1 } },
+      data: capacity
+        ? { lastError: message }
+        : { status: "FAILED", lastError: message, attemptCount: { increment: 1 } },
     }).catch(() => undefined);
-    await recordSignal({
-      key: `agent-draft:${publication.id}`,
-      kind: "AGENT_RUN",
-      severity: "INCIDENT",
-      title: `SMM-агент не обработал «${publication.title}»`,
-      summary: message,
-      evidence: { publicationId: publication.id, platform },
-    }).catch(() => undefined);
+    await recordSignal(capacity
+      ? {
+        // Один сигнал на исчерпание, а не инцидент на каждый пост: иначе
+        // кокпит владельца заливает сотней одинаковых строк.
+        key: "agent:capacity",
+        kind: "AGENT_RUN",
+        severity: "WARNING",
+        title: "SMM-агент остановлен: кончилась ёмкость провайдеров",
+        summary: message,
+        evidence: { platform },
+      }
+      : {
+        key: `agent-draft:${publication.id}`,
+        kind: "AGENT_RUN",
+        severity: "INCIDENT",
+        title: `SMM-агент не обработал «${publication.title}»`,
+        summary: message,
+        evidence: { publicationId: publication.id, platform },
+      }).catch(() => undefined);
     log.error("marketing-agent.draft_failed", {
       publicationId: publication.id,
       error: serializeError(error),

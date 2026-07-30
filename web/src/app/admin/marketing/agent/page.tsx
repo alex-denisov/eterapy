@@ -45,7 +45,7 @@ export default async function MarketingAgentPage() {
 
   const [enabled, proposals, signals, recent, modelCredentials, modelConfigs, redditConnected, connectors, platformConfigs] = await Promise.all([
     marketingAgentEnabled(),
-    db.externalPublication.count({ where: { contentType: "COMMENT", status: "REVIEW" } }),
+    db.externalPublication.count({ where: { source: "AGENT_DISCOVERY", status: "REVIEW" } }),
     db.marketingAutomationSignal.findMany({
       where: { status: "OPEN" },
       orderBy: [{ severity: "desc" }, { lastSeenAt: "desc" }],
@@ -79,13 +79,9 @@ export default async function MarketingAgentPage() {
     marketingConnectorStates(),
     listMarketingPlatformAdminConfigs(),
   ]);
-  const effectiveConnectors = connectors.map((connector) => {
-    if (connector.platform !== "Reddit" || !redditConnected) return connector;
-    return {
-      ...connector,
-      comments: connector.comments && redditConnected,
-    };
-  });
+  // B617: у Reddit больше нет отдельного режима комментирования, который надо
+  // было доуточнять состоянием OAuth — остались только свои посты и входящее.
+  const effectiveConnectors = connectors;
   // B613: VK issues a read-only user token through the implicit flow only, and
   // the value lands in the browser address bar. Building the exact authorize
   // URL here removes the guesswork about client id and scopes.
@@ -102,7 +98,8 @@ export default async function MarketingAgentPage() {
     const planned = await db.externalPublication.count({
       where: {
         platform,
-        contentType: "COMMENT",
+        // B617: discovery планирует собственные посты по найденной теме.
+        contentType: "POST",
         source: "AGENT_DISCOVERY",
         status: { notIn: ["ARCHIVED"] },
         scheduledFor: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 60 * 60_000) },
@@ -270,7 +267,7 @@ export default async function MarketingAgentPage() {
         <MetricCard label="Сервис" value={enabled ? "работает" : "остановлен"} hint="переключатель хранится в БД" tone={enabled ? "ok" : "warn"} icon={<Bot className="size-4" />} />
         <MetricCard label="На премодерации" value={proposals.toLocaleString("ru-RU")} hint="рекламных комментариев" tone={proposals ? "warn" : "ok"} icon={<ShieldCheck className="size-4" />} />
         <MetricCard label="Открытые сигналы" value={signals.length.toLocaleString("ru-RU")} hint="SEO, адаптеры и сбои" tone={signals.length ? "warn" : "ok"} icon={<SearchCheck className="size-4" />} />
-        <MetricCard label="Готовые коннекторы" value={`${effectiveConnectors.filter((row) => row.ownedPublishing || row.comments).length}/${effectiveConnectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
+        <MetricCard label="Готовые коннекторы" value={`${effectiveConnectors.filter((row) => row.ownedPublishing || row.inboundReplies).length}/${effectiveConnectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
       </MetricGrid>
 
       <AnalyticsSection title="Площадки и возможности">
@@ -285,7 +282,7 @@ export default async function MarketingAgentPage() {
               <dl className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
                 <div><dt className="text-[var(--soft-ink-faint)]">Свои посты</dt><dd>{connector.ownedPublishing ? "да" : "нет"}</dd></div>
                 <div><dt className="text-[var(--soft-ink-faint)]">Поиск</dt><dd>{connector.discovery ? "да" : "нет"}</dd></div>
-                <div><dt className="text-[var(--soft-ink-faint)]">Комментарии</dt><dd>{connector.comments ? "да" : "нет"}</dd></div>
+                <div><dt className="text-[var(--soft-ink-faint)]">Ответы на входящее</dt><dd>{connector.inboundReplies ? "да" : "нет"}</dd></div>
               </dl>
               {connector.missing.length > 0 ? (
                 <p className="mt-3 break-words text-[11px] text-[var(--soft-ink-faint)]">
