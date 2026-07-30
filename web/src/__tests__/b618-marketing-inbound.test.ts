@@ -97,6 +97,10 @@ jest.mock("@/lib/db", () => {
         return data;
       },
       findMany: async () => [],
+      // B630: антиспам считает уже заведённые ответы этой площадки и смотрит,
+      // когда мы последний раз отвечали в этой же ветке.
+      count: async () => publications.length,
+      findFirst: async () => null,
     },
     platformSetting: {
       findUnique: async ({ where }: Args) => (where?.key && settings.has(where.key)

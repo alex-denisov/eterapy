@@ -24,6 +24,7 @@ import {
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
 import { dzenFeedConfirmed, dzenFeedGuid } from "@/lib/marketing/dzen-feed";
+import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 import {
   marketingPlatformEnabled,
   marketingPlatformValue,
@@ -319,9 +320,9 @@ export async function publishThreadsReply(
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
   if (!publication.engagementTargetId) throw new Error("Threads target media id is missing");
-  const create = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads`, {
+  const create = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
       access_token: token,
       media_type: "TEXT",
@@ -333,9 +334,9 @@ export async function publishThreadsReply(
   if (!create.ok || !created?.id) {
     throw new Error(`Threads reply creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
+  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
   });
   const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -354,9 +355,9 @@ export async function publishToThreads(
   await ensurePlatformEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
-  const create = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads`, {
+  const create = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
       access_token: token,
       media_type: publication.mediaUrl ? "IMAGE" : "TEXT",
@@ -368,9 +369,9 @@ export async function publishToThreads(
   if (!create.ok || !created?.id) {
     throw new Error(`Threads post creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`https://graph.threads.net/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
+  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
   });
   const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -464,9 +465,9 @@ export async function publishToInstagram(
   if (!publication.mediaUrl || !/^https:\/\//i.test(publication.mediaUrl)) {
     throw new Error("Instagram requires a public HTTPS mediaUrl");
   }
-  const create = await fetch(`https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media`, {
+  const create = await fetch(`${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
       access_token: token,
       image_url: publication.mediaUrl,
@@ -478,9 +479,9 @@ export async function publishToInstagram(
   if (!create.ok || !created?.id) {
     throw new Error(`Instagram media creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media_publish`, {
+  const publish = await fetch(`${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media_publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
   });
   const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -488,7 +489,8 @@ export async function publishToInstagram(
     throw new Error(`Instagram media publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
   }
   const permalinkResponse = await fetch(
-    `https://graph.instagram.com/${META_GRAPH_VERSION}/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
+    `${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
+    { headers: metaRequestHeaders() },
   );
   const permalink = await permalinkResponse.json().catch(() => null) as { permalink?: string } | null;
   return {

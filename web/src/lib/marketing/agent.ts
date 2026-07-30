@@ -17,10 +17,13 @@ import {
   isConversationalContentType,
 } from "@/lib/marketing/perimeter";
 import {
+  MARKETING_REPLY_REVIEWER_FEATURE,
+  MARKETING_REPLY_WRITER_FEATURE,
   marketingModelFreshness,
   marketingProviderFromLabel,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
+import { DZEN_FEED_MINIMUM_ITEMS, dzenFeedItems } from "@/lib/marketing/dzen-feed";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 
 /**
@@ -296,8 +299,14 @@ function approvedByScorecard(
     && scoreKeys.every((key) => Number(review.scores[key]) >= 4);
 }
 
+type MarketingAgentFeature =
+  | "marketing-agent-writer"
+  | "marketing-agent-reviewer"
+  | "marketing-reply-writer"
+  | "marketing-reply-reviewer";
+
 async function completeWithValidStructure<T>(input: {
-  feature: "marketing-agent-writer" | "marketing-agent-reviewer";
+  feature: MarketingAgentFeature;
   providerOrder: ReturnType<typeof marketingProviderOrder>;
   maxTokens: number;
   temperature: number;
@@ -494,7 +503,8 @@ export async function processMarketingDraft(publicationId: string) {
         }
         : { task, research, editorialRound: round };
       const writerResult: StructuredCompletion<WriterOutput> = await completeWithValidStructure({
-        feature: "marketing-agent-writer",
+        // B628: разговорный материал списывается с отдельной суточной ёмкости.
+        feature: isConversational ? MARKETING_REPLY_WRITER_FEATURE : "marketing-agent-writer",
         providerOrder: pinnedWriterProvider
           ? [pinnedWriterProvider]
           : marketingProviderOrder(`writer:${cycleSeed}`),
@@ -525,7 +535,7 @@ export async function processMarketingDraft(publicationId: string) {
         ...rotated.filter((provider) => provider === writerProvider),
       ];
       const reviewerResult = await completeWithValidStructure({
-        feature: "marketing-agent-reviewer",
+        feature: isConversational ? MARKETING_REPLY_REVIEWER_FEATURE : "marketing-agent-reviewer",
         providerOrder: reviewerProviderOrder,
         excludeModel: writer.model,
         maxTokens: 1_600,
@@ -687,9 +697,27 @@ export function marketingGenerationHorizon(now: Date) {
   return new Date(now.getTime() + MARKETING_GENERATION_LEAD_MS);
 }
 
+/**
+ * B629 — сколько плановых материалов агент имеет право написать за час.
+ *
+ * Окно опережения в 30 часов (B625) не мешает написать всю суточную норму за
+ * один проход в полночь: замер прода показал 78 запросов подряд за 2,5 часа.
+ * Суточный потолок при этом формально не нарушен, но ёмкость выгорает пачкой, и
+ * дальше сутки идут без единой генерации. Часовой шаг превращает потолок в
+ * норму расхода: плану достаточно двух материалов в час, чтобы к слоту всё было
+ * готово, а ответам людям остаётся и ёмкость, и очередь.
+ */
+export const MARKETING_PLANNED_DRAFTS_PER_HOUR = Math.max(
+  1,
+  Number(process.env.MARKETING_PLANNED_DRAFTS_PER_HOUR || 2),
+);
+
+/** Разговорные материалы идут вне часового шага: ответ нельзя отложить. */
+const CONVERSATIONAL_LOOP_LIMIT = 3;
+
 export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
   if (!await marketingAgentEnabled()) {
-    return { enabled: false, processed: 0, deferred: 0 };
+    return { enabled: false, processed: 0, deferred: 0, conversational: 0, planned: 0, paced: 0 };
   }
   const now = input.now ?? new Date();
   const horizon = marketingGenerationHorizon(now);
@@ -708,19 +736,74 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
       },
     ],
   };
-  const [drafts, deferred] = await Promise.all([
-    db.externalPublication.findMany({
-      where: { AND: [readyForWork, dueNow] },
-      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
-      take: LOOP_LIMIT,
-      select: { id: true },
+  const conversationalFilter = { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } };
+  const plannedFilter = { NOT: conversationalFilter };
+
+  // Разговорное — первым и всегда: у него отдельная ёмкость и отдельный смысл
+  // срочности. Плановое берётся тем, что осталось от часового шага.
+  const conversational = await db.externalPublication.findMany({
+    where: { AND: [readyForWork, dueNow, conversationalFilter] },
+    orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+    take: CONVERSATIONAL_LOOP_LIMIT,
+    select: { id: true },
+  });
+
+  const hourAgo = new Date(now.getTime() - 60 * 60_000);
+  const [plannedThisHour, deferred] = await Promise.all([
+    db.externalPublication.count({
+      where: { AND: [plannedFilter, { agentReviewedAt: { gte: hourAgo } }] },
     }),
     db.externalPublication.count({
       where: { AND: [readyForWork, { scheduledFor: { gt: horizon } }] },
     }),
   ]);
-  for (const draft of drafts) await processMarketingDraft(draft.id);
-  return { enabled: true, processed: drafts.length, deferred };
+  const plannedBudget = Math.max(0, Math.min(
+    LOOP_LIMIT,
+    MARKETING_PLANNED_DRAFTS_PER_HOUR - plannedThisHour,
+  ));
+  /**
+   * B632 — исключение с условием окончания.
+   *
+   * Дзен не подключает ленту, пока в ней меньше десяти материалов, а окно
+   * опережения в 30 часов даёт примерно по одному материалу Дзена в сутки: лента
+   * набралась бы за полторы недели, и всё это время задача владельца
+   * «подключить Дзен» стояла бы в ожидании. Пока лента недобрана, черновики
+   * Дзена берутся вне окна — но внутри того же часового шага, поэтому это не
+   * возврат к пачке. Условие снимается само на десятом материале.
+   *
+   * Проверка делается только тогда, когда норма часа не исчерпана: иначе это
+   * лишний запрос в базу на каждом тике воркера.
+   */
+  const plannedDue = plannedBudget > 0 && await dzenFeedItems(DZEN_FEED_MINIMUM_ITEMS)
+    .then((items) => items.length < DZEN_FEED_MINIMUM_ITEMS)
+    .catch(() => false)
+    ? { OR: [dueNow, { platform: "dzen" }] }
+    : dueNow;
+  const planned = plannedBudget > 0
+    ? await db.externalPublication.findMany({
+      where: { AND: [readyForWork, plannedDue, plannedFilter] },
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: plannedBudget,
+      select: { id: true },
+    })
+    : [];
+  // «Отложено часовым шагом» — отдельное число: иначе пустая очередь и
+  // сработавший пейсинг снаружи выглядят одинаково.
+  const paced = plannedBudget > 0
+    ? 0
+    : await db.externalPublication.count({
+      where: { AND: [readyForWork, plannedDue, plannedFilter] },
+    });
+
+  for (const draft of [...conversational, ...planned]) await processMarketingDraft(draft.id);
+  return {
+    enabled: true,
+    processed: conversational.length + planned.length,
+    conversational: conversational.length,
+    planned: planned.length,
+    deferred,
+    paced,
+  };
 }
 
 export async function upsertMarketingSignal(input: Parameters<typeof recordSignal>[0]) {

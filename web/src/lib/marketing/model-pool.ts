@@ -88,14 +88,33 @@ export function marketingModelFreshness(model: string): {
 export function marketingModelPreferences(
   feature: string,
 ): Partial<Record<AIProvider, string>> {
-  if (feature === "marketing-agent-writer") return MARKETING_WRITER_MODEL_PREFERENCES;
-  if (feature === "marketing-agent-reviewer") return MARKETING_REVIEWER_MODEL_PREFERENCES;
+  if (feature === "marketing-agent-writer" || feature === "marketing-reply-writer") {
+    return MARKETING_WRITER_MODEL_PREFERENCES;
+  }
+  if (feature === "marketing-agent-reviewer" || feature === "marketing-reply-reviewer") {
+    return MARKETING_REVIEWER_MODEL_PREFERENCES;
+  }
   return {};
 }
+
+/**
+ * B628 — у разговора отдельный кошелёк.
+ *
+ * Суточный потолок считается по ключу возможности. Пока плановые публикации и
+ * ответы людям тратили ОДИН ключ, всплеск генерации плана закрывал ответы на
+ * весь остаток суток: замер прода 2026-07-30 — 603 001 токен за 2,5 часа, после
+ * чего ни один ответ написать было нельзя. Разговор нельзя отложить до завтра —
+ * человек на другой стороне ждёт сейчас, — поэтому у него собственная ёмкость,
+ * которую план не может занять в принципе.
+ */
+export const MARKETING_REPLY_WRITER_FEATURE = "marketing-reply-writer";
+export const MARKETING_REPLY_REVIEWER_FEATURE = "marketing-reply-reviewer";
 
 export const PUBLIC_MARKETING_AI_FEATURES = [
   "marketing-agent-writer",
   "marketing-agent-reviewer",
+  MARKETING_REPLY_WRITER_FEATURE,
+  MARKETING_REPLY_REVIEWER_FEATURE,
 ] as const;
 
 export type PublicMarketingAIFeature = typeof PUBLIC_MARKETING_AI_FEATURES[number];

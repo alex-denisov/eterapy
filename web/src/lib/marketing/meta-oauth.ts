@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 import {
   marketingPlatformValue,
   requiredMarketingPlatformValue,
@@ -100,6 +101,11 @@ async function jsonRequest(
 ): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
     ...init,
+    // B631: при включённом релее к каждому запросу добавляется общий секрет —
+    // иначе воркер отвечает 403 и был бы открытым прокси в интернет.
+    headers: metaRequestHeaders(
+      Object.fromEntries(new Headers(init?.headers).entries()),
+    ),
     signal: AbortSignal.timeout(15_000),
   });
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
@@ -129,7 +135,7 @@ function tokenPayload(payload: Record<string, unknown>) {
 }
 
 async function resolveUserId(platform: MetaMarketingPlatform, accessToken: string) {
-  const host = platform === "Threads" ? "https://graph.threads.net/v1.0" : "https://graph.instagram.com/v25.0";
+  const host = platform === "Threads" ? `${metaEndpoint("threads")}/v1.0` : `${metaEndpoint("instagram")}/v25.0`;
   const url = new URL(`${host}/me`);
   url.searchParams.set("fields", "id");
   url.searchParams.set("access_token", accessToken);
@@ -149,8 +155,8 @@ export async function exchangeMetaAuthorizationCode(input: {
   const appSecret = await requiredMarketingPlatformValue(APP_KEYS[input.platform].secret);
   const shortPayload = await jsonRequest(
     input.platform === "Threads"
-      ? "https://graph.threads.net/oauth/access_token"
-      : "https://api.instagram.com/oauth/access_token",
+      ? `${metaEndpoint("threads")}/oauth/access_token`
+      : `${metaEndpoint("instagram-oauth")}/oauth/access_token`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -166,8 +172,8 @@ export async function exchangeMetaAuthorizationCode(input: {
   const short = tokenPayload(shortPayload);
 
   const exchangeUrl = new URL(input.platform === "Threads"
-    ? "https://graph.threads.net/access_token"
-    : "https://graph.instagram.com/access_token");
+    ? `${metaEndpoint("threads")}/access_token`
+    : `${metaEndpoint("instagram")}/access_token`);
   exchangeUrl.searchParams.set(
     "grant_type",
     input.platform === "Threads" ? "th_exchange_token" : "ig_exchange_token",
@@ -210,8 +216,8 @@ async function refreshPlatformToken(platform: MetaMarketingPlatform, now: Date) 
     return { platform, status: "fresh" as const };
   }
   const url = new URL(platform === "Threads"
-    ? "https://graph.threads.net/refresh_access_token"
-    : "https://graph.instagram.com/refresh_access_token");
+    ? `${metaEndpoint("threads")}/refresh_access_token`
+    : `${metaEndpoint("instagram")}/refresh_access_token`);
   url.searchParams.set("grant_type", platform === "Threads" ? "th_refresh_token" : "ig_refresh_token");
   url.searchParams.set("access_token", token);
   const refreshed = tokenPayload(await jsonRequest(url.toString()));

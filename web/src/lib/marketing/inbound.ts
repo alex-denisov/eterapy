@@ -43,6 +43,34 @@ export const INBOUND_STATUSES = ["RECEIVED", "DRAFTED", "ANSWERED", "ESCALATED",
 
 /** Сколько входящее может ждать реакции, прежде чем это станет сигналом. */
 export const INBOUND_STALE_MS = 24 * 60 * 60_000;
+
+/**
+ * B630 — срок ответа, заданный владельцем: не дольше часа с момента, когда
+ * человек написал. Это отдельный порог от суточного: час — обещание качества,
+ * сутки — уже происшествие с сообщением в Telegram.
+ */
+export const INBOUND_SLA_MS = 60 * 60_000;
+
+/**
+ * Антиспам. Пределы стоят на СОЗДАНИИ ответа, а не на отправке: иначе агент
+ * заводит двадцать черновиков, человек видит двадцать заявок на премодерацию, и
+ * ограничение превращается в ручную работу.
+ *
+ * Смысл каждого числа:
+ * - `PER_HOUR` — сколько ответов на площадке за час выглядит как живой человек;
+ * - `PER_DAY` — потолок суток на случай наплыва;
+ * - `THREAD_COOLDOWN` — не отвечать несколько раз подряд в одной ветке: пять
+ *   ответов под одним постом читаются как бот, даже если каждый уместен.
+ */
+export const INBOUND_REPLIES_PER_HOUR = Math.max(
+  1,
+  Number(process.env.MARKETING_REPLIES_PER_HOUR || 4),
+);
+export const INBOUND_REPLIES_PER_DAY = Math.max(
+  INBOUND_REPLIES_PER_HOUR,
+  Number(process.env.MARKETING_REPLIES_PER_DAY || 20),
+);
+export const INBOUND_THREAD_COOLDOWN_MS = 15 * 60_000;
 const STALE_NOTIFY_INTERVAL_MS = 6 * 60 * 60_000;
 const STALE_NOTIFY_SETTING_KEY = "marketing.inbound.stalled.notifiedAt";
 
@@ -142,6 +170,26 @@ export interface QueueInboundRepliesResult {
   considered: number;
   drafted: number;
   escalated: number;
+  /** Отложено антиспамом: не отказ, а «не сейчас». */
+  throttled: number;
+}
+
+/** Чистое решение антиспама — проверяется прогоном, а не договорённостью. */
+export function inboundReplyAllowed(input: {
+  perHour: number;
+  perDay: number;
+  lastReplyInThreadAt: Date | null;
+  now: Date;
+}): { allowed: boolean; reason?: "hour_cap" | "day_cap" | "thread_cooldown" } {
+  if (input.perHour >= INBOUND_REPLIES_PER_HOUR) return { allowed: false, reason: "hour_cap" };
+  if (input.perDay >= INBOUND_REPLIES_PER_DAY) return { allowed: false, reason: "day_cap" };
+  if (
+    input.lastReplyInThreadAt
+    && input.now.getTime() - input.lastReplyInThreadAt.getTime() < INBOUND_THREAD_COOLDOWN_MS
+  ) {
+    return { allowed: false, reason: "thread_cooldown" };
+  }
+  return { allowed: true };
 }
 
 /**
@@ -162,6 +210,9 @@ export async function queueInboundReplies(input: {
 
   let drafted = 0;
   let escalated = 0;
+  let throttled = 0;
+  const hourAgo = new Date(now.getTime() - 60 * 60_000);
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
   for (const [index, row] of rows.entries()) {
     // Кризисная формулировка не отвечается регистром «сухая ирония» и вообще не
     // отвечается автоматом: она уходит человеку, как и в продукте.
@@ -187,6 +238,53 @@ export async function queueInboundReplies(input: {
       continue;
     }
 
+    // B630: антиспам. Считаем по УЖЕ заведённым ответам этой площадки, а не по
+    // отправленным: премодерация может задержать выпуск на часы, и очередь из
+    // двадцати заявок к человеку — та же спам-пачка, только адресованная нам.
+    const [repliesLastHour, repliesLastDay, lastInThread] = await Promise.all([
+      db.externalPublication.count({
+        where: {
+          platform: row.platform,
+          contentType: INBOUND_REPLY_CONTENT_TYPE,
+          createdAt: { gte: hourAgo },
+        },
+      }),
+      db.externalPublication.count({
+        where: {
+          platform: row.platform,
+          contentType: INBOUND_REPLY_CONTENT_TYPE,
+          createdAt: { gte: dayAgo },
+        },
+      }),
+      row.threadId
+        ? db.externalPublication.findFirst({
+          where: {
+            platform: row.platform,
+            contentType: INBOUND_REPLY_CONTENT_TYPE,
+            engagementTargetId: row.threadId,
+          },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        })
+        : Promise.resolve(null),
+    ]);
+    const decision = inboundReplyAllowed({
+      perHour: repliesLastHour,
+      perDay: repliesLastDay,
+      lastReplyInThreadAt: lastInThread?.createdAt ?? null,
+      now,
+    });
+    if (!decision.allowed) {
+      // Строка остаётся RECEIVED и вернётся в следующий проход: это отсрочка, а
+      // не отказ, поэтому статус не меняется и человек не теряется.
+      await db.marketingInboundMessage.update({
+        where: { id: row.id },
+        data: { harmScore: harm.score, lastError: `THROTTLED:${decision.reason}` },
+      }).catch(() => undefined);
+      throttled += 1;
+      continue;
+    }
+
     const tone = pickInboundTone({ platform: row.platform, sequence: index });
     const key = replyKey(row.platform, row.externalId);
     try {
@@ -202,6 +300,9 @@ export async function queueInboundReplies(input: {
           engagementExcerpt: row.text,
           engagementTargetLabel: row.authorLabel,
           engagementTargetUrl: row.permalink,
+          // B630: ветка нужна для правила «не отвечать несколько раз подряд в
+          // одном месте». Адресация ответа при этом берётся из самого входящего.
+          engagementTargetId: row.threadId,
           engagementTone: tone.id,
           scheduledFor: now,
           autoPublish: false,
@@ -230,7 +331,49 @@ export async function queueInboundReplies(input: {
     }
   }
 
-  return { considered: rows.length, drafted, escalated };
+  return { considered: rows.length, drafted, escalated, throttled };
+}
+
+export interface InboundSlaResult {
+  breached: number;
+  oldestMinutes: number;
+}
+
+/**
+ * B630 — обещание срока. Владелец: ответ не позже часа с момента комментария.
+ * Час — это не происшествие (для него есть суточный сторож), а сигнал в кокпите:
+ * «мы уже опаздываем», пока ещё можно успеть.
+ */
+export async function auditInboundSla(input: { now?: Date } = {}): Promise<InboundSlaResult> {
+  const now = input.now ?? new Date();
+  const cutoff = new Date(now.getTime() - INBOUND_SLA_MS);
+  const rows = await db.marketingInboundMessage.findMany({
+    where: { status: { in: ["RECEIVED", "DRAFTED"] }, receivedAt: { lt: cutoff } },
+    orderBy: { receivedAt: "asc" },
+    take: 50,
+    select: { id: true, platform: true, status: true, receivedAt: true },
+  });
+  if (rows.length === 0) {
+    await resolveMarketingSignal("inbound:sla").catch(() => undefined);
+    return { breached: 0, oldestMinutes: 0 };
+  }
+  const oldestMinutes = Math.round((now.getTime() - rows[0].receivedAt.getTime()) / 60_000);
+  await upsertMarketingSignal({
+    key: "inbound:sla",
+    kind: "INBOUND",
+    severity: "WARNING",
+    title: `Ответ дольше часа: ${rows.length}`,
+    summary: `Самое давнее ждёт ${oldestMinutes} мин (${rows[0].platform}, ${rows[0].status}).`,
+    evidence: {
+      rows: rows.map((row) => ({
+        id: row.id,
+        platform: row.platform,
+        status: row.status,
+        waitingMinutes: Math.round((now.getTime() - row.receivedAt.getTime()) / 60_000),
+      })),
+    },
+  }).catch(() => undefined);
+  return { breached: rows.length, oldestMinutes };
 }
 
 /** Ответ ушёл официальным API — входящее закрыто. */

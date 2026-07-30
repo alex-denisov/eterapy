@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
+import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 import {
   marketingPlatformValue,
   requiredMarketingPlatformValue,
@@ -95,10 +96,10 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
   },
   instagram: async (publication) => {
     const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
-    const base = `https://graph.instagram.com/v25.0/${encodeURIComponent(publication.externalPostId)}`;
+    const base = `${metaEndpoint("instagram")}/v25.0/${encodeURIComponent(publication.externalPostId)}`;
     const [media, insights] = await Promise.all([
-      json(`${base}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`),
-      json(`${base}/insights?metric=impressions,reach,views,shares,total_interactions&access_token=${encodeURIComponent(token)}`)
+      json(`${base}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`, { headers: metaRequestHeaders() }),
+      json(`${base}/insights?metric=impressions,reach,views,shares,total_interactions&access_token=${encodeURIComponent(token)}`, { headers: metaRequestHeaders() })
         .catch(() => ({ data: [] })),
     ]);
     const values = Object.fromEntries(
@@ -116,8 +117,9 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
   threads: async (publication) => {
     const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
     const payload = await json(
-      `https://graph.threads.net/v1.0/${encodeURIComponent(publication.externalPostId)}/insights`
+      `${metaEndpoint("threads")}/v1.0/${encodeURIComponent(publication.externalPostId)}/insights`
       + `?metric=views,likes,replies,reposts,quotes,shares&access_token=${encodeURIComponent(token)}`,
+      { headers: metaRequestHeaders() },
     );
     const values = Object.fromEntries(
       ((payload.data as Array<{ name?: string; values?: Array<{ value?: unknown }> }> | undefined) ?? [])
