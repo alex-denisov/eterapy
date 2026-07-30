@@ -7,6 +7,11 @@ import {
   upsertMarketingSignal,
 } from "@/lib/marketing/agent";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
+import {
+  auditUnansweredInbound,
+  pollInboundSources,
+  queueInboundReplies,
+} from "@/lib/marketing/inbound";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
@@ -26,6 +31,8 @@ let lastUrlAudit = 0;
 let lastMetaRefresh = 0;
 let lastPlanSync = 0;
 let lastProviderProbe = 0;
+let lastInboundPoll = 0;
+let lastInboundAudit = 0;
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -57,6 +64,11 @@ async function main() {
         await guarded("plan", () => generateMarketingDrafts({ now: new Date(now) }));
         await guarded("registry-audit", () => auditStalledPublications({ now: new Date(now) }));
       }
+      // B618: входящее — единственный разговорный канал после B617, и человек
+      // на другой стороне ждёт ответа минутами, а не часами. Очередь ответов
+      // пополняется каждый тик, до генерации: так ответ попадает в тот же
+      // проход writer → редактор, а не в следующий.
+      await guarded("inbound-queue", () => queueInboundReplies({ now: new Date() }));
       await guarded("agent", runMarketingAgentCycle);
       // Approved comments are dispatched independently of the owned-post
       // autopublish flag. Owned posts still obey MARKETING_AUTOPUBLISH.
@@ -72,6 +84,17 @@ async function main() {
       if (now - lastDiscovery >= 35 * 60_000) {
         lastDiscovery = now;
         await guarded("discovery", () => runEngagementDiscovery({ now: new Date(now) }));
+      }
+      // Reddit и упоминания в VK webhook'ов не присылают — их надо забирать.
+      if (now - lastInboundPoll >= 10 * 60_000) {
+        lastInboundPoll = now;
+        await guarded("inbound-poll", () => pollInboundSources({ now: new Date(now) }));
+      }
+      // Сторож зависших входящих: INC-094 показал, что строка без исполнителя
+      // живёт вечно и молча, поэтому у очереди есть собственный контроль.
+      if (now - lastInboundAudit >= 60 * 60_000) {
+        lastInboundAudit = now;
+        await guarded("inbound-watchdog", () => auditUnansweredInbound({ now: new Date(now) }));
       }
       if (now - lastProviderProbe >= 30 * 60_000) {
         lastProviderProbe = now;

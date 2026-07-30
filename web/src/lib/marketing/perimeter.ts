@@ -27,6 +27,23 @@ export const ALLOWED_MARKETING_ACTIONS: readonly MarketingAction[] = [
   "REPLY_TO_MENTION",
 ];
 
+/**
+ * Тип строки реестра. `POST` — собственная публикация, `COMMENT` — наследие
+ * прежнего режима (архивируется), `INBOUND_REPLY` — ответ на входящее (B618).
+ * Разговорные типы объединены здесь, а не в трёх местах: у них общий регистр,
+ * общая премодерация и общее правило «выпуск не зависит от MARKETING_AUTOPUBLISH».
+ */
+export const INBOUND_REPLY_CONTENT_TYPE = "INBOUND_REPLY";
+
+export const CONVERSATIONAL_CONTENT_TYPES: readonly string[] = [
+  "COMMENT",
+  INBOUND_REPLY_CONTENT_TYPE,
+];
+
+export function isConversationalContentType(contentType: string | null | undefined): boolean {
+  return CONVERSATIONAL_CONTENT_TYPES.includes((contentType ?? "").toUpperCase());
+}
+
 export class MarketingPerimeterError extends Error {
   readonly action: MarketingAction;
 

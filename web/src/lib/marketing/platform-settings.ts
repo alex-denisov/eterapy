@@ -6,6 +6,11 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "VK", key: "VK_COMMUNITY_TOKEN", label: "Токен сообщества", secret: true, multiline: false },
   { platform: "VK", key: "VK_COMMUNITY_ID", label: "ID сообщества", secret: false, multiline: false },
   { platform: "VK", key: "VK_USER_TOKEN", label: "Пользовательский токен для поиска публичных постов", secret: true, multiline: false },
+  // B618: Callback API сообщества. `confirmation` — строка, которую VK ждёт в
+  // ответ при подключении сервера, `secret` — поле, по которому мы отличаем VK
+  // от постороннего запроса.
+  { platform: "VK", key: "VK_CALLBACK_CONFIRMATION", label: "Строка подтверждения Callback API", secret: false, multiline: false },
+  { platform: "VK", key: "VK_CALLBACK_SECRET", label: "Секретный ключ Callback API", secret: true, multiline: false },
   { platform: "Reddit", key: "REDDIT_CLIENT_ID", label: "Client ID", secret: false, multiline: false },
   { platform: "Reddit", key: "REDDIT_CLIENT_SECRET", label: "Client secret", secret: true, multiline: false },
   { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false, multiline: false },
@@ -20,6 +25,7 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
   { platform: "Threads", key: "THREADS_USER_ID", label: "Threads User ID", secret: false, multiline: false },
   { platform: "Threads", key: "THREADS_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false },
+  { platform: "Threads", key: "THREADS_WEBHOOK_VERIFY_TOKEN", label: "Подтверждение маркера webhook (создаётся автоматически)", secret: false, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_APP_ID", label: "Instagram App ID", secret: false, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_APP_SECRET", label: "Instagram App Secret", secret: true, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
@@ -28,8 +34,16 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Instagram", key: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN", label: "Подтверждение маркера webhook (создаётся автоматически)", secret: false, multiline: false },
   { platform: "Telegram", key: "TELEGRAM_BOT_TOKEN", label: "Bot token", secret: true, multiline: false },
   { platform: "Telegram", key: "TELEGRAM_CHANNEL_ID", label: "Маркетинговый канал", secret: false, multiline: false },
+  // B618: комментарии к постам канала физически живут в связанной группе
+  // обсуждений — у самого канала комментариев нет. Без её id бот не увидит ни
+  // одного комментария, поэтому это отдельное поле, а не догадка по каналу.
+  { platform: "Telegram", key: "TELEGRAM_DISCUSSION_CHAT_ID", label: "Группа обсуждений канала (для ответов на комментарии)", secret: false, multiline: false },
   { platform: "Dzen", key: "DZEN_CHANNEL_URL", label: "Адрес канала", secret: false, multiline: false },
   { platform: "Dzen", key: "DZEN_BROWSER_STORAGE_STATE", label: "Браузерная сессия (Playwright storageState JSON)", secret: true, multiline: true },
+  // B620: пока лента не подтверждена площадкой, действующий путь выпуска не
+  // отключается. `true` здесь означает «канал принял RSS» — после этого
+  // браузерная сессия выходит из периметра и больше не используется.
+  { platform: "Dzen", key: "DZEN_FEED_CONFIRMED", label: "Лента подключена в Дзене (true / пусто)", secret: false, multiline: false },
   { platform: "Research", key: "MARKETING_COMPETITOR_URLS", label: "Публичные страницы конкурентов, по одной URL в строке", secret: false, multiline: true },
 ] as const;
 
@@ -156,11 +170,15 @@ export async function saveMarketingPlatformConfig(input: {
       update: { value: String(input.enabled), updatedBy: input.actorId },
     });
     for (const field of allowed) {
-      const generatedWebhookToken = input.platform === "Instagram"
-        && field.key === "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"
+      // Маркер подтверждения webhook придумывать владельцу незачем: он нужен
+      // только чтобы площадка и мы сошлись на одной случайной строке.
+      const generatedWebhookToken = (
+        field.key === "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"
+        || field.key === "THREADS_WEBHOOK_VERIFY_TOKEN"
+      )
         && !(await tx.platformSetting.findUnique({ where: { key: settingKey(field.key) }, select: { key: true } }))
-          ? `eterapy_${randomBytes(24).toString("base64url")}`
-          : undefined;
+        ? `eterapy_${randomBytes(24).toString("base64url")}`
+        : undefined;
       const raw = input.values[field.key] || generatedWebhookToken;
       if (raw === undefined || raw === null) continue;
       const value = raw.trim();

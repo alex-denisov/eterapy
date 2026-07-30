@@ -3,6 +3,11 @@ import { auth } from "@/lib/auth";
 import { AUDIT_ACTIONS, logAudit } from "@/lib/audit";
 import { marketingAgentEnabled, runMarketingAgentCycle } from "@/lib/marketing/agent";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
+import {
+  auditUnansweredInbound,
+  pollInboundSources,
+  queueInboundReplies,
+} from "@/lib/marketing/inbound";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
@@ -19,18 +24,36 @@ export async function POST() {
     return NextResponse.json({ error: "Сначала включите SMM-агента" }, { status: 409 });
   }
   const generate = await generateMarketingDrafts();
+  // B618: ручной прогон обязан покрывать и входящее — иначе «прогнать сейчас»
+  // проверяет не тот же путь, что воркер, и расхождение обнаружится на проде.
+  const inboundPoll = await pollInboundSources();
+  const inboundQueue = await queueInboundReplies();
   const agent = await runMarketingAgentCycle();
   const publish = await publishScheduledMarketing();
   const metrics = await collectDuePublicationMetrics();
   const discovery = await runEngagementDiscovery();
+  const inboundWatchdog = await auditUnansweredInbound();
   const seo = await runSeoAudit();
   const urls = await runMarketingUrlAudit();
   const metaTokens = await refreshMetaMarketingTokens();
+  const result = {
+    generate,
+    inboundPoll,
+    inboundQueue,
+    agent,
+    publish,
+    metrics,
+    discovery,
+    inboundWatchdog,
+    seo,
+    urls,
+    metaTokens,
+  };
   await logAudit(
     session.user.id,
     AUDIT_ACTIONS.MARKETING_AGENT_RUN,
     "marketing-agent",
-    JSON.stringify({ generate, agent, publish, metrics, discovery, seo, urls, metaTokens }).slice(0, 8_000),
+    JSON.stringify(result).slice(0, 8_000),
   );
-  return NextResponse.json({ ok: true, generate, agent, publish, metrics, discovery, seo, urls, metaTokens });
+  return NextResponse.json({ ok: true, ...result });
 }

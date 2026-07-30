@@ -29,11 +29,11 @@ export type MarketingConnectorState = {
 
 export async function marketingConnectorStates(): Promise<MarketingConnectorState[]> {
   const keys = [
-    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN",
+    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION",
     "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
-    "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
+    "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "THREADS_WEBHOOK_VERIFY_TOKEN",
     "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN",
-    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID",
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID",
     "DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE",
   ] as const;
   const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
@@ -48,17 +48,22 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "VK",
       ownedPublishing: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
       discovery: Boolean(enabled.get("VK")) && has("VK_USER_TOKEN"),
-      inboundReplies: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN"),
-      note: "Официальный VK API: токен сообщества — wall.post/wall.createComment; отдельный пользовательский токен — newsfeed.search. Права не смешиваются.",
+      // B618: отвечать можно токеном сообщества, но узнать о комментарии — только
+      // через подключённый Callback API. Без секрета маршрут закрыт fail-closed,
+      // и «отвечаем на входящее» было бы неправдой.
+      inboundReplies: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN")
+        && has("VK_COMMUNITY_ID") && has("VK_CALLBACK_SECRET"),
+      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION"),
+      note: "Официальный VK API: токен сообщества — wall.post и ответы на входящее; отдельный пользовательский токен — newsfeed.search; Callback API сообщества приносит комментарии к нашим постам и сообщения. Права не смешиваются.",
     },
     {
       platform: "Reddit",
       ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_POST_SUBREDDIT")
         && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
       discovery: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_SUBREDDITS"),
-      // B617: комментариев под чужими постами больше нет ни на одной площадке.
-      inboundReplies: false,
+      // B617 снял комментарии под чужими постами; B618 включил ответы на
+      // входящее — это ящик бренд-аккаунта, официальный Data API, свой периметр.
+      inboundReplies: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
       missing: missing("REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"),
       note: "Только официальный OAuth Data API: собственные посты в свой сабреддит и ответы на входящее. Браузерная сессия убрана (B617) — вход по сохранённой сессии правила площадок называют нарушением.",
     },
@@ -66,15 +71,20 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Threads",
       ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       discovery: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN"),
-      inboundReplies: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
-      missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
+      inboundReplies: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN")
+        && has("THREADS_USER_ID") && has("THREADS_WEBHOOK_VERIFY_TOKEN"),
+      missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "THREADS_WEBHOOK_VERIFY_TOKEN"),
       note: "Официальный Threads API публикует посты и ответы. Поиск чужих постов идёт через официальный keyword search; без выданного разрешения он отвечает пустым списком и включается сам, когда разрешение появится.",
     },
     {
       platform: "Instagram",
       ownedPublishing: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN") && has("INSTAGRAM_USER_ID"),
       discovery: false,
-      inboundReplies: false,
+      // B618: комментарии к своим медиа приходят webhook'ом и отвечаются
+      // официальным эндпоинтом ответов. Комментировать чужие публикации этот
+      // путь по-прежнему не умеет — и не должен.
+      inboundReplies: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN")
+        && has("INSTAGRAM_USER_ID") && has("INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
       missing: missing("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
       note: "Instagram API для Professional account: свои публикации и управление комментариями на своих медиа. Официальный API не даёт публиковать рекламные комментарии под произвольными чужими постами — этот путь не подменяется cookies-автоматизацией.",
     },
@@ -82,9 +92,12 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Telegram",
       ownedPublishing: Boolean(enabled.get("Telegram")) && has("TELEGRAM_BOT_TOKEN") && has("TELEGRAM_CHANNEL_ID"),
       discovery: false,
-      inboundReplies: false,
-      missing: missing("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID"),
-      note: "Bot API публикует в собственный канал; массового поиска и комментариев к чужим каналам нет.",
+      // B618: у канала комментариев нет — они живут в связанной группе
+      // обсуждений, поэтому без её id входящего не видно вовсе.
+      inboundReplies: Boolean(enabled.get("Telegram")) && has("TELEGRAM_BOT_TOKEN")
+        && has("TELEGRAM_DISCUSSION_CHAT_ID"),
+      missing: missing("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID"),
+      note: "Bot API публикует в собственный канал и отвечает в связанной группе обсуждений; массового поиска и комментариев к чужим каналам нет.",
     },
     {
       platform: "Dzen",

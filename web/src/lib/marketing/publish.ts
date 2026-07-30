@@ -12,10 +12,18 @@ import { log } from "@/lib/logger";
 import { callTelegramApi } from "@/lib/telegram";
 import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
-import { actionForPublication, isWithinPerimeter } from "@/lib/marketing/perimeter";
+import {
+  actionForPublication,
+  CONVERSATIONAL_CONTENT_TYPES,
+  INBOUND_REPLY_CONTENT_TYPE,
+  isWithinPerimeter,
+} from "@/lib/marketing/perimeter";
+import { markInboundAnswered } from "@/lib/marketing/inbound";
+import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
 import {
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
+import { dzenFeedConfirmed, dzenFeedGuid } from "@/lib/marketing/dzen-feed";
 import {
   marketingPlatformEnabled,
   marketingPlatformValue,
@@ -35,12 +43,17 @@ export function marketingAutopublishEnabled(
 
 export interface PublishedPost {
   externalPostId: string;
-  publicUrl: string;
+  /**
+   * Публичный адрес материала. Пусто там, где площадка забирает материал сама
+   * (лента Дзена, B620): адрес появится после импорта, и придумывать его нельзя.
+   */
+  publicUrl: string | null;
 }
 
 export type PublicationAdapter = (
   publication: {
     id: string;
+    key: string;
     title: string;
     body: string;
     platform: string;
@@ -48,6 +61,8 @@ export type PublicationAdapter = (
     mediaUrl: string | null;
     engagementTargetId: string | null;
     engagementTargetUrl: string | null;
+    /** B618: адрес входящего, если строка — ответ на него. */
+    inbound: InboundReplyTarget | null;
   },
 ) => Promise<PublishedPost>;
 
@@ -418,10 +433,25 @@ export async function publishToReddit(
   return publishToRedditApi(publication);
 }
 
+/**
+ * B620: у Дзена два пути, и выбор между ними — не догадка, а состояние
+ * настройки. Пока владелец не подтвердил, что канал принял ленту, действующий
+ * браузерный путь остаётся; после подтверждения он выходит из периметра, и
+ * материал передаётся площадке лентой.
+ *
+ * Лента — это pull: адрес публикации появляется, когда Дзен импортирует
+ * материал, а не в момент передачи. Поэтому `publicUrl` здесь пустой, а не
+ * выдуманный: сочинённая ссылка на несуществующую страницу — это ложь в
+ * реестре, и по ней потом считали бы переходы.
+ */
 export async function publishToDzen(
-  publication: { title: string; body: string; mediaUrl: string | null },
+  publication: { key?: string; title: string; body: string; mediaUrl: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Dzen");
+  if (await dzenFeedConfirmed()) {
+    if (!publication.key) throw new Error("Dzen feed publication has no registry key");
+    return { externalPostId: dzenFeedGuid(publication.key), publicUrl: null };
+  }
   return publishToDzenBrowser(publication);
 }
 
@@ -473,6 +503,14 @@ function adapterFor(
 ): PublicationAdapter {
   const normalized = publication.platform.toLowerCase();
   if (adapters[normalized]) return adapters[normalized]!;
+  // B618: ответ на входящее адресован не площадке вообще, а конкретному
+  // комментарию/сообщению, поэтому у него свой набор адаптеров.
+  if (publication.contentType === INBOUND_REPLY_CONTENT_TYPE) {
+    return async (row) => {
+      if (!row.inbound) throw new Error("Inbound reply lost its target");
+      return publishInboundReply({ body: row.body, target: row.inbound });
+    };
+  }
   if (publication.contentType === "COMMENT") {
     if (normalized === "reddit") return publishRedditComment;
     if (normalized === "vk") return publishVkComment;
@@ -512,13 +550,17 @@ export async function publishScheduledMarketing(input: {
       ...(redditHandledByDevvit
         ? { platform: { notIn: ["reddit", "Reddit", "REDDIT"] } }
         : {}),
-      ...(enabled ? {} : { contentType: "COMMENT" }),
+      // Премодерированный разговорный материал (комментарий и ответ на
+      // входящее) выпускается независимо от общего выключателя автопубликации:
+      // человек уже нажал «Принять» по конкретному тексту.
+      ...(enabled ? {} : { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } }),
       OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
     },
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
     take: 10,
     select: {
       id: true,
+      key: true,
       title: true,
       body: true,
       platform: true,
@@ -526,6 +568,16 @@ export async function publishScheduledMarketing(input: {
       mediaUrl: true,
       engagementTargetId: true,
       engagementTargetUrl: true,
+      inboundReplyToId: true,
+      inboundReplyTo: {
+        select: {
+          platform: true,
+          kind: true,
+          externalId: true,
+          threadId: true,
+          permalink: true,
+        },
+      },
     },
   });
 
@@ -566,6 +618,7 @@ export async function publishScheduledMarketing(input: {
     const action = actionForPublication({
       contentType: publication.contentType,
       engagementTargetId: publication.engagementTargetId,
+      inboundReplyToId: publication.inboundReplyToId,
     });
     if (!isWithinPerimeter(action)) {
       await db.externalPublication.updateMany({
@@ -592,6 +645,7 @@ export async function publishScheduledMarketing(input: {
       const adapter = adapterFor(publication, input.adapters ?? {});
       const published = await adapter({
         id: publication.id,
+        key: publication.key,
         title: publication.title,
         body: publication.body,
         platform: publication.platform,
@@ -599,6 +653,7 @@ export async function publishScheduledMarketing(input: {
         mediaUrl: publication.mediaUrl,
         engagementTargetId: publication.engagementTargetId,
         engagementTargetUrl: publication.engagementTargetUrl,
+        inbound: publication.inboundReplyTo ?? null,
       });
       await db.externalPublication.update({
         where: { id: publication.id },
@@ -611,6 +666,11 @@ export async function publishScheduledMarketing(input: {
           lastError: null,
         },
       });
+      // Входящее закрывается только фактом ушедшего ответа: пока ответ не
+      // отправлен, человек ждёт, и сторож должен это видеть.
+      if (publication.inboundReplyToId) {
+        await markInboundAnswered(publication.inboundReplyToId, now).catch(() => undefined);
+      }
       outcomes.push({ id: publication.id, status: "published" });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

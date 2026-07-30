@@ -32,6 +32,8 @@ import {
   applyMarketingModeration,
   parseMarketingModerationCallback,
 } from "@/lib/marketing/moderation";
+import { ingestInboundMessage } from "@/lib/marketing/inbound";
+import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 const MINI_APP_URL = getTrackedTelegramMiniAppUrl(
@@ -143,6 +145,39 @@ export async function POST(req: NextRequest) {
       });
       await completeWebhookEvent(claim.event.id, { result });
       return NextResponse.json({ ok: true, result });
+    }
+
+    // B618: комментарии к постам канала физически приходят в связанную группу
+    // обсуждений. Это не переписка с ботом и не команда — это входящее SMM, и
+    // отвечает на него премодерируемый конвейер, а не этот обработчик.
+    if (msg?.text && msg.chat.id !== undefined) {
+      const discussionChatId = await marketingPlatformValue("TELEGRAM_DISCUSSION_CHAT_ID")
+        .catch(() => null);
+      if (discussionChatId && String(msg.chat.id) === discussionChatId.trim()) {
+        // Сам пересланный пост канала — это наша публикация, не комментарий.
+        // Сообщения бота тоже пропускаем, иначе агент ответит сам себе.
+        const skip = Boolean(msg.is_automatic_forward) || Boolean(msg.from?.is_bot);
+        const ingested = skip ? null : await ingestInboundMessage({
+          platform: "telegram",
+          kind: "COMMENT",
+          externalId: `${msg.chat.id}:${msg.message_id ?? msg.date ?? ""}`,
+          threadId: String(msg.chat.id),
+          authorLabel: msg.from?.username
+            ? `@${msg.from.username}`
+            : [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || null,
+          text: msg.text,
+          permalink: msg.chat.username && msg.message_id
+            ? `https://t.me/${msg.chat.username}/${msg.message_id}`
+            : null,
+        }).catch((error: unknown) => {
+          log.error("telegram-webhook-inbound-failed", { error: serializeError(error) });
+          return null;
+        });
+        await completeWebhookEvent(claim.event.id, {
+          result: skip ? "discussion-forward" : ingested?.created ? "inbound-created" : "inbound-known",
+        });
+        return NextResponse.json({ ok: true });
+      }
     }
 
     if (!msg || !msg.text) {
@@ -281,8 +316,10 @@ interface TelegramUpdate {
     date?: number;
     message_id?: number;
     message_thread_id?: number;
-    chat: { id: number };
-    from?: { username?: string; first_name?: string; last_name?: string };
+    chat: { id: number; username?: string };
+    from?: { id?: number; is_bot?: boolean; username?: string; first_name?: string; last_name?: string };
+    /** B618: пересланный в группу обсуждений пост канала, а не комментарий. */
+    is_automatic_forward?: boolean;
     /** B529: приходит вместо текста, когда звёзды уже списаны. */
     successful_payment?: TelegramSuccessfulPayment;
     // B333: staff replies in the support group carry the original
