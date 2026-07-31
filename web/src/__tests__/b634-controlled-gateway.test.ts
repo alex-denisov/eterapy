@@ -63,7 +63,10 @@ describe("B634 · контролируемый шлюз", () => {
       [AIProvider.OPENROUTER, `${RELAY_BASE}/openrouter/api/v1`],
       [AIProvider.GROQ, `${RELAY_BASE}/groq/openai/v1`],
       [AIProvider.CEREBRAS, `${RELAY_BASE}/cerebras/v1`],
-      [AIProvider.COHERE, `${RELAY_BASE}/cohere/compatibility/v1`],
+      // Cohere: база — корень хоста, потому что его адаптер дописывает полный
+      // родной путь `/v2/chat` (в отличие от остальных, где база кончается
+      // версией API).
+      [AIProvider.COHERE, `${RELAY_BASE}/cohere`],
       [AIProvider.GEMINI, `${RELAY_BASE}/gemini/v1beta`],
     ];
     for (const [provider, expected] of cases) {
@@ -121,6 +124,19 @@ describe("B634 · контролируемый шлюз", () => {
     expect(proof.cloudflareAIGatewayUsed).toBe(true);
     expect(proof.gateway).toBe("eterapy-edge");
     expect(proof.crossBorderProcessing).toBe(true);
+  });
+
+  // Регрессия, найденная живой пробой на проде 2026-07-31: Cohere отвечал
+  // HTTP 404, потому что его прямая база кончалась на `/compatibility/v1`, а
+  // адаптер дописывал `/v2/chat`. Через шлюз Cloudflare это не проявлялось —
+  // там база без пути. Прогон держит согласованность базы и адаптера.
+  it("адрес Cohere складывается с путём его собственного адаптера", () => {
+    enableRelay();
+    const base = buildEterapyRelayUrlForAIProvider({
+      provider: AIProvider.COHERE,
+      directBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE],
+    });
+    expect(`${base}/v2/chat`).toBe(`${RELAY_BASE}/cohere/v2/chat`);
   });
 
   it("подпись для нашего шлюза добавляется в общей точке заголовков всех адаптеров", () => {

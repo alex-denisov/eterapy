@@ -30,7 +30,12 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
   [AIProvider.GROQ]: "https://api.groq.com/openai/v1",
   [AIProvider.MISTRAL]: "https://api.mistral.ai/v1",
   [AIProvider.CEREBRAS]: "https://api.cerebras.ai/v1",
-  [AIProvider.COHERE]: "https://api.cohere.ai/compatibility/v1",
+  // B634: у Cohere адаптер дописывает ПОЛНЫЙ родной путь `/v2/chat`, поэтому
+  // база у него — корень хоста, без `/compatibility/v1`. Прежнее значение
+  // сходилось только со шлюзом Cloudflare (у того база без пути), а прямой
+  // вызов дал бы `…/compatibility/v1/v2/chat` и 404. Расхождение было
+  // незаметным ровно до тех пор, пока Cohere ходил только через Cloudflare.
+  [AIProvider.COHERE]: "https://api.cohere.ai",
   [AIProvider.YANDEX]: YANDEX_FOUNDATION_MODELS_BASE_URL,
 };
 
