@@ -129,11 +129,12 @@ async function main() {
         await guarded("registry-recovery", () => recoverFailedPublications({ now: new Date(now) }));
         await guarded("signal-reconcile", () => reconcileMarketingSignals({ now: new Date(now) }));
       }
-      // Владелец 2026-07-30: состояние пула должно обновляться каждые 15 минут.
-      // Прежние 30 минут в воркере поверх 45-минутного шага самой пробы давали
-      // худший случай в 75 минут — за это время заменённый ключ успевал
-      // выглядеть «нужна настройка» на глазах у владельца.
-      if (now - lastProviderProbe >= 15 * 60_000) {
+      // B635: расписание обхода задаёт САМА проба — она выровнена по сетке
+      // четверти часа (`providerProbeDue`). Воркер только заглядывает чаще,
+      // чем шаг: тик раз в 15 минут поверх шага в 15 минут даёт худший случай
+      // почти в полчаса и ту самую разнобойную колонку «проверено», на которую
+      // указал владелец 2026-07-31.
+      if (now - lastProviderProbe >= 5 * 60_000) {
         lastProviderProbe = now;
         await guarded("provider-health", () => probeMarketingProviders({ now: new Date(now) }));
       }

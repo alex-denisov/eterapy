@@ -168,7 +168,10 @@ describe("Yandex provider runtime", () => {
           cloudflareGatewayEnabled: false,
         },
         requireCloudflareAIGateway: true,
-      })).toThrow("Cloudflare AI Gateway is not configured");
+      // B634: требование расширено с «шлюз Cloudflare» до «контролируемый
+      // шлюз» (наша зарубежная нода либо Cloudflare). Смысл fail-closed не
+      // изменился: без единого шлюза запрос наружу не уходит вовсе.
+      })).toThrow("No controlled AI gateway is configured");
     } finally {
       if (originalAccountId === undefined) delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
       else process.env.CF_AI_GATEWAY_ACCOUNT_ID = originalAccountId;

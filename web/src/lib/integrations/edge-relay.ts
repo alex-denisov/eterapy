@@ -70,6 +70,29 @@ export function isEdgeRelayUpstream(value: string): value is EdgeRelayUpstream {
   return Object.prototype.hasOwnProperty.call(EDGE_RELAY_UPSTREAMS, value);
 }
 
+/**
+ * B634 — база шлюза для моделей.
+ *
+ * Считается из `META_GRAPH_PROXY_BASE`, а не заводится второй переменной: нода
+ * и секрет у контуров общие, и две переменные для одного шлюза означали бы
+ * однажды настроить половину. Из значения берётся только origin — сама
+ * переменная на проде указывает на путь контура Meta
+ * (`…/api/integrations/meta/relay`), а моделям нужен свой маршрут.
+ *
+ * Без секрета база не возвращается вовсе: адрес без секрета получит от шлюза
+ * 403, и подставлять его значило бы менять «шлюз не настроен» на «модель не
+ * отвечает».
+ */
+export function edgeRelayModelBase(): string | null {
+  const configured = process.env.META_GRAPH_PROXY_BASE?.trim();
+  if (!configured || !process.env.META_GRAPH_PROXY_SECRET?.trim()) return null;
+  try {
+    return `${new URL(configured).origin}/api/integrations/edge/relay`;
+  } catch {
+    return null;
+  }
+}
+
 export function edgeRelaySecretMatches(provided: string | null): boolean {
   const expected = process.env.META_GRAPH_PROXY_SECRET?.trim();
   if (!expected || !provided) return false;

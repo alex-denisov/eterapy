@@ -19,6 +19,13 @@ import {
   isWithinPerimeter,
 } from "@/lib/marketing/perimeter";
 import { markInboundAnswered } from "@/lib/marketing/inbound";
+import {
+  holdChannel,
+  holdDecision,
+  isChannelLevelPublicationError,
+  listChannelHolds,
+  releaseChannel,
+} from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
 import {
   publishToDzenBrowser,
@@ -533,7 +540,10 @@ export interface PublishScheduledResult {
   due: number;
   published: number;
   failed: number;
-  outcomes: Array<{ id: string; status: "published" | "failed"; error?: string }>;
+  /** B636: строки, которых не коснулись, потому что их канал на паузе. */
+  held: number;
+  heldPlatforms: string[];
+  outcomes: Array<{ id: string; status: "published" | "failed" | "held"; error?: string }>;
 }
 
 export async function publishScheduledMarketing(input: {
@@ -587,8 +597,29 @@ export async function publishScheduledMarketing(input: {
     },
   });
 
+  // B636: пауза канала читается ОДИН раз на проход. Перечитывать её внутри
+  // цикла значило бы дать второму разведчику уйти в тот же проход, пока первый
+  // ещё висит на сетевом таймауте.
+  const holds = new Map(
+    (await listChannelHolds().catch(() => [])).map((hold) => [hold.platform, hold]),
+  );
+  const probeSpent = new Set<string>();
   const outcomes: PublishScheduledResult["outcomes"] = [];
   for (const publication of publications) {
+    const platformKey = publication.platform.toLowerCase();
+    const decision = holdDecision({
+      hold: holds.get(platformKey) ?? null,
+      now,
+      probeSpent: probeSpent.has(platformKey),
+    });
+    if (decision === "hold") {
+      // Строка НЕ трогается вовсе: остаётся `SCHEDULED` со своим временем и
+      // выйдет сама, как только канал вернётся. Ни отмены, ни архива.
+      outcomes.push({ id: publication.id, status: "held" });
+      continue;
+    }
+    if (decision === "probe") probeSpent.add(platformKey);
+
     if (!publication.body?.trim()) {
       const error = "Publication body is empty";
       await db.externalPublication.updateMany({
@@ -677,9 +708,45 @@ export async function publishScheduledMarketing(input: {
       if (publication.inboundReplyToId) {
         await markInboundAnswered(publication.inboundReplyToId, now).catch(() => undefined);
       }
+      // Прошедшая публикация — единственное честное доказательство, что доступ
+      // к каналу вернулся. Снимаем паузу здесь, а не по отдельной пробе.
+      if (holds.has(platformKey)) {
+        await releaseChannel(platformKey).catch(() => undefined);
+        holds.delete(platformKey);
+        probeSpent.delete(platformKey);
+      }
       outcomes.push({ id: publication.id, status: "published" });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (isChannelLevelPublicationError(message)) {
+        // Упал канал, а не материал. Строка возвращается ровно туда, где была:
+        // `SCHEDULED`, со своим временем, без отмены и без архива. Счётчик
+        // попыток откатывается вместе с ней — иначе пауза канала съедала бы
+        // лимит попыток материала, который ни в чём не виноват.
+        await db.externalPublication.updateMany({
+          where: { id: publication.id, status: "PUBLISHING" },
+          data: {
+            status: "SCHEDULED",
+            attemptCount: { decrement: 1 },
+            lastError: `Канал недоступен, публикация отложена: ${message}`,
+          },
+        });
+        const hold = await holdChannel({
+          platform: publication.platform,
+          reason: message,
+          now,
+          previous: holds.get(platformKey) ?? null,
+        }).catch(() => null);
+        if (hold) holds.set(platformKey, hold);
+        probeSpent.add(platformKey);
+        log.warn("marketing.publish_channel_error", {
+          publicationId: publication.id,
+          platform: publication.platform,
+          error: message,
+        });
+        outcomes.push({ id: publication.id, status: "held", error: message });
+        continue;
+      }
       await db.externalPublication.update({
         where: { id: publication.id },
         data: { status: "FAILED", lastError: message },
@@ -698,6 +765,8 @@ export async function publishScheduledMarketing(input: {
     due: publications.length,
     published: outcomes.filter((item) => item.status === "published").length,
     failed: outcomes.filter((item) => item.status === "failed").length,
+    held: outcomes.filter((item) => item.status === "held").length,
+    heldPlatforms: [...holds.keys()],
     outcomes,
   };
 }

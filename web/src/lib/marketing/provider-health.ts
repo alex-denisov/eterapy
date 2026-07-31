@@ -23,59 +23,46 @@ import { MARKETING_FREE_PROVIDERS } from "@/lib/marketing/model-pool";
 const PROBE_ACTOR = "marketing-worker";
 
 /**
- * Codes that describe an account-level decision by the provider. Re-probing
- * them constantly is pointless traffic, so they are checked far less often —
- * but they are still checked, because the owner may fix billing or swap the
- * account at any moment and nothing should require a redeploy afterwards.
- */
-const ACCOUNT_LEVEL_CODES = new Set([
-  "INSUFFICIENT_CREDITS",
-  "PROVIDER_RESTRICTED",
-  "INVALID_KEY",
-  "MISSING_CONFIG",
-]);
-
-/**
- * Владелец 2026-07-30: «нужно чтобы какой-то скрипт обходил все модели с
- * периодичностью раз в 15 минут». Прежние интервалы (6 ч у здорового, 45 мин у
- * упавшего) означали, что панель показывала не текущее состояние, а отметку
- * многочасовой давности: провайдер, который восстановился, оставался красным
- * почти до конца рабочего дня.
+ * B635 — единый шаг обхода и выравнивание по сетке.
  *
- * Здоровый провайдер проверяется реже упавшего не ради экономии, а потому что
- * проба — это настоящий запрос к модели и он тратит ту же бесплатную квоту,
- * которую агент использует для генерации. Час у здорового и пятнадцать минут у
- * упавшего — компромисс, при котором панель актуальна там, где это важно.
+ * ЧТО ВИДЕЛ ВЛАДЕЛЕЦ (2026-07-31): «проверка идёт не каждые 15 минут, а
+ * хаотично — в колонке „проверено“ время у каждого провайдера разное».
+ * Наблюдение верное, и причина была в коде: шаг зависел от состояния
+ * провайдера — час у здорового, полчаса у решения уровня аккаунта, пятнадцать
+ * минут у упавшего. Три разных шага дают три разные отметки времени, и колонка
+ * перестаёт читаться как «состояние на сейчас».
+ *
+ * ДВА ИЗМЕНЕНИЯ.
+ *
+ * 1. Шаг один для всех — пятнадцать минут. Экономия квоты, ради которой
+ *    здоровый проверялся реже, стоила дороже, чем экономила: панель показывала
+ *    отметку часовой давности и по ней принимали решения.
+ * 2. Момент пробы выровнен по сетке четверти часа, а не отсчитывается от
+ *    времени прошлой проверки. Без выравнивания каждая проба сдвигает
+ *    следующую на длительность самой пробы, отметки расползаются за сутки на
+ *    минуты, и «хаотично» вернулось бы даже при одинаковом шаге.
  */
-const HEALTHY_INTERVAL_MS = 60 * 60_000;
-const FAILING_INTERVAL_MS = 15 * 60_000;
-/**
- * Решение уровня аккаунта (кончились кредиты, ключ отозван) провайдер меняет не
- * сам, а владелец. Но проверять его всё равно надо чаще, чем раз в полсуток:
- * подставленный новый ключ должен начать работать без выкатки и без клика.
- */
-const ACCOUNT_LEVEL_INTERVAL_MS = 30 * 60_000;
+export const PROBE_INTERVAL_MS = 15 * 60_000;
+
+/** Номер пятнадцатиминутного слота с начала эпохи. */
+function probeSlot(at: Date): number {
+  return Math.floor(at.getTime() / PROBE_INTERVAL_MS);
+}
 
 export function providerProbeDue(input: {
   now: Date;
   lastSuccessAt: Date | null;
   lastErrorAt: Date | null;
-  lastErrorCode: string | null;
+  /** Оставлен в сигнатуре: код последней ошибки показывается рядом в кокпите. */
+  lastErrorCode?: string | null;
 }): boolean {
-  const healthy = Boolean(
-    input.lastSuccessAt
-    && (!input.lastErrorAt || input.lastSuccessAt > input.lastErrorAt),
-  );
   const lastChecked = [input.lastSuccessAt, input.lastErrorAt]
     .filter((value): value is Date => Boolean(value))
     .sort((left, right) => right.getTime() - left.getTime())[0] ?? null;
   if (!lastChecked) return true;
-  const interval = healthy
-    ? HEALTHY_INTERVAL_MS
-    : ACCOUNT_LEVEL_CODES.has(input.lastErrorCode ?? "")
-      ? ACCOUNT_LEVEL_INTERVAL_MS
-      : FAILING_INTERVAL_MS;
-  return input.now.getTime() - lastChecked.getTime() >= interval;
+  // Строгое неравенство слотов, а не разница во времени: проба, занявшая
+  // сорок секунд, не должна отодвигать следующую на сорок секунд.
+  return probeSlot(input.now) > probeSlot(lastChecked);
 }
 
 export interface ProviderProbeOutcome {
