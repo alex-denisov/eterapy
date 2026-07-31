@@ -77,6 +77,18 @@ export function isDeferrableError(error: unknown): boolean {
   return isCapacityError(error) || error instanceof MarketingModelSeparationError;
 }
 
+/**
+ * B638 — упёрлись ли мы в СВОЙ потолок, а не в квоту провайдера.
+ *
+ * Эти две причины требуют противоположных действий: наш потолок поднимается
+ * числом в `task-policy`, чужая квота — ожиданием или другим аккаунтом. Пока
+ * сигнал называл обе «кончилась ёмкость провайдеров», владелец шёл проверять
+ * ключи там, где менять нужно было наше число.
+ */
+export function isOwnBudgetCeiling(message: string): boolean {
+  return message.toLowerCase().includes("daily token budget exceeded");
+}
+
 type WriterOutput = {
   title: string;
   text: string;
@@ -654,10 +666,21 @@ export async function processMarketingDraft(publicationId: string) {
         key: "agent:capacity",
         kind: "AGENT_RUN",
         severity: "WARNING",
+        // B638: заголовок называет ПРИЧИНУ, а не первое подвернувшееся слово.
+        // «Кончилась ёмкость провайдеров» стояло и тогда, когда провайдеры были
+        // здоровы, а упёрлись мы в собственный суточный потолок — владелец шёл
+        // проверять ключи вместо того, чтобы поднять число у себя. Тот же класс
+        // ошибки, что стухшая отметка в панели провайдеров: панель называла не
+        // ту причину.
         title: error instanceof MarketingModelSeparationError
           ? "SMM-агент ждёт вторую независимую модель"
-          : "SMM-агент остановлен: кончилась ёмкость провайдеров",
-        summary: message,
+          : isOwnBudgetCeiling(message)
+            ? "SMM-агент остановлен: упёрся в наш суточный потолок токенов"
+            : "SMM-агент остановлен: провайдеры отказали в ёмкости",
+        summary: isOwnBudgetCeiling(message)
+          ? `${message} — это НАШ потолок (\`dailyTokenBudget\` в task-policy), а не квота провайдера. `
+            + "Ключи и аккаунты проверять не нужно."
+          : message,
         evidence: { platform },
       }
       : {
