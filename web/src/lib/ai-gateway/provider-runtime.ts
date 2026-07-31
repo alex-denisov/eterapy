@@ -35,7 +35,7 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
   // сходилось только со шлюзом Cloudflare (у того база без пути), а прямой
   // вызов дал бы `…/compatibility/v1/v2/chat` и 404. Расхождение было
   // незаметным ровно до тех пор, пока Cohere ходил только через Cloudflare.
-  [AIProvider.COHERE]: "https://api.cohere.ai",
+  [AIProvider.COHERE]: "https://api.cohere.com",
   [AIProvider.YANDEX]: YANDEX_FOUNDATION_MODELS_BASE_URL,
 };
 

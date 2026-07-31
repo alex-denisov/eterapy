@@ -42,7 +42,11 @@ export const EDGE_RELAY_UPSTREAMS = {
   groq: "https://api.groq.com",
   cerebras: "https://api.cerebras.ai",
   mistral: "https://api.mistral.ai",
-  cohere: "https://api.cohere.ai",
+  // Канонический хост Cohere. `api.cohere.ai` — живой legacy-алиас (отвечает
+  // корректной ошибкой авторизации), но именно на `api.cohere.com` пересылал
+  // запросы шлюз Cloudflare, на котором Cohere работал. Держим тот же адрес,
+  // чтобы разница с прежним рабочим маршрутом была нулевой.
+  cohere: "https://api.cohere.com",
   anthropic: "https://api.anthropic.com",
   gemini: "https://generativelanguage.googleapis.com",
 } as const;
