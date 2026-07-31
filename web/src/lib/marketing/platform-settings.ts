@@ -5,7 +5,6 @@ import { decryptSecret, encryptSecret } from "@/lib/ai-gateway/credentials-crypt
 export const MARKETING_PLATFORM_FIELDS = [
   { platform: "VK", key: "VK_COMMUNITY_TOKEN", label: "Токен сообщества", secret: true, multiline: false },
   { platform: "VK", key: "VK_COMMUNITY_ID", label: "ID сообщества", secret: false, multiline: false },
-  { platform: "VK", key: "VK_USER_TOKEN", label: "Пользовательский токен для поиска публичных постов", secret: true, multiline: false },
   // B618: Callback API сообщества. `confirmation` — строка, которую VK ждёт в
   // ответ при подключении сервера, `secret` — поле, по которому мы отличаем VK
   // от постороннего запроса.
@@ -25,13 +24,17 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
   { platform: "Threads", key: "THREADS_USER_ID", label: "Threads User ID", secret: false, multiline: false },
   { platform: "Threads", key: "THREADS_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false },
-  { platform: "Threads", key: "THREADS_WEBHOOK_VERIFY_TOKEN", label: "Маркер подтверждения webhook · адрес: https://hooks.eterapy.com/api/integrations/meta/threads/webhook", secret: false, multiline: false },
+  // B637: поле остаётся — webhook у Threads работает и на `mentions`. Но это
+  // уже НЕ условие для «отвечаем на входящее»: ответы под своими публикациями
+  // забирает обход каждые 15 минут, а поля `replies` площадка в подписке не
+  // предлагает вовсе.
+  { platform: "Threads", key: "THREADS_WEBHOOK_VERIFY_TOKEN", label: "Маркер подтверждения webhook (необязательно, для mentions) · адрес: https://hooks.eterapy.com/api/integrations/meta/threads/webhook", secret: false, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_APP_ID", label: "Instagram App ID", secret: false, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_APP_SECRET", label: "Instagram App Secret", secret: true, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_USER_ID", label: "Instagram-scoped User ID", secret: false, multiline: false },
   { platform: "Instagram", key: "INSTAGRAM_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false },
-  { platform: "Instagram", key: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN", label: "Маркер подтверждения webhook · адрес: https://hooks.eterapy.com/api/integrations/meta/instagram/webhook", secret: false, multiline: false },
+  { platform: "Instagram", key: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN", label: "Маркер подтверждения webhook (необязательно) · адрес: https://hooks.eterapy.com/api/integrations/meta/instagram/webhook", secret: false, multiline: false },
   { platform: "Telegram", key: "TELEGRAM_BOT_TOKEN", label: "Bot token", secret: true, multiline: false },
   { platform: "Telegram", key: "TELEGRAM_CHANNEL_ID", label: "Маркетинговый канал", secret: false, multiline: false },
   // B618: комментарии к постам канала физически живут в связанной группе

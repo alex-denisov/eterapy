@@ -53,12 +53,15 @@ describe("B610 · rolling marketing automation", () => {
     expect(MARKETING_MODEL_RELEASE_CUTOFF).toBe("2026-02-28");
   });
 
-  it("treats both VK tokens as secrets in the admin connector form", () => {
+  // B637: пользовательского токена VK больше нет — владелец 2026-07-31 отказался
+  // от поиска упоминаний бренда, а других применений у него не было.
+  it("treats VK community token as a secret and no longer asks for a user token", () => {
     const vkTokens = MARKETING_PLATFORM_FIELDS.filter(
-      (field) => field.key === "VK_COMMUNITY_TOKEN" || field.key === "VK_USER_TOKEN",
+      (field) => field.platform === "VK" && field.secret,
     );
 
-    expect(vkTokens).toHaveLength(2);
+    expect(vkTokens.map((field) => field.key)).toContain("VK_COMMUNITY_TOKEN");
+    expect(MARKETING_PLATFORM_FIELDS.map((field) => field.key)).not.toContain("VK_USER_TOKEN");
     expect(vkTokens.every((field) => field.secret)).toBe(true);
   });
 });

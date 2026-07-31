@@ -7,6 +7,10 @@ import {
   isCloudflareAIGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
 import { createCohereAdapter } from "@/lib/ai-gateway/cohere-adapter";
+import {
+  preferredGatewayForProvider,
+  type AIGatewayKind,
+} from "@/lib/ai-gateway/edge-model-gateway";
 import type { DecryptedAICredential } from "@/lib/ai-gateway/credentials";
 import { createFireworksAdapter } from "@/lib/ai-gateway/fireworks-adapter";
 import { createGeminiAdapter } from "@/lib/ai-gateway/gemini-adapter";
@@ -62,6 +66,31 @@ export function providerConfigToRouting(row: AIProviderConfig): AIRoutingProvide
   };
 }
 
+/**
+ * B634 — единственное место, где решается «через какой шлюз идёт провайдер».
+ *
+ * И выбор адреса, и маршрутное доказательство спрашивают именно её: если бы
+ * доказательство считалось отдельно, оно однажды разошлось бы с фактическим
+ * маршрутом — а это ровно то поле, по которому судят о трансграничном контроле.
+ */
+export function controlledGatewayUrlForProvider(
+  provider: AIProvider,
+): { kind: AIGatewayKind; url: string | null } {
+  if (provider === AIProvider.YANDEX) return { kind: "none", url: null };
+  const gateway = getCloudflareGatewayConfig();
+  return preferredGatewayForProvider({
+    provider,
+    directBaseUrl: DIRECT_PROVIDER_BASE_URLS[provider],
+    cloudflareUrl: gateway
+      ? buildCloudflareGatewayUrlForAIProvider({
+        accountId: gateway.accountId,
+        gatewayId: gateway.gatewayId,
+        provider,
+      })
+      : null,
+  });
+}
+
 export function resolvedProviderBaseUrl(input: {
   credential?: Pick<DecryptedAICredential, "baseUrlOverride">
     & Partial<Pick<DecryptedAICredential, "provider">> | null;
@@ -69,27 +98,24 @@ export function resolvedProviderBaseUrl(input: {
   /**
    * A narrow fail-closed route for public workloads that are explicitly
    * allowed to use foreign providers. It bypasses the RU user-data toggle,
-   * but never bypasses Cloudflare AI Gateway itself.
+   * but never bypasses a controlled gateway itself.
+   *
+   * B634: «контролируемый шлюз» — это наша зарубежная нода, а если её нет —
+   * Cloudflare. Раньше здесь безусловно строился адрес Cloudflare, и это
+   * оставляло четырёх провайдеров мёртвыми по стране (замер B633).
    */
   requireCloudflareAIGateway?: boolean;
 }) {
   const provider = input.providerConfig?.provider ?? input.credential?.provider;
   if (input.requireCloudflareAIGateway) {
     if (!provider || provider === AIProvider.YANDEX) {
-      throw new Error("Cloudflare AI Gateway is required only for a supported foreign provider");
+      throw new Error("A controlled AI gateway is required only for a supported foreign provider");
     }
-    const gateway = getCloudflareGatewayConfig();
-    const cfUrl = gateway
-      ? buildCloudflareGatewayUrlForAIProvider({
-        accountId: gateway.accountId,
-        gatewayId: gateway.gatewayId,
-        provider,
-      })
-      : null;
-    if (!cfUrl) {
-      throw new Error(`Cloudflare AI Gateway is not configured for ${provider}`);
+    const gatewayUrl = controlledGatewayUrlForProvider(provider).url;
+    if (!gatewayUrl) {
+      throw new Error(`No controlled AI gateway is configured for ${provider}`);
     }
-    return cfUrl;
+    return gatewayUrl;
   }
 
   const cfGatewayEnabled = cloudflareAIGatewayEnabledForRU();
@@ -115,15 +141,11 @@ export function resolvedProviderBaseUrl(input: {
   }
 
   if (cfEnabled && config && !isYandex) {
-    const gateway = getCloudflareGatewayConfig();
-    if (gateway) {
-      const cfUrl = buildCloudflareGatewayUrlForAIProvider({
-        accountId: gateway.accountId,
-        gatewayId: gateway.gatewayId,
-        provider: config.provider,
-      });
-      if (cfUrl) return cfUrl;
-    }
+    // B634: «включён шлюз» означает контролируемый шлюз, а не имя вендора.
+    // Оператор, поставивший галочку, хотел не Cloudflare как таковой, а чтобы
+    // вызов не шёл с российского выхода напрямую.
+    const gatewayUrl = controlledGatewayUrlForProvider(config.provider).url;
+    if (gatewayUrl) return gatewayUrl;
   }
 
   // CF off (or unsupported / not configured): fall back to the standard

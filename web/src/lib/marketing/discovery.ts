@@ -30,10 +30,10 @@ export type MarketingConnectorState = {
 
 export async function marketingConnectorStates(): Promise<MarketingConnectorState[]> {
   const keys = [
-    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION",
+    "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION",
     "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
-    "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "THREADS_WEBHOOK_VERIFY_TOKEN",
-    "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN",
+    "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
+    "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID",
     "DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE",
   ] as const;
@@ -48,14 +48,20 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     {
       platform: "VK",
       ownedPublishing: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN") && has("VK_COMMUNITY_ID"),
-      discovery: Boolean(enabled.get("VK")) && has("VK_USER_TOKEN"),
+      // B637 · владелец 2026-07-31: «функционал поиска упоминаний бренда мне
+      // точно не нужен». Поиск по чужим стенам требовал ПОЛЬЗОВАТЕЛЬСКОГО
+      // токена — отдельной сущности с правами живого человека, которую нельзя
+      // выпустить из суперадминки и которая живёт вне нашего периметра. Раз
+      // возможность не нужна, требование снято целиком, а не оставлено висеть
+      // красным полем «не задано».
+      discovery: false,
       // B618: отвечать можно токеном сообщества, но узнать о комментарии — только
       // через подключённый Callback API. Без секрета маршрут закрыт fail-closed,
       // и «отвечаем на входящее» было бы неправдой.
       inboundReplies: Boolean(enabled.get("VK")) && has("VK_COMMUNITY_TOKEN")
         && has("VK_COMMUNITY_ID") && has("VK_CALLBACK_SECRET"),
-      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_USER_TOKEN", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION"),
-      note: "Официальный VK API: токен сообщества — wall.post и ответы на входящее; отдельный пользовательский токен — newsfeed.search; Callback API сообщества приносит комментарии к нашим постам и сообщения. Права не смешиваются.",
+      missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION"),
+      note: "Официальный VK API: токен сообщества — wall.post и ответы на входящее; Callback API сообщества приносит комментарии к нашим постам и сообщения. Поиск упоминаний бренда по чужим стенам снят решением владельца (B637) — пользовательский токен больше не нужен.",
     },
     {
       platform: "Reddit",
@@ -72,10 +78,17 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       platform: "Threads",
       ownedPublishing: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN") && has("THREADS_USER_ID"),
       discovery: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN"),
+      // B637 · маркер webhook больше НЕ условие. Владелец 2026-07-31: в
+      // подписке Threads доступны только `mentions` и `publish`, поля
+      // `replies` в интерфейсе нет вовсе. Это ничего не ломает: ответы под
+      // нашими публикациями забирает обход `/{media-id}/replies` каждые 15
+      // минут (B630) — он не зависит ни от какого webhook. Требовать маркер
+      // значило бы держать возможность красной из-за поля, которое площадка не
+      // предлагает.
       inboundReplies: Boolean(enabled.get("Threads")) && has("THREADS_ACCESS_TOKEN")
-        && has("THREADS_USER_ID") && has("THREADS_WEBHOOK_VERIFY_TOKEN"),
-      missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "THREADS_WEBHOOK_VERIFY_TOKEN"),
-      note: "Официальный Threads API публикует посты и ответы. Поиск чужих постов идёт через официальный keyword search; без выданного разрешения он отвечает пустым списком и включается сам, когда разрешение появится.",
+        && has("THREADS_USER_ID"),
+      missing: missing("THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID"),
+      note: "Официальный Threads API публикует посты и ответы. Ответы людей забираются обходом своих публикаций каждые 15 минут — webhook не обязателен (в подписке Threads поля `replies` нет, только `mentions` и `publish`).",
     },
     {
       platform: "Instagram",
@@ -84,9 +97,11 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       // B618: комментарии к своим медиа приходят webhook'ом и отвечаются
       // официальным эндпоинтом ответов. Комментировать чужие публикации этот
       // путь по-прежнему не умеет — и не должен.
+      // B637: как и у Threads — комментарии к своим медиа забирает обход
+      // `/{media-id}/comments`, поэтому маркер webhook перестал быть условием.
       inboundReplies: Boolean(enabled.get("Instagram")) && has("INSTAGRAM_ACCESS_TOKEN")
-        && has("INSTAGRAM_USER_ID") && has("INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
-      missing: missing("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"),
+        && has("INSTAGRAM_USER_ID"),
+      missing: missing("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"),
       note: "Instagram API для Professional account: свои публикации и управление комментариями на своих медиа. Официальный API не даёт публиковать рекламные комментарии под произвольными чужими постами — этот путь не подменяется cookies-автоматизацией.",
     },
     {
@@ -187,41 +202,19 @@ async function discoverReddit(): Promise<Candidate[]> {
   return result;
 }
 
+/**
+ * B637 · поиск по чужим стенам VK снят.
+ *
+ * Владелец 2026-07-31: «функционал поиска упоминаний бренда мне точно не
+ * нужен». Единственный способ читать чужие стены — `newsfeed.search`, а он
+ * требует ПОЛЬЗОВАТЕЛЬСКОГО токена: сущности с правами живого человека,
+ * которую нельзя выпустить из суперадминки и срок жизни которой мы не
+ * контролируем. Функция оставлена пустой, а не удалена вместе с площадкой:
+ * VK остаётся полноценным каналом собственных публикаций и ответов на
+ * входящее — исчезла ровно одна возможность, и видно, какая.
+ */
 async function discoverVk(): Promise<Candidate[]> {
-  const token = await marketingPlatformValue("VK_USER_TOKEN");
-  if (!token) return [];
-  const result: Candidate[] = [];
-  for (const topic of TOPICS) {
-    const response = await fetch("https://api.vk.com/method/newsfeed.search", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        access_token: token,
-        v: "5.199",
-        q: topic,
-        count: "10",
-      }),
-    });
-    const payload = await response.json() as {
-      response?: { items?: Array<{ owner_id?: number; id?: number; text?: string }> };
-      error?: { error_msg?: string };
-    };
-    if (payload.error) throw new Error(`VK discovery: ${payload.error.error_msg ?? "unknown error"}`);
-    for (const item of payload.response?.items ?? []) {
-      // A one-line post carries no question to answer; skip it rather than
-      // produce a generic reply.
-      if (!item.owner_id || !item.id || (item.text ?? "").trim().length < 120) continue;
-      result.push({
-        platform: "vk",
-        targetId: `${item.owner_id}_${item.id}`,
-        targetUrl: `https://vk.com/wall${item.owner_id}_${item.id}`,
-        targetLabel: `VK wall${item.owner_id}_${item.id}`,
-        excerpt: normalizePublicPostExcerpt(item.text ?? ""),
-        topic,
-      });
-    }
-  }
-  return result;
+  return [];
 }
 
 /**

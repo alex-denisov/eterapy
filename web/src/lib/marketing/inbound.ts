@@ -468,8 +468,6 @@ export async function auditUnansweredInbound(
  * Термины, по которым узнаём упоминание бренда. Транслитерации нужны: люди пишут
  * «етерапи» латиницей и кириллицей примерно одинаково часто.
  */
-export const BRAND_MENTION_TERMS = ["eterapy", "етерапи", "этерапи"] as const;
-
 export interface InboundPollOutcome {
   platform: InboundPlatform;
   found: number;
@@ -542,46 +540,6 @@ async function pollRedditInbound(): Promise<{ found: number; ingested: number }>
 }
 
 /**
- * Упоминания бренда в VK. Комментарии к нашим постам и сообщения сообщества
- * приходят Callback API; поиск нужен ровно для того, что webhook не покрывает —
- * когда о нас говорят на чужой стене.
- */
-async function pollVkMentions(): Promise<{ found: number; ingested: number }> {
-  const token = await marketingPlatformValue("VK_USER_TOKEN");
-  if (!token) return { found: 0, ingested: 0 };
-  let found = 0;
-  let ingested = 0;
-  for (const term of BRAND_MENTION_TERMS) {
-    const response = await fetch("https://api.vk.com/method/newsfeed.search", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ access_token: token, v: "5.199", q: term, count: "10" }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    const payload = await response.json().catch(() => null) as {
-      response?: { items?: Array<{ owner_id?: number; id?: number; text?: string }> };
-      error?: { error_msg?: string };
-    } | null;
-    if (payload?.error) throw new Error(`VK mentions: ${payload.error.error_msg ?? "unknown error"}`);
-    for (const item of payload?.response?.items ?? []) {
-      if (!item.owner_id || !item.id || !(item.text ?? "").trim()) continue;
-      found += 1;
-      const result = await ingestInboundMessage({
-        platform: "vk",
-        kind: "MENTION",
-        externalId: `${item.owner_id}_${item.id}`,
-        threadId: `${item.owner_id}_${item.id}`,
-        authorLabel: `VK wall${item.owner_id}`,
-        text: item.text ?? "",
-        permalink: `https://vk.com/wall${item.owner_id}_${item.id}`,
-      });
-      if (result?.created) ingested += 1;
-    }
-  }
-  return { found, ingested };
-}
-
-/**
  * Опрос тех площадок, у которых нет webhook. Threads и Instagram присылают
  * события сами, поэтому здесь их нет — иначе один и тот же комментарий пришёл бы
  * дважды (дубль отсекла бы база, но лишний трафик и путаница остались бы).
@@ -595,8 +553,11 @@ export async function pollInboundSources(
     connector: "Reddit" | "VK";
     run: () => Promise<{ found: number; ingested: number }>;
   }> = [
+    // B637: поиск упоминаний бренда в VK снят решением владельца 2026-07-31 —
+    // он требовал пользовательского токена, а сама возможность не нужна.
+    // Комментарии к нашим постам и сообщения сообщества это не затрагивает:
+    // они приходят Callback API и обходом собственных публикаций.
     { platform: "reddit", connector: "Reddit", run: pollRedditInbound },
-    { platform: "vk", connector: "VK", run: pollVkMentions },
   ];
 
   for (const poller of pollers) {

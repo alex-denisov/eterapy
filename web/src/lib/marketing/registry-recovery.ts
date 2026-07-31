@@ -19,12 +19,18 @@
  *    снимается, как только публикация вышла из отказа; сигнал, который перестал
  *    повторяться, закрывается сам по давности. Иначе панель показывает не
  *    состояние, а архив.
+ * 4. B636: отказ КАНАЛА не отменяет материал вовсе. Правило 1 говорит про
+ *    дефект материала; когда упала дорога наружу, материал ни в чём не виноват
+ *    и остаётся в очереди, сколько бы ни стоял канал. Пауза канала живёт в
+ *    `publish-hold.ts`, здесь — только починка строк, упавших по старому
+ *    правилу.
  */
 
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
+import { isChannelLevelPublicationError, listChannelHolds } from "@/lib/marketing/publish-hold";
 
 /** Сколько раз строку возвращают в работу, прежде чем признать её неисправимой. */
 export const MAX_RECOVERY_ATTEMPTS = 2;
@@ -71,7 +77,11 @@ export function isRecoverablePublicationError(error: string | null | undefined):
 export interface RegistryRecoveryResult {
   requeued: number;
   archived: number;
+  /** B636: строки, возвращённые в очередь после отказа канала. */
+  returnedToQueue: number;
   blockedPlatforms: string[];
+  /** B636: каналы, стоящие на паузе прямо сейчас. */
+  heldPlatforms: string[];
 }
 
 /**
@@ -91,6 +101,7 @@ export async function recoverFailedPublications(
       scheduledFor: true,
       lastError: true,
       recoveryCount: true,
+      attemptCount: true,
     },
     orderBy: { scheduledFor: "asc" },
     take: 200,
@@ -98,7 +109,34 @@ export async function recoverFailedPublications(
 
   let requeued = 0;
   let archived = 0;
+  let returnedToQueue = 0;
   for (const row of failed) {
+    // B636 — отказ КАНАЛА не отменяет материал никогда.
+    //
+    // Начиная с B636 выпуск сам возвращает такую строку в очередь, но на проде
+    // уже лежат строки, упавшие по старому правилу, и часть из них успела
+    // уехать в архив по прошедшему слоту. Сверка чинит их: материал возвращается
+    // в `SCHEDULED` со своим временем и выйдет, как только канал снова
+    // ответит. Да, он выйдет позже своего слота — это осознанный размен:
+    // владелец 2026-07-31 прямо потребовал не отменять публикации из-за отказа
+    // канала, а «поздно» здесь честнее, чем «никогда».
+    // `attemptCount > 0` — признак того, что строка ДОШЛА до выпуска. Без него
+    // сюда попал бы отказ генерации с той же сетевой формулировкой («fetch
+    // failed» у провайдера модели), и неутверждённый черновик уехал бы наружу
+    // мимо редактора.
+    if (row.attemptCount > 0 && isChannelLevelPublicationError(row.lastError)) {
+      await db.externalPublication.update({
+        where: { id: row.id },
+        data: {
+          status: "SCHEDULED",
+          lastError: `Канал недоступен, публикация отложена: ${row.lastError ?? "причина не записана"}`,
+        },
+      });
+      await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
+      returnedToQueue += 1;
+      continue;
+    }
+
     const slotAhead = Boolean(
       row.scheduledFor && row.scheduledFor.getTime() - now.getTime() >= RECOVERY_MIN_LEAD_MS,
     );
@@ -142,10 +180,18 @@ export async function recoverFailedPublications(
     }
   }
 
-  const blockedPlatforms = await reportBlockedScheduledPlatforms(now);
+  const heldPlatforms = (await listChannelHolds().catch(() => []))
+    .map((hold) => hold.platform);
+  const blockedPlatforms = await reportBlockedScheduledPlatforms(now, new Set(heldPlatforms));
 
-  log.info("marketing.registry_recovery", { requeued, archived, blockedPlatforms });
-  return { requeued, archived, blockedPlatforms };
+  log.info("marketing.registry_recovery", {
+    requeued,
+    archived,
+    returnedToQueue,
+    blockedPlatforms,
+    heldPlatforms,
+  });
+  return { requeued, archived, returnedToQueue, blockedPlatforms, heldPlatforms };
 }
 
 /**
@@ -154,7 +200,10 @@ export async function recoverFailedPublications(
  * выглядит как «публикации не появляются», а в реестре всё «утверждено».
  * Поэтому состояние произносится вслух — одним сигналом на площадку.
  */
-async function reportBlockedScheduledPlatforms(now: Date): Promise<string[]> {
+async function reportBlockedScheduledPlatforms(
+  now: Date,
+  heldPlatforms: Set<string>,
+): Promise<string[]> {
   const overdue = await db.externalPublication.groupBy({
     by: ["platform"],
     where: { status: "SCHEDULED", scheduledFor: { lt: new Date(now.getTime() - 30 * 60_000) } },
@@ -175,6 +224,12 @@ async function reportBlockedScheduledPlatforms(now: Date): Promise<string[]> {
   for (const row of overdue) {
     const connector = connectorNames[row.platform.toLowerCase() as keyof typeof connectorNames];
     if (!connector) continue;
+    // B636: канал на паузе уже объяснён своим сигналом. Второй сигнал про тот
+    // же канал заставил бы искать вторую причину там, где она одна.
+    if (heldPlatforms.has(row.platform.toLowerCase())) {
+      await resolveMarketingSignal(`publish-blocked:${row.platform.toLowerCase()}`).catch(() => undefined);
+      continue;
+    }
     const enabled = await marketingPlatformEnabled(connector).catch(() => false);
     const key = `publish-blocked:${row.platform.toLowerCase()}`;
     if (enabled) {

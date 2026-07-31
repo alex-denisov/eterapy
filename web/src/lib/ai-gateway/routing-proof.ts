@@ -1,5 +1,7 @@
 import { AIProvider } from "@prisma/client";
 import { isCloudflareAIGatewayUrl } from "@/lib/ai-gateway/cloudflare-gateway";
+import type { AIGatewayKind } from "@/lib/ai-gateway/edge-model-gateway";
+import { controlledGatewayUrlForProvider } from "@/lib/ai-gateway/provider-runtime";
 import type { AICredentialAttempt, AIRoutingAttemptPlan, AIRoutingProviderConfig } from "@/lib/ai-gateway/routing";
 import { cloudflareAIGatewayEnabledForRU, isYandexOnlyLLMMode } from "@/lib/env";
 
@@ -9,7 +11,18 @@ export type AIProviderRegion = "ru" | "foreign";
 export interface AIRoutingProof {
   providerGroup: AIProviderGroup;
   providerRegion: AIProviderRegion;
+  /**
+   * Трансграничный вызов прошёл через контролируемый шлюз.
+   *
+   * B634 расширил смысл поля с «шлюз Cloudflare» до «контролируемый шлюз»:
+   * наша зарубежная нода отвечает требованию не хуже — свой образ, своя
+   * выкатка, свои журналы, ключи не покидают контур. Какой именно шлюз — в
+   * `gateway`; имя поля сохранено, потому что оно лежит колонкой в базе и по
+   * нему считаются срезы за прошлые месяцы.
+   */
   cloudflareAIGatewayUsed: boolean;
+  /** Какой именно контролируемый шлюз использован. */
+  gateway: AIGatewayKind;
   foreignLLMUsed: boolean;
   crossBorderProcessing: boolean;
 }
@@ -54,10 +67,17 @@ export function routingProofForProvider(input: {
     input.requireCloudflareAIGateway === true
     && foreignLLMUsed
   ) || providerConfigUsesCloudflareAIGateway(input.providerConfig);
+  // Имя шлюза берётся из той же функции, что выбирает адрес: считать его
+  // отдельно значило бы однажды написать в доказательстве не тот маршрут,
+  // которым запрос на самом деле ушёл.
+  const gateway: AIGatewayKind = cloudflareAIGatewayUsed
+    ? controlledGatewayUrlForProvider(input.provider).kind
+    : "none";
   return {
     providerGroup: providerGroup(input.provider),
     providerRegion: providerRegion(input.provider),
     cloudflareAIGatewayUsed,
+    gateway,
     foreignLLMUsed,
     crossBorderProcessing: foreignLLMUsed || cloudflareAIGatewayUsed,
   };
@@ -71,6 +91,7 @@ export function combineRoutingProofs(proofs: AIRoutingProof[]): AIRoutingProof {
     providerGroup: allYandex ? "yandex" : "foreign",
     providerRegion: allYandex ? "ru" : "foreign",
     cloudflareAIGatewayUsed: hasCloudflare,
+    gateway: proofs.find((proof) => proof.gateway !== "none")?.gateway ?? "none",
     foreignLLMUsed: hasForeign,
     crossBorderProcessing: proofs.some((proof) => proof.crossBorderProcessing) || hasForeign || hasCloudflare,
   };

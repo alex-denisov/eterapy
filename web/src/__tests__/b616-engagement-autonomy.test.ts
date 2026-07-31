@@ -148,19 +148,24 @@ describe("B616 · unattended provider health", () => {
     })).toBe(true);
   });
 
-  it("leaves a recently healthy provider alone", () => {
-    // B627, владелец 2026-07-30: здоровый провайдер перепроверяется раз в час,
-    // а не раз в шесть. Проба — это настоящий запрос к модели, и она тратит ту
-    // же бесплатную квоту, что генерация, поэтому чаще часа здорового не трогаем.
+  // Внутри слота, а не «на границе»: в 12:00:00 ровно любая прошлая отметка
+  // принадлежит уже прошедшему слоту, и прогон проверял бы не то, что написан.
+  const midSlot = new Date("2026-07-29T12:10:00.000Z");
+
+  it("leaves a provider alone inside its own quarter-hour slot", () => {
+    // B635, владелец 2026-07-31: шаг у ВСЕХ провайдеров один — пятнадцать
+    // минут. Прежняя экономия квоты (час у здорового) стоила дороже, чем
+    // экономила: в колонке «проверено» стояла отметка часовой давности, и
+    // разные шаги у разных строк выглядели как хаотичная проверка.
     expect(providerProbeDue({
-      now,
-      lastSuccessAt: new Date(now.getTime() - 20 * 60_000),
+      now: midSlot,
+      lastSuccessAt: new Date(midSlot.getTime() - 5 * 60_000),
       lastErrorAt: null,
       lastErrorCode: null,
     })).toBe(false);
     expect(providerProbeDue({
-      now,
-      lastSuccessAt: new Date(now.getTime() - 70 * 60_000),
+      now: midSlot,
+      lastSuccessAt: new Date(midSlot.getTime() - 20 * 60_000),
       lastErrorAt: null,
       lastErrorCode: null,
     })).toBe(true);
@@ -175,19 +180,20 @@ describe("B616 · unattended provider health", () => {
     })).toBe(true);
   });
 
-  it("backs off an account-level block but still re-checks it later", () => {
+  it("re-checks an account-level block on the same rhythm as everything else", () => {
+    // B635: отдельного отступа для решения уровня аккаунта больше нет.
+    // Подставленный владельцем новый ключ обязан начать работать без выкатки и
+    // без клика — а разный шаг у разных строк и был причиной «хаотично».
     expect(providerProbeDue({
-      now,
+      now: midSlot,
       lastSuccessAt: null,
-      lastErrorAt: new Date(now.getTime() - 10 * 60_000),
+      lastErrorAt: new Date(midSlot.getTime() - 3 * 60_000),
       lastErrorCode: "INSUFFICIENT_CREDITS",
     })).toBe(false);
-    // Полсуток были слишком долго: подставленный владельцем новый ключ обязан
-    // начать работать без выкатки и без клика, а не к вечеру.
     expect(providerProbeDue({
-      now,
+      now: midSlot,
       lastSuccessAt: null,
-      lastErrorAt: new Date(now.getTime() - 40 * 60_000),
+      lastErrorAt: new Date(midSlot.getTime() - 20 * 60_000),
       lastErrorCode: "INSUFFICIENT_CREDITS",
     })).toBe(true);
   });
