@@ -30,6 +30,34 @@ load_env() {
   set +a
 }
 
+# Several tools (lcp_subparts, and google_auth's token exchange) use stdlib
+# urllib, which reads the OpenSSL trust store rather than the certifi bundle
+# that requests carries. On python.org macOS builds that store is empty until
+# "Install Certificates.command" is run, and the failure surfaces as
+# CERTIFICATE_VERIFY_FAILED deep inside an OAuth exchange. Point both at
+# certifi so every tool trusts the same roots on every machine.
+load_certs() {
+  [ -n "${SSL_CERT_FILE:-}" ] && return 0
+  [ -x "${PY}" ] || return 0
+  local bundle
+  bundle="$("${PY}" -c 'import certifi;print(certifi.where())' 2>/dev/null)" || return 0
+  [ -f "${bundle}" ] || return 0
+  export SSL_CERT_FILE="${bundle}" REQUESTS_CA_BUNDLE="${bundle}"
+}
+
+# The OAuth flow parks a local callback server on this port and waits. A run
+# abandoned before the browser redirect keeps holding it, and every later
+# attempt dies on "address already in use" — with no hint about the cause.
+OAUTH_PORT=8085
+check_oauth_port() {
+  local pid
+  pid="$(lsof -nP -tiTCP:"${OAUTH_PORT}" -sTCP:LISTEN 2>/dev/null | head -1)" || true
+  [ -n "${pid}" ] || return 0
+  die "port ${OAUTH_PORT} is already held by PID ${pid} — an earlier OAuth run is
+     still waiting for its browser redirect. Stop it and retry:
+       kill ${pid}"
+}
+
 # kebab-case command -> snake_case module, so `drift-baseline` finds
 # drift_baseline.py without a hand-maintained dispatch table.
 tool_path() {
@@ -90,6 +118,8 @@ main() {
       [ -f "${script}" ] || die "unknown tool '${cmd}' — try: scripts/seo/seo list"
       [ -x "${PY}" ] || die "venv missing — run: scripts/seo/seo setup"
       load_env
+      load_certs
+      case "${cmd}:${2:-}" in google-auth:--auth) check_oauth_port ;; esac
       shift
       exec "${PY}" "${script}" "$@"
       ;;
