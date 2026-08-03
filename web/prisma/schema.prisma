@@ -1336,6 +1336,10 @@ model ExternalPublication {
   /// Ограничитель: бесконечный автоперезапуск сжёг бы ёмкость на материале,
   /// который не чинится.
   recoveryCount    Int                         @default(0) @map("recovery_count")
+  /// B645: сколько раз материал переносили в следующий слот, не выпустив.
+  /// Отдельно от `recoveryCount`: тот отвечает на вопрос «сколько раз материал
+  /// переписывали», этот — «сколько раз ему двигали время».
+  deferralCount    Int                         @default(0) @map("deferral_count")
 
   @@index([status, scheduledFor])
   @@index([status, publishedAt])

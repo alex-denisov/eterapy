@@ -170,6 +170,9 @@ describe("aiComplete gateway migration", () => {
       tokensIn: 1000,
       tokensOut: 500,
       latencyMs: 123,
+      // B644: причина остановки доходит до вызывающего. Здесь адаптер её не
+      // прислал — и это честное `null`, а не «ответ дописан».
+      finishReason: null,
     });
     expect(mockDb.aIRequest.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "ai-request-1" },

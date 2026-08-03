@@ -61,6 +61,56 @@ export class MarketingModelSeparationError extends Error {
   }
 }
 
+/**
+ * B644 — ответ модели оборван нашим же лимитом вывода.
+ *
+ * Разбор такого ответа падает всегда: JSON физически не дописан. Прежде это
+ * называлось «ни один провайдер не вернул валидную структуру», и разбор уходил
+ * проверять ключи и квоты, хотя провайдеры были исправны — три «отказа» из
+ * четырёх были одним и тем же оборванным ответом, полученным по трём маршрутам.
+ *
+ * Отдельный класс нужен ради поведения, а не ради формулировки: перебирать
+ * провайдеров с тем же бюджетом бессмысленно (тот же обрыв ×6), а повторять
+ * материал с тем же лимитом — тем более.
+ */
+export class MarketingTruncatedOutputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingTruncatedOutputError";
+  }
+}
+
+/**
+ * B644 — признак обрыва по лимиту вывода. Площадки называют его по-разному:
+ * Gemini и Cohere — `MAX_TOKENS`, OpenAI-совместимые — `length`, Anthropic —
+ * `max_tokens`.
+ */
+export function isTruncatedCompletion(finishReason: string | null | undefined): boolean {
+  if (!finishReason) return false;
+  const normalized = finishReason.trim().toLowerCase();
+  return normalized === "length" || normalized.replaceAll("-", "_").includes("max_tokens");
+}
+
+/**
+ * B644 — потолок бюджета вывода на одну структурную попытку.
+ *
+ * Замер прода 2026-08-03 (`ai_requests`, только маркетинговые роли): p90
+ * ВИДИМОГО вывода — 1151 токен у редактора и 1080 у автора, максимум 1200/1500.
+ * В потолок видимый вывод не упирался ни разу, а `finishReason` был `MAX_TOKENS`
+ * в каждой попытке: модели маршрута думающие, и токены размышления тратятся из
+ * того же бюджета, не попадая в `completion_tokens`. Отсюда и надбавка — она
+ * покрывает размышление, а не текст.
+ */
+export const MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS = 8_000;
+const TRUNCATION_BUDGET_FACTOR = 1.75;
+
+/**
+ * B644 — стартовые бюджеты ролей. Были 2200 у автора и 1600 у редактора: на
+ * текст хватало с запасом, на «текст плюс размышление» — нет ни разу.
+ */
+export const MARKETING_WRITER_MAX_TOKENS = 4_000;
+export const MARKETING_REVIEWER_MAX_TOKENS = 4_000;
+
 const CAPACITY_ERROR_MARKERS = [
   "daily token budget exceeded",
   "rate limit",
@@ -395,37 +445,79 @@ async function completeWithValidStructure<T>(input: {
   const failures: string[] = [];
   let capacityFailures = 0;
   let separationFailures = 0;
-  for (const provider of input.providerOrder) {
+  // B644: бюджет вывода живёт внутри прохода. Обрыв по лимиту — не отказ
+  // маршрута, а нехватка нашего же бюджета, и лечится он одним способом:
+  // повторить ТЕМ ЖЕ маршрутом с большим потолком. Перебор провайдеров здесь
+  // только сжигал бы ёмкость на воспроизведение одного и того же обрыва.
+  let budget = input.maxTokens;
+  let truncationRetries = 0;
+  const queue = [...input.providerOrder];
+  while (queue.length > 0) {
+    const provider = queue[0];
+    let retrySameProvider = false;
     try {
       const response = await aiComplete({
         feature: input.feature,
         dataClass: "PUBLIC_MARKETING",
         providerOrder: [provider],
-        maxTokens: input.maxTokens,
+        maxTokens: budget,
         temperature: input.temperature,
-        requestId: `${input.requestId}:${provider.toLowerCase()}`,
+        requestId: `${input.requestId}:${provider.toLowerCase()}`
+          + (truncationRetries > 0 ? `:b${truncationRetries}` : ""),
         messages: input.messages,
       });
       assertFreshMarketingModel(response.model);
       if (input.excludeModel && response.model === input.excludeModel) {
         separationFailures += 1;
         failures.push(`${provider}: resolved to the writer's model ${response.model}`);
+        queue.shift();
         continue;
       }
       try {
         return { response, value: input.parse(response.text) };
       } catch (error) {
-        failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
-        log.warn("marketing-agent.invalid-structured-output", {
-          feature: input.feature,
-          provider,
-          model: response.model,
-        });
+        // B644: сначала спрашиваем, ДОПИСАН ли ответ вовсе. Неразобранный
+        // обрывок — это не брак структуры, а недосказанное предложение.
+        if (isTruncatedCompletion(response.finishReason)) {
+          const nextBudget = Math.min(
+            MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS,
+            Math.ceil(budget * TRUNCATION_BUDGET_FACTOR),
+          );
+          if (nextBudget <= budget) {
+            throw new MarketingTruncatedOutputError(
+              `Ответ модели ${response.model} (${provider}) обрезан по лимиту вывода `
+              + `${budget} токенов (finishReason=${response.finishReason}). Провайдер исправен: `
+              + "бюджета не хватило на размышление и ответ одновременно.",
+            );
+          }
+          log.warn("marketing-agent.output-truncated", {
+            feature: input.feature,
+            provider,
+            model: response.model,
+            finishReason: response.finishReason,
+            budget,
+            nextBudget,
+          });
+          budget = nextBudget;
+          truncationRetries += 1;
+          retrySameProvider = true;
+        } else {
+          failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
+          log.warn("marketing-agent.invalid-structured-output", {
+            feature: input.feature,
+            provider,
+            model: response.model,
+          });
+        }
       }
     } catch (error) {
+      // Обрыв по лимиту прекращает проход целиком: остальные маршруты вернут
+      // тот же оборванный ответ за ту же ёмкость.
+      if (error instanceof MarketingTruncatedOutputError) throw error;
       if (isCapacityError(error)) capacityFailures += 1;
       failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
     }
+    if (!retrySameProvider) queue.shift();
   }
   const summary = failures.join("; ");
   // Кончилась ёмкость — это не брак материала. Отличаем, чтобы не сжечь
@@ -611,7 +703,7 @@ export async function processMarketingDraft(publicationId: string) {
         providerOrder: pinnedWriterProvider
           ? [pinnedWriterProvider]
           : marketingProviderOrder(`writer:${cycleSeed}`),
-        maxTokens: 2_200,
+        maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
@@ -677,7 +769,7 @@ export async function processMarketingDraft(publicationId: string) {
         feature: isConversational ? MARKETING_REPLY_REVIEWER_FEATURE : "marketing-agent-reviewer",
         providerOrder: reviewerProviderOrder,
         excludeModel: writer.model,
-        maxTokens: 1_600,
+        maxTokens: MARKETING_REVIEWER_MAX_TOKENS,
         temperature: 0.05,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [

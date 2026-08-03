@@ -27,6 +27,7 @@ import {
   releaseChannel,
 } from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
+import { deferPublicationToNextSlot, isSlotWindowOpen } from "@/lib/marketing/slot-window";
 import {
   browserFallbackConfigured,
   publishToDzenBrowser,
@@ -621,7 +622,14 @@ export interface PublishScheduledResult {
   /** B636: строки, которых не коснулись, потому что их канал на паузе. */
   held: number;
   heldPlatforms: string[];
-  outcomes: Array<{ id: string; status: "published" | "failed" | "held"; error?: string }>;
+  /** B645: строки, переехавшие в следующий слот вместо выпуска задним числом. */
+  deferred: number;
+  outcomes: Array<{
+    id: string;
+    status: "published" | "failed" | "held" | "deferred";
+    error?: string;
+    slot?: string;
+  }>;
 }
 
 export async function publishScheduledMarketing(input: {
@@ -663,6 +671,11 @@ export async function publishScheduledMarketing(input: {
       // B642: заметка о неполном выпуске дописывается к существующей, поэтому
       // её надо прочитать до записи.
       notes: true,
+      // B645: окно слота и счётчик переносов — по ним решается, выходит
+      // материал сейчас или переезжает в следующий слот своего канала.
+      planSlot: true,
+      scheduledFor: true,
+      deferralCount: true,
       engagementTargetId: true,
       engagementTargetUrl: true,
       inboundReplyToId: true,
@@ -700,6 +713,27 @@ export async function publishScheduledMarketing(input: {
       continue;
     }
     if (decision === "probe") probeSpent.add(platformKey);
+
+    // B645 — ОКНО СЛОТА. Плановый материал, чьё окно закрылось, наружу задним
+    // числом не идёт: «утренняя символическая карточка» в 23:40 обесценивает
+    // сам формат, заданный временем суток. Материал не отменяется и не
+    // архивируется — он переезжает в следующий слот своего канала.
+    //
+    // Если переносить некуда или право на перенос исчерпано, материал всё
+    // равно выходит: правило B636 «поздно честнее, чем никогда» сильнее
+    // аккуратности расписания.
+    if (publication.planSlot && !isSlotWindowOpen({ scheduledFor: publication.scheduledFor, now })) {
+      const deferral = await deferPublicationToNextSlot({
+        publication,
+        now,
+        reason: `Окно слота ${publication.planSlot} закрылось до выпуска.`,
+        nextStatus: "SCHEDULED",
+      }).catch(() => ({ deferred: false } as const));
+      if (deferral.deferred) {
+        outcomes.push({ id: publication.id, status: "deferred", slot: deferral.slot });
+        continue;
+      }
+    }
 
     if (!publication.body?.trim()) {
       const error = "Publication body is empty";
@@ -853,6 +887,7 @@ export async function publishScheduledMarketing(input: {
     failed: outcomes.filter((item) => item.status === "failed").length,
     held: outcomes.filter((item) => item.status === "held").length,
     heldPlatforms: [...holds.keys()],
+    deferred: outcomes.filter((item) => item.status === "deferred").length,
     outcomes,
   };
 }

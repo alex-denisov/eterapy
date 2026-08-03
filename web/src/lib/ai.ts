@@ -91,6 +91,16 @@ interface AIResponse {
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;
+  /**
+   * B644 — почему модель перестала писать. Адаптеры возвращают это поле давно,
+   * а `aiComplete` его терял, и обрыв по лимиту вывода (`MAX_TOKENS`, `length`)
+   * доходил до вызывающего в виде «невалидный JSON». Разбор уходил проверять
+   * ключи провайдеров там, где не хватало собственного бюджета вывода.
+   *
+   * Необязательное: не каждый провайдер сообщает причину остановки, и «поле не
+   * пришло» — это не то же самое, что «ответ дописан».
+   */
+  finishReason?: string | null;
 }
 
 function adaptersForCredentials(
@@ -403,6 +413,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       tokensIn: response.promptTokens,
       tokensOut: response.completionTokens,
       latencyMs: response.latencyMs,
+      finishReason: response.finishReason ?? null,
     });
 
     return {
@@ -412,6 +423,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       tokensIn: response.promptTokens,
       tokensOut: response.completionTokens,
       latencyMs: response.latencyMs,
+      finishReason: response.finishReason ?? null,
     };
   } catch (err) {
     const failedAttempts = err instanceof AIGatewayRoutingError ? err.attempts ?? [] : [];

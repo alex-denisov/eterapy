@@ -6,7 +6,7 @@
  * инциденту на каждую неудавшуюся публикацию и не убирала их даже тогда, когда
  * причина давно прошла. Обе картины — не отчёт о состоянии, а осадок истории.
  *
- * ТРИ ПРАВИЛА, КОТОРЫЕ ЗДЕСЬ ИСПОЛНЯЮТСЯ.
+ * ПЯТЬ ПРАВИЛ, КОТОРЫЕ ЗДЕСЬ ИСПОЛНЯЮТСЯ.
  *
  * 1. Технический отказ — это не приговор материалу. Строка, чей слот ещё не
  *    наступил, возвращается в работу с явным счётчиком попыток. Возвращать
@@ -24,6 +24,11 @@
  *    и остаётся в очереди, сколько бы ни стоял канал. Пауза канала живёт в
  *    `publish-hold.ts`, здесь — только починка строк, упавших по старому
  *    правилу.
+ * 5. B645: невыпущенный материал ПЕРЕНОСИТСЯ, а не отменяется. Архив — приговор
+ *    материалу («редактор не утвердил», safety-блок), а не способ управлять
+ *    расписанием. Утверждённый текст переезжает в следующий слот своего канала;
+ *    архив остаётся там, где переносить нечего — у строки нет ни тела, ни
+ *    отметки редактора.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -31,6 +36,7 @@ import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import { isChannelLevelPublicationError, listChannelHolds } from "@/lib/marketing/publish-hold";
+import { MAX_SLOT_DEFERRALS, deferPublicationToNextSlot } from "@/lib/marketing/slot-window";
 
 /** Сколько раз строку возвращают в работу, прежде чем признать её неисправимой. */
 export const MAX_RECOVERY_ATTEMPTS = 2;
@@ -55,6 +61,10 @@ export const SIGNAL_STALE_MS = 72 * 60 * 60_000;
  */
 const RECOVERABLE_ERROR_MARKERS = [
   "exceeds the",
+  // B644: обрыв по нашему лимиту вывода. Повтор осмыслен ровно потому, что
+  // бюджет теперь растёт внутри самой попытки (`completeWithValidStructure`);
+  // при прежнем фиксированном лимите это был бы третий одинаковый отказ.
+  "обрезан по лимиту вывода",
   "returned invalid or incomplete structured output",
   "no free provider returned valid structured output",
   "omitted the required media brief",
@@ -81,6 +91,10 @@ export interface RegistryRecoveryResult {
   slotsReleased: number;
   /** B636: строки, возвращённые в очередь после отказа канала. */
   returnedToQueue: number;
+  /** B645: утверждённые материалы, переехавшие в следующий слот вместо архива. */
+  deferredToNextSlot: number;
+  /** B645: материалы, которым переносить некуда — они ждут выпуска как есть. */
+  stuckInQueue: number;
   blockedPlatforms: string[];
   /** B636: каналы, стоящие на паузе прямо сейчас. */
   heldPlatforms: string[];
@@ -105,6 +119,12 @@ export async function recoverFailedPublications(
       recoveryCount: true,
       attemptCount: true,
       planSlot: true,
+      // B645: перенос вместо архива возможен только там, где есть что
+      // переносить — утверждённый редактором текст.
+      body: true,
+      notes: true,
+      agentReviewedAt: true,
+      deferralCount: true,
     },
     orderBy: { scheduledFor: "asc" },
     take: 200,
@@ -114,6 +134,8 @@ export async function recoverFailedPublications(
   let archived = 0;
   let returnedToQueue = 0;
   let slotsReleased = 0;
+  let deferredToNextSlot = 0;
+  let stuckInQueue = 0;
   for (const row of failed) {
     // B636 — отказ КАНАЛА не отменяет материал никогда.
     //
@@ -146,6 +168,57 @@ export async function recoverFailedPublications(
     );
     const technical = isRecoverablePublicationError(row.lastError);
     const repeatable = technical && row.recoveryCount < MAX_RECOVERY_ATTEMPTS;
+
+    // B645 — УТВЕРЖДЁННЫЙ ТЕКСТ НЕ АРХИВИРУЕТСЯ И НЕ ПЕРЕПИСЫВАЕТСЯ.
+    //
+    // Требование владельца 2026-08-03: «если статья хорошая, нужно решедулить,
+    // а не отменять её вовсе». Материал, прошедший редактора и лежащий в строке
+    // целиком, не испортился оттого, что канал молчал два часа или что его слот
+    // прошёл. Он переезжает в следующий слот того же канала — и проверка стоит
+    // ПЕРЕД возвратом в работу: перегенерировать утверждённый текст значило бы
+    // потратить ёмкость на замену того, что уже готово.
+    //
+    // Условие «утверждён» здесь не формальность: строка без тела и без отметки
+    // редактора — несостоявшаяся генерация, переносить в ней нечего, и она
+    // идёт прежними дорогами ниже.
+    const approved = Boolean(row.agentReviewedAt && row.body?.trim());
+    if (approved && technical) {
+      const deferral = await deferPublicationToNextSlot({
+        publication: row,
+        now,
+        reason: slotAhead
+          ? "Материал не удалось выпустить в свой слот."
+          : "Слот прошёл, пока материал был в отказе.",
+        nextStatus: "SCHEDULED",
+      }).catch(() => ({ deferred: false } as const));
+      if (deferral.deferred) {
+        await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
+        deferredToNextSlot += 1;
+        continue;
+      }
+      // Переносить некуда или право исчерпано. Материал всё равно не
+      // выбрасывается: он остаётся утверждённым и выйдет поздно, как только
+      // канал ответит. Владелец узнаёт об этом сигналом, а не по пустой ленте.
+      await db.externalPublication.update({
+        where: { id: row.id },
+        data: {
+          status: "SCHEDULED",
+          lastError: `Материал не вышел в свой слот и остаётся в очереди: ${row.lastError ?? "причина не записана"}`,
+        },
+      });
+      await upsertMarketingSignal({
+        key: `plan-deferral:${row.id}`,
+        kind: "REGISTRY",
+        severity: "WARNING",
+        title: `Материал «${row.key}» не выходит: переносить больше некуда`,
+        summary: `Переносов ${row.deferralCount} из ${MAX_SLOT_DEFERRALS}. `
+          + "Материал утверждён и остаётся в очереди — он выйдет, как только канал ответит, "
+          + `но своего времени уже не получит. Последняя причина: ${row.lastError ?? "не записана"}`,
+        evidence: { publicationId: row.id, platform: row.platform, deferralCount: row.deferralCount },
+      }).catch(() => undefined);
+      stuckInQueue += 1;
+      continue;
+    }
 
     if (slotAhead && repeatable) {
       await db.externalPublication.update({
@@ -227,10 +300,21 @@ export async function recoverFailedPublications(
     archived,
     slotsReleased,
     returnedToQueue,
+    deferredToNextSlot,
+    stuckInQueue,
     blockedPlatforms,
     heldPlatforms,
   });
-  return { requeued, archived, slotsReleased, returnedToQueue, blockedPlatforms, heldPlatforms };
+  return {
+    requeued,
+    archived,
+    slotsReleased,
+    returnedToQueue,
+    deferredToNextSlot,
+    stuckInQueue,
+    blockedPlatforms,
+    heldPlatforms,
+  };
 }
 
 /**
