@@ -29,7 +29,7 @@ import {
   marketingPlatformEnabled,
   marketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
-import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
+import { REDDIT_NOT_CONNECTED, redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
@@ -577,6 +577,15 @@ export async function pollInboundSources(
       outcomes.push({ platform: poller.platform, ...result });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      // B624: коннектор включён, но OAuth не пройден — это незаконченная
+      // настройка, а не поломка чтения. Инцидент здесь отправлял бы владельца
+      // чинить то, чего никто не подключал; состояние коннектора и без того
+      // видно в кокпите строкой «нужна настройка».
+      if (message.includes(REDDIT_NOT_CONNECTED)) {
+        await resolveMarketingSignal(`inbound:${poller.platform}`).catch(() => undefined);
+        outcomes.push({ platform: poller.platform, found: 0, ingested: 0 });
+        continue;
+      }
       await upsertMarketingSignal({
         key: `inbound:${poller.platform}`,
         kind: "INBOUND",

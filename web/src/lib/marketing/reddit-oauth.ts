@@ -10,7 +10,22 @@ import {
 } from "@/lib/marketing/platform-settings";
 
 const REDDIT_REFRESH_TOKEN_SETTING = "marketing.reddit.refresh_token";
+/**
+ * Адрес возврата OAuth. В отличие от прочих ссылок кокпита, он НЕ должен
+ * следовать за контуром: Reddit принимает только тот адрес, который зарегистрирован
+ * в приложении. Смена контура делается переменной `REDDIT_REDIRECT_URI` и
+ * регистрацией второго адреса на стороне Reddit, а не догадкой по заголовкам.
+ */
 const DEFAULT_REDIRECT_URI = "https://app.eterapy.com/api/integrations/reddit/callback";
+
+/**
+ * B624 — «не подключено» это состояние настройки, а не отказ.
+ *
+ * Опрос входящего поднимал `WARNING «Не читается входящее: reddit»` на
+ * неподключённом коннекторе, и владелец шёл чинить то, чего никто не включал.
+ * Платформа сознательно не поднимает инцидентов на ненастроенное (B610/B617).
+ */
+export const REDDIT_NOT_CONNECTED = "Reddit OAuth is not connected";
 const TOKEN_EARLY_REFRESH_MS = 60_000;
 
 let tokenCache: { value: string; expiresAt: number } | null = null;
@@ -147,7 +162,7 @@ export async function redditAccessToken(now = Date.now()): Promise<string> {
   if (!refreshToken) {
     const legacy = process.env.REDDIT_ACCESS_TOKEN?.trim();
     if (legacy) return legacy;
-    throw new Error("Reddit OAuth is not connected");
+    throw new Error(REDDIT_NOT_CONNECTED);
   }
   const payload = await tokenRequest(new URLSearchParams({
     grant_type: "refresh_token",

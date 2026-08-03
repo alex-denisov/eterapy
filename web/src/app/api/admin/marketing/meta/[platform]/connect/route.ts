@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requestOrigin } from "@/lib/request-origin";
 import {
   createMetaOAuthState,
   metaAuthorizationUrl,
@@ -13,7 +14,7 @@ function platformFromParam(value: string): MetaMarketingPlatform | null {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ platform: string }> },
 ) {
   const session = await auth();
@@ -26,6 +27,10 @@ export async function GET(
   try {
     return NextResponse.redirect(await metaAuthorizationUrl({ platform, state }));
   } catch {
-    return NextResponse.redirect(new URL("/admin/marketing/agent?meta=missing_app_settings", "https://admin.eterapy.com"));
+    // B624: возврат на ТОТ контур, с которого нажали. Прописанный прод-хост
+    // уводил администратора со стенда в боевую админку.
+    return NextResponse.redirect(
+      new URL("/admin/marketing/agent?meta=missing_app_settings", requestOrigin(request)),
+    );
   }
 }
