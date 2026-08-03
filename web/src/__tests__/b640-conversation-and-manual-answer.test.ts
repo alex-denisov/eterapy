@@ -23,8 +23,9 @@ jest.mock("@/lib/db", () => ({
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const db = require("@/lib/db").default as {
+import dbModule from "@/lib/db";
+
+const db = dbModule as unknown as {
   marketingInboundMessage: { findMany: jest.Mock };
   externalPublication: { findMany: jest.Mock; findFirst: jest.Mock };
 };

@@ -97,7 +97,6 @@ printf 'Avail\\n%sG\\n' "\${seq[$idx]}"
 describe("INC-095 — сколько релизных образов остаётся на ноде", () => {
   it("скрипт доставляется в репозитории и исполняем", () => {
     expect(fs.existsSync(SCRIPT)).toBe(true);
-    // eslint-disable-next-line no-bitwise
     expect(fs.statSync(SCRIPT).mode & 0o111).toBeTruthy();
   });
 
