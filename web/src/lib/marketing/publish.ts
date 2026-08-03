@@ -28,6 +28,7 @@ import {
 } from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
 import {
+  browserFallbackConfigured,
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
 import { dzenFeedConfirmed, dzenFeedGuid } from "@/lib/marketing/dzen-feed";
@@ -56,6 +57,13 @@ export interface PublishedPost {
    * (лента Дзена, B620): адрес появится после импорта, и придумывать его нельзя.
    */
   publicUrl: string | null;
+  /**
+   * B642. Материал ушёл, но не целиком тем, чем задумывался — например, без
+   * обложки. Это не ошибка (`lastError` остаётся пустым, иначе в кокпите
+   * появится ложное «упало»), но и не то, о чём можно промолчать: молчаливая
+   * деградация выглядит как норма ровно до дня, когда её замечают со стороны.
+   */
+  note?: string;
 }
 
 export type PublicationAdapter = (
@@ -165,9 +173,28 @@ export async function publishToVk(
     throw new Error("VK_COMMUNITY_ID must be numeric");
   }
 
-  const attachment = publication.mediaUrl
-    ? await vkWallPhotoAttachment({ token, communityId, mediaUrl: publication.mediaUrl })
-    : null;
+  // ⚠ B642 — ОБЛОЖКА НЕОБЯЗАТЕЛЬНА, И ЭТО НЕ НЕБРЕЖНОСТЬ.
+  //
+  // `wall.post` токеном сообщества работает, а `photos.getWallUploadServer` —
+  // нет: VK отвечает «Group authorization failed: method is unavailable with
+  // group auth». Загрузка фотографии на стену доступна только пользовательскому
+  // токену, то есть живой человеческой сущности в нашем хранилище. Владелец
+  // выдал ровно то, что выдаётся из интерфейса сообщества, а пользовательский
+  // токен снят из периметра осознанно (B637).
+  //
+  // До этой правки падал весь пост, а не картинка: 03.08 так потеряны два
+  // материала. Теперь пост уходит текстом со ссылкой — обложку VK подтягивает
+  // из OG-разметки самой страницы, — а причина остаётся в реестре.
+  let attachment: string | null = null;
+  let note: string | undefined;
+  if (publication.mediaUrl) {
+    try {
+      attachment = await vkWallPhotoAttachment({ token, communityId, mediaUrl: publication.mediaUrl });
+    } catch (error) {
+      note = `VK: обложка не приложена (${error instanceof Error ? error.message : String(error)}). Пост ушёл текстом.`;
+      console.warn(note);
+    }
+  }
   const response = await fetch("https://api.vk.com/method/wall.post", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -194,6 +221,7 @@ export async function publishToVk(
   return {
     externalPostId: String(postId),
     publicUrl: `https://vk.com/wall-${communityId}_${postId}`,
+    note,
   };
 }
 
@@ -442,25 +470,36 @@ export async function publishToReddit(
 }
 
 /**
- * B620: у Дзена два пути, и выбор между ними — не догадка, а состояние
- * настройки. Пока владелец не подтвердил, что канал принял ленту, действующий
- * браузерный путь остаётся; после подтверждения он выходит из периметра, и
- * материал передаётся площадке лентой.
+ * B620: у Дзена два пути — размеченная лента и браузерная сессия.
  *
  * Лента — это pull: адрес публикации появляется, когда Дзен импортирует
  * материал, а не в момент передачи. Поэтому `publicUrl` здесь пустой, а не
  * выдуманный: сочинённая ссылка на несуществующую страницу — это ложь в
  * реестре, и по ней потом считали бы переходы.
+ *
+ * ⚠ B642 — ПОЧЕМУ ЛЕНТА ТЕПЕРЬ ПУТЬ ПО УМОЛЧАНИЮ, А НЕ НАГРАДА ЗА ПОДТВЕРЖДЕНИЕ.
+ *
+ * Прежний порядок был замкнутым кругом. Материал попадал в ленту только при
+ * `DZEN_FEED_CONFIRMED = true`. Этот признак владелец ставит после того, как
+ * Дзен принял ленту. А Дзен принимает ленту только при десяти материалах в
+ * ней. То есть лента не могла наполниться никогда: на 03.08 в ней было ноль
+ * материалов, три висели в SCHEDULED, двенадцать в FAILED, а браузерный путь
+ * падал на «DZEN_BROWSER_STORAGE_STATE is not configured».
+ *
+ * Правильный порядок обратный: лента наполняется всегда, а признак
+ * подтверждения означает ровно одно — «браузерный путь больше не нужен».
+ * Браузерная сессия используется, только если она настроена И лента ещё не
+ * подтверждена.
  */
 export async function publishToDzen(
   publication: { key?: string; title: string; body: string; mediaUrl: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Dzen");
-  if (await dzenFeedConfirmed()) {
-    if (!publication.key) throw new Error("Dzen feed publication has no registry key");
-    return { externalPostId: dzenFeedGuid(publication.key), publicUrl: null };
+  if (!(await dzenFeedConfirmed()) && (await browserFallbackConfigured("Dzen"))) {
+    return publishToDzenBrowser(publication);
   }
-  return publishToDzenBrowser(publication);
+  if (!publication.key) throw new Error("Dzen feed publication has no registry key");
+  return { externalPostId: dzenFeedGuid(publication.key), publicUrl: null };
 }
 
 export async function publishToInstagram(
@@ -582,6 +621,9 @@ export async function publishScheduledMarketing(input: {
       platform: true,
       contentType: true,
       mediaUrl: true,
+      // B642: заметка о неполном выпуске дописывается к существующей, поэтому
+      // её надо прочитать до записи.
+      notes: true,
       engagementTargetId: true,
       engagementTargetUrl: true,
       inboundReplyToId: true,
@@ -701,6 +743,11 @@ export async function publishScheduledMarketing(input: {
           publishedAt: now,
           nextReviewAt: new Date(now.getTime() + 7 * DAY_MS),
           lastError: null,
+          // `undefined` в Prisma означает «не трогать поле»: заметка
+          // дописывается к существующей, а не затирает её.
+          notes: published.note
+            ? [publication.notes, published.note].filter(Boolean).join("\n")
+            : undefined,
         },
       });
       // Входящее закрывается только фактом ушедшего ответа: пока ответ не

@@ -491,7 +491,7 @@ export default async function MarketingAgentPage() {
               <Rss className="size-4" />
               {dzenFeed.confirmed
                 ? "Лента подтверждена: выпуск идёт через неё"
-                : "Лента готовится, действующий путь выпуска не отключён"}
+                : "Лента наполняется — подключить её в Дзене можно с 10 материалов"}
             </p>
             <p className="mt-2">
               Материалов в ленте: <b>{dzenFeed.items}</b> из {DZEN_FEED_MINIMUM_ITEMS},

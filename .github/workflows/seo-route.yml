@@ -170,15 +170,27 @@ jobs:
               # `critical|warning` и ловила сами ключи счётчиков — прогон
               # объявил регрессию на всех 205 адресах при нуле находок.
               if (summary.get("critical") or 0) or (summary.get("warning") or 0):
-                  lines = [
-                      f"  {item['severity']}: {item.get('message', item.get('rule', ''))}"
-                      for item in data.get("triggered_findings", [])
-                      if item.get("severity") in ("CRITICAL", "WARNING")
-                  ]
-                  findings.append(url + "\n" + "\n".join(lines[:4]))
+                  # Сырые находки, без склейки в текст: человеческий отчёт из них
+                  # собирает `drift_digest.py`, и ему нужны поля, а не строки.
+                  findings.append({
+                      "url": url,
+                      "findings": [
+                          {
+                              "rule": item.get("rule"),
+                              "severity": item.get("severity"),
+                              "message": item.get("message"),
+                          }
+                          for item in data.get("triggered_findings", [])
+                          if item.get("severity") in ("CRITICAL", "WARNING")
+                      ],
+                  })
 
-          pathlib.Path("drift-findings.txt").write_text("\n\n".join(findings))
-          pathlib.Path("drift-errors.txt").write_text("\n".join(errors))
+          pathlib.Path("drift.json").write_text(json.dumps({
+              "urls_total": len(urls),
+              "checked": len(urls),
+              "pages": findings,
+              "errors": errors,
+          }, ensure_ascii=False, indent=1))
           print(f"проверено {len(urls)} адресов, расхождений {len(findings)}, не сверено {len(errors)}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"checked={len(urls)}\n")
@@ -213,20 +225,21 @@ jobs:
           TG_MARKETING: ${{ secrets.TELEGRAM_ETERAPY_MARKETING_CHAT_ID }}
           TG_FALLBACK: ${{ secrets.TELEGRAM_CHAT_ID }}
           INDEXNOW_RESULT: ${{ steps.indexnow.outputs.result }}
-          DRIFT_CHECKED: ${{ steps.drift.outputs.checked }}
-          DRIFT_FOUND: ${{ steps.drift.outputs.found }}
-          DRIFT_ERRORS: ${{ steps.drift.outputs.errors }}
           URLS_TOTAL: ${{ steps.urls.outputs.total }}
         run: |
           set -uo pipefail
           [ -n "${TG_TOKEN:-}" ] || { echo "нет токена — отчёт пропущен"; exit 0; }
-          FINDINGS=$(head -c 1500 drift-findings.txt 2>/dev/null || true)
-          # printf, а не многострочная переменная в YAML: отступ блока попал бы
-          # в каждую строку сообщения.
-          TEXT=$(printf '🔎 SEO-маршрут после выкатки\nАдресов в карте: %s\nIndexNow: %s\nСторож разметки: проверено %s, расхождений %s, не сверено %s' \
-            "${URLS_TOTAL:-?}" "${INDEXNOW_RESULT:--}" "${DRIFT_CHECKED:-0}" "${DRIFT_FOUND:-0}" "${DRIFT_ERRORS:-0}")
-          if [ -n "$FINDINGS" ]; then
-            TEXT=$(printf '%s\n\nРасхождения:\n%s' "$TEXT" "$FINDINGS")
+          # Сторож мог не дойти до записи файла — тогда сводить нечего, но
+          # сказать об этом надо: молчащий сторож выглядит как здоровый.
+          if [ ! -s drift.json ]; then
+            TEXT="🔎 SEO после выкатки: сторож разметки не отработал — см. прогон в GitHub Actions"
+          else
+            # Итог IndexNow приходит из другого шага и в файле сторожа его нет —
+            # поэтому отдельным аргументом, а не подмешиванием в JSON.
+            TEXT=$(python3 scripts/seo/drift_digest.py --format telegram \
+              --indexnow "${INDEXNOW_RESULT:-—}" < drift.json)
+            python3 scripts/seo/drift_digest.py --format summary \
+              --indexnow "${INDEXNOW_RESULT:-—}" < drift.json >> "$GITHUB_STEP_SUMMARY"
           fi
           send() {
             [ -n "${1:-}" ] || return 1
@@ -237,11 +250,16 @@ jobs:
           }
           send "$TG_MARKETING" || send "$TG_FALLBACK" || echo "::warning::отчёт SEO-маршрута не доставлен ни в один канал"
 
-      - name: Fail the run when markup regressed
-        if: ${{ steps.drift.outputs.found != '0' && steps.drift.outputs.found != '' }}
-        env:
-          DRIFT_FOUND: ${{ steps.drift.outputs.found }}
-        run: |
-          echo "::error::Поисковая разметка изменилась на ${DRIFT_FOUND} адресах — см. отчёт выше"
-          cat drift-findings.txt
-          exit 1
+      # ⚠ ЗДЕСЬ НЕТ ШАГА, КОТОРЫЙ ВАЛИТ ПРОГОН, И ЭТО РЕШЕНИЕ, А НЕ ПРОПУСК.
+      #
+      # До B641 расхождение разметки завершало прогон с кодом 1. Владелец
+      # получал письмо «Run failed» с именем ветки в заголовке и читал его как
+      # «выкатка упала» — при том что маршрут стартует ПОСЛЕ успешной выкатки и
+      # заблокировать не может уже ничего: прод живой.
+      #
+      # Хуже: расхождение — событие ожидаемое. Любая правка заголовка страницы
+      # это расхождение. Красный прогон на ожидаемом событии обесценивает
+      # красный прогон как сигнал вообще.
+      #
+      # Находки не потерялись: короткая сводка уходит в Telegram, полная — в
+      # сводку прогона. Прогон краснеет только если сломался сам сторож.
