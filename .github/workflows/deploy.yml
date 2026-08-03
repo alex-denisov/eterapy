@@ -17,6 +17,7 @@ on:
       - '.github/workflows/sync-staging-db.yml'
       - '.github/workflows/playwright.yml'
       - '.github/workflows/deploy-test-vm.yml'
+      - '.github/workflows/seo-route.yml'
       - 'deploy/*staging*'
       - 'deploy/telegram-proxy*'
       - '.artifacts/**'

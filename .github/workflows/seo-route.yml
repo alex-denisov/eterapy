@@ -116,7 +116,8 @@ jobs:
             exit 0
           fi
           KEY=$(basename "$KEY_FILE" .txt)
-          COUNT=$(grep -c . changed-urls.txt || echo 0)
+          COUNT=$(grep -c . changed-urls.txt || true)
+          COUNT=${COUNT:-0}
           # Первый прогон видит «изменилось всё»: снимка `lastmod` ещё нет.
           # Слать в этот момент весь каталог нельзя — это ровно тот спам,
           # от которого протокол защищается. Каталог отправляется вручную
@@ -155,12 +156,17 @@ jobs:
               printf '%s\n%s\n\n' "$url" "$(printf '%s' "$OUT" | grep -iE '(critical|warning)' | head -4)" >> drift-findings.txt
             fi
           done < all-urls.txt
-          FOUND=$(grep -c '^https' drift-findings.txt || echo 0)
+          # `grep -c` при нуле совпадений печатает «0» И выходит с кодом 1.
+          # `|| echo 0` дописывал ВТОРУЮ строку, и GITHUB_OUTPUT падал на
+          # «Invalid format '0'» — шаг валился ровно тогда, когда всё в порядке.
+          FOUND=$(grep -c '^https' drift-findings.txt || true)
+          FOUND=${FOUND:-0}
           echo "checked=$CHECKED" >> "$GITHUB_OUTPUT"
           echo "found=$FOUND" >> "$GITHUB_OUTPUT"
           echo "проверено $CHECKED адресов, расхождений на $FOUND"
 
       - name: Refresh baselines
+        if: always()
         run: |
           set -uo pipefail
           while IFS= read -r url; do
