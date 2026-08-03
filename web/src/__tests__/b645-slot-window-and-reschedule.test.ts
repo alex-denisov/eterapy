@@ -192,6 +192,28 @@ describe("выпуск не идёт задним числом", () => {
     expect((moved.scheduledFor as Date).getTime()).toBeGreaterThan(NOW.getTime());
   });
 
+  it("пауза канала переносу не мешает: материал получает осмысленное время", async () => {
+    // Замер прода 2026-08-03: материал Instagram простоял двое суток на паузе
+    // канала и вышел бы в произвольную минуту возврата доступа.
+    publicationFindMany
+      .mockResolvedValueOnce([scheduledRow({
+        platform: "instagram",
+        scheduledFor: new Date(NOW.getTime() - 48 * 3_600_000),
+      })])
+      .mockResolvedValue([]);
+    const adapter = jest.fn();
+
+    const result = await publishScheduledMarketing({
+      now: NOW,
+      enabled: true,
+      adapters: { instagram: adapter },
+    });
+
+    expect(result.deferred).toBe(1);
+    expect(adapter).not.toHaveBeenCalled();
+    expect(updatesWith("planSlot")[0].status).toBe("SCHEDULED");
+  });
+
   it("внутри окна материал выходит как прежде", async () => {
     publicationFindMany
       .mockResolvedValueOnce([scheduledRow({

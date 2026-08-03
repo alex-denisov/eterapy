@@ -701,23 +701,18 @@ export async function publishScheduledMarketing(input: {
   const outcomes: PublishScheduledResult["outcomes"] = [];
   for (const publication of publications) {
     const platformKey = publication.platform.toLowerCase();
-    const decision = holdDecision({
-      hold: holds.get(platformKey) ?? null,
-      now,
-      probeSpent: probeSpent.has(platformKey),
-    });
-    if (decision === "hold") {
-      // Строка НЕ трогается вовсе: остаётся `SCHEDULED` со своим временем и
-      // выйдет сама, как только канал вернётся. Ни отмены, ни архива.
-      outcomes.push({ id: publication.id, status: "held" });
-      continue;
-    }
-    if (decision === "probe") probeSpent.add(platformKey);
 
     // B645 — ОКНО СЛОТА. Плановый материал, чьё окно закрылось, наружу задним
     // числом не идёт: «утренняя символическая карточка» в 23:40 обесценивает
     // сам формат, заданный временем суток. Материал не отменяется и не
     // архивируется — он переезжает в следующий слот своего канала.
+    //
+    // Проверка стоит ПЕРЕД паузой канала намеренно. Причина, по которой слот
+    // пропущен, роли не играет: замер прода 2026-08-03 показал материал
+    // Instagram, простоявший двое суток на паузе канала и обречённый выйти в
+    // произвольную минуту возврата доступа. Перенос ничего не отменяет (B636
+    // цел: строка остаётся в очереди), он лишь возвращает материалу
+    // осмысленное время.
     //
     // Если переносить некуда или право на перенос исчерпано, материал всё
     // равно выходит: правило B636 «поздно честнее, чем никогда» сильнее
@@ -734,6 +729,19 @@ export async function publishScheduledMarketing(input: {
         continue;
       }
     }
+
+    const decision = holdDecision({
+      hold: holds.get(platformKey) ?? null,
+      now,
+      probeSpent: probeSpent.has(platformKey),
+    });
+    if (decision === "hold") {
+      // Строка НЕ трогается вовсе: остаётся `SCHEDULED` со своим временем и
+      // выйдет сама, как только канал вернётся. Ни отмены, ни архива.
+      outcomes.push({ id: publication.id, status: "held" });
+      continue;
+    }
+    if (decision === "probe") probeSpent.add(platformKey);
 
     if (!publication.body?.trim()) {
       const error = "Publication body is empty";
