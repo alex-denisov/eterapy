@@ -122,6 +122,23 @@ chrome-devtools MCP), генераторы schema (JSON-LD у нас уже св
 4. **Полевые CWV** по посадочным, `lcp-subparts` для приоритизации.
 5. **Content-quality** в контентный маршрут B578 как редакционный порог.
 
+## Известные упоры
+
+**CrUX отвечает 403 `API_KEY_SERVICE_BLOCKED`.** Ключ рабочий (PageSpeed на нём
+отвечает), но в проекте Google Cloud не включён Chrome UX Report API. Лечится
+в консоли: APIs & Services → Enable APIs → *Chrome UX Report API*. Касается
+`crux-history` и `lcp-subparts`; `pagespeed-check` работает и без него.
+
+**OAuth не запускается второй раз.** Флоу поднимает локальный сервер на порту
+8085 и ждёт редиректа из браузера. Брошенный запуск держит порт дальше, и
+следующий падает. `seo` это проверяет заранее и печатает, кого убить.
+
+**Сертификаты.** Часть инструментов ходит через stdlib `urllib`, у которого на
+сборках python.org для macOS пустое хранилище корневых сертификатов — падает
+`CERTIFICATE_VERIFY_FAILED`, в том числе при обмене OAuth-кода на токен. `seo`
+подставляет бандл certifi в `SSL_CERT_FILE`, так что запускать инструменты
+надо через него, а не `python3 script.py` напрямую.
+
 ## Происхождение и ресинк
 
 Скрипты взяты из [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
