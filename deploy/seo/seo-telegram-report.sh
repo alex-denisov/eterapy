@@ -26,7 +26,26 @@ from_env_file() {
 }
 
 TG_TOKEN="${TG_TOKEN:-$(from_env_file TELEGRAM_BOT_TOKEN)}"
-TG_CHAT="${TG_CHAT:-$(from_env_file TELEGRAM_CHAT_ID)}"
+
+# ⚠ ПОЧЕМУ НЕ api.telegram.org НАПРЯМУЮ (INC-098, найдено 2026-08-03).
+# Нода стоит в РФ, где api.telegram.org недоступен. Приложение поэтому ходит
+# через релей `TELEGRAM_API_BASE` (Cloudflare Worker), а этот скрипт до сих пор
+# бил в Telegram напрямую — и умирал по таймауту `curl (28)` КАЖДЫЙ день с
+# момента установки таймера: отчёт не пришёл владельцу ни разу. Отказ был виден
+# только в `journalctl -u eterapy-seo-report`, куда никто не смотрит.
+# Базовый адрес уже содержит `/bot<TOKEN>`, отдельный токен к нему не нужен.
+TG_API_BASE="${TG_API_BASE:-$(from_env_file TELEGRAM_API_BASE)}"
+if [ -z "$TG_API_BASE" ]; then
+  TG_API_BASE="https://api.telegram.org/bot${TG_TOKEN}"
+fi
+
+# Владелец 2026-08-03: SEO/GEO/SMM и ответы клиентам — в отдельный
+# маркетинговый канал, а не в шумный деплой-канал. `TELEGRAM_CHAT_ID` остаётся
+# запасным адресом: молчаливая недоставка отчёта хуже, чем отчёт не туда.
+TG_CHAT="${TG_CHAT:-$(from_env_file TELEGRAM_ETERAPY_MARKETING_CHAT_ID)}"
+if [ -z "$TG_CHAT" ]; then
+  TG_CHAT="$(from_env_file TELEGRAM_CHAT_ID)"
+fi
 YANDEX_OAUTH_TOKEN="${YANDEX_OAUTH_TOKEN:-$(from_env_file YANDEX_OAUTH_TOKEN)}"
 YANDEX_WORDSTAT_API_KEY="${YANDEX_WORDSTAT_API_KEY:-$(from_env_file YANDEX_WORDSTAT_API_KEY)}"
 YANDEX_CLOUD_FOLDER_ID="${YANDEX_CLOUD_FOLDER_ID:-$(from_env_file YANDEX_CLOUD_FOLDER_ID)}"
@@ -38,7 +57,7 @@ YANDEX_WEBMASTER_HOST_ID="${YANDEX_WEBMASTER_HOST_ID:-https:eterapy.com:443}"
 YANDEX_METRIKA_COUNTER_ID="${YANDEX_METRIKA_COUNTER_ID:-108502034}"
 export YANDEX_METRIKA_COUNTER_ID
 
-for required in TG_TOKEN TG_CHAT YANDEX_OAUTH_TOKEN; do
+for required in TG_API_BASE TG_CHAT YANDEX_OAUTH_TOKEN; do
   if [ -z "${!required}" ]; then
     echo "SEO-отчёт: не задан $required (ни в env, ни в $ENV_FILE)" >&2
     exit 1
@@ -126,7 +145,7 @@ PY
 )
 
 if [ "${DRY_RUN:-}" = "1" ]; then printf '%s\n' "$TEXT"; exit 0; fi
-curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+curl -fsS -X POST "${TG_API_BASE}/sendMessage" \
   --data-urlencode "chat_id=${TG_CHAT}" \
   --data-urlencode "text=${TEXT}" \
   -d parse_mode=HTML -d disable_web_page_preview=true >/dev/null

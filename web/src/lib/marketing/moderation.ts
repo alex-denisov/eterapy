@@ -6,7 +6,7 @@ import {
   INBOUND_REPLY_CONTENT_TYPE,
   isConversationalContentType,
 } from "@/lib/marketing/perimeter";
-import { resolveOpsChannel } from "@/lib/ops-notification-channel";
+import { moderationChatIds, resolveMarketingChannel } from "@/lib/ops-notification-channel";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
 type ModerationAction = "approve" | "revise" | "reject";
@@ -67,8 +67,8 @@ export async function requestMarketingModeration(publicationId: string) {
     return { sent: false, reason: "not-reviewable" };
   }
   const isInboundReply = publication.contentType === INBOUND_REPLY_CONTENT_TYPE;
-  const channel = await resolveOpsChannel();
-  if (channel.chatIds.length === 0) throw new Error("Ops Telegram channel is not configured");
+  const channel = await resolveMarketingChannel();
+  if (channel.chatIds.length === 0) throw new Error("Marketing Telegram channel is not configured");
 
   const planned = (publication.scheduledFor ?? new Date()).toLocaleString("ru-RU", {
     dateStyle: "medium",
@@ -128,8 +128,10 @@ export async function applyMarketingModeration(input: {
   callbackQueryId: string;
   messageId?: number;
 }) {
-  const ops = await resolveOpsChannel();
-  if (!ops.chatIds.includes(input.chatId)) throw new Error("Moderation callback came from a non-ops chat");
+  const allowedChats = await moderationChatIds();
+  if (!allowedChats.includes(input.chatId)) {
+    throw new Error("Moderation callback came from a chat we do not moderate from");
+  }
 
   const publication = await db.externalPublication.findUnique({
     where: { id: input.publicationId },

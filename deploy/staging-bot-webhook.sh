@@ -47,9 +47,14 @@ SECRET=\$(val TELEGRAM_WEBHOOK_SECRET)
 case "$ACTION" in
   up)
     [ -n "\$URL" ] || { echo "TELEGRAM_WEBHOOK_URL не задан в $ENV_FILE" >&2; exit 1; }
+    # allowed_updates передаётся явно и всегда: без поля Telegram сохраняет
+    # ПРЕДЫДУЩИЙ список, а не умолчание, и один давний вызов с ["message"]
+    # навсегда глушит кнопки и pre_checkout. См. TELEGRAM_ALLOWED_UPDATES
+    # в web/src/lib/telegram.ts (INC-097).
     curl -fsS -X POST "\$API/setWebhook" \
       --data-urlencode "url=\$URL" \
       --data-urlencode "secret_token=\$SECRET" \
+      --data-urlencode 'allowed_updates=["message","callback_query","pre_checkout_query"]' \
       -d 'drop_pending_updates=true'
     echo
     ;;

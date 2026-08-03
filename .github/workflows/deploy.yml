@@ -265,6 +265,8 @@ jobs:
           # видит ни одного комментария к постам канала — у самого канала
           # комментариев нет вовсе, они живут в связанной группе (B618).
           TELEGRAM_ETERAPY_CHAT_ID: ${{ secrets.TELEGRAM_ETERAPY_CHAT_ID }}
+          # B640: канал владельца под SEO/GEO/SMM и ответы клиентам.
+          TELEGRAM_ETERAPY_MARKETING_CHAT_ID: ${{ secrets.TELEGRAM_ETERAPY_MARKETING_CHAT_ID }}
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
           YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
@@ -362,6 +364,39 @@ jobs:
           else
             $SSH "sudo systemctl disable --now eterapy-seo-report.timer >/dev/null 2>&1 || true"
             echo "▶ SEO-отчёт: не primary — таймер выключен"
+          fi
+          # INC-097: перерегистрация вебхука с ЯВНЫМ allowed_updates.
+          #
+          # Telegram доставляет только перечисленные типы обновлений, а вызов
+          # setWebhook БЕЗ этого поля сохраняет предыдущий список, а не
+          # умолчание. Из-за одного давнего вызова с ["message"] кнопки
+          # премодерации SMM не работали вовсе, а pre_checkout звёзд не мог
+          # прийти в принципе — и ни то, ни другое не оставляло следа в наших
+          # логах: обновления отбрасывались на стороне Telegram.
+          #
+          # Шаг идёт через `TELEGRAM_API_BASE` (релей), потому что прямой
+          # api.telegram.org с российской ноды недоступен — ровно та же
+          # причина, по которой ежедневный SEO-отчёт не доходил (INC-098).
+          # Только primary: перерегистрация идемпотентна, но шуметь ей на
+          # каждой ноде незачем. Шаг не валит выкатку: вебхук — не тот отказ,
+          # из-за которого стоит откатывать релиз.
+          if [ "$NODE_ROLE" = "primary" ]; then
+            $SSH 'set -u
+              val() { sudo sed -n "s/^$1=//p" /opt/eterapy/.env | head -1; }
+              API=$(val TELEGRAM_API_BASE); URL=$(val TELEGRAM_WEBHOOK_URL); SEC=$(val TELEGRAM_WEBHOOK_SECRET)
+              if [ -z "$API" ] || [ -z "$URL" ]; then
+                echo "▶ вебхук: TELEGRAM_API_BASE или TELEGRAM_WEBHOOK_URL не задан — пропуск"
+                exit 0
+              fi
+              curl -fsS -m 30 -X POST "$API/setWebhook" \
+                --data-urlencode "url=$URL" \
+                --data-urlencode "secret_token=$SEC" \
+                --data-urlencode "allowed_updates=[\"message\",\"callback_query\",\"pre_checkout_query\"]" \
+                | head -c 200
+              echo
+              curl -fsS -m 30 "$API/getWebhookInfo" \
+                | tr "," "\n" | grep -i "allowed_updates" -A3 || true' \
+              || echo "▶ вебхук: перерегистрация не удалась — проверить вручную"
           fi
           # B631: вход для вебхуков Meta (`hooks.eterapy.com`). Прежде vhost'ы
           # nginx на нодах правились руками и в репозитории их не было вовсе —
@@ -514,7 +549,7 @@ jobs:
                      CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN \
                      FLEET_GITHUB_TOKEN \
                      TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_CHANNEL_ID \
-                     TELEGRAM_ETERAPY_CHAT_ID \
+                     TELEGRAM_ETERAPY_CHAT_ID TELEGRAM_ETERAPY_MARKETING_CHAT_ID \
                      THREADS_APP_ID THREADS_APP_SECRET \
                      INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET \
                      REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET REDDIT_USER_AGENT \

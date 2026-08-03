@@ -30,7 +30,7 @@ import {
   marketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
-import { resolveOpsChannel } from "@/lib/ops-notification-channel";
+import { resolveMarketingChannel } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
 export const INBOUND_PLATFORMS = ["vk", "threads", "instagram", "telegram", "reddit"] as const;
@@ -153,7 +153,7 @@ function replyKey(platform: string, externalId: string) {
 }
 
 async function notifyOps(message: string) {
-  const channel = await resolveOpsChannel();
+  const channel = await resolveMarketingChannel();
   for (const chatId of channel.chatIds) {
     await sendTelegram(chatId, message).catch((error) => {
       log.error("marketing-inbound.ops_notify_failed", { error: serializeError(error) });

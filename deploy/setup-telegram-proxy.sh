@@ -94,7 +94,7 @@ RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setW
   -d "{
     \"url\": \"${WEBHOOK_URL}\",
     \"secret_token\": \"${TELEGRAM_WEBHOOK_SECRET:-eterapy_wh_secret_2026}\",
-    \"allowed_updates\": [\"message\"]
+    \"allowed_updates\": [\"message\", \"callback_query\", \"pre_checkout_query\"]
   }")
 
 if echo "$RESULT" | grep -q '"ok":true'; then

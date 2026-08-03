@@ -126,6 +126,10 @@ jest.mock("@/lib/telegram", () => ({
 
 jest.mock("@/lib/ops-notification-channel", () => ({
   resolveOpsChannel: async () => ({ chatIds: ["-100500"], source: "test" }),
+  // B640: входящее уехало в маркетинговый канал. Адрес для этих проверок
+  // безразличен — важно, что уведомление вообще уходит.
+  resolveMarketingChannel: async () => ({ chatIds: ["-100500"], source: "test" }),
+  moderationChatIds: async () => ["-100500"],
 }));
 
 jest.mock("@/lib/marketing/agent", () => ({

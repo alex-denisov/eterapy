@@ -23,7 +23,11 @@
 import { db } from "@/lib/db";
 
 /** Откуда взялся адрес — нужно в логах и в диагностике админки. */
-export type OpsChannelSource = "ops_channel" | "superadmin_fallback" | "none";
+export type OpsChannelSource =
+  | "ops_channel"
+  | "marketing_channel"
+  | "superadmin_fallback"
+  | "none";
 
 export interface OpsChannelTarget {
   chatIds: string[];
@@ -43,6 +47,50 @@ export function configuredOpsChatId(env: Partial<NodeJS.ProcessEnv> = process.en
   const deployChannel = env.TELEGRAM_CHAT_ID?.trim();
   if (deployChannel) return deployChannel;
   return null;
+}
+
+/**
+ * Адрес маркетингового канала, если он задан.
+ *
+ * Владелец 2026-08-03: уведомления по SEO, GEO, SMM и ответам клиентам должны
+ * приходить отдельно от деплой-канала — там их не видно за шумом выкаток.
+ * Пока переменная не задана, всё идёт прежним путём: отдельный канал — это
+ * улучшение адресации, а не новое условие доставки.
+ */
+export function configuredMarketingChatId(env: Partial<NodeJS.ProcessEnv> = process.env): string | null {
+  return env.TELEGRAM_ETERAPY_MARKETING_CHAT_ID?.trim() || null;
+}
+
+/**
+ * Куда слать маркетинговое уведомление (SEO/GEO/SMM/ответы клиентам).
+ *
+ * Отдельный канал, если он настроен; иначе — служебный адрес. Бухгалтерия и
+ * выкатки сюда НЕ попадают: у них свой канал и своя аудитория.
+ */
+export async function resolveMarketingChannel(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+): Promise<OpsChannelTarget> {
+  const marketing = configuredMarketingChatId(env);
+  if (marketing) return { chatIds: [marketing], source: "marketing_channel" };
+  return resolveOpsChannel(env);
+}
+
+/**
+ * Чаты, из которых мы принимаем решение премодерации.
+ *
+ * ⚠ ПОЧЕМУ СПИСОК, А НЕ ОДИН АДРЕС. Отправка переехала в маркетинговый канал,
+ * но карточки, отправленные ДО переезда, остались висеть в служебном — и
+ * кнопки под ними обязаны продолжать работать. Принимать только текущий адрес
+ * значило бы во второй раз получить молча мёртвую кнопку.
+ */
+export async function moderationChatIds(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+): Promise<string[]> {
+  const [marketing, ops] = await Promise.all([
+    resolveMarketingChannel(env),
+    resolveOpsChannel(env),
+  ]);
+  return [...new Set([...marketing.chatIds, ...ops.chatIds])];
 }
 
 /**

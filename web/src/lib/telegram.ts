@@ -151,6 +151,35 @@ export async function getBotUpdates(offset?: number) {
   return d.result ?? [];
 }
 
+/**
+ * Типы обновлений, которые наш webhook действительно разбирает.
+ *
+ * ⚠ ЭТО БЕЛЫЙ СПИСОК, А НЕ ПОДСКАЗКА. Telegram доставляет ТОЛЬКО перечисленное
+ * в `allowed_updates`; всё остальное отбрасывается на его стороне — молча, без
+ * ошибки, без записи в журнале у нас. Отладить это по нашим логам нельзя: там
+ * просто ничего нет, как будто кнопку не нажимали.
+ *
+ * ⚠ И ЭТО ЗНАЧЕНИЕ ЛИПКОЕ. Когда `setWebhook` вызывают БЕЗ `allowed_updates`,
+ * Telegram сохраняет ПРЕДЫДУЩИЙ список, а не умолчание. Поэтому один давний
+ * вызов с `["message"]` (deploy/setup-telegram-proxy.sh) пережил все
+ * последующие перерегистрации вебхука.
+ *
+ * ЧТО ЭТО СЛОМАЛО (INC-097, обнаружено 2026-08-03):
+ *  • `callback_query` — все инлайн-кнопки премодерации SMM были мертвы: нажатие
+ *    «Принять» не доходило до приложения вовсе. В `webhook_events` за всё время
+ *    нет ни одной записи типа callback_query;
+ *  • `pre_checkout_query` — Telegram ждёт ответ 10 секунд, и без него оплата
+ *    звёздами (B529) не могла завершиться в принципе.
+ *
+ * Список ведётся рядом с разбором в `app/api/telegram/webhook/route.ts`:
+ * добавили ветку разбора — добавьте тип сюда, иначе она никогда не сработает.
+ */
+export const TELEGRAM_ALLOWED_UPDATES = [
+  "message",
+  "callback_query",
+  "pre_checkout_query",
+] as const;
+
 /** Регистрирует webhook URL в Telegram */
 export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   if (!BOT_TOKEN) {
@@ -161,7 +190,13 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
     const res = await fetch(`${API_BASE}/setWebhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: webhookUrl, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET || undefined }),
+      body: JSON.stringify({
+        url: webhookUrl,
+        secret_token: process.env.TELEGRAM_WEBHOOK_SECRET || undefined,
+        // Передаётся ВСЕГДА и явно: пропуск поля означает «оставить как было»,
+        // а «как было» — это и есть дефект, который мы чиним.
+        allowed_updates: TELEGRAM_ALLOWED_UPDATES,
+      }),
     });
     const d = await res.json();
     if (d.ok) {

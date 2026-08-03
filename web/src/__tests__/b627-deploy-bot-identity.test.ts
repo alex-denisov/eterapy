@@ -64,7 +64,14 @@ describe("B627 — разделение продуктового и деплой
     // Урок B566: механизм с ручным шагом — это невыполненный механизм.
     const content = workflow(".github/workflows/deploy.yml");
     expect(content).toContain("TELEGRAM_ETERAPY_CHAT_ID: ${{ secrets.TELEGRAM_ETERAPY_CHAT_ID }}");
-    expect(content).toMatch(/TELEGRAM_ETERAPY_CHAT_ID \\\n/);
+    // Ключ должен попасть в цикл доставки на ноду. Проверяется присутствие в
+    // самом цикле, а не позиция в строке: B640 добавил рядом соседний ключ, и
+    // привязка к переносу строки ловила бы форматирование, а не механизм.
+    const loopStart = content.indexOf("for key in ROBOKASSA_MERCHANT_LOGIN");
+    const loopEnd = content.indexOf("YANDEX_CLOUD_FOLDER_ID; do", loopStart);
+    expect(loopStart).toBeGreaterThan(-1);
+    expect(loopEnd).toBeGreaterThan(loopStart);
+    expect(content.slice(loopStart, loopEnd)).toContain("TELEGRAM_ETERAPY_CHAT_ID");
   });
 });
 
