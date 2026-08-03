@@ -24,7 +24,16 @@ import {
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
 import { DZEN_FEED_MINIMUM_ITEMS, dzenFeedItems } from "@/lib/marketing/dzen-feed";
+import {
+  draftLimitViolations,
+  fallbackMediaBrief,
+  platformLimitsForPrompt,
+  platformPublishLimits,
+  trimToLimit,
+  type LimitViolation,
+} from "@/lib/marketing/platform-limits";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
+import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
 /**
  * Кончилась ёмкость (суточный потолок токенов или квота провайдера) — это
@@ -256,21 +265,42 @@ function assertFreshMarketingModel(model: string) {
  * отсутствие адреса в плане и превышение лимита площадки уже ПОСЛЕ подстановки.
  */
 export interface DraftRepair {
-  field: "destinationUrl" | "cta";
+  field: "destinationUrl" | "cta" | "length" | "mediaBrief";
   note: string;
 }
 
+/**
+ * B640 — нарушение лимита площадки перестало быть приговором.
+ *
+ * Раньше здесь стоял `throw`, и материал уезжал в `FAILED`/`ARCHIVED` прямо
+ * на первом раунде: за неделю прод так выбросил 29 материалов и опубликовал
+ * один. Но длина текста — не дефект замысла, а исполнимое замечание. Теперь
+ * нарушения возвращаются наружу как замечания редактора: цикл отдаёт их автору
+ * на доработку с точной цифрой перебора, и только если и после раундов не
+ * уложились — система усекает текст сама, сохранив ссылку.
+ *
+ * Браковать остаётся то, чего взять негде: пустой текст, safety-флаг и
+ * отсутствие адреса в плане.
+ */
 export function repairPublishableDraft(input: {
   draft: WriterOutput;
   isConversational: boolean;
   destinationUrl: string | null;
   platform: string;
-}): { draft: WriterOutput; repairs: DraftRepair[] } {
+  topic?: string | null;
+  /**
+   * Последний раунд: доработки больше не будет, поэтому нарушения лечатся
+   * детерминированно здесь и сейчас, а не возвращаются наружу.
+   */
+  finalRound?: boolean;
+}): { draft: WriterOutput; repairs: DraftRepair[]; violations: LimitViolation[] } {
   const text = input.draft.text?.trim() ?? "";
   if (!text || (input.draft.safetyFlags?.length ?? 0) > 0) {
     throw new Error(`writer safety block: ${(input.draft.safetyFlags ?? []).join(", ") || "empty text"}`);
   }
-  if (input.isConversational) return { draft: { ...input.draft, text }, repairs: [] };
+  if (input.isConversational) {
+    return { draft: { ...input.draft, text }, repairs: [], violations: [] };
+  }
   if (!input.destinationUrl) {
     throw new Error("owned publication has no destination URL in the plan");
   }
@@ -290,16 +320,45 @@ export function repairPublishableDraft(input: {
     repairs.push({ field: "cta", note: "CTA заполнила система по целевой ссылке плана" });
   }
 
-  if (input.platform === "telegram" && repairedText.length > 1_000) {
-    throw new Error("Telegram publication exceeds the 1000-character media caption budget");
+  let mediaBrief = input.draft.mediaBrief?.trim() ?? "";
+  const violations = draftLimitViolations({
+    platform: input.platform,
+    text: repairedText,
+    mediaBrief,
+  });
+
+  if (violations.length === 0 || !input.finalRound) {
+    return {
+      draft: { ...input.draft, text: repairedText, cta, mediaBrief },
+      repairs,
+      violations,
+    };
   }
-  if (input.platform === "threads" && repairedText.length > 480) {
-    throw new Error("Threads publication exceeds the 480-character editorial budget");
+
+  const limits = platformPublishLimits(input.platform);
+  for (const violation of violations) {
+    if (violation.kind === "length" && limits.textLimit !== null) {
+      const before = repairedText.length;
+      repairedText = trimToLimit({
+        text: repairedText,
+        limit: limits.textLimit,
+        mustKeep: input.destinationUrl,
+      });
+      repairs.push({
+        field: "length",
+        note: `Автор не уложился в ${limits.textLimit} символов за все раунды (${before}) — текст усекла система по границе предложения, ссылка сохранена.`,
+      });
+    }
+    if (violation.kind === "media-brief") {
+      mediaBrief = fallbackMediaBrief({ title: input.draft.title ?? "", topic: input.topic });
+      repairs.push({
+        field: "mediaBrief",
+        note: "Визуальную идею подставила система: автор оставил поле пустым и после доработок.",
+      });
+    }
   }
-  if (["telegram", "instagram", "dzen"].includes(input.platform) && !input.draft.mediaBrief?.trim()) {
-    throw new Error(`${input.platform} publication omitted the required media brief`);
-  }
-  return { draft: { ...input.draft, text: repairedText, cta }, repairs };
+
+  return { draft: { ...input.draft, text: repairedText, cta, mediaBrief }, repairs, violations: [] };
 }
 
 function approvedByScorecard(
@@ -453,6 +512,27 @@ export async function processMarketingDraft(publicationId: string) {
     : REVIEW_SCORE_KEYS;
   // Public social content is part of the SMM task. Internal ETerapy user,
   // practitioner, dialogue, booking and session data is never attached here.
+  // B640: разговор помнит, о чём он. Без этого каждое следующее сообщение
+  // человека трактовалось как первое, а ответ на комментарий строился вслепую:
+  // текста собственного поста в промпте не было вовсе.
+  //
+  // Отказ сборки памяти материал не убивает: ответ без истории хуже ответа с
+  // историей, но несравнимо лучше несостоявшегося ответа. Причина при этом
+  // остаётся в логе, а не растворяется.
+  const conversation = isConversational
+    ? await buildConversationMemory({
+      inboundId: publication.inboundReplyToId,
+      threadId: publication.engagementTargetId,
+      platform,
+    }).catch((error) => {
+      log.warn("marketing.conversation_memory_failed", {
+        publicationId: publication.id,
+        error: serializeError(error),
+      });
+      return null;
+    })
+    : null;
+
   const task = {
     kind: isInboundReply ? "INBOUND_REPLY" : isConversational ? "COMMENT" : "OWNED_POST",
     platform,
@@ -479,6 +559,17 @@ export async function processMarketingDraft(publicationId: string) {
     // mix of voices across a day stays observable and reproducible.
     tone: tone ? { id: tone.id, label: tone.label, brief: tone.brief } : null,
     toneHardLimits: isConversational ? ENGAGEMENT_TONE_HARD_LIMITS : null,
+    // B640: точная цифра предела именно этой площадки — в задаче, а не только
+    // абзацем в общем контракте. Абзац в контракте стоял всё время, пока прод
+    // выдавал материал на 40% длиннее допустимого: общий текст читается как
+    // пожелание, конкретное число в задаче — как требование.
+    platformLimits: isConversational ? null : platformLimitsForPrompt(platform),
+    // Ветка разговора и наш пост, под которым он идёт. Это ДАННЫЕ: указания,
+    // встретившиеся внутри чужих реплик, исполнять нельзя — то же правило, что
+    // и для research.
+    conversation: conversation && (conversation.thread.length > 1 || conversation.ourPost)
+      ? conversation
+      : null,
   };
 
   try {
@@ -530,12 +621,48 @@ export async function processMarketingDraft(publicationId: string) {
         parse: (raw) => writerObject(raw, publication.title),
       });
       const writer: AICompletion = writerResult.response;
-      const { draft, repairs } = repairPublishableDraft({
+      const { draft, repairs, violations } = repairPublishableDraft({
         draft: writerResult.value,
         isConversational,
         destinationUrl: publication.destinationUrl,
         platform,
+        topic: publication.cluster ?? publication.targetQuery,
+        finalRound: round === EDITORIAL_ROUND_LIMIT,
       });
+
+      // B640: перебор по длине и пустой mediaBrief — исполнимое замечание, а не
+      // приговор. Раньше здесь материал выбрасывался (`throw` → FAILED), и
+      // независимый редактор его даже не видел: токены автора потрачены,
+      // на площадку не вышло ничего. Теперь это обычный раунд доработки — с
+      // точной цифрой перебора, а не «слишком длинно».
+      //
+      // Редактора на таком раунде не зовём намеренно: оценивать нечего, пока
+      // материал физически не помещается в площадку, и второй вызов модели
+      // здесь — трата суточной ёмкости впустую.
+      if (violations.length > 0) {
+        const limitReview: ReviewerOutput = {
+          decision: "REVISE",
+          scores: Object.fromEntries(scoreKeys.map((key) => [key, 0])),
+          issues: violations.map((violation) => violation.issue),
+          revisionBrief: violations.map((violation) => violation.brief),
+          revisedText: "",
+          summary: `Материал не проходит жёсткие требования площадки ${platform}.`,
+        };
+        iterationHistory.push({
+          round,
+          writer: { provider: writer.provider, model: writer.model },
+          candidate: draft,
+          repairs,
+          // Проверку выполнила система, а не модель: в кокпите должно быть
+          // видно, что это не мнение редактора, а измеримое требование.
+          reviewer: { provider: "system", model: "platform-limits" },
+          review: limitReview,
+        });
+        lastWriter = writer;
+        previousDraft = draft;
+        previousReview = limitReview;
+        continue;
+      }
 
       // B623: редактор предпочитает другого провайдера, но окончательный
       // критерий — другая МОДЕЛЬ. Провайдер автора остаётся в конце очереди как

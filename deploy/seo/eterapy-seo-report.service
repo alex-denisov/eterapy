@@ -9,6 +9,10 @@
 Description=ETerapy: собрать и отправить SEO-отчёт
 After=network-online.target
 Wants=network-online.target
+# INC-098: отказ обязан выходить наружу. Этот отчёт падал каждый день с момента
+# установки таймера и не дошёл до владельца ни разу — журнал ноды об этом
+# исправно писал, но журнал никто не читает.
+OnFailure=eterapy-unit-failure@%n.service
 
 [Service]
 Type=oneshot

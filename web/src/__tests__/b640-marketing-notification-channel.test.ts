@@ -59,3 +59,17 @@ describe("B640: адрес маркетинговых уведомлений", (
     expect(allowed).toEqual([OPS]);
   });
 });
+
+describe("B640: запасной адрес доставки", () => {
+  it("служебный канал идёт следом за маркетинговым, а не вместо него", async () => {
+    const { marketingDeliveryTargets } = await import("@/lib/ops-notification-channel");
+    const targets = await marketingDeliveryTargets({
+      TELEGRAM_ETERAPY_MARKETING_CHAT_ID: MARKETING,
+      TELEGRAM_CHAT_ID: OPS,
+    });
+    // Порядок значим: доставка идёт до первого успеха. Бот может быть ещё не
+    // добавлен в новый канал — тогда Telegram отвечает `chat not found`, и
+    // карточка обязана уйти в служебный, а не убить материал.
+    expect(targets).toEqual([MARKETING, OPS]);
+  });
+});

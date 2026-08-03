@@ -1,0 +1,199 @@
+/**
+ * B640 — жёсткие ограничения площадок в одном месте.
+ *
+ * Замер прода 2026-08-03: за неделю опубликован **один** материал. Не потому,
+ * что провайдеры молчали или очередь стояла: автор систематически выдавал текст
+ * длиннее допустимого и без обязательного медиа-брифа, а валидатор на выходе
+ * брал такой материал и выбрасывал (`ARCHIVED` / `FAILED`) — 11 штук на
+ * threads, 8 на telegram, 8 на dzen, 2 на instagram.
+ *
+ * Это лечится в генерации, а не в валидации. Число символов площадки —
+ * измеримое требование, и с ним можно сделать ровно три вещи по возрастанию
+ * стоимости:
+ *
+ * 1. сказать автору точную цифру ДО написания (`platformLimitsForPrompt`);
+ * 2. если нарушил — вернуть на доработку с указанием, на сколько именно
+ *    перебор, а не выбросить (`draftLimitViolations`);
+ * 3. если и после раундов не уложился — усечь детерминированно, сохранив
+ *    ссылку (`trimToLimit`), и пометить это как правку системы.
+ *
+ * Выбрасывать материал за длину — самый дорогой и самый бесполезный из
+ * вариантов: потрачены токены обеих ролей, а на площадку не вышло ничего.
+ */
+
+export interface PlatformPublishLimits {
+  /** Предел длины готового текста ВМЕСТЕ со ссылкой; `null` — предела нет. */
+  textLimit: number | null;
+  /** Площадка не принимает материал без визуальной идеи. */
+  mediaBriefRequired: boolean;
+  /** Почему предел именно такой — попадает в промпт автора. */
+  note: string;
+}
+
+/**
+ * Ключи — как в `externalPublications.platform` (нижний регистр).
+ *
+ * Telegram: 1000, а не 4096, потому что собственный пост уходит подписью к
+ * изображению (`sendPhoto`), а у подписи предел 1024 — берём с запасом на
+ * разметку. Дзен и Reddit — длинные форматы, предела по длине у них нет.
+ */
+export const PLATFORM_PUBLISH_LIMITS: Record<string, PlatformPublishLimits> = {
+  telegram: {
+    textLimit: 1_000,
+    mediaBriefRequired: true,
+    note: "пост уходит подписью к изображению — длиннее подпись Telegram не примет",
+  },
+  threads: {
+    textLimit: 480,
+    mediaBriefRequired: false,
+    note: "предел площадки на одно сообщение",
+  },
+  instagram: {
+    textLimit: 2_200,
+    mediaBriefRequired: true,
+    note: "предел caption; публикация без изображения невозможна в принципе",
+  },
+  vk: {
+    textLimit: 4_000,
+    mediaBriefRequired: false,
+    note: "предел поста сообщества",
+  },
+  dzen: {
+    textLimit: null,
+    mediaBriefRequired: true,
+    note: "статья, предела по длине нет, но нужна визуальная идея",
+  },
+  reddit: {
+    textLimit: 10_000,
+    mediaBriefRequired: false,
+    note: "предел тела поста",
+  },
+};
+
+const DEFAULT_LIMITS: PlatformPublishLimits = {
+  textLimit: null,
+  mediaBriefRequired: false,
+  note: "особых ограничений площадки не задано",
+};
+
+export function platformPublishLimits(platform: string): PlatformPublishLimits {
+  return PLATFORM_PUBLISH_LIMITS[platform.toLowerCase()] ?? DEFAULT_LIMITS;
+}
+
+/**
+ * То, что видит автор в задаче — точные цифры именно для этой площадки, а не
+ * абзац в общем контракте. Общий контракт автор уже читал: цифры в нём стояли
+ * всё время, пока прод выдавал материал на 40% длиннее предела.
+ */
+export function platformLimitsForPrompt(platform: string): {
+  platform: string;
+  maxCharacters: number | null;
+  mediaBriefRequired: boolean;
+  note: string;
+} {
+  const limits = platformPublishLimits(platform);
+  return {
+    platform,
+    maxCharacters: limits.textLimit,
+    mediaBriefRequired: limits.mediaBriefRequired,
+    note: limits.note,
+  };
+}
+
+export interface LimitViolation {
+  kind: "length" | "media-brief";
+  /** Замечание в том же виде, в каком их формулирует редактор. */
+  issue: string;
+  /** Что именно должен сделать автор в следующем раунде. */
+  brief: string;
+}
+
+/**
+ * Нарушения жёстких требований площадки. Возвращаем не «да/нет», а насколько
+ * промахнулись: «сократи на 214 символов» исполнимо, «слишком длинно» — нет.
+ */
+export function draftLimitViolations(input: {
+  platform: string;
+  text: string;
+  mediaBrief?: string | null;
+}): LimitViolation[] {
+  const limits = platformPublishLimits(input.platform);
+  const violations: LimitViolation[] = [];
+  const length = input.text.length;
+
+  if (limits.textLimit !== null && length > limits.textLimit) {
+    const excess = length - limits.textLimit;
+    violations.push({
+      kind: "length",
+      issue: `Текст ${length} символов при пределе площадки ${limits.textLimit} — перебор на ${excess}.`,
+      brief: `Сократи текст минимум на ${excess} символов (цель — не больше ${limits.textLimit} вместе со ссылкой), сохранив хук, один вывод и CTA. Убирай развитие и примеры, а не смысл.`,
+    });
+  }
+
+  if (limits.mediaBriefRequired && !input.mediaBrief?.trim()) {
+    violations.push({
+      kind: "media-brief",
+      issue: `Площадка ${input.platform} не принимает материал без визуальной идеи, а поле mediaBrief пустое.`,
+      brief: "Заполни mediaBrief: что изображено, настроение, ключевой объект — так, чтобы дизайнер собрал картинку без уточняющих вопросов.",
+    });
+  }
+
+  return violations;
+}
+
+/**
+ * Детерминированное усечение — последняя ступень, когда раунды доработки не
+ * помогли. Режем по границе предложения, а не по символу: обрубок на середине
+ * слова читается как поломка, а не как короткий пост.
+ *
+ * `mustKeep` (целевая ссылка) переносится в конец и в бюджет входит: материал
+ * без ссылки бессмысленен, ради неё и жертвуем последним абзацем.
+ */
+export function trimToLimit(input: {
+  text: string;
+  limit: number;
+  mustKeep?: string | null;
+}): string {
+  const keep = input.mustKeep?.trim() || "";
+  if (input.text.length <= input.limit) return input.text;
+
+  // Ссылку вырезаем из тела, чтобы не усечь её саму и не оставить в середине.
+  let body = keep ? input.text.split(keep).join(" ").replace(/\s+\n/g, "\n") : input.text;
+  body = body.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+
+  const tail = keep ? `\n\n${keep}` : "";
+  const budget = input.limit - tail.length;
+  if (budget <= 0) return keep.slice(0, input.limit);
+
+  if (body.length > budget) {
+    const window = body.slice(0, budget);
+    // Ищем последнюю границу предложения; «…» и перевод строки тоже граница.
+    const sentenceEnd = Math.max(
+      window.lastIndexOf(". "),
+      window.lastIndexOf("! "),
+      window.lastIndexOf("? "),
+      window.lastIndexOf("…"),
+      window.lastIndexOf("\n"),
+    );
+    if (sentenceEnd > budget * 0.5) {
+      body = window.slice(0, sentenceEnd + 1).trim();
+    } else {
+      const space = window.lastIndexOf(" ");
+      const cut = space > 0 ? window.slice(0, space) : window;
+      body = `${cut.trim()}…`.slice(0, budget);
+    }
+  }
+
+  return `${body.trim()}${tail}`;
+}
+
+/**
+ * Запасная визуальная идея, когда автор не дал её и после доработок.
+ * Намеренно скучная и общая: её задача — не заменить работу автора, а не дать
+ * материалу умереть из-за одного пустого поля. В карточке она помечена как
+ * правка системы, чтобы редактор видел, что идею придумал не автор.
+ */
+export function fallbackMediaBrief(input: { title: string; topic?: string | null }): string {
+  const subject = (input.topic?.trim() || input.title.trim() || "спокойное самонаблюдение");
+  return `Спокойная минималистичная иллюстрация по теме «${subject}»: один узнаваемый предмет или сцена, мягкий приглушённый свет, без текста на картинке и без лиц крупным планом.`;
+}

@@ -347,15 +347,23 @@ jobs:
           # владелец получит столько отчётов, сколько нод во флоте. Скрипт
           # кладём на все ноды: он безвреден без таймера, а при смене primary
           # достаточно поменять роль в матрице.
+          # INC-098: вместе с отчётом едет сигнализация об упавших юнитах.
+          # Без неё «упало и молчит» остаётся штатным поведением: SEO-отчёт
+          # падал каждый день с момента установки таймера и не дошёл ни разу.
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             deploy/seo/seo-telegram-report.sh \
             deploy/seo/eterapy-seo-report.service \
             deploy/seo/eterapy-seo-report.timer \
+            deploy/systemd/eterapy-unit-failure@.service \
+            deploy/systemd/notify-unit-failure.sh \
             "$VM_USER@$VM_HOST:/tmp/"
           $SSH "sudo install -m 0755 /tmp/seo-telegram-report.sh /opt/eterapy/seo-telegram-report.sh \
+            && sudo install -m 0755 /tmp/notify-unit-failure.sh /opt/eterapy/notify-unit-failure.sh \
+            && sudo install -m 0644 /tmp/eterapy-unit-failure@.service /etc/systemd/system/eterapy-unit-failure@.service \
             && sudo install -m 0644 /tmp/eterapy-seo-report.service /etc/systemd/system/eterapy-seo-report.service \
             && sudo install -m 0644 /tmp/eterapy-seo-report.timer /etc/systemd/system/eterapy-seo-report.timer \
             && rm -f /tmp/seo-telegram-report.sh /tmp/eterapy-seo-report.service /tmp/eterapy-seo-report.timer \
+                     /tmp/eterapy-unit-failure@.service /tmp/notify-unit-failure.sh \
             && sudo systemctl daemon-reload"
           if [ "$NODE_ROLE" = "primary" ]; then
             $SSH "sudo systemctl enable --now eterapy-seo-report.timer \

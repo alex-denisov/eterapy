@@ -30,7 +30,7 @@ import {
   marketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
-import { resolveMarketingChannel } from "@/lib/ops-notification-channel";
+import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
 export const INBOUND_PLATFORMS = ["vk", "threads", "instagram", "telegram", "reddit"] as const;
@@ -153,13 +153,19 @@ function replyKey(platform: string, externalId: string) {
 }
 
 async function notifyOps(message: string) {
-  const channel = await resolveMarketingChannel();
-  for (const chatId of channel.chatIds) {
-    await sendTelegram(chatId, message).catch((error) => {
-      log.error("marketing-inbound.ops_notify_failed", { error: serializeError(error) });
-    });
+  // По списку до первого успеха: маркетинговый канал, затем служебный. Пока
+  // бота не добавили в новый канал, Telegram отвечает `chat not found`, и без
+  // запасного адреса сторож замолчал бы совсем.
+  const targets = await marketingDeliveryTargets();
+  for (const chatId of targets) {
+    try {
+      await sendTelegram(chatId, message);
+      return true;
+    } catch (error) {
+      log.error("marketing-inbound.ops_notify_failed", { chatId, error: serializeError(error) });
+    }
   }
-  return channel.chatIds.length > 0;
+  return false;
 }
 
 function escape(value: string) {

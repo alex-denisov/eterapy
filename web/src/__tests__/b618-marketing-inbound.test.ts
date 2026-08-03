@@ -130,6 +130,7 @@ jest.mock("@/lib/ops-notification-channel", () => ({
   // безразличен — важно, что уведомление вообще уходит.
   resolveMarketingChannel: async () => ({ chatIds: ["-100500"], source: "test" }),
   moderationChatIds: async () => ["-100500"],
+  marketingDeliveryTargets: async () => ["-100500"],
 }));
 
 jest.mock("@/lib/marketing/agent", () => ({

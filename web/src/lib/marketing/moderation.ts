@@ -6,10 +6,17 @@ import {
   INBOUND_REPLY_CONTENT_TYPE,
   isConversationalContentType,
 } from "@/lib/marketing/perimeter";
-import { moderationChatIds, resolveMarketingChannel } from "@/lib/ops-notification-channel";
+import { marketingDeliveryTargets, moderationChatIds, resolveMarketingChannel } from "@/lib/ops-notification-channel";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
-type ModerationAction = "approve" | "revise" | "reject";
+/**
+ * B640 — «ответил сам» появился, потому что владелец ответил пользователю
+ * руками, а платформа этого не заметила: входящее осталось `DRAFTED`, и
+ * сторож ещё двое суток напоминал о «неотвеченном» сообщении, на которое
+ * ответ давно был. Отклонить черновик было нельзя без побочного смысла:
+ * `reject` означает «ответ негоден», а не «вопрос уже закрыт».
+ */
+type ModerationAction = "approve" | "revise" | "reject" | "answered";
 
 function secret() {
   const value = process.env.MARKETING_MODERATION_SECRET
@@ -40,7 +47,7 @@ export function parseMarketingModerationCallback(value: string): {
   action: ModerationAction;
   publicationId: string;
 } | null {
-  const match = /^smm:(approve|revise|reject):([a-z0-9_-]{8,40}):([A-Za-z0-9_-]{12})$/.exec(value);
+  const match = /^smm:(approve|revise|reject|answered):([a-z0-9_-]{8,40}):([A-Za-z0-9_-]{12})$/.exec(value);
   if (!match) return null;
   const action = match[1] as ModerationAction;
   const publicationId = match[2];
@@ -100,24 +107,54 @@ export async function requestMarketingModeration(publicationId: string) {
     "«Принять» разрешает официальный API-вызов. Если площадка или токен не поддерживают действие, будет создан инцидент — успех не подменяется.",
   ].join("\n");
 
+  // Доставка идёт по списку адресов до первого успеха: маркетинговый канал,
+  // затем служебный. Ненастроенный канал (бот не добавлен → `chat not found`)
+  // не должен убивать материал — вызывающий код помечает исключение `FAILED`.
+  const targets = await marketingDeliveryTargets();
   let firstMessageId: number | null = null;
-  for (const chatId of channel.chatIds) {
-    const messageId = await sendTelegram(chatId, message, {
-      replyMarkup: {
-        inline_keyboard: [[
-          { text: "✅ Принять", callback_data: marketingModerationCallback("approve", publication.id) },
-          { text: "✍️ Доработать", callback_data: marketingModerationCallback("revise", publication.id) },
-          { text: "⛔ Отклонить", callback_data: marketingModerationCallback("reject", publication.id) },
-        ]],
-      },
-    });
-    firstMessageId ??= messageId;
+  let delivered: string | null = null;
+  let lastError: unknown = null;
+  for (const chatId of targets) {
+    try {
+      firstMessageId = await sendTelegram(chatId, message, {
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Принять", callback_data: marketingModerationCallback("approve", publication.id) },
+              { text: "✍️ Доработать", callback_data: marketingModerationCallback("revise", publication.id) },
+              { text: "⛔ Отклонить", callback_data: marketingModerationCallback("reject", publication.id) },
+            ],
+            // B640: только для входящих — у собственного поста «ответил сам»
+            // смысла не имеет, отвечать там некому.
+            ...(isInboundReply
+              ? [[{
+                text: "🙋 Ответил сам",
+                callback_data: marketingModerationCallback("answered", publication.id),
+              }]]
+              : []),
+          ],
+        },
+      });
+      delivered = chatId;
+      break;
+    } catch (error) {
+      lastError = error;
+      log.warn("marketing-moderation.delivery_failed", {
+        chatId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
+  if (!delivered) throw lastError ?? new Error("Marketing moderation card was not delivered");
+  if (delivered !== channel.chatIds[0]) {
+    log.warn("marketing-moderation.delivered_to_fallback", { intended: channel.chatIds[0], delivered });
+  }
+
   await db.externalPublication.update({
     where: { id: publication.id },
     data: { telegramReviewMessageId: firstMessageId },
   });
-  return { sent: true, messageId: firstMessageId, channel: channel.source };
+  return { sent: true, messageId: firstMessageId, channel: channel.source, delivered };
 }
 
 export async function applyMarketingModeration(input: {
@@ -174,6 +211,15 @@ export async function applyMarketingModeration(input: {
       data: { status: "IGNORED", lastError: "REJECTED_BY_MODERATOR" },
     }).catch(() => undefined);
   }
+  // B640: владелец ответил человеку сам — вопрос закрыт, и закрыт он ОТВЕТОМ,
+  // а не отказом. Разница не косметическая: `IGNORED` означало бы, что человеку
+  // не ответили, и это осталось бы в статистике площадки навсегда.
+  if (input.action === "answered" && publication.inboundReplyToId) {
+    await db.marketingInboundMessage.updateMany({
+      where: { id: publication.inboundReplyToId },
+      data: { status: "ANSWERED", answeredAt: now, lastError: "ANSWERED_BY_OWNER" },
+    }).catch(() => undefined);
+  }
 
   await callTelegramApi("answerCallbackQuery", {
     callback_query_id: input.callbackQueryId,
@@ -181,7 +227,9 @@ export async function applyMarketingModeration(input: {
       ? "Принято: комментарий передан официальному адаптеру."
       : input.action === "revise"
         ? "Отправлено SMM-агенту на новую редакцию."
-        : "Комментарий отклонён.",
+        : input.action === "answered"
+          ? "Записал: вы ответили сами. Входящее закрыто, напоминаний по нему не будет."
+          : "Комментарий отклонён.",
   });
   if (input.messageId) {
     await callTelegramApi("editMessageReplyMarkup", {

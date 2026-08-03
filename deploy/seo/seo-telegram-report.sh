@@ -145,8 +145,39 @@ PY
 )
 
 if [ "${DRY_RUN:-}" = "1" ]; then printf '%s\n' "$TEXT"; exit 0; fi
-curl -fsS -X POST "${TG_API_BASE}/sendMessage" \
-  --data-urlencode "chat_id=${TG_CHAT}" \
-  --data-urlencode "text=${TEXT}" \
-  -d parse_mode=HTML -d disable_web_page_preview=true >/dev/null
-echo "sent"
+
+# ⚠ ПОЧЕМУ НЕ ОДИН АДРЕС И ПОЧЕМУ НЕ `curl -f >/dev/null` (INC-098, 2026-08-03).
+#
+# Заданный `chat_id` не значит, что бот в этот чат вхож: пока бота не добавили
+# администратором канала, Telegram отвечает `400 chat not found`. Ровно так
+# отчёт и не дошёл во второй раз — релей уже работал, а канал был новый и
+# пустой. С `-f` и `>/dev/null` в журнале оставалось «curl (22) error: 400»,
+# по которому причину не отличить от неверного токена или битой разметки.
+#
+# Теперь: причина отказа печатается словами, а служебный канал остаётся
+# запасным адресом ДОСТАВКИ, а не только конфигурации.
+send_report() {
+  local chat="$1" response ok
+  response="$(curl -sS -X POST "${TG_API_BASE}/sendMessage" \
+    --data-urlencode "chat_id=${chat}" \
+    --data-urlencode "text=${TEXT}" \
+    -d parse_mode=HTML -d disable_web_page_preview=true 2>&1)"
+  ok="$(printf '%s' "$response" | sed -n 's/.*"ok":\([a-z]*\).*/\1/p' | head -1)"
+  if [ "$ok" = "true" ]; then
+    echo "SEO-отчёт отправлен в $chat"
+    return 0
+  fi
+  echo "SEO-отчёт: чат $chat отказал — $(printf '%s' "$response" | head -c 300)" >&2
+  return 1
+}
+
+TG_FALLBACK_CHAT="$(from_env_file TELEGRAM_CHAT_ID)"
+if send_report "$TG_CHAT"; then
+  exit 0
+fi
+if [ -n "$TG_FALLBACK_CHAT" ] && [ "$TG_FALLBACK_CHAT" != "$TG_CHAT" ]; then
+  echo "SEO-отчёт: пробую служебный канал — отчёт не туда лучше, чем не доставленный" >&2
+  send_report "$TG_FALLBACK_CHAT" && exit 0
+fi
+echo "SEO-отчёт: не доставлен ни в один канал" >&2
+exit 1

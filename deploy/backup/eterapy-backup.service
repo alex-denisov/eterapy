@@ -2,6 +2,9 @@
 Description=eterapy off-host encrypted DB backup (B536)
 Wants=network-online.target
 After=network-online.target postgresql.service
+# INC-098: молчащая резервная копия страшнее молчащего отчёта — её отсутствие
+# обнаруживается в момент, когда она нужна.
+OnFailure=eterapy-unit-failure@%n.service
 
 [Service]
 Type=oneshot

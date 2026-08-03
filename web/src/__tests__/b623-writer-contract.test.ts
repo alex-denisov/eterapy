@@ -88,12 +88,17 @@ describe("B623 · ссылка и CTA подставляются, а не бра
   });
 
   it("лимит площадки проверяется ПОСЛЕ подстановки", () => {
-    expect(() => repairPublishableDraft({
+    // B640: перебор больше не убивает материал на месте — он возвращается
+    // наружу замечанием, и цикл отдаёт его автору на доработку. Проверяем
+    // именно момент проверки: 470 символов сами по себе в 480 помещаются,
+    // и только дописанная ссылка выводит текст за предел.
+    const result = repairPublishableDraft({
       draft: { ...draft, text: "я".repeat(470) },
       isConversational: false,
       destinationUrl: "https://eterapy.com/products/chat",
       platform: "threads",
-    })).toThrow(/480-character/);
+    });
+    expect(result.violations.map((violation) => violation.kind)).toEqual(["length"]);
   });
 
   it("разговорному материалу ссылка не обязательна", () => {
