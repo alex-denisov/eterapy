@@ -126,13 +126,14 @@ jobs:
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             deploy/sync-staging-db-from-prod.sh "$VM_USER@$VM_HOST:/tmp/sync-staging-db-from-prod.sh"
           $SSH "mkdir -p /home/admin/eterapy-staging/deploy && mv /tmp/sync-staging-db-from-prod.sh /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh && chmod 755 /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh"
-          # Reclaim space BEFORE loading (same rationale as prod deploy.yml):
-          # drop every staging image except the running one and the incoming tag.
-          $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-staging-web-1 2>/dev/null || true); \
-            sudo docker images eterapy-web-staging --format '{{.Repository}}:{{.Tag}}' \
-            | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web-staging:${GITHUB_SHA::8}\$\" \
-            | xargs -r sudo docker rmi 2>/dev/null || true; \
-            sudo docker image prune -f >/dev/null 2>&1 || true"
+          # INC-095: место освобождается ДО загрузки образа. Решение владельца
+          # 2026-08-03: стенд не хранит предыдущих образов вовсе — он
+          # пересобирается из develop за минуты, откатывать его нечего, а живёт
+          # он на том же диске 30 GB, где боевой Postgres.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/docker/retain-release-images.sh "$VM_USER@$VM_HOST:/tmp/retain-release-images.sh"
+          $SSH "chmod +x /tmp/retain-release-images.sh \
+            && /tmp/retain-release-images.sh eterapy-web-staging eterapy-staging-web-1 1 '${GITHUB_SHA::8}' 0"
           docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
           # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
@@ -153,6 +154,11 @@ jobs:
             && cd $STAGING_DIR && { sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \
             && sudo docker compose -f $COMPOSE_FILE_NAME ps"
+          # INC-095: после конвергенции известно, какой образ стал текущим —
+          # вытесненный удаляется сразу, чтобы стенд не занимал 4.5 GB диска,
+          # который нужен боевому Postgres.
+          $SSH "/tmp/retain-release-images.sh eterapy-web-staging eterapy-staging-web-1 1 '' 0" \
+            || echo "чистка образов стенда пропущена (не критично)"
           echo "▶ worker health"
           sleep 5
           WORKER_STATUS=$($SSH "sudo docker inspect -f '{{.State.Status}}' eterapy-staging-worker-1" || echo missing)

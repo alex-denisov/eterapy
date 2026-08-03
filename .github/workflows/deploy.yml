@@ -481,26 +481,34 @@ jobs:
             else
               echo 'LB: процесс уже с этим конфигом — перезапуск не нужен'
             fi"
-          # Reclaim space BEFORE loading: each release image is ~2.6GB and the
-          # old `docker image prune -f` only removes dangling layers, so tagged
-          # releases piled up until the disk filled and `docker load` failed.
-          # Drop every eterapy-web image except the one the running container
-          # uses (never touches the live container's image).
-          # INC-095: the same must happen for `eterapy-web-staging`. eterapy-1
-          # hosts both stacks plus Postgres on a 30GB disk, so two superseded
-          # staging images (~4.5GB each) were enough to fill it — Postgres then
-          # failed mid-migration and the workers crash-looped on ENOSPC, which
-          # read as "the new migration broke". Each repository keeps only the
-          # image its own running container uses, plus the one being shipped.
-          $SSH "RUNNING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-web-1 2>/dev/null || true); \
-            sudo docker images eterapy-web --format '{{.Repository}}:{{.Tag}}' \
-            | grep -v \"^\${RUNNING}\$\" | grep -v \"^eterapy-web:${GITHUB_SHA::8}\$\" \
-            | xargs -r sudo docker rmi 2>/dev/null || true; \
-            STAGING=\$(sudo docker inspect --format '{{.Config.Image}}' eterapy-staging-web-1 2>/dev/null || true); \
-            sudo docker images eterapy-web-staging --format '{{.Repository}}:{{.Tag}}' \
-            | grep -v \"^\${STAGING}\$\" \
-            | xargs -r sudo docker rmi 2>/dev/null || true; \
-            sudo docker image prune -f >/dev/null 2>&1 || true"
+          # INC-095: место освобождается ДО загрузки образа — если его не
+          # хватило, конвергенция к моменту «постфактум-чистки» уже упала, и
+          # чистить будет нечего и некому. Правило хранения одно на все четыре
+          # точки применения и живёт в `deploy/docker/retain-release-images.sh`.
+          #
+          # Решение владельца 2026-08-03: прод хранит текущий образ и максимум
+          # два предыдущих, стенд — только текущий. Здесь ДО загрузки, поэтому
+          # прод оставляет двоих (текущий + один запасной): приезжающий станет
+          # третьим, и после конвергенции получится ровно «текущий + два».
+          #
+          # Стенд чистится и отсюда тоже: eterapy-1 держит на одном диске 30 GB
+          # прод-стек, стенд и Postgres, и именно вытесненные стейджевые образы
+          # по 4.5 GB заполнили диск в INC-095 — Postgres упал посреди миграции,
+          # а выглядело это как «сломалась новая миграция».
+          # Стенд чистится ПЕРВЫМ: он не хранит запасных вовсе, значит место,
+          # которое он вернёт, доступно политике хранения прода.
+          #
+          # `9` — порог, ниже которого прод жертвует запасным образом ради
+          # самой выкатки: после загрузки ~4.5 GB на ноде должно остаться
+          # около четырёх свободных гигабайт, иначе Postgres упрётся в диск
+          # посреди миграции. На eterapy-1 (30 GB на прод, стенд и Postgres) и
+          # eterapy-4 (19 GB) порог срабатывает — «два предыдущих» там сегодня
+          # физически не помещаются, и скрипт говорит об этом вслух.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/docker/retain-release-images.sh "$VM_USER@$VM_HOST:/tmp/retain-release-images.sh"
+          $SSH "chmod +x /tmp/retain-release-images.sh \
+            && /tmp/retain-release-images.sh eterapy-web-staging eterapy-staging-web-1 1 '' 0 \
+            && /tmp/retain-release-images.sh eterapy-web eterapy-web-1 2 '${GITHUB_SHA::8}' 9"
           DISK_FREE=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 99)
           echo "▶ свободно на ноде перед загрузкой образа: ${DISK_FREE}G"
           if [ "${DISK_FREE:-99}" -lt 6 ]; then
@@ -598,8 +606,16 @@ jobs:
             --filter until=24h" || echo "prune пропущен (не критично)"
           echo "▶ следы прошлых выкаток убраны"
 
-          # INC-095: чистка образов выполняется ДО загрузки нового (см. выше).
-          # Здесь она бессмысленна: если места не хватило, converge уже упал.
+          # INC-095: освобождение места делается ДО загрузки нового образа
+          # (см. выше) — здесь для этого уже поздно, если места не хватило,
+          # converge упал раньше. Но именно тут известно, какой образ стал
+          # текущим, поэтому здесь правило хранения фиксируется окончательно:
+          # прод — текущий и два предыдущих. В норме это ничего не удаляет
+          # (предзагрузочная чистка уже привела ноду к нужному числу); шаг
+          # нужен, чтобы инвариант держался и после повторных выкаток и ручных
+          # вмешательств.
+          $SSH "/tmp/retain-release-images.sh eterapy-web eterapy-web-1 3 '' 0" \
+            || echo "чистка образов пропущена (не критично)"
           DISK_FREE_AFTER=$($SSH "df -BG --output=avail / | tail -1 | tr -dc '0-9'" || echo 99)
           echo "▶ свободно на ноде после выкатки: ${DISK_FREE_AFTER}G"
           echo "▶ worker health"
