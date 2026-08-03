@@ -67,6 +67,46 @@ export async function callTelegramApi<T = unknown>(
   return telegramApi<T>(method, body, timeoutMs);
 }
 
+/**
+ * B643 — тот же Bot API, но файлом, а не ссылкой.
+ *
+ * `sendPhoto` умеет принять URL и забрать картинку сам, и до этого мы так и
+ * делали. Замер прода 2026-08-03 показал, что серверы Telegram нашу ссылку не
+ * забирают вовсе: за всё время существования эндпоинта картинки в журнале
+ * nginx нет ни одного их обращения, зато три материала умерли с «Bad Request:
+ * failed to get HTTP URL content». Это зеркало INC-098 — там api.telegram.org
+ * недоступен с РФ-ноды, здесь РФ-нода недоступна для Telegram.
+ *
+ * Отказ снаружи периметра не оставляет следов и не поддаётся отладке, поэтому
+ * байты доносим сами: свою картинку нода берёт, до релея дотягивается.
+ * Таймаут по умолчанию больше обычного — здесь передаётся файл, а не строка.
+ */
+export async function callTelegramApiWithPhoto<T = unknown>(
+  method: string,
+  fields: Record<string, string>,
+  photo: { bytes: ArrayBuffer; filename: string; contentType: string },
+  timeoutMs = 30000,
+): Promise<TelegramApiResponse<T>> {
+  if (!BOT_TOKEN) return { ok: false, description: "TELEGRAM_BOT_TOKEN not set" };
+  const form = new FormData();
+  for (const [name, value] of Object.entries(fields)) form.set(name, value);
+  form.set("photo", new Blob([photo.bytes], { type: photo.contentType }), photo.filename);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    // Content-Type не задаётся руками: границу multipart проставляет fetch.
+    const response = await fetch(`${API_BASE}/${method}`, {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+    });
+    return await response.json().catch(() => ({ ok: false, description: `HTTP ${response.status}` })) as TelegramApiResponse<T>;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function getTelegramRuntimeConfig() {
   let apiBaseHost = "invalid";
   try {

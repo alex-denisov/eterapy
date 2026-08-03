@@ -9,7 +9,7 @@
 
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
-import { callTelegramApi } from "@/lib/telegram";
+import { callTelegramApi, callTelegramApiWithPhoto } from "@/lib/telegram";
 import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
 import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import {
@@ -88,23 +88,40 @@ async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "In
   }
 }
 
-async function vkWallPhotoAttachment(input: {
-  token: string;
-  communityId: string;
-  mediaUrl: string;
-}) {
-  const source = await fetch(input.mediaUrl, {
+/** Предел загрузки, общий и для VK, и для Telegram: у обеих площадок он выше. */
+const MEDIA_UPLOAD_LIMIT_BYTES = 15 * 1024 * 1024;
+
+/**
+ * Обложка публикации, взятая нашим же процессом. Площадкам мы отдаём байты, а
+ * не ссылку: у Telegram ссылка на РФ-ноду не работает вовсе (B643), у VK
+ * загрузка по ссылке недоступна токену сообщества (B642).
+ */
+async function downloadPublicationMedia(mediaUrl: string): Promise<{
+  bytes: ArrayBuffer;
+  contentType: string;
+  filename: string;
+}> {
+  const source = await fetch(mediaUrl, {
     signal: AbortSignal.timeout(15_000),
     headers: { Accept: "image/*" },
   });
   const contentType = source.headers.get("content-type") ?? "";
   if (!source.ok || !contentType.startsWith("image/")) {
-    throw new Error(`VK media download failed: HTTP ${source.status}`);
+    throw new Error(`media download failed: HTTP ${source.status}`);
   }
   const bytes = await source.arrayBuffer();
-  if (bytes.byteLength > 15 * 1024 * 1024) {
-    throw new Error("VK media exceeds the 15 MB upload limit");
+  if (bytes.byteLength > MEDIA_UPLOAD_LIMIT_BYTES) {
+    throw new Error("media exceeds the 15 MB upload limit");
   }
+  return { bytes, contentType, filename: "eterapy-publication.png" };
+}
+
+async function vkWallPhotoAttachment(input: {
+  token: string;
+  communityId: string;
+  mediaUrl: string;
+}) {
+  const { bytes, contentType, filename } = await downloadPublicationMedia(input.mediaUrl);
 
   const serverResponse = await fetch("https://api.vk.com/method/photos.getWallUploadServer", {
     method: "POST",
@@ -125,7 +142,7 @@ async function vkWallPhotoAttachment(input: {
   }
 
   const form = new FormData();
-  form.set("photo", new Blob([bytes], { type: contentType }), "eterapy-publication.png");
+  form.set("photo", new Blob([bytes], { type: contentType }), filename);
   const uploadResponse = await fetch(uploadUrl, {
     method: "POST",
     body: form,
@@ -233,24 +250,45 @@ export async function publishToTelegram(
   if (publication.mediaUrl && publication.body.length > 1_024) {
     throw new Error("Telegram media caption exceeds 1024 characters");
   }
-  const response = await callTelegramApi<{
-    message_id?: number;
-    chat?: { username?: string };
-  }>(publication.mediaUrl ? "sendPhoto" : "sendMessage", publication.mediaUrl
-    ? {
-      chat_id: channelId,
-      photo: publication.mediaUrl,
-      caption: publication.body,
-      show_caption_above_media: false,
+
+  // B643 — обложку доносим байтами. Ссылку на нашу ноду Telegram не забирает:
+  // подробности и доказательство — в `callTelegramApiWithPhoto`.
+  //
+  // Разъехаться картинке и посту здесь нельзя: если своя же картинка почему-то
+  // не отдалась, материал уходит текстом, а причина едет в реестр. Тот же
+  // размен, что у VK в B642: пост важнее обложки.
+  let photo: { bytes: ArrayBuffer; filename: string; contentType: string } | null = null;
+  let note: string | undefined;
+  if (publication.mediaUrl) {
+    try {
+      photo = await downloadPublicationMedia(publication.mediaUrl);
+    } catch (error) {
+      note = `Telegram: обложка не приложена (${error instanceof Error ? error.message : String(error)}). Пост ушёл текстом.`;
+      console.warn(note);
     }
-    : {
+  }
+
+  const method = photo ? "sendPhoto" : "sendMessage";
+  const response = photo
+    ? await callTelegramApiWithPhoto<{
+      message_id?: number;
+      chat?: { username?: string };
+    }>("sendPhoto", {
+      chat_id: channelId,
+      caption: publication.body,
+      show_caption_above_media: "false",
+    }, photo)
+    : await callTelegramApi<{
+      message_id?: number;
+      chat?: { username?: string };
+    }>("sendMessage", {
       chat_id: channelId,
       text: publication.body,
       disable_web_page_preview: false,
     });
   const messageId = response.result?.message_id;
   if (!response.ok || !messageId) {
-    throw new Error(`Telegram ${publication.mediaUrl ? "sendPhoto" : "sendMessage"} failed: ${response.description ?? "unknown error"}`);
+    throw new Error(`Telegram ${method} failed: ${response.description ?? "unknown error"}`);
   }
 
   const username = response.result?.chat?.username ?? channelId.replace(/^@/, "");
@@ -259,6 +297,7 @@ export async function publishToTelegram(
     publicUrl: username
       ? `https://t.me/${username}/${messageId}`
       : `https://t.me/c/${String(channelId).replace(/^-100/, "")}/${messageId}`,
+    note,
   };
 }
 
