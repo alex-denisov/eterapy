@@ -143,27 +143,48 @@ jobs:
       - name: Compare search markup against the baseline
         id: drift
         run: |
-          set -uo pipefail
-          : > drift-findings.txt
-          CHECKED=0
-          while IFS= read -r url; do
-            [ -z "$url" ] && continue
-            CHECKED=$((CHECKED + 1))
-            OUT=$(python3 scripts/seo/drift_compare.py --skip-cwv "$url" 2>&1) || true
-            # INFO `content_hash_changed` ожидаем на каждой выкатке: новая
-            # сборка меняет хеши ассетов. Тревога — только critical/warning.
-            if printf '%s' "$OUT" | grep -qiE '(critical|warning)'; then
-              printf '%s\n%s\n\n' "$url" "$(printf '%s' "$OUT" | grep -iE '(critical|warning)' | head -4)" >> drift-findings.txt
-            fi
-          done < all-urls.txt
-          # `grep -c` при нуле совпадений печатает «0» И выходит с кодом 1.
-          # `|| echo 0` дописывал ВТОРУЮ строку, и GITHUB_OUTPUT падал на
-          # «Invalid format '0'» — шаг валился ровно тогда, когда всё в порядке.
-          FOUND=$(grep -c '^https' drift-findings.txt || true)
-          FOUND=${FOUND:-0}
-          echo "checked=$CHECKED" >> "$GITHUB_OUTPUT"
-          echo "found=$FOUND" >> "$GITHUB_OUTPUT"
-          echo "проверено $CHECKED адресов, расхождений на $FOUND"
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+
+          urls = [line.strip() for line in open("all-urls.txt") if line.strip()]
+          findings, errors = [], []
+
+          for url in urls:
+              done = subprocess.run(
+                  ["python3", "scripts/seo/drift_compare.py", "--skip-cwv", url],
+                  capture_output=True, text=True,
+              )
+              try:
+                  data = json.loads(done.stdout)
+              except json.JSONDecodeError:
+                  # Нет базлайна, страница не ответила, инструмент упал — это НЕ
+                  # регрессия разметки, но и не «всё хорошо»: считаем отдельно и
+                  # показываем в отчёте, иначе сторож может молча умереть и
+                  # выглядеть зелёным.
+                  errors.append(f"{url}: {(done.stderr or done.stdout).strip()[:120]}")
+                  continue
+
+              summary = data.get("summary") or {}
+              # ⚠ Считаем ТОЛЬКО summary. Первая версия грепала вывод на
+              # `critical|warning` и ловила сами ключи счётчиков — прогон
+              # объявил регрессию на всех 205 адресах при нуле находок.
+              if (summary.get("critical") or 0) or (summary.get("warning") or 0):
+                  lines = [
+                      f"  {item['severity']}: {item.get('message', item.get('rule', ''))}"
+                      for item in data.get("triggered_findings", [])
+                      if item.get("severity") in ("CRITICAL", "WARNING")
+                  ]
+                  findings.append(url + "\n" + "\n".join(lines[:4]))
+
+          pathlib.Path("drift-findings.txt").write_text("\n\n".join(findings))
+          pathlib.Path("drift-errors.txt").write_text("\n".join(errors))
+          print(f"проверено {len(urls)} адресов, расхождений {len(findings)}, не сверено {len(errors)}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"checked={len(urls)}\n")
+              out.write(f"found={len(findings)}\n")
+              out.write(f"errors={len(errors)}\n")
+          PY
 
       - name: Refresh baselines
         if: always()
@@ -194,6 +215,7 @@ jobs:
           INDEXNOW_RESULT: ${{ steps.indexnow.outputs.result }}
           DRIFT_CHECKED: ${{ steps.drift.outputs.checked }}
           DRIFT_FOUND: ${{ steps.drift.outputs.found }}
+          DRIFT_ERRORS: ${{ steps.drift.outputs.errors }}
           URLS_TOTAL: ${{ steps.urls.outputs.total }}
         run: |
           set -uo pipefail
@@ -201,8 +223,8 @@ jobs:
           FINDINGS=$(head -c 1500 drift-findings.txt 2>/dev/null || true)
           # printf, а не многострочная переменная в YAML: отступ блока попал бы
           # в каждую строку сообщения.
-          TEXT=$(printf '🔎 SEO-маршрут после выкатки\nАдресов в карте: %s\nIndexNow: %s\nСторож разметки: проверено %s, расхождений %s' \
-            "${URLS_TOTAL:-?}" "${INDEXNOW_RESULT:--}" "${DRIFT_CHECKED:-0}" "${DRIFT_FOUND:-0}")
+          TEXT=$(printf '🔎 SEO-маршрут после выкатки\nАдресов в карте: %s\nIndexNow: %s\nСторож разметки: проверено %s, расхождений %s, не сверено %s' \
+            "${URLS_TOTAL:-?}" "${INDEXNOW_RESULT:--}" "${DRIFT_CHECKED:-0}" "${DRIFT_FOUND:-0}" "${DRIFT_ERRORS:-0}")
           if [ -n "$FINDINGS" ]; then
             TEXT=$(printf '%s\n\nРасхождения:\n%s' "$TEXT" "$FINDINGS")
           fi
