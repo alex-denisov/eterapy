@@ -1,0 +1,219 @@
+# B639 — постоянный SEO-маршрут после выкатки: IndexNow + сторож разметки.
+#
+# ЗАЧЕМ ОТДЕЛЬНЫМ WORKFLOW, А НЕ ШАГОМ ДЕПЛОЯ. Оба действия имеют смысл только
+# на живом сайте — то есть после того, как выкатка прошла и прогрелась. Шагом
+# внутри матричного деплоя они выполнялись бы по разу на каждую из четырёх нод
+# и до того, как балансировщик увидел новый релиз.
+#
+# ЧТО ЗДЕСЬ ДЕЛАЕТСЯ:
+#  1. IndexNow — адреса уходят в Bing, Yandex, Naver, Seznam и остальных
+#     участников протокола. До B639 наш единственный канал ускорения обхода был
+#     Яндекс.Вебмастер, то есть Google и Bing узнавали о выпуске сами и когда
+#     придётся. Шлём только те адреса, у которых поменялся `lastmod`: рассылать
+#     весь каталог на каждую выкатку — спам, за который протокол наказывает.
+#  2. drift-compare — сверка поисковой разметки со снимком прошлого прогона:
+#     title, description, canonical, robots, h1, JSON-LD. Регрессия разметки
+#     не видна ни тестам, ни браузеру — она видна поисковику через недели.
+#
+# Ключ IndexNow берётся из имени файла в `web/public/` и секретом не является:
+# по устройству протокола он публичен и обязан отдаваться по HTTP.
+name: SEO route
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: seo-route
+  cancel-in-progress: false
+
+jobs:
+  route:
+    name: IndexNow + drift
+    # Выкатка упала — сверять нечего: сайт остался прежним.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SEO_SITE: https://eterapy.com
+      SEO_DRIFT_DB: ${{ github.workspace }}/.seo-state/drift
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install toolkit dependencies
+        run: pip install --disable-pip-version-check -q -r scripts/seo/requirements.txt
+
+      # Снимки прошлого прогона и карта `lastmod`. Кеш — не для скорости:
+      # это единственное место, где живёт состояние сторожа. Локальная база у
+      # агента на ноутбуке не переживает смену машины (замечено в B639).
+      - name: Restore drift baselines
+        uses: actions/cache/restore@v4
+        with:
+          path: .seo-state
+          key: seo-state-${{ github.run_id }}
+          restore-keys: seo-state-
+
+      - name: Collect sitemap URLs
+        id: urls
+        run: |
+          set -euo pipefail
+          mkdir -p .seo-state
+          python3 - <<'PY'
+          import json, os, pathlib, re, urllib.request, xml.etree.ElementTree as ET
+
+          site = os.environ["SEO_SITE"]
+          state = pathlib.Path(".seo-state")
+          state.mkdir(exist_ok=True)
+
+          with urllib.request.urlopen(f"{site}/sitemap.xml", timeout=60) as response:
+              root = ET.fromstring(response.read())
+
+          ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+          current = {}
+          for node in root.findall("s:url", ns):
+              loc = (node.findtext("s:loc", default="", namespaces=ns) or "").strip()
+              if not loc:
+                  continue
+              # В карте лежат и не-HTML адреса (llms.txt, pricing.md). Ни
+              # IndexNow, ни сторож разметки к ним отношения не имеют.
+              if re.search(r"\.(txt|md|xml|json)$", loc):
+                  continue
+              current[loc] = (node.findtext("s:lastmod", default="", namespaces=ns) or "").strip()
+
+          previous_path = state / "lastmod.json"
+          previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
+          changed = [url for url, stamp in current.items() if previous.get(url) != stamp]
+
+          pathlib.Path("all-urls.txt").write_text("\n".join(sorted(current)) + "\n")
+          pathlib.Path("changed-urls.txt").write_text("\n".join(sorted(changed)) + "\n")
+          previous_path.write_text(json.dumps(current, indent=1, sort_keys=True))
+
+          print(f"всего адресов: {len(current)}, изменилось: {len(changed)}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"total={len(current)}\n")
+              out.write(f"changed={len(changed)}\n")
+              out.write(f"first_run={'1' if not previous else '0'}\n")
+          PY
+
+      - name: Submit changed URLs to IndexNow
+        id: indexnow
+        env:
+          FIRST_RUN: ${{ steps.urls.outputs.first_run }}
+        run: |
+          set -uo pipefail
+          KEY_FILE=$(ls web/public/*.txt 2>/dev/null | head -1)
+          if [ -z "$KEY_FILE" ]; then
+            echo "::warning::файл ключа IndexNow не найден в web/public — отправка пропущена"
+            echo "result=нет ключа" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KEY=$(basename "$KEY_FILE" .txt)
+          COUNT=$(grep -c . changed-urls.txt || echo 0)
+          # Первый прогон видит «изменилось всё»: снимка `lastmod` ещё нет.
+          # Слать в этот момент весь каталог нельзя — это ровно тот спам,
+          # от которого протокол защищается. Каталог отправляется вручную
+          # (`scripts/seo/seo indexnow-submit`), маршрут шлёт только дельту.
+          if [ "$FIRST_RUN" = "1" ]; then
+            echo "первый прогон: снимок lastmod создан, отправка пропущена"
+            echo "result=первый прогон, снимок создан" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$COUNT" -eq 0 ]; then
+            echo "изменившихся адресов нет — отправлять нечего"
+            echo "result=изменений нет" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          OUT=$(python3 scripts/seo/indexnow_submit.py \
+            --host eterapy.com \
+            --key "$KEY" \
+            --key-location "${SEO_SITE}/${KEY}.txt" \
+            --urls-file changed-urls.txt 2>&1) || true
+          echo "$OUT"
+          echo "result=$COUNT адресов: $(printf '%s' "$OUT" | tail -1 | head -c 120)" >> "$GITHUB_OUTPUT"
+
+      - name: Compare search markup against the baseline
+        id: drift
+        run: |
+          set -uo pipefail
+          : > drift-findings.txt
+          CHECKED=0
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            CHECKED=$((CHECKED + 1))
+            OUT=$(python3 scripts/seo/drift_compare.py --skip-cwv "$url" 2>&1) || true
+            # INFO `content_hash_changed` ожидаем на каждой выкатке: новая
+            # сборка меняет хеши ассетов. Тревога — только critical/warning.
+            if printf '%s' "$OUT" | grep -qiE '(critical|warning)'; then
+              printf '%s\n%s\n\n' "$url" "$(printf '%s' "$OUT" | grep -iE '(critical|warning)' | head -4)" >> drift-findings.txt
+            fi
+          done < all-urls.txt
+          FOUND=$(grep -c '^https' drift-findings.txt || echo 0)
+          echo "checked=$CHECKED" >> "$GITHUB_OUTPUT"
+          echo "found=$FOUND" >> "$GITHUB_OUTPUT"
+          echo "проверено $CHECKED адресов, расхождений на $FOUND"
+
+      - name: Refresh baselines
+        run: |
+          set -uo pipefail
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            python3 scripts/seo/drift_baseline.py --skip-cwv "$url" >/dev/null 2>&1 || true
+          done < all-urls.txt
+
+      - name: Save drift baselines
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .seo-state
+          key: seo-state-${{ github.run_id }}
+
+      # Отчёт идёт в маркетинговый канал владельца, служебный — запасной адрес.
+      # Ровно как в `seo-telegram-report.sh`: пока бота не добавили в новый
+      # канал, Telegram отвечает `chat not found`, и без запасного адреса
+      # сторож молчал бы (INC-098).
+      - name: Report to Telegram
+        if: always()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_MARKETING: ${{ secrets.TELEGRAM_ETERAPY_MARKETING_CHAT_ID }}
+          TG_FALLBACK: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INDEXNOW_RESULT: ${{ steps.indexnow.outputs.result }}
+          DRIFT_CHECKED: ${{ steps.drift.outputs.checked }}
+          DRIFT_FOUND: ${{ steps.drift.outputs.found }}
+          URLS_TOTAL: ${{ steps.urls.outputs.total }}
+        run: |
+          set -uo pipefail
+          [ -n "${TG_TOKEN:-}" ] || { echo "нет токена — отчёт пропущен"; exit 0; }
+          FINDINGS=$(head -c 1500 drift-findings.txt 2>/dev/null || true)
+          # printf, а не многострочная переменная в YAML: отступ блока попал бы
+          # в каждую строку сообщения.
+          TEXT=$(printf '🔎 SEO-маршрут после выкатки\nАдресов в карте: %s\nIndexNow: %s\nСторож разметки: проверено %s, расхождений %s' \
+            "${URLS_TOTAL:-?}" "${INDEXNOW_RESULT:--}" "${DRIFT_CHECKED:-0}" "${DRIFT_FOUND:-0}")
+          if [ -n "$FINDINGS" ]; then
+            TEXT=$(printf '%s\n\nРасхождения:\n%s' "$TEXT" "$FINDINGS")
+          fi
+          send() {
+            [ -n "${1:-}" ] || return 1
+            curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=$1" \
+              --data-urlencode "text=${TEXT}" \
+              -d disable_web_page_preview=true | grep -q '"ok":true'
+          }
+          send "$TG_MARKETING" || send "$TG_FALLBACK" || echo "::warning::отчёт SEO-маршрута не доставлен ни в один канал"
+
+      - name: Fail the run when markup regressed
+        if: ${{ steps.drift.outputs.found != '0' && steps.drift.outputs.found != '' }}
+        env:
+          DRIFT_FOUND: ${{ steps.drift.outputs.found }}
+        run: |
+          echo "::error::Поисковая разметка изменилась на ${DRIFT_FOUND} адресах — см. отчёт выше"
+          cat drift-findings.txt
+          exit 1
