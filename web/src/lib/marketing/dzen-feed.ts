@@ -70,12 +70,25 @@ export function rfc822(value: Date): string {
  * Абзацы материала превращаются в HTML: `content:encoded` Дзен разбирает как
  * разметку, и без абзацев статья приезжает одной простыней.
  */
+/**
+ * B642: писатель размечает выделения по-markdown’ному — `**так**`. В ленте это
+ * HTML, и звёздочки уезжали в Дзен буквально: «**Три вопроса:**» вместо жирной
+ * строки. Замечено на первых же двух материалах, попавших в ленту 03.08.
+ *
+ * Преобразование делается ПОСЛЕ экранирования, поэтому в разметку попадают
+ * только наши собственные теги: текст пользователя к этому моменту уже не
+ * содержит ни `<`, ни `&`.
+ */
+function inlineMarkup(escaped: string): string {
+  return escaped.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, "<strong>$1</strong>");
+}
+
 export function dzenBodyHtml(body: string): string {
   return body
     .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter(Boolean)
-    .map((block) => `<p>${xml(block).replaceAll("\n", "<br />")}</p>`)
+    .map((block) => `<p>${inlineMarkup(xml(block)).replaceAll("\n", "<br />")}</p>`)
     .join("\n");
 }
 

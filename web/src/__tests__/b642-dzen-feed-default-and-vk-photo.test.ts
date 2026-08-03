@@ -42,6 +42,7 @@ jest.mock("@/lib/marketing/browser-publisher", () => ({
 jest.mock("@/lib/telegram", () => ({ callTelegramApi: jest.fn() }));
 
 import { publishToDzen, publishToVk } from "@/lib/marketing/publish";
+import { dzenBodyHtml } from "@/lib/marketing/dzen-feed";
 
 const dzenPublication = {
   key: "b642-dzen-2026-08-03",
@@ -180,5 +181,25 @@ describe("B642 · VK: обложка не топит пост", () => {
 
     await expect(publishToVk({ body: "Текст поста", mediaUrl: null }))
       .rejects.toThrow(/wall\.post failed \(214\)/);
+  });
+});
+
+describe("B642 · разметка выделений в ленте", () => {
+  it("**жирный** становится тегом, а не звёздочками в тексте", () => {
+    expect(dzenBodyHtml("**Три вопроса:**\nПервый")).toBe(
+      "<p><strong>Три вопроса:</strong><br />Первый</p>",
+    );
+  });
+
+  it("одиночная звёздочка и умножение остаются текстом", () => {
+    expect(dzenBodyHtml("Цена 5 * 3 и звёздочка *тут*")).toBe(
+      "<p>Цена 5 * 3 и звёздочка *тут*</p>",
+    );
+  });
+
+  it("экранирование остаётся первым: чужие теги внутрь не проходят", () => {
+    expect(dzenBodyHtml("**<script>alert(1)</script>**")).toBe(
+      "<p><strong>&lt;script&gt;alert(1)&lt;/script&gt;</strong></p>",
+    );
   });
 });
