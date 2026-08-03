@@ -134,6 +134,9 @@ describe("восстановление отказавших публикаций
       scheduledFor: FUTURE,
       lastError: "fetch failed",
       recoveryCount: MAX_RECOVERY_ATTEMPTS,
+      // B643: слота у этой строки нет вовсе — ручной черновик вне плана.
+      // Ёмкость на повторы не жжём, но и освобождать нечего.
+      planSlot: null,
     }]);
 
     const result = await recoverFailedPublications({ now: NOW });
@@ -141,6 +144,7 @@ describe("восстановление отказавших публикаций
     // Слот ещё впереди — архивировать рано, но и жечь ёмкость повторами нельзя.
     expect(result.requeued).toBe(0);
     expect(result.archived).toBe(0);
+    expect(result.slotsReleased).toBe(0);
     expect(publicationUpdate).not.toHaveBeenCalled();
   });
 

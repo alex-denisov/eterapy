@@ -77,6 +77,8 @@ export function isRecoverablePublicationError(error: string | null | undefined):
 export interface RegistryRecoveryResult {
   requeued: number;
   archived: number;
+  /** B643: слоты, освобождённые из-под материала, который уже не выйдет. */
+  slotsReleased: number;
   /** B636: строки, возвращённые в очередь после отказа канала. */
   returnedToQueue: number;
   blockedPlatforms: string[];
@@ -102,6 +104,7 @@ export async function recoverFailedPublications(
       lastError: true,
       recoveryCount: true,
       attemptCount: true,
+      planSlot: true,
     },
     orderBy: { scheduledFor: "asc" },
     take: 200,
@@ -110,6 +113,7 @@ export async function recoverFailedPublications(
   let requeued = 0;
   let archived = 0;
   let returnedToQueue = 0;
+  let slotsReleased = 0;
   for (const row of failed) {
     // B636 — отказ КАНАЛА не отменяет материал никогда.
     //
@@ -140,8 +144,8 @@ export async function recoverFailedPublications(
     const slotAhead = Boolean(
       row.scheduledFor && row.scheduledFor.getTime() - now.getTime() >= RECOVERY_MIN_LEAD_MS,
     );
-    const repeatable = isRecoverablePublicationError(row.lastError)
-      && row.recoveryCount < MAX_RECOVERY_ATTEMPTS;
+    const technical = isRecoverablePublicationError(row.lastError);
+    const repeatable = technical && row.recoveryCount < MAX_RECOVERY_ATTEMPTS;
 
     if (slotAhead && repeatable) {
       await db.externalPublication.update({
@@ -159,6 +163,40 @@ export async function recoverFailedPublications(
       // Инцидент по этой строке больше не отражает состояние.
       await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
       requeued += 1;
+      continue;
+    }
+
+    // B643 — СГОРЕВШИЙ СЛОТ.
+    //
+    // Бюджет восстановления исчерпан, а слот ещё впереди. Раньше строка просто
+    // оставалась `FAILED` и ждала, когда её дата пройдёт: `planSlot` уникален,
+    // так что слот всё это время не мог принять другой материал и отдавал ноль.
+    // Замер прода 2026-08-03 показал цену правила — двенадцать из тринадцати
+    // будущих слотов Дзена были заняты такими строками, и лента B620 не могла
+    // дойти до десяти материалов ни при каком исправном генераторе.
+    //
+    // Ждать здесь нечего: повторов больше не будет. Строка архивируется сразу и
+    // отпускает слот под новое поколение (`slotKeyForGeneration` в
+    // `publication-queue`). Причина остаётся в `archiveReason` — из кокпита
+    // строка не исчезает, исчезает только её право на слот.
+    //
+    // ⚠ Отпускает слот ТОЛЬКО технический отказ. Решение редактора и
+    // safety-блок сюда не попадают (`isRecoverablePublicationError` = false):
+    // там материал признан негодным по существу, и перевыпуск слота был бы
+    // обходом редактора за счёт той же бесплатной ёмкости.
+    if (slotAhead && technical && row.planSlot) {
+      await db.externalPublication.update({
+        where: { id: row.id },
+        data: {
+          status: "ARCHIVED",
+          autoPublish: false,
+          planSlot: null,
+          archiveReason: `Материал не удалось выпустить за ${MAX_RECOVERY_ATTEMPTS} попытки, `
+            + `слот освобождён под новый материал: ${row.lastError ?? "причина не записана"}`,
+        },
+      });
+      await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
+      slotsReleased += 1;
       continue;
     }
 
@@ -187,11 +225,12 @@ export async function recoverFailedPublications(
   log.info("marketing.registry_recovery", {
     requeued,
     archived,
+    slotsReleased,
     returnedToQueue,
     blockedPlatforms,
     heldPlatforms,
   });
-  return { requeued, archived, returnedToQueue, blockedPlatforms, heldPlatforms };
+  return { requeued, archived, slotsReleased, returnedToQueue, blockedPlatforms, heldPlatforms };
 }
 
 /**

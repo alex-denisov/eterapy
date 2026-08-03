@@ -20,9 +20,31 @@ import { generatePost } from "@/lib/marketing/post-generator";
 /** Сколько черновиков держим наготове. Больше — не читает никто. */
 export const DRAFT_QUEUE_TARGET = CONTENT_PLAN.length;
 
+/**
+ * B643 — сколько раз слот может быть занят заново.
+ *
+ * Мёртвый материал отпускает слот (см. `registry-recovery`), и слот пишется
+ * ещё раз. Ключ строки уникален, слот уникален — значит новое поколение обязано
+ * получить собственный ключ, и он же служит счётчиком: наличие `<slot>--r2`
+ * означает «слот уже перевыпускали», отдельного поля не нужно.
+ *
+ * Предел в два поколения — про расход, а не про аккуратность: слот стоит
+ * максимум 2 × (попытка + 2 восстановления) = 6 обращений к модели. Бесплатная
+ * суточная ёмкость общая с ответами живым людям, и она важнее.
+ */
+export const MAX_SLOT_GENERATIONS = 2;
+const SLOT_GENERATION_SUFFIX = "--r";
+
+/** Ключ строки для N-го поколения слота. Первое поколение — сам слот. */
+export function slotKeyForGeneration(slotKey: string, generation: number): string {
+  return generation <= 1 ? slotKey : `${slotKey}${SLOT_GENERATION_SUFFIX}${generation}`;
+}
+
 export interface GenerateDraftsResult {
   created: number;
   skippedNoArticle: string[];
+  /** B643: слоты, исчерпавшие право на перевыпуск. */
+  exhaustedSlots: string[];
   planExhausted: boolean;
 }
 
@@ -85,10 +107,39 @@ export async function generateMarketingDrafts(input: {
   const shortfall = Math.max(0, target - taken.length);
   const slots = nextPlanSlots(taken, shortfall, activePlan);
 
+  // B643: слот свободен, но его прошлые поколения остались в реестре со своими
+  // ключами. Один запрос на весь проход вместо запроса на слот.
+  const spentKeys = new Set(
+    slots.length === 0
+      ? []
+      : (await db.externalPublication.findMany({
+        where: {
+          key: {
+            in: slots.flatMap((slot) => Array.from(
+              { length: MAX_SLOT_GENERATIONS },
+              (_, index) => slotKeyForGeneration(slot.key, index + 1),
+            )),
+          },
+        },
+        select: { key: true },
+      })).map((row) => row.key),
+  );
+
   const skippedNoArticle: string[] = [];
+  const exhaustedSlots: string[] = [];
   let created = 0;
 
   for (const slot of slots) {
+    const generation = Array.from({ length: MAX_SLOT_GENERATIONS }, (_, index) => index + 1)
+      .find((candidate) => !spentKeys.has(slotKeyForGeneration(slot.key, candidate)));
+    if (!generation) {
+      // Слот выработал право на перевыпуск. Молчать нельзя: снаружи это выглядит
+      // как «план короче, чем обещано», и без строки в журнале причину не найти.
+      exhaustedSlots.push(slot.key);
+      log.warn("marketing.plan_slot_exhausted", { slot: slot.key, generations: MAX_SLOT_GENERATIONS });
+      continue;
+    }
+    const key = slotKeyForGeneration(slot.key, generation);
     const post = generatePost(slot);
     if (!post) {
       // Слот указывает на несуществующую статью. Это дефект плана, и заменять
@@ -101,7 +152,7 @@ export async function generateMarketingDrafts(input: {
     try {
       await db.externalPublication.create({
         data: {
-          key: slot.key,
+          key,
           planSlot: slot.key,
           platform: slot.channel,
           title: post.title,
@@ -139,6 +190,7 @@ export async function generateMarketingDrafts(input: {
   return {
     created,
     skippedNoArticle,
+    exhaustedSlots,
     planExhausted: taken.length + created >= activePlan.length,
   };
 }
