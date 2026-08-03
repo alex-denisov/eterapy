@@ -1,0 +1,4 @@
+# Core — required by every tool in this directory.
+requests>=2.32.4,<3.0.0
+beautifulsoup4>=4.12.0,<5.0.0
+lxml>=6.1.1,<7.0.0

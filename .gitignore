@@ -128,3 +128,12 @@ DEPLOY.md
 # QA/design artifacts (local-only, same rule as docs/ — B340)
 output/
 design-qa.md
+
+# SEO toolkit (scripts/seo) — local venv, state and secrets
+scripts/seo/.venv/
+scripts/seo/.state/
+scripts/seo/seo.env
+# …but its changelog data IS product tooling: the global `data/` rule above
+# would otherwise swallow it (same class as the `*.png` incident).
+!scripts/seo/data/
+!scripts/seo/data/google-updates.json

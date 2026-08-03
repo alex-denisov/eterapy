@@ -1,0 +1,9 @@
+# Optional — only needed for Search Console tools (gsc-query, gsc-inspect).
+# Install with: scripts/seo/seo setup --google
+#
+# Scope note: these clients talk to Search Console only. This toolkit does not
+# ship GA4 or any analytics export — see README.md § "Что мы намеренно не берём".
+-r requirements.txt
+google-api-python-client>=2.196.0,<3.0.0
+google-auth>=2.20.0,<3.0.0
+google-auth-httplib2>=0.4.0,<1.0.0
