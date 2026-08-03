@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
-import { ChevronLeft } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/product-legal";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
@@ -17,7 +15,7 @@ import { FamilyScenariosActions } from "@/components/products/family-questions-a
 import { HoraryActions, TarotNumerologyActions } from "@/components/products/new-symbolic-product-actions";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
-import { ProductSeoContent } from "@/components/products/product-seo-content";
+import { ProductBackLink } from "@/components/products/product-back-link";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 import { getSetting } from "@/lib/platform-settings";
@@ -59,14 +57,7 @@ function ProductHero({
       <div className="mx-auto w-full max-w-2xl">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            <Link
-              href="/"
-              aria-label="Назад"
-              data-testid="product-hero-back"
-              className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
-            >
-              <ChevronLeft className="size-5" aria-hidden="true" />
-            </Link>
+            <ProductBackLink className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]" />
             <h1 className="soft-h2 truncate" style={{ margin: 0 }}>{product.name}</h1>
           </div>
           <ProductHeroPrice product={product} />
@@ -161,7 +152,13 @@ export default async function ProductPage({
           action={<ProductActionSurface product={product} search={search} />}
         />
       )}
-      <ProductSeoContent slug={product.slug} />
+      {/*
+        B647 / владелец 2026-08-04: описательный SEO-блок (B578) отсюда снят.
+        Страница услуги — инструмент на один экран, дописывать в неё текст
+        нельзя; посадочной под поисковый спрос становится библиотека (B648).
+        Вместе с текстом ушла и FAQPage-разметка: держать schema без видимого
+        на странице ответа — прямое нарушение требований поисковика.
+      */}
     </main>
   );
 }

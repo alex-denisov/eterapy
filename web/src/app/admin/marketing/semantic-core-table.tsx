@@ -19,9 +19,14 @@ export type SemanticCoreTableRow = {
   intent: string;
   monthlyDemand: number | null;
   demandSource: "live" | "baseline" | "unknown";
+  /** B651: лучшая позиция по семье запросов, содержащих фразу. */
   position: number | null;
+  /** Позиция по самой фразе слово в слово — обычно её нет и у растущих тем. */
+  exactPosition: number | null;
   impressions: number;
   clicks: number;
+  /** Сколько живых запросов Вебмастера попало в эту фразу. */
+  matchedQueries: number;
 };
 
 function formatNumber(value: number) {
@@ -68,6 +73,14 @@ export function SemanticCoreTable({ rows }: { rows: SemanticCoreTableRow[] }) {
       intent: { value: row.intent, filterValue: row.intent, sortValue: row.intent },
       position: {
         value: row.position === null ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(row.position),
+        // B651: прочерк здесь теперь значит «показов по этой теме нет вовсе».
+        // Раньше он значил «мы сравнивали строки на равенство» — и стоял даже
+        // там, где показы были.
+        subvalue: row.matchedQueries === 0
+          ? "нет показов"
+          : row.exactPosition !== null
+            ? `${row.matchedQueries} запр. · точно по фразе ${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(row.exactPosition)}`
+            : `${row.matchedQueries} запр. · точной фразы нет`,
         // Без позиции строка должна падать в конец сортировки «сверху лучшие»,
         // а не изображать первое место.
         sortValue: row.position ?? 1000,

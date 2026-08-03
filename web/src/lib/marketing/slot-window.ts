@@ -110,6 +110,44 @@ export interface SlotDeferralResult {
   scheduledFor?: Date;
   /** Почему перенос не состоялся: предел переносов или свободных слотов нет. */
   reason?: "deferral-limit" | "no-free-slot";
+  /** B646: у какого черновика материал забрал слот, если свободных не было. */
+  yieldedBy?: string;
+}
+
+/**
+ * B646 — готовый материал старше ненаписанного черновика.
+ *
+ * Замер прода 2026-08-03 сразу после выкатки B645: все 15 будущих слотов
+ * Instagram заняты, 14 из них черновиками без текста. Перенос честно не находил
+ * свободного слота, и утверждённый материал ждал за строками, которых ещё нет.
+ *
+ * Порядок приоритета был обратный здравому смыслу. Черновик стоит одной строки
+ * в базе и переписывается генератором в любой другой слот; утверждённый
+ * материал стоит полного цикла «автор → независимый редактор» и потраченной
+ * один раз бесплатной суточной ёмкости.
+ *
+ * Граница жёсткая: уступает ТОЛЬКО черновик без утверждённого текста
+ * (`agentReviewedAt` пуст). Утверждённый материал в слоте не двигается никогда —
+ * иначе перенос одной строки поехал бы каскадом по всему плану.
+ */
+async function findYieldableSlot(input: {
+  platform: string;
+  excludeId: string;
+  now: Date;
+}) {
+  const earliest = new Date(input.now.getTime() + DEFERRAL_MIN_LEAD_MS);
+  return db.externalPublication.findFirst({
+    where: {
+      platform: input.platform,
+      NOT: { id: input.excludeId },
+      planSlot: { not: null },
+      status: "DRAFT",
+      agentReviewedAt: null,
+      scheduledFor: { gte: earliest },
+    },
+    orderBy: { scheduledFor: "asc" },
+    select: { id: true, key: true, planSlot: true, scheduledFor: true },
+  });
 }
 
 /**
@@ -155,7 +193,64 @@ export async function deferPublicationToNextSlot(input: {
       .map((row) => row.planSlot)
       .filter((slot): slot is string => typeof slot === "string"),
   });
-  if (candidates.length === 0) return { deferred: false, reason: "no-free-slot" };
+  if (candidates.length === 0) {
+    // B646: свободного слота нет — забираем ближайший у ненаписанного черновика.
+    const donor = await findYieldableSlot({
+      platform: publication.platform,
+      excludeId: publication.id,
+      now,
+    });
+    if (!donor || !donor.planSlot || !donor.scheduledFor) {
+      return { deferred: false, reason: "no-free-slot" };
+    }
+    const slotKey = donor.planSlot;
+    const scheduledFor = donor.scheduledFor;
+    try {
+      // Слот уникален в базе, поэтому донор обязан отпустить его ДО того, как
+      // слот займёт материал. Обе записи в одной транзакции: иначе падение
+      // между ними оставило бы слот ничьим.
+      await db.$transaction([
+        db.externalPublication.update({
+          where: { id: donor.id },
+          data: {
+            planSlot: null,
+            scheduledFor: null,
+            lastError: `Слот ${slotKey} отдан утверждённому материалу ${publication.key}: `
+              + "текст этого черновика ещё не проходил редактора. Черновик сохранён и "
+              + "ждёт следующего слота — он не отменён и не архивирован.",
+          },
+        }),
+        db.externalPublication.update({
+          where: { id: publication.id },
+          data: {
+            status: input.nextStatus,
+            planSlot: slotKey,
+            scheduledFor,
+            deferralCount: { increment: 1 },
+            lastError: `${input.reason} Свободных слотов не было, слот ${slotKey} `
+              + `(${scheduledFor.toISOString()}) освобождён от ненаписанного черновика `
+              + `${donor.key}; это перенос №${publication.deferralCount + 1}.`,
+          },
+        }),
+      ]);
+      log.info("marketing.slot_deferred_by_yield", {
+        publicationId: publication.id,
+        from: publication.planSlot,
+        to: slotKey,
+        scheduledFor: scheduledFor.toISOString(),
+        yieldedBy: donor.key,
+        deferralCount: publication.deferralCount + 1,
+      });
+      return { deferred: true, slot: slotKey, scheduledFor, yieldedBy: donor.key };
+    } catch (error) {
+      log.warn("marketing.slot_yield_failed", {
+        publicationId: publication.id,
+        slot: slotKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { deferred: false, reason: "no-free-slot" };
+    }
+  }
 
   // Слот уникален в базе. Гонка с генератором — обычное состояние, а не сбой:
   // берём следующий свободный, а не роняем проход.

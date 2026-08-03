@@ -1,6 +1,6 @@
-import Link from "next/link";
 import type React from "react";
-import { ArrowRight, ChevronLeft, FileText, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { ProductBackLink } from "@/components/products/product-back-link";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
@@ -159,14 +159,9 @@ export function ProductPageShell({
     <section className="soft-product-shell-layout" data-testid="product-page-shell">
       <div className="soft-product-shell-above" data-testid="product-above-fold">
         <div className="soft-product-shell-copy">
-          <Link
-            href="/products"
-            aria-label="Назад к услугам"
-            data-testid="product-hero-back"
-            className="soft-product-shell-back"
-          >
-            <ChevronLeft className="size-5" aria-hidden="true" />
-          </Link>
+          {/* B647: возврат по истории с восстановлением прокрутки, каталог —
+              запасной вариант для захода прямой ссылкой. */}
+          <ProductBackLink label="Назад к услугам" className="soft-product-shell-back" />
 
           <p className="soft-eyebrow mt-5">{product.eyebrow}</p>
           <h1 className="mt-3 font-heading text-[clamp(2.15rem,5vw,4.35rem)] leading-[0.96] text-[var(--soft-ink)]">

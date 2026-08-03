@@ -66,7 +66,10 @@ describe("v5 product pages", () => {
     expect(shell).toContain('data-testid="product-above-fold"');
     expect(shell).toContain('data-testid="product-primary-cta"');
     expect(shell).toContain('data-testid="product-hero-preview"');
-    expect(shell).toContain('data-testid="product-hero-back"');
+    // B647: стрелка «назад» переехала в общий клиентский компонент — она
+    // возвращает по истории, а не по жёсткому адресу.
+    expect(shell).toContain("<ProductBackLink");
+    expect(source("components/products/product-back-link.tsx")).toContain('data-testid="product-hero-back"');
     expect(detailPage).not.toContain("function ProductToolGuide");
     expect(detailPage).not.toContain('data-testid="product-tool-guide"');
     // B405: the price chip is a role-aware client component (guest ₽ / authed баллы).

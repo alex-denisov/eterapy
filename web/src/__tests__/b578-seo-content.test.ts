@@ -17,15 +17,20 @@ describe("B578 — SEO/GEO content operations", () => {
     ]));
   });
 
-  it("adds answer-first supporting content and FAQ schema to priority products", () => {
+  // B647 / владелец 2026-08-04 отменил половину B578: корпус написан и остаётся
+  // в репозитории под перенос в библиотеку (B648), но на странице услуги его
+  // быть не должно — она инструмент на один экран.
+  it("keeps the supporting corpus but never renders it on a service page", () => {
     const content = source("src/components/products/product-seo-content.tsx");
     const productPage = source("src/app/products/[slug]/page.tsx");
     for (const slug of ["chat-analysis", "tarot", "natal-chart", "compatibility-by-date", "numerology"]) {
       expect(content).toMatch(new RegExp(`["']?${slug}["']?: \\{`));
     }
-    expect(content).toContain('"@type": "FAQPage"');
     expect(content).toContain("Примеры живых вопросов");
-    expect(productPage).toContain("<ProductSeoContent");
+    expect(productPage).not.toContain("<ProductSeoContent");
+    // Разметка FAQ уходит вместе с видимым ответом: schema без текста на
+    // странице — нарушение требований поисковика, а не «бесплатный плюс».
+    expect(productPage).not.toContain('"@type": "FAQPage"');
   });
 
   it("uses query-led titles without claiming prediction or diagnosis", () => {

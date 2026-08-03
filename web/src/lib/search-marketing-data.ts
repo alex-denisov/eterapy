@@ -8,8 +8,10 @@ import type { SemanticIntent } from "@/lib/seo/semantic-core-types";
 import {
   parseMetrikaTotals,
   parseMetrikaTrafficSources,
+  matchQueryFamily,
   parseWebmasterQueries,
   parseWebmasterSummary,
+  parseWebmasterWindow,
   parseWordstatDemand,
   weightedAveragePosition,
   type MetrikaTotals,
@@ -139,11 +141,22 @@ async function fetchJson(url: string, init: RequestInit = {}) {
   }
 }
 
-async function getWebmaster(): Promise<ExternalResult<{ summary: WebmasterSummary; queries: SearchQueryMetric[] }>> {
+/**
+ * B649: раньше эта функция не принимала период вовсе, и Вебмастер отдавал свою
+ * неделю по умолчанию. Фильтр на странице при этом стоял и выглядел рабочим —
+ * менялись только Метрика и внутренняя воронка, то есть две карточки из шести.
+ *
+ * Окно, которое ВЕРНУЛ Яндекс, приходится показывать отдельно: у выгрузки
+ * задержка в пару суток, и `date_to` он молча подрезает (запрос по 2026-08-04
+ * возвращает данные по 2026-08-01). Без этого «фильтр не работает» и «данные
+ * ещё не доехали» выглядят одинаково — ровно та ошибка, которую мы уже
+ * разбирали с источниками маркетинга.
+ */
+async function getWebmaster(period: AdminPeriod): Promise<ExternalResult<{ summary: WebmasterSummary; queries: SearchQueryMetric[]; window: { from: string; to: string } | null }>> {
   const token = process.env.YANDEX_OAUTH_TOKEN;
   if (!token) {
     return {
-      data: { summary: EMPTY_SUMMARY, queries: [] },
+      data: { summary: EMPTY_SUMMARY, queries: [], window: null },
       source: sourceState("webmaster", "Яндекс Вебмастер", "missing", "Не настроен OAuth-токен"),
     };
   }
@@ -152,7 +165,13 @@ async function getWebmaster(): Promise<ExternalResult<{ summary: WebmasterSummar
   const hostId = process.env.YANDEX_WEBMASTER_HOST_ID ?? "https:eterapy.com:443";
   const host = encodeURIComponent(hostId);
   const base = `https://api.webmaster.yandex.net/v4/user/${encodeURIComponent(userId)}/hosts/${host}`;
-  const queryParams = new URLSearchParams({ order_by: "TOTAL_SHOWS", limit: "500", offset: "0" });
+  const queryParams = new URLSearchParams({
+    order_by: "TOTAL_SHOWS",
+    limit: "500",
+    offset: "0",
+    date_from: period.startInput,
+    date_to: period.endInput,
+  });
   for (const indicator of ["TOTAL_SHOWS", "TOTAL_CLICKS", "AVG_SHOW_POSITION", "AVG_CLICK_POSITION"]) {
     queryParams.append("query_indicator", indicator);
   }
@@ -163,13 +182,19 @@ async function getWebmaster(): Promise<ExternalResult<{ summary: WebmasterSummar
       fetchJson(`${base}/summary`, { headers }),
       fetchJson(`${base}/search-queries/popular/?${queryParams}`, { headers }),
     ]);
+    const window = parseWebmasterWindow(queryPayload);
     return {
-      data: { summary: parseWebmasterSummary(summaryPayload), queries: parseWebmasterQueries(queryPayload) },
-      source: sourceState("webmaster", "Яндекс Вебмастер", "ready", "До 500 реально наблюдаемых запросов"),
+      data: { summary: parseWebmasterSummary(summaryPayload), queries: parseWebmasterQueries(queryPayload), window },
+      source: sourceState(
+        "webmaster",
+        "Яндекс Вебмастер",
+        "ready",
+        window ? `${window.from} — ${window.to} · до 500 запросов` : `${period.startInput} — ${period.endInput} · до 500 запросов`,
+      ),
     };
   } catch (error) {
     return {
-      data: { summary: EMPTY_SUMMARY, queries: [] },
+      data: { summary: EMPTY_SUMMARY, queries: [], window: null },
       source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(error)),
     };
   }
@@ -311,7 +336,7 @@ async function getInternal(period: AdminPeriod) {
 
 export async function getSearchMarketingData(period: AdminPeriod) {
   const [webmaster, metrika, wordstat, internalResult] = await Promise.allSettled([
-    getWebmaster(),
+    getWebmaster(period),
     getMetrika(period),
     getWordstat(),
     getInternal(period),
@@ -321,7 +346,7 @@ export async function getSearchMarketingData(period: AdminPeriod) {
     : { dialogueStarts: 0, primaryAnswers: 0, answerRate: 0, conversions: 0, organicConversions: 0, channels: [] };
   const webmasterValue = webmaster.status === "fulfilled"
     ? webmaster.value
-    : { data: { summary: EMPTY_SUMMARY, queries: [] }, source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(webmaster.reason)) };
+    : { data: { summary: EMPTY_SUMMARY, queries: [], window: null }, source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(webmaster.reason)) };
   const metrikaValue = metrika.status === "fulfilled"
     ? metrika.value
     : { data: { totals: EMPTY_METRIKA, searchEngines: [] }, source: sourceState("metrika", "Яндекс Метрика", "error", describeSourceFailure(metrika.reason)) };
@@ -334,16 +359,28 @@ export async function getSearchMarketingData(period: AdminPeriod) {
   );
   const demandByPhrase = new Map(wordstatValue.data.map((item) => [item.phrase.toLocaleLowerCase("ru-RU"), item.monthlyDemand]));
   const observedByPhrase = new Map(webmasterValue.data.queries.map((item) => [item.query.toLocaleLowerCase("ru-RU"), item]));
+  // B651: раньше ядро сшивалось с наблюдаемыми запросами точным равенством
+  // строк. Ядро — головные фразы («таро»), Вебмастер отдаёт живые запросы
+  // целиком («расклад таро онлайн бесплатно»), поэтому совпадения не было бы
+  // никогда — даже когда позиция реально появится. Прочерк напротив ВЧ-фразы
+  // означал «мы не умеем посмотреть», а читался как «позиции нет».
   const keywordCore = STRATEGIC_KEYWORDS.map((keyword) => {
     const liveDemand = demandByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
-    const observed = observedByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
+    const exact = observedByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
+    const family = matchQueryFamily(keyword.phrase, webmasterValue.data.queries);
+    const positioned = family.filter((item) => item.averagePosition !== null);
     return {
       ...keyword,
       monthlyDemand: liveDemand ?? keyword.verifiedDemand ?? null,
       demandSource: liveDemand !== undefined && liveDemand !== null ? "live" as const : keyword.verifiedDemand ? "baseline" as const : "unknown" as const,
-      position: observed?.averagePosition ?? null,
-      impressions: observed?.impressions ?? 0,
-      clicks: observed?.clicks ?? 0,
+      // Лучшая позиция по семье запросов, содержащих фразу. Прочерк остаётся
+      // только там, где показов нет вовсе — то есть означает ровно то, что
+      // написано.
+      position: positioned.length > 0 ? Math.min(...positioned.map((item) => item.averagePosition ?? Infinity)) : null,
+      exactPosition: exact?.averagePosition ?? null,
+      impressions: family.reduce((sum, item) => sum + item.impressions, 0),
+      clicks: family.reduce((sum, item) => sum + item.clicks, 0),
+      matchedQueries: family.length,
     };
   });
   const knownPublicPages = publicSeoRoutes.length + approvedLibraryEntries().length;

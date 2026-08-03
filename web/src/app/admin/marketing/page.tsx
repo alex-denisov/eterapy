@@ -99,7 +99,7 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
                 query: item.query,
                 impressions: item.impressions,
                 clicks: item.clicks,
-                ctr: item.ctr,
+                ctrPercent: item.ctr,
                 averagePosition: item.averagePosition,
                 opportunity: item.opportunity,
               }))}
@@ -150,8 +150,10 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
               monthlyDemand: item.monthlyDemand,
               demandSource: item.demandSource,
               position: item.position,
+              exactPosition: item.exactPosition,
               impressions: item.impressions,
               clicks: item.clicks,
+              matchedQueries: item.matchedQueries,
             }))}
           />
           <p className="mt-2 text-xs text-slate-500">
@@ -161,7 +163,18 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
 
         <div className="grid gap-4 xl:grid-cols-2">
           <AnalyticsSection title="Поисковые системы">
-            <HorizontalBars data={data.metrika.searchEngines.map((item) => ({ label: item.label, value: item.visits }))} />
+            {/*
+              B650: пустой график читался как поломка интеграции. Метрика за
+              период честно отвечает «переходов из поиска не было» — и это
+              разные вещи, которые обязаны выглядеть по-разному.
+            */}
+            {data.metrika.searchEngines.length === 0 ? (
+              <EmptyState>
+                Метрика за выбранный период не увидела ни одного перехода из поиска. Это ответ источника, а не сбой: за неделю Вебмастер насчитал {formatNumber(data.totals.impressions)} показов и {formatNumber(data.totals.clicks)} кликов, а счётчик срабатывает только после согласия на cookies.
+              </EmptyState>
+            ) : (
+              <HorizontalBars data={data.metrika.searchEngines.map((item) => ({ label: item.label, value: item.visits }))} />
+            )}
           </AnalyticsSection>
           <AnalyticsSection title="Внутренняя маркетинговая воронка">
             <div className="grid grid-cols-2 gap-2">

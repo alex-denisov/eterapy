@@ -39,7 +39,23 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
     <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
       {configs.map((config) => {
         const draft = drafts[config.platform];
-        const missing = config.fields.filter((field) => !field.configured && !draft.values[field.key]?.trim());
+        // B652: раньше незаполненным считалось ЛЮБОЕ поле, поэтому рабочий
+        // канал Дзена показывался как «не задано: 2» — за необязательные
+        // слепок браузерной сессии и отметку владельца о ленте.
+        const blank = (field: (typeof config.fields)[number]) => (
+          !field.configured && !draft.values[field.key]?.trim()
+        );
+        const missingRequired = config.fields.filter((field) => field.requirement === "required" && blank(field));
+        const awaitingOauth = config.fields.filter((field) => field.requirement === "oauth" && blank(field));
+        const optionalFields = config.fields.filter((field) => field.requirement === "optional");
+        const optionalFilled = optionalFields.filter((field) => !blank(field)).length;
+        const status = !draft.enabled
+          ? { tone: "neutral" as const, label: "выключена" }
+          : missingRequired.length > 0
+            ? { tone: "warn" as const, label: `нет обязательного: ${missingRequired.length}` }
+            : awaitingOauth.length > 0
+              ? { tone: "warn" as const, label: "ждёт OAuth" }
+              : { tone: "ok" as const, label: "активна" };
         return (
           <details
             key={config.platform}
@@ -47,8 +63,13 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
           >
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
               <span className="font-semibold text-[var(--soft-ink-strong)]">{config.platform}</span>
-              <span className="soft-admin-status-pill" data-tone={draft.enabled && missing.length === 0 ? "ok" : draft.enabled ? "warn" : "neutral"}>
-                {draft.enabled ? (missing.length === 0 ? "активна" : `не задано: ${missing.length}`) : "выключена"}
+              <span className="flex items-center gap-2">
+                {optionalFields.length > 0 && (
+                  <span className="text-[0.68rem] text-[var(--soft-ink-soft)]">
+                    доп. {optionalFilled}/{optionalFields.length}
+                  </span>
+                )}
+                <span className="soft-admin-status-pill" data-tone={status.tone}>{status.label}</span>
               </span>
             </summary>
           <form
@@ -72,7 +93,11 @@ export function MarketingPlatformSettings({ configs }: { configs: MarketingPlatf
             <div className="mt-3 grid gap-2">
               {config.fields.map((field) => (
                 <label key={field.key} className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">
-                  <span>{field.label}</span>
+                  <span>
+                    {field.label}
+                    {field.requirement === "optional" && <span className="opacity-60"> · необязательное</span>}
+                    {field.requirement === "oauth" && <span className="opacity-60"> · заполняет OAuth</span>}
+                  </span>
                   {field.multiline ? (
                     <textarea
                       className="soft-input min-h-28 resize-y font-mono text-[11px]"

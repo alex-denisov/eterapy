@@ -22,13 +22,20 @@ export interface ObservedQueryRow {
   query: string;
   impressions: number;
   clicks: number;
-  ctr: number;
+  /**
+   * B649: шкала названа в типе, потому что молчаливое расхождение здесь уже
+   * стоило нам «CTR 20 000 %». Считается доля в ПРОЦЕНТАХ (0–100), а не долей
+   * единицы: `clicks / impressions * 100` в `search-marketing-parsers.ts`.
+   */
+  ctrPercent: number;
   averagePosition: number | null;
   opportunity: string;
 }
 
 const numberFormat = new Intl.NumberFormat("ru-RU");
-const percentFormat = new Intl.NumberFormat("ru-RU", { style: "percent", maximumFractionDigits: 1 });
+// Не `style: "percent"` — он умножает на 100 ещё раз поверх уже посчитанных
+// процентов. Именно это и увидел владелец: 200 % превращались в 20 000 %.
+const percentFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 const positionFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 
 function opportunityTone(value: string) {
@@ -59,7 +66,7 @@ export function ObservedQueriesTable({ rows }: { rows: ObservedQueryRow[] }) {
       query: { value: row.query, sortValue: row.query, filterValue: row.query },
       impressions: { value: numberFormat.format(row.impressions), sortValue: row.impressions },
       clicks: { value: numberFormat.format(row.clicks), sortValue: row.clicks },
-      ctr: { value: percentFormat.format(row.ctr), sortValue: row.ctr },
+      ctr: { value: `${percentFormat.format(row.ctrPercent)} %`, sortValue: row.ctrPercent },
       position: {
         value: row.averagePosition === null ? "—" : positionFormat.format(row.averagePosition),
         // Запрос без замера позиции не должен всплывать наверх при сортировке

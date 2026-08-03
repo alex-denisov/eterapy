@@ -77,6 +77,18 @@ export function parseWebmasterSummary(payload: unknown): WebmasterSummary {
   };
 }
 
+/**
+ * B649: Вебмастер отвечает своим окном, а не запрошенным — `date_to` он
+ * подрезает на задержку выгрузки. Панель обязана показывать то окно, за которое
+ * действительно посчитаны числа.
+ */
+export function parseWebmasterWindow(payload: unknown): { from: string; to: string } | null {
+  const data = record(payload) ?? {};
+  const from = typeof data.date_from === "string" ? data.date_from.slice(0, 10) : "";
+  const to = typeof data.date_to === "string" ? data.date_to.slice(0, 10) : "";
+  return from && to ? { from, to } : null;
+}
+
 export function parseWebmasterQueries(payload: unknown): SearchQueryMetric[] {
   const data = record(payload) ?? {};
   const queries = Array.isArray(data.queries) ? data.queries : [];
@@ -136,6 +148,44 @@ export function parseWordstatDemand(phrase: string, payload: unknown): WordstatM
   const first = record(rawResults[0]);
   const count = first ? numeric(first.count) : numeric(data.totalCount);
   return { phrase, monthlyDemand: count > 0 ? count : null };
+}
+
+/**
+ * B651 — семья запросов вокруг головной фразы.
+ *
+ * Границы слов регулярками здесь не берутся: `\b` в JS не видит кириллицу
+ * вовсе, и паттерн молча не совпадает никогда. Поэтому обе строки режутся на
+ * токены по не-буквам, а словоформы сводятся отбрасыванием одного окончания —
+ * «матрица» и «матрицу» дают один стем, а «сон» и «сонник» разными и остаются.
+ */
+const TOKEN_SEPARATOR = /[^\p{L}\p{N}]+/u;
+
+function tokenize(value: string): string[] {
+  return value.toLocaleLowerCase("ru-RU").split(TOKEN_SEPARATOR).filter(Boolean);
+}
+
+function stem(token: string) {
+  return token.length >= 5 ? token.slice(0, -1) : token;
+}
+
+function tokenMatches(queryToken: string, phraseToken: string) {
+  const left = stem(queryToken);
+  const right = stem(phraseToken);
+  if (left === right) return true;
+  const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
+  // Короткий токен приставкой не считаем: иначе «дом» подтянет «домашний»,
+  // а ядро наберёт чужие показы и соврёт в другую сторону.
+  if (shorter.length < 4) return false;
+  return longer.startsWith(shorter) && longer.length - shorter.length <= 2;
+}
+
+export function matchQueryFamily(phrase: string, queries: SearchQueryMetric[]): SearchQueryMetric[] {
+  const phraseTokens = tokenize(phrase);
+  if (phraseTokens.length === 0) return [];
+  return queries.filter((item) => {
+    const queryTokens = tokenize(item.query);
+    return phraseTokens.every((token) => queryTokens.some((candidate) => tokenMatches(candidate, token)));
+  });
 }
 
 export function weightedAveragePosition(queries: SearchQueryMetric[]) {
