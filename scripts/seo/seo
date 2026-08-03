@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# Vendor-neutral entry point for the SEO/GEO toolkit.
+#
+# Any agent (Claude Code, Codex, OpenCode, Gemini, …) and any human runs the
+# same command. The directory is self-contained: copy or symlink `scripts/seo/`
+# into another repository and it works there unchanged — nothing resolves
+# against this project's name, paths, or domain.
+#
+#   scripts/seo/seo setup [--google]   # create the venv, install dependencies
+#   scripts/seo/seo list               # what tools exist
+#   scripts/seo/seo doctor             # what is wired and what is missing
+#   scripts/seo/seo <tool> [args…]     # run a tool
+#
+set -euo pipefail
+
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+VENV="${HERE}/.venv"
+PY="${VENV}/bin/python"
+ENV_FILE="${HERE}/seo.env"
+
+die() { printf 'seo: %s\n' "$*" >&2; exit 1; }
+
+# Project-scoped settings and secrets. Committed template: seo.env.example.
+load_env() {
+  [ -f "${ENV_FILE}" ] || return 0
+  set -a
+  # shellcheck disable=SC1090
+  . "${ENV_FILE}"
+  set +a
+}
+
+# kebab-case command -> snake_case module, so `drift-baseline` finds
+# drift_baseline.py without a hand-maintained dispatch table.
+tool_path() {
+  printf '%s/%s.py' "${HERE}" "${1//-/_}"
+}
+
+cmd_setup() {
+  local req="${HERE}/requirements.txt"
+  [ "${1:-}" = "--google" ] && req="${HERE}/requirements-google.txt"
+
+  command -v python3 >/dev/null 2>&1 || die "python3 not found"
+  [ -x "${PY}" ] || python3 -m venv "${VENV}"
+  "${PY}" -m pip install --quiet --upgrade pip
+  "${PY}" -m pip install --quiet -r "${req}"
+  printf 'seo: venv ready (%s), installed from %s\n' "$("${PY}" -V)" "$(basename "${req}")"
+}
+
+cmd_list() {
+  printf 'Tools (run: scripts/seo/seo <name> --help)\n\n'
+  local f base
+  for f in "${HERE}"/*.py; do
+    base="$(basename "${f}" .py)"
+    # Shared libraries, not entry points.
+    case "${base}" in url_safety|google_auth|backlinks_auth|parse_html) continue ;; esac
+    printf '  %s\n' "${base//_/-}"
+  done
+}
+
+cmd_doctor() {
+  load_env
+  printf 'venv          : %s\n' "$([ -x "${PY}" ] && "${PY}" -V 2>&1 || echo 'MISSING — run: scripts/seo/seo setup')"
+  printf 'seo.env       : %s\n' "$([ -f "${ENV_FILE}" ] && echo present || echo "absent (copy seo.env.example)")"
+  printf 'SEO_SITE_URL  : %s\n' "${SEO_SITE_URL:-<unset>}"
+  printf 'INDEXNOW_KEY  : %s\n' "$([ -n "${INDEXNOW_KEY:-}" ] && echo 'set' || echo '<unset>')"
+  printf 'GSC_PROPERTY  : %s\n' "${GSC_PROPERTY:-<unset>}"
+  printf 'GOOGLE_API_KEY: %s\n' "$([ -n "${GOOGLE_API_KEY:-}" ] && echo 'set' || echo '<unset>')"
+  printf 'drift db      : %s\n' "${SEO_DRIFT_DB:-${HERE}/.state/drift}"
+  if [ -x "${PY}" ]; then
+    "${PY}" - <<'PYEOF'
+import importlib.util as u
+core = [("requests", "core"), ("bs4", "core"), ("lxml", "core"),
+        ("googleapiclient", "google extras")]
+for mod, group in core:
+    print(f"python {mod:16}: {'ok' if u.find_spec(mod) else 'MISSING (' + group + ')'}")
+PYEOF
+  fi
+}
+
+main() {
+  local cmd="${1:-}"
+  case "${cmd}" in
+    ""|-h|--help|help) sed -n '3,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    setup)  shift; cmd_setup "$@" ;;
+    list)   cmd_list ;;
+    doctor) cmd_doctor ;;
+    *)
+      local script; script="$(tool_path "${cmd}")"
+      [ -f "${script}" ] || die "unknown tool '${cmd}' — try: scripts/seo/seo list"
+      [ -x "${PY}" ] || die "venv missing — run: scripts/seo/seo setup"
+      load_env
+      shift
+      exec "${PY}" "${script}" "$@"
+      ;;
+  esac
+}
+
+main "$@"
