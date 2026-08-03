@@ -17,7 +17,7 @@
 import type { Obligation } from "@/lib/ip-accounting";
 import { buildObligationSchedule } from "@/lib/ip-accounting";
 import { log } from "@/lib/logger";
-import { resolveOpsChannel } from "@/lib/ops-notification-channel";
+import { type OpsChannelSource, resolveOpsChannel } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
 /** За сколько дней напоминаем. Десять — успеть подготовить, три — успеть заплатить. */
@@ -102,8 +102,15 @@ export interface ObligationReminderResult {
   sent: number;
   recipients: number;
   failed: number;
-  /** Куда ушло: служебный канал или запасной путь через личный Telegram. */
-  target: "ops_channel" | "superadmin_fallback" | "none";
+  /**
+   * Куда ушло: служебный канал или запасной путь через личный Telegram.
+   *
+   * Тип берётся из источника, а не переписывается копией: копия разъехалась,
+   * как только B640 добавил `marketing_channel`, и сборка встала. Сами
+   * напоминания в маркетинговый канал не уходят — у бухгалтерии своя аудитория,
+   * — но перечисление обязано оставаться одним.
+   */
+  target: OpsChannelSource;
 }
 
 /**
