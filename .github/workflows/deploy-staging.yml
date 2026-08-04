@@ -73,6 +73,11 @@ jobs:
   deploy:
     name: Build image & converge staging
     needs: test
+    # B659: задача пушит образ релиза в ghcr.io. Токен прогона живёт ровно
+    # столько, сколько идёт прогон, и на нодах не остаётся.
+    permissions:
+      contents: read
+      packages: write
     if: |
       always() &&
       (needs.test.result == 'success' || needs.test.result == 'skipped')
@@ -92,6 +97,31 @@ jobs:
             --build-arg NEXT_PUBLIC_LIVEKIT_URL="" \
             --build-arg NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="eterapy_staging_bot" \
             -t "eterapy-web-staging:${GITHUB_SHA::8}" .
+
+      # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
+      #
+      # Замер 2026-08-04 на eterapy-1 в одну и ту же минуту: поток
+      # `docker save | gzip | ssh` с раннера шёл 23–59 КБ/с, обычная загрузка
+      # из CDN на той же ноде — 13.5 МБ/с. Разница в 230 раз, канал ноды
+      # исправен. Три выкатки подряд были отменены по таймауту задачи в 30
+      # минут. Все четыре ноды при этом достают ghcr.io за 0.13–0.27 с.
+      #
+      # Пуш не обязан удаться: если реестр недоступен, доставка уходит в
+      # прежний путь по SSH. Шаг не имеет права уронить выкатку.
+      - name: Push release image to registry
+        id: registry
+        continue-on-error: true
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eterapy-web-staging:${GITHUB_SHA::8}"
+          printf '%s' "$REGISTRY_TOKEN" \
+            | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "eterapy-web-staging:${GITHUB_SHA::8}" "$REF"
+          docker push "$REF"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "▶ образ в реестре: $REF"
 
       - name: Setup SSH
         env:
@@ -115,6 +145,10 @@ jobs:
           # Необязательный. Секрет — не потому что тайна (это @username'ы), а
           # потому что это единственный путь доставить значение на хост выкаткой.
           MINIAPP_TELEGRAM_ALLOWLIST: ${{ secrets.MINIAPP_TELEGRAM_ALLOWLIST }}
+          # B659: пусто, если пуш в реестр не удался — тогда доставка идёт
+          # прежним путём. Токен прогона, а не долгоживущий ключ на нодах.
+          REGISTRY_REF: ${{ steps.registry.outputs.ref }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -134,7 +168,29 @@ jobs:
             deploy/docker/retain-release-images.sh "$VM_USER@$VM_HOST:/tmp/retain-release-images.sh"
           $SSH "chmod +x /tmp/retain-release-images.sh \
             && /tmp/retain-release-images.sh eterapy-web-staging eterapy-staging-web-1 1 '${GITHUB_SHA::8}' 0"
-          docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          # B659: сначала пробуем реестр — нода тянет слои своим быстрым
+          # каналом. Авторизация уходит через stdin (никогда строкой команды),
+          # токен прогона на ноде не остаётся: `docker logout` в том же вызове.
+          # Любая осечка — прежний путь потоком по SSH, он рабочий, просто
+          # медленный и нестабильный.
+          SHIPPED=no
+          if [ -n "${REGISTRY_REF:-}" ]; then
+            echo "▶ пробуем реестр: $REGISTRY_REF"
+            if printf '%s' "$REGISTRY_TOKEN" | $SSH "sudo docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin \
+              && sudo docker pull '$REGISTRY_REF' \
+              && sudo docker tag '$REGISTRY_REF' 'eterapy-web-staging:${GITHUB_SHA::8}' \
+              && sudo docker rmi '$REGISTRY_REF' \
+              && sudo docker logout ghcr.io"; then
+              SHIPPED=yes
+              echo "▶ образ доставлен реестром"
+            else
+              echo "▶ реестр не сработал — уходим в поток по SSH"
+              $SSH "sudo docker logout ghcr.io" || true
+            fi
+          fi
+          if [ "$SHIPPED" != yes ]; then
+            docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          fi
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
           # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
           # секрета репозитория, а не правится на хосте руками — ровно поэтому он
