@@ -57,12 +57,21 @@ describe("B648 · текст не вернулся на страницу усл�
   });
 
   it("со страницы услуги ведёт ОДНА ссылка, а не блок", () => {
-    const shell = read("src/components/products/product-page-shell.tsx");
-    expect(shell).toContain("serviceGuideLibraryHref");
-    expect(shell).toContain('data-testid="product-guide-link"');
-    // Признак возврата блока: страница услуги начала бы печатать разделы корпуса.
-    expect(shell).not.toContain("guide.usefulFor");
-    expect(shell).not.toContain("guide.faqs");
+    // ⚠ ОБЕ шапки. У `/products/[slug]` собственный компактный герой (B647), а
+    // не `ProductPageShell`. Первая версия B648 знала только про шелл — на
+    // живой странице услуги ссылки не было, и прогоны этого не увидели, потому
+    // что проверяли один файл из двух. Поймано браузерной проверкой стенда.
+    for (const file of [
+      "src/components/products/product-page-shell.tsx",
+      "src/app/products/[slug]/page.tsx",
+    ]) {
+      const source = read(file);
+      expect(source).toContain("serviceGuideLibraryHref");
+      expect(source).toContain('data-testid="product-guide-link"');
+      // Признак возврата блока: страница услуги начала бы печатать разделы корпуса.
+      expect(source).not.toContain("guide.usefulFor");
+      expect(source).not.toContain("guide.faqs");
+    }
   });
 });
 
