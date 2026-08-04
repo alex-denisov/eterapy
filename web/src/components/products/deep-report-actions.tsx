@@ -7,7 +7,7 @@ import { ArrowRight, BookOpen, MessageSquareText, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { loadProductDraft } from "@/lib/product-draft";
+import { useInputDraft } from "@/lib/use-input-draft";
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { SectionAccordion } from "@/components/products/section-accordion";
@@ -130,18 +130,19 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   const [message, setMessage] = useState<string | null>(null);
   const [exampleIdx, setExampleIdx] = useState(0);
 
-  // INC-082: возврат с оплаты не должен стирать описание ситуации.
-  useEffect(() => {
-    const draft = loadProductDraft<{ sourceText?: string; topic?: string | null; goal?: string | null }>("deep-report");
-    if (!draft) return;
-    // Черновик лежит в sessionStorage — на сервере его нет, читать можно только
-    // после монтирования. Инициализатор состояния здесь не годится: он
-    // выполнится и при рендере на сервере и разойдётся с клиентом.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- восстановление из браузерного хранилища, один раз при монтировании
-    if (draft.sourceText) setSourceText(draft.sourceText);
-    if (draft.topic) setTopic(draft.topic);
-    if (draft.goal) setGoal(draft.goal);
-  }, []);
+  // INC-082 + B656: описание ситуации переживает уход со страницы — любой, а не
+  // только круг через провайдера оплаты. Обоснование смены механики — в
+  // `reframe-actions.tsx` у такого же блока.
+  const { clear: clearDraft } = useInputDraft(
+    "deep-report",
+    { sourceText, topic, goal },
+    (draft) => {
+      if (typeof draft.sourceText === "string" && draft.sourceText) setSourceText(draft.sourceText);
+      if (typeof draft.topic === "string") setTopic(draft.topic);
+      if (typeof draft.goal === "string") setGoal(draft.goal);
+    },
+    { active: !resultId && !result },
+  );
   const [recapOpen, setRecapOpen] = useState(false);
 
   // Сессионность: открыть конкретный сохранённый разбор по ?resultId=.
@@ -234,6 +235,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   }
 
   function startNew() {
+    clearDraft();
     setResult(null);
     setSourceText("");
     setTopic(null);
@@ -405,7 +407,6 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
               checkoutSource="deep-report-generate"
               creditCost={3}
               beforePay={missingInput}
-              draft={() => ({ sourceText, topic, goal })}
               onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
             />
           )}

@@ -27,6 +27,7 @@ import {
   releaseChannel,
 } from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
+import { notifyPublished } from "@/lib/marketing/publish-notification";
 import { deferPublicationToNextSlot, isSlotWindowOpen } from "@/lib/marketing/slot-window";
 import {
   browserFallbackConfigured,
@@ -678,6 +679,16 @@ export async function publishScheduledMarketing(input: {
       deferralCount: true,
       engagementTargetId: true,
       engagementTargetUrl: true,
+      // B653: поля карточки «опубликовано». Читаются здесь, а не отдельным
+      // запросом после выпуска: карточка не должна ходить в базу за тем, что
+      // уже было в руках.
+      channelName: true,
+      destinationUrl: true,
+      cluster: true,
+      targetQuery: true,
+      engagementTargetLabel: true,
+      engagementExcerpt: true,
+      engagementTone: true,
       inboundReplyToId: true,
       inboundReplyTo: {
         select: {
@@ -831,6 +842,47 @@ export async function publishScheduledMarketing(input: {
             : undefined,
         },
       });
+      // B653: владелец узнаёт о выпуске в тот же момент, что и площадка.
+      //
+      // ⚠ Место выбрано не случайно: сюда попадает ровно один воркер и ровно
+      // один раз — строку в `PUBLISHING` уже забрал claim выше, поэтому
+      // повторный проход по опубликованной записи карточку не продублирует.
+      // Отдельная колонка «уведомили» для этого не нужна.
+      //
+      // ⚠ СОБСТВЕННЫЙ try/catch, и он обязателен. Материал в этой точке УЖЕ на
+      // площадке. Всё, что здесь бросит, поймает внешний catch и запишет
+      // строку `FAILED` — то есть вышедшая публикация числилась бы несостоявшейся,
+      // а очередь попыталась бы выпустить её повторно. Ровно этот класс ошибки
+      // ловил B636: сбой доставки уведомления не имеет права выглядеть как отказ
+      // публикации.
+      //
+      // ⚠ И данные берём из `publication` + уже известного результата адаптера,
+      // а НЕ из возвращаемого значения `update`. Уведомление не должно зависеть
+      // от того, что именно вернул слой доступа к данным.
+      try {
+        await notifyPublished({
+          platform: publication.platform,
+          channelName: publication.channelName,
+          contentType: publication.contentType,
+          title: publication.title,
+          body: publication.body,
+          publicUrl: published.publicUrl,
+          destinationUrl: publication.destinationUrl,
+          cluster: publication.cluster,
+          targetQuery: publication.targetQuery,
+          engagementTargetLabel: publication.engagementTargetLabel,
+          engagementTargetUrl: publication.engagementTargetUrl,
+          engagementExcerpt: publication.engagementExcerpt,
+          engagementTone: publication.engagementTone,
+          publishedAt: now,
+        });
+      } catch (error) {
+        log.error("marketing.publish_notify_crashed", {
+          publicationId: publication.id,
+          platform: publication.platform,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       // Входящее закрывается только фактом ушедшего ответа: пока ответ не
       // отправлен, человек ждёт, и сторож должен это видеть.
       if (publication.inboundReplyToId) {

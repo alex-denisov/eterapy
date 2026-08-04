@@ -9,7 +9,7 @@ import { appUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 import { pointsWord } from "@/lib/points";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
-import { clearProductDraft, saveProductDraft } from "@/lib/product-draft";
+import { clearInputDraft } from "@/lib/input-draft";
 import { toMiniAppPath } from "@/lib/miniapp/navigation";
 // Именно из `miniapp-context`, а не из шелла: шелл тянет CSS-модуль, который
 // ломает jest-прогон соседних продуктовых тестов.
@@ -29,12 +29,6 @@ type ProductPurchaseControlsProps = {
    * пустой форме и только потом просило заполнить поля.
    */
   beforePay?: () => string | null;
-  /**
-   * INC-082: снимок заполненной формы, который переживёт уход на страницу
-   * оплаты. Вызывается ровно перед редиректом во внешний контур; форма
-   * восстанавливается из него при возврате (`loadProductDraft`).
-   */
-  draft?: () => unknown;
 };
 
 async function jsonRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
@@ -65,7 +59,6 @@ export function ProductPurchaseControls({
   variant = "default",
   onUnlocked,
   beforePay,
-  draft,
 }: ProductPurchaseControlsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -116,7 +109,7 @@ export function ProductPurchaseControls({
           if (cancelled) return;
           if (entitlement?.active) {
             setMessage("Доступ открыт. Можно пользоваться услугой на этой странице.");
-            clearProductDraft(productKey);
+            clearInputDraft(productKey);
             onUnlocked?.();
             return;
           }
@@ -181,7 +174,6 @@ export function ProductPurchaseControls({
   async function payWithCard() {
     if (blockedByInput()) return;
     if (inMiniApp) {
-      if (draft) saveProductDraft(productKey, draft());
       window.location.href = `/miniapp/checkout/review?offer=${encodeURIComponent(`service:${productKey}`)}`;
       return;
     }
@@ -196,8 +188,7 @@ export function ProductPurchaseControls({
       if (payload.confirmationUrl) {
         // Уходим во внешний контур — форма останется здесь только в виде
         // снимка. Сохраняем ДО навигации: после неё этот код уже не выполнится.
-        if (draft) saveProductDraft(productKey, draft());
-        window.location.href = payload.confirmationUrl;
+          window.location.href = payload.confirmationUrl;
         return;
       }
       throw new Error("Платежная ссылка не получена");

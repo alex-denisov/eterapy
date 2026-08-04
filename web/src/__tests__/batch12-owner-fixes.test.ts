@@ -46,26 +46,46 @@ describe("INC-081 · оплата обязана дойти до зачисле�
 });
 
 describe("INC-082 · описание ситуации переживает уход на оплату", () => {
-  it("черновик снимается ДО навигации во внешний контур", () => {
-    const controls = read("src/components/products/product-purchase-controls.tsx");
-    const saveAt = controls.indexOf("saveProductDraft(productKey, draft())");
-    const navigateAt = controls.indexOf("window.location.href = payload.confirmationUrl");
-    expect(saveAt).toBeGreaterThan(-1);
-    expect(saveAt).toBeLessThan(navigateAt);
-  });
+  // B656: механизм консолидирован. Раньше их было ДВА — `product-draft`
+  // (снимок только перед редиректом на оплату, две услуги) и `input-draft`
+  // (запись по мере ввода, семь услуг). Осталась одна механика: `input-draft`.
+  // Она сильнее старой, потому что круг «ушёл платить → вернулся» — частный
+  // случай ухода со страницы, а не отдельный маршрут.
 
   it("черновик живёт в sessionStorage и не переживает вкладку", () => {
-    const lib = read("src/lib/product-draft.ts");
-    expect(lib).toContain("sessionStorage");
-    expect(lib).not.toContain("localStorage");
+    const lib = read("src/lib/input-draft.ts");
+    expect(lib).toContain("window.sessionStorage");
+    // Именно ОБРАЩЕНИЕ, а не упоминание: в файле есть комментарий
+    // «sessionStorage (not localStorage)», и запрет на слово ловил бы его.
+    expect(lib).not.toContain("window.localStorage");
+  });
+
+  it("оплаченный доступ снимает черновик — форма израсходована", () => {
+    const controls = read("src/components/products/product-purchase-controls.tsx");
+    expect(controls).toContain("clearInputDraft(productKey)");
+  });
+
+  it("второй механики черновиков в дереве не осталось", () => {
+    expect(fs.existsSync(path.join(root, "src/lib/product-draft.ts"))).toBe(false);
   });
 
   it("услуги со свободным вводом восстанавливают форму при возврате", () => {
+    // Поимённый список — замер B656 от 2026-08-04. Услуга, у которой человек
+    // печатает текст, но черновик не сохраняется, — дефект, а не «не успели».
     for (const file of [
       "src/components/products/reframe-actions.tsx",
       "src/components/products/deep-report-actions.tsx",
+      "src/components/products/new-symbolic-product-actions.tsx",
+      "src/components/products/together-actions.tsx",
+      "src/components/products/family-questions-actions.tsx",
+      "src/components/products/natal-chart-actions.tsx",
+      "src/components/products/human-design-actions.tsx",
+      "src/components/products/numerology-actions.tsx",
+      "src/components/products/surname-origin-actions.tsx",
+      "src/components/products/symbolic-product-actions.tsx",
+      "src/components/products/compatibility-by-date-actions.tsx",
     ]) {
-      expect(read(file)).toContain("loadProductDraft");
+      expect(read(file)).toContain("useInputDraft");
     }
   });
 });

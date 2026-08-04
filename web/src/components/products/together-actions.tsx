@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { getProductCreditCost } from "@/lib/product-prices";
 import { findReadingById, readingIdFromSearch, withReadingParam } from "@/lib/pair-hub";
+import { useInputDraft } from "@/lib/use-input-draft";
 
 // B465: pin the active circle to the URL (`?reading=<id>`) so refresh/back restores
 // this exact session and a bare visit starts fresh — parity with every other service.
@@ -85,6 +86,20 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const isAuthenticated = authStatus === "authenticated";
 
+  // B656: описание ситуации и имя переживают уход со страницы. Ответ второй
+  // стороны (`answerText`) сюда НЕ попадает намеренно: он привязан к конкретному
+  // приглашению, и восстанавливать его в другом круге — подмена чужих слов.
+  const { clear: clearDraft } = useInputDraft(
+    "pair",
+    { situation, displayName },
+    (draft) => {
+      if (typeof draft.situation === "string") setSituation(draft.situation);
+      if (typeof draft.displayName === "string") setDisplayName(draft.displayName);
+    },
+    // Круг уже создан или открыт по приглашению — форма ввода не показывается.
+    { active: !circle && !invite && !inviteToken },
+  );
+
   useEffect(() => {
     if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
@@ -141,6 +156,8 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
       const created = (payload.result as FullCircle) ?? null;
       setCircle(created);
       if (created?.id) pinReadingUrl(created.id);
+      // Черновик израсходован — круг создан именно из него.
+      clearDraft();
       setSituation("");
       setStatus("idle");
     } catch (error) {

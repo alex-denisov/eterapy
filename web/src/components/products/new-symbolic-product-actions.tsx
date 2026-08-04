@@ -14,6 +14,7 @@ import type { TarotCard } from "@/lib/tarot-deck";
 import type { TarotBirthCode } from "@/lib/tarot-birth-code";
 import type { RussianLocality } from "@/lib/russian-localities";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
+import { useInputDraft } from "@/lib/use-input-draft";
 import { maskDateInput } from "@/lib/date-input-mask";
 
 function metadataValue<T>(result: SymbolicResult | null, key: string): T | null {
@@ -81,6 +82,22 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
   });
   const wheel = metadataValue<NatalWheel>(result, "wheel");
 
+  // B656: вопрос и контекст переживают уход со страницы. Замер 2026-08-04 нашёл
+  // гороскоп и «Арканы судьбы» единственными формами со свободным вводом,
+  // которые не сохранялись вовсе, — остальные символические услуги эту механику
+  // уже имели.
+  const { clear: clearDraft } = useInputDraft(
+    "horoscope",
+    { question, location, context, focus },
+    (draft) => {
+      if (typeof draft.question === "string") setQuestion(draft.question);
+      if (typeof draft.location === "string") setLocation(draft.location);
+      if (typeof draft.context === "string") setContext(draft.context);
+      if (typeof draft.focus === "string") setFocus(draft.focus);
+    },
+    { active: !result },
+  );
+
   const submit = () => {
     if (!focus || question.trim().length < 12 || location.trim().length < 2) {
       setMessage("Выберите категорию, сформулируйте один точный вопрос и укажите текущее место.");
@@ -96,7 +113,7 @@ export function HoraryActions({ creditCost }: { creditCost: number }) {
   };
 
   if (result?.resultText) {
-    return <SymbolicResultScaffold resultId={result.id} productKey="horoscope" eyebrow="гороскоп · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : []), ...(context ? [{ label: "Контекст", value: context }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setQuestion(""); setLocation(""); setSelectedLocation(null); setContext(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold resultId={result.id} productKey="horoscope" eyebrow="гороскоп · карта момента" heading="Ответ карты на ваш вопрос" recapSummary="Зафиксированный вопрос" recapRows={[{ label: "Вопрос", value: question }, { label: "Место", value: location }, ...(focus ? [{ label: "Категория", value: focus }] : []), ...(context ? [{ label: "Контекст", value: context }] : [])]} visual={wheel ? <ZodiacWheel wheel={wheel} /> : undefined} resultText={result.resultText} topic={question} creditCost={creditCost} repeat={{ ribbon: "новый вопрос", title: "Задать новый вопрос", description: "Новая формулировка фиксируется как отдельный вопрос и отдельный момент.", ctaLabel: "Начать" }} onStartNew={() => { clearDraft(); reset(); setQuestion(""); setLocation(""); setSelectedLocation(null); setContext(""); setFocus(null); }} />;
   }
 
   return (
@@ -161,6 +178,19 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
     setFocus(TAROT_NUM_FOCUS.includes(restored.focus) ? restored.focus : null);
   });
   const code = metadataValue<TarotBirthCode>(result, "tarotBirthCode");
+
+  // B656: см. такой же блок у гороскопа выше.
+  const { clear: clearDraft } = useInputDraft(
+    "arcana",
+    { name, birth, question, focus },
+    (draft) => {
+      if (typeof draft.name === "string") setName(draft.name);
+      if (typeof draft.birth === "string") setBirth(draft.birth);
+      if (typeof draft.question === "string") setQuestion(draft.question);
+      if (typeof draft.focus === "string") setFocus(draft.focus);
+    },
+    { active: !result },
+  );
   const submit = () => {
     if (!focus || name.trim().length < 2 || !/^\d{1,2}[./-]\d{1,2}[./-]\d{4}$/.test(birth.trim())) {
       setMessage("Выберите тему, укажите имя и полную дату рождения в формате ДД.ММ.ГГГГ.");
@@ -169,7 +199,7 @@ export function TarotNumerologyActions({ creditCost }: { creditCost: number }) {
     void generate([`Имя: ${name.trim()}`, `Дата рождения: ${birth.trim()}`, focus ? `Фокус: ${focus}` : "", question.trim() ? `Вопрос: ${question.trim()}` : ""].filter(Boolean).join("\n"));
   };
   if (result?.resultText) {
-    return <SymbolicResultScaffold resultId={result.id} productKey="arcana" eyebrow="таро · карты рождения" heading="Ваши Арканы судьбы" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : []), ...(question ? [{ label: "Вопрос", value: question }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
+    return <SymbolicResultScaffold resultId={result.id} productKey="arcana" eyebrow="таро · карты рождения" heading="Ваши Арканы судьбы" recapSummary="Данные расчёта" recapRows={[{ label: "Имя", value: name }, { label: "Дата", value: birth }, ...(focus ? [{ label: "Фокус", value: focus }] : []), ...(question ? [{ label: "Вопрос", value: question }] : [])]} visual={code ? <TarotSpreadCards cards={tarotBirthCards(code)} /> : undefined} resultText={result.resultText} topic={question || focus} creditCost={creditCost} repeat={{ ribbon: "новый расчёт", title: "Рассчитать другую дату", description: "Пара карт рождения будет рассчитана по новой дате.", ctaLabel: "Начать" }} onStartNew={() => { clearDraft(); reset(); setName(""); setBirth(""); setQuestion(""); setFocus(null); }} />;
   }
   return (
     <div className="soft-card product-order-surface" data-testid="tarot-numerology-actions">
