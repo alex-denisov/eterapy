@@ -82,8 +82,12 @@ export async function metaAuthorizationUrl(input: {
   state: string;
 }) {
   const appId = await requiredMarketingPlatformValue(APP_KEYS[input.platform].id);
+  // B655: Threads переехал с `threads.net` на `threads.com` — старый адрес
+  // отвечает 301 (проверено живым запросом 2026-08-04). Редирект параметры не
+  // теряет, поэтому ссылка работала, но лишний переход на пути авторизации —
+  // это лишняя переменная в разборе отказов. Ведём на канонический адрес.
   const url = new URL(input.platform === "Threads"
-    ? "https://threads.net/oauth/authorize"
+    ? "https://www.threads.com/oauth/authorize"
     : "https://www.instagram.com/oauth/authorize");
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", metaOAuthRedirectUri(input.platform));

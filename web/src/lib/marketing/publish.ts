@@ -421,7 +421,7 @@ export async function publishThreadsReply(
   }
   return {
     externalPostId: published.id,
-    publicUrl: `https://www.threads.net/post/${published.id}`,
+    publicUrl: `https://www.threads.com/post/${published.id}`,
   };
 }
 
@@ -456,7 +456,7 @@ export async function publishToThreads(
   }
   return {
     externalPostId: published.id,
-    publicUrl: `https://www.threads.net/post/${published.id}`,
+    publicUrl: `https://www.threads.com/post/${published.id}`,
   };
 }
 
