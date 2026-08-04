@@ -1,4 +1,5 @@
 import type React from "react";
+import Link from "next/link";
 import { ArrowRight, FileText, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import { ProductBackLink } from "@/components/products/product-back-link";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
@@ -9,7 +10,8 @@ import { computeHumanDesign } from "@/lib/human-design";
 import { getProductPageSpec, PRODUCT_PAGE_FAMILY_SPECS } from "@/lib/product-page-redesign";
 import { ProductDisclaimer } from "@/components/products/product-legal";
 import { drawTarotSpread } from "@/lib/symbolic-products";
-import type { V5Product } from "@/lib/v5-products";
+import type { V5Product, V5ProductSlug } from "@/lib/v5-products";
+import { serviceGuideLibraryHref } from "@/lib/service-guides";
 
 const PROTOTYPE_NATAL_WHEEL = buildNatalWheel("12.04.1992, 14:35, Москва");
 const PROTOTYPE_TAROT_SPREAD = drawTarotSpread("b437:tarot-product-hero");
@@ -154,6 +156,7 @@ export function ProductPageShell({
 }) {
   const spec = getProductPageSpec(product.slug);
   const family = PRODUCT_PAGE_FAMILY_SPECS[spec.family];
+  const guideHref = serviceGuideLibraryHref(product.slug as V5ProductSlug);
 
   return (
     <section className="soft-product-shell-layout" data-testid="product-page-shell">
@@ -193,6 +196,20 @@ export function ProductPageShell({
           <p className="mt-5 max-w-[35rem] text-xs leading-relaxed text-[var(--soft-ink-faint)]">
             {family.aboveFoldRule}
           </p>
+
+          {/*
+            B648 — ОДНА ССЫЛКА, а не блок. B647 снял со страницы услуги
+            описательный корпус: страница услуги остаётся инструментом на один
+            экран. Текст переехал в библиотеку, и отсюда на него ведёт ровно
+            одна строка — возврат блока сюда не делается ни при каких условиях.
+          */}
+          {guideHref && (
+            <p className="mt-3 max-w-[35rem] text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+              <Link href={guideHref} className="underline underline-offset-2" data-testid="product-guide-link">
+                Как это работает и что входит в результат
+              </Link>
+            </p>
+          )}
         </div>
 
         <ProductHeroPreview product={product} />

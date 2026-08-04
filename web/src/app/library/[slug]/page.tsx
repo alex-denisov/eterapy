@@ -19,6 +19,9 @@ import {
   libraryMetaDescription,
   libraryMetaTitle,
 } from "@/lib/library-editorial";
+import { serviceGuideBySlug } from "@/lib/service-guides";
+import { getV5Product } from "@/lib/v5-products";
+import { ServiceGuideSections } from "@/components/library/service-guide-sections";
 
 // The library corpus is editorial and fully known at build time. Keep the
 // route contract closed as well as the proxy allowlist; the proxy performs the
@@ -97,6 +100,8 @@ export default async function LibraryEntryPage({
   const ctaHref = mainUrl(cta.productPath);
   const freeHref = mainUrl(`/checkin?from=library&slug=${encodeURIComponent(entry.slug)}`);
   const isSymbolic = section === "symbolic";
+  // B648: у записи может быть корпус услуги — соответствие держится данными.
+  const guide = serviceGuideBySlug(entry.slug);
   const libraryHref = isSymbolic ? "/library?section=symbolic" : "/library";
 
   // B384: each card is a search target — enrich Article (about/section/teaser-gated)
@@ -230,6 +235,20 @@ export default async function LibraryEntryPage({
             </Disclaimer>
           </section>
         </div>
+
+        {/*
+          B648 — корпус услуги. Блок появляется ТОЛЬКО у записей-разборов
+          формата: у карточки-вопроса его нет и быть не должно.
+          Стоит ПЕРЕД призывом к действию: человек сначала понимает, что это за
+          формат, и только потом видит предложение его открыть.
+        */}
+        {guide && (
+          <ServiceGuideSections
+            guide={guide.guide}
+            serviceHref={getV5Product(guide.service)?.route ?? null}
+            serviceName={getV5Product(guide.service)?.name ?? null}
+          />
+        )}
 
         <LibraryEntryCta
           slug={entry.slug}

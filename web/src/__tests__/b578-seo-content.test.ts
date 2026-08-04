@@ -17,20 +17,28 @@ describe("B578 — SEO/GEO content operations", () => {
     ]));
   });
 
-  // B647 / владелец 2026-08-04 отменил половину B578: корпус написан и остаётся
-  // в репозитории под перенос в библиотеку (B648), но на странице услуги его
-  // быть не должно — она инструмент на один экран.
+  // B647 / владелец 2026-08-04 отменил половину B578: корпус на странице услуги
+  // не рендерится — она инструмент на один экран. B648 довёл дело до конца:
+  // корпус стал ДАННЫМИ (`lib/service-guides.ts`) и переехал в библиотеку,
+  // компонента `product-seo-content.tsx` больше нет вовсе.
   it("keeps the supporting corpus but never renders it on a service page", () => {
-    const content = source("src/components/products/product-seo-content.tsx");
+    const content = source("src/lib/service-guides.ts");
     const productPage = source("src/app/products/[slug]/page.tsx");
     for (const slug of ["chat-analysis", "tarot", "natal-chart", "compatibility-by-date", "numerology"]) {
       expect(content).toMatch(new RegExp(`["']?${slug}["']?: \\{`));
     }
-    expect(content).toContain("Примеры живых вопросов");
+    // Раньше здесь проверялся ЗАГОЛОВОК блока на странице услуги. Блока больше
+    // нет, поэтому проверяем сами данные и то, что их кто-то показывает:
+    // корпус без читателя — мёртвый файл.
+    expect(content).toContain("examples:");
+    expect(source("src/components/library/service-guide-sections.tsx")).toContain("guide.examples.map");
     expect(productPage).not.toContain("<ProductSeoContent");
     // Разметка FAQ уходит вместе с видимым ответом: schema без текста на
     // странице — нарушение требований поисковика, а не «бесплатный плюс».
     expect(productPage).not.toContain('"@type": "FAQPage"');
+    // Компонент удалён, а не оставлен «на всякий случай»: мёртвый экспорт —
+    // приглашение вернуть блок обратно.
+    expect(fs.existsSync(path.join(process.cwd(), "src/components/products/product-seo-content.tsx"))).toBe(false);
   });
 
   it("uses query-led titles without claiming prediction or diagnosis", () => {

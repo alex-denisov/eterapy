@@ -2,6 +2,7 @@ import { LIBRARY_TOPICS, type LibraryTopic, type LibraryCtaProduct } from "@/lib
 import { b383LibraryCards } from "@/data/library-cards-b383";
 import { b601LibraryCards } from "@/data/library-cards-b601";
 import { symbolicLibraryCards } from "@/data/symbolic-library-cards";
+import { serviceGuideLibraryEntries } from "@/data/library-service-guides";
 
 export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
 
@@ -933,6 +934,9 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   ...b383LibraryCards,
   ...b601LibraryCards,
   ...symbolicLibraryCards,
+  // B648: корпус услуг, снятый со страниц услуг в B647. Записи собираются из
+  // `lib/service-guides.ts`, а не пишутся здесь второй раз.
+  ...serviceGuideLibraryEntries,
 ];
 
 export function librarySection(entry: AnonymousLibraryEntry): LibrarySection {

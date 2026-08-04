@@ -141,7 +141,8 @@ describe("B601 · снятая уклончивость в промтах и к�
   it("«это не гадание» ушло из копирайта, «развлекательный характер» остался", () => {
     expect(readSrc("src/lib/product-page-redesign.ts")).not.toContain("не предсказывают судьбу");
     expect(readSrc("src/lib/help-faq-data.ts")).not.toContain("Вы предсказываете будущее?");
-    expect(readSrc("src/components/products/product-seo-content.tsx")).not.toContain("без буквального предсказания");
+    // B648: корпус переехал из компонента в данные `lib/service-guides.ts`.
+    expect(readSrc("src/lib/service-guides.ts")).not.toContain("без буквального предсказания");
     // Дисклеймер оферты владелец просил сохранить.
     expect(readSrc("src/content/legal-pack.md")).toContain("развлекательный характер");
     expect(readSrc("src/components/landing/faq.tsx")).toContain("развлекательный характер");
