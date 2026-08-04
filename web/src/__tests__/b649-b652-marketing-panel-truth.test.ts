@@ -33,6 +33,17 @@ describe("B649 — период и шкала CTR", () => {
     expect(parseWebmasterWindow({})).toBeNull();
   });
 
+  it("суточные срезы рисуются графиком, а не только таблицей", () => {
+    const page = source("app/admin/marketing/page.tsx");
+    expect(page).toContain("<VerticalBarChart");
+    expect(page).toContain("Показы, клики и визиты по дням");
+    // График читается слева направо по времени, таблица — сверху от свежего.
+    expect(page).toContain("left.dayKey.localeCompare(right.dayKey)");
+    // Средняя позиция на общей оси с показами читалась бы наоборот: у неё
+    // меньше = лучше. Сознательно не рисуем.
+    expect(page).not.toContain("value: row.averagePosition");
+  });
+
   it("CTR печатается ровно один раз, а не умножается вторично", () => {
     const table = source("app/admin/marketing/observed-queries-table.tsx");
     // Форматтер умножал уже посчитанные проценты ещё на 100 — так честные

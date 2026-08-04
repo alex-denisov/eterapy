@@ -14,6 +14,7 @@ import {
   MetricCard,
   MetricGrid,
   PeriodToolbar,
+  VerticalBarChart,
   formatNumber,
   formatPercent,
 } from "../admin-analytics-ui";
@@ -46,10 +47,13 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
   // Фильтрация переехала в таблицу: она фильтрует на клиенте, без перезагрузки
   // страницы и без параметра `?q=` в адресе.
   const observedQueries = [...data.webmaster.queries].sort((a, b) => b.impressions - a.impressions);
-  const snapshots = (await listMarketingSnapshots(14)).map((row) => ({
+  const snapshotRows = await listMarketingSnapshots(14);
+  const snapshots = snapshotRows.map((row) => ({
     ...row,
     capturedAt: row.capturedAt.toISOString(),
   }));
+  // Таблица читается сверху вниз от свежего, график — слева направо по времени.
+  const trend = [...snapshotRows].sort((left, right) => left.dayKey.localeCompare(right.dayKey));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-marketing-page">
@@ -119,7 +123,38 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
           {snapshots.length === 0 ? (
             <EmptyState>Первый суточный срез появится после ближайшего прохода воркера</EmptyState>
           ) : (
-            <MarketingSnapshotTable rows={snapshots} />
+            <>
+              {/*
+                B649: срезы копились с B626, но выводились только таблицей —
+                динамику по ним никто не рисовал. Средняя позиция сознательно
+                НЕ на графике: у неё шкала перевёрнута (меньше = лучше), и на
+                одной оси с показами она читалась бы ровно наоборот.
+              */}
+              <div className="mb-4 grid gap-4 xl:grid-cols-2">
+                <VerticalBarChart
+                  label="Показы, клики и визиты по дням"
+                  data={trend.map((row) => ({
+                    label: row.dayKey.slice(5),
+                    value: row.impressions,
+                    secondary: row.clicks,
+                    tertiary: row.organicVisits,
+                  }))}
+                  seriesLabels={["показы", "клики", "визиты из поиска"]}
+                  integerTicks
+                />
+                <VerticalBarChart
+                  label="Страниц в индексе и наблюдаемых запросов"
+                  data={trend.map((row) => ({
+                    label: row.dayKey.slice(5),
+                    value: row.searchablePages,
+                    secondary: row.observedQueries,
+                  }))}
+                  seriesLabels={["страниц в поиске", "запросов"]}
+                  integerTicks
+                />
+              </div>
+              <MarketingSnapshotTable rows={snapshots} />
+            </>
           )}
         </AnalyticsSection>
 
