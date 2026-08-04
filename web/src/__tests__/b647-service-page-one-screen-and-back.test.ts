@@ -25,10 +25,14 @@ describe("B647 — страница услуги: один экран и чес�
   it("возврат идёт по истории, а каталог остаётся запасным адресом", () => {
     expect(backLink).toContain("router.back()");
     expect(backLink).toContain('fallback = "/products"');
-    // Без разметки шага истории `router.back()` на странице, открытой прямой
-    // ссылкой из поиска, увёл бы пользователя с сайта.
-    expect(backLink).toContain("history.state");
-    expect(backLink).toContain("idx");
+    // Во вкладке, открытой прямой ссылкой из поиска, единственный шаг назад
+    // увёл бы с сайта — поэтому возврат только когда возвращаться есть куда.
+    expect(backLink).toContain("window.history.length <= 1");
+    // `idx` — счётчик Pages Router; в App Router его нет, и условие на него
+    // не выполнилось бы НИКОГДА. Запрет на код, а не на упоминание: в
+    // комментарии рядом эта ловушка обязана остаться описанной.
+    expect(backLink).not.toContain("idx?:");
+    expect(backLink).not.toContain("?.idx");
     // Ссылка обязана работать до гидратации и при открытии в новой вкладке.
     expect(backLink).toContain("href={fallback}");
     expect(backLink).toContain("metaKey");
