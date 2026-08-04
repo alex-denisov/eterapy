@@ -17,8 +17,10 @@ import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
 import { ProductBackLink } from "@/components/products/product-back-link";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
-import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
+import { getV5Product, v5Products, type V5Product, type V5ProductSlug } from "@/lib/v5-products";
+import { serviceGuideLibraryHref } from "@/lib/service-guides";
 import { getSetting } from "@/lib/platform-settings";
+import Link from "next/link";
 
 export function generateStaticParams() {
   return v5Products.map((product) => ({ slug: product.slug }));
@@ -52,6 +54,7 @@ function ProductHero({
   product: V5Product;
   action: React.ReactNode;
 }) {
+  const guideHref = serviceGuideLibraryHref(product.slug as V5ProductSlug);
   return (
     <section className="soft-shell" data-testid="product-hero" style={{ paddingTop: 20, paddingBottom: 24 }}>
       <div className="mx-auto w-full max-w-2xl">
@@ -70,6 +73,25 @@ function ProductHero({
         </div>
 
         <ProductDisclaimer />
+
+        {/*
+          B648 — ОДНА строка, а не блок. Описательный корпус B647 снял со
+          страницы услуги; страница остаётся инструментом на один экран, и
+          ссылка на разбор формата в библиотеке не имеет права превращаться
+          обратно в текст здесь.
+
+          ⚠ Врезка нужна В ОБОИХ героях: у `/products/[slug]` собственная
+          компактная шапка, а не `ProductPageShell`. Первая версия B648 знала
+          только про шапку шелла, и на живой странице услуги ссылки не было —
+          поймано браузерной проверкой стенда, прогоны этого не видели.
+        */}
+        {guideHref && (
+          <p className="mt-3 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+            <Link href={guideHref} className="underline underline-offset-2" data-testid="product-guide-link">
+              Как это работает и что входит в результат
+            </Link>
+          </p>
+        )}
       </div>
     </section>
   );

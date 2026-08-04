@@ -99,18 +99,26 @@ describe("v5 product pages", () => {
     expect(products).toContain("про ваши отношения в целом");
   });
 
-  it("B405 shows guests ₽ and authenticated users баллы-first on the product hero price", () => {
+  // B656 ОТМЕНЯЕТ B405. Прежнее правило было role-aware: гостю ₽, а
+  // авторизованному крупно баллы и ₽ мелким вторичным текстом. Решение
+  // владельца 2026-08-04: цена называется деньгами всем одинаково, потому что
+  // «1 балл» не сообщает ничего тому, кто видит сайт впервые. Сколько спишется
+  // баллов, написано на самой кнопке оплаты — там, где происходит списание.
+  it("B656 shows the ₽ price to everyone and routes to the subscription", () => {
     const priceChip = source("components/products/product-hero-price.tsx");
 
-    // role-aware: reads the session
-    expect(priceChip).toContain("useSession");
-    expect(priceChip).toContain('status === "authenticated"');
-    // authed → баллы primary (from the catalogue creditCost) + small ₽ secondary
-    expect(priceChip).toContain("formatPoints");
-    expect(priceChip).toContain("product.creditCost");
-    expect(priceChip).toContain("или {product.price}");
-    // guest → ₽ only (the default branch renders the plain price)
     expect(priceChip).toContain("{product.price}");
+    expect(priceChip).toContain("в подписке");
+    expect(priceChip).toContain('href="/pricing"');
+
+    // Цена больше не зависит от роли — значит, и от сессии тоже.
+    expect(priceChip).not.toContain("useSession");
+    expect(priceChip).not.toContain("formatPoints");
+  });
+
+  it("B656 · стоимость в баллах не исчезла — она осталась на кнопке списания", () => {
+    const controls = source("components/products/product-purchase-controls.tsx");
+    expect(controls).toContain("pointsWord(creditCost as number)");
   });
 
   it("keeps paid symbolic and map products usable after purchase", () => {

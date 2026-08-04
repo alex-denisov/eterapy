@@ -134,7 +134,7 @@ async function replyOnThreads(input: { body: string; target: InboundReplyTarget 
   }
   return {
     externalPostId: published.id,
-    publicUrl: `https://www.threads.net/post/${published.id}`,
+    publicUrl: `https://www.threads.com/post/${published.id}`,
   };
 }
 

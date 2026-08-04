@@ -51,7 +51,10 @@ describe("B610 · Meta OAuth setup", () => {
     );
 
     const threads = new URL(await metaAuthorizationUrl({ platform: "Threads", state: "signed" }));
-    expect(threads.origin).toBe("https://threads.net");
+    // B655: Threads переехал на `threads.com` — старый `threads.net` отвечает
+    // 301 (живая проверка 2026-08-04). Ведём на канонический адрес, чтобы на
+    // пути авторизации не было лишнего перехода.
+    expect(threads.origin).toBe("https://www.threads.com");
     expect(threads.searchParams.get("scope")).toContain("threads_content_publish");
 
     const instagram = new URL(await metaAuthorizationUrl({ platform: "Instagram", state: "signed" }));

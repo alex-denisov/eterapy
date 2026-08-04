@@ -1,8 +1,20 @@
-import Link from "next/link";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+/**
+ * B648 · Корпус услуг — теперь материал БИБЛИОТЕКИ, а не страницы услуги.
+ *
+ * ⚠ ГРАНИЦА, КОТОРУЮ НЕЛЬЗЯ ПЕРЕЙТИ ОБРАТНО. B647 снял этот текст со страницы
+ * услуги: страница услуги — инструмент на один экран, и описательный блок под
+ * формой превращал её в статью. Текст при этом хороший и рабочий, поэтому он
+ * не выброшен, а переехал туда, где длинный текст уместен и полезен для поиска.
+ *
+ * Возврат текста на страницу услуги не делается ни при каких условиях. Со
+ * страницы услуги на запись библиотеки ведёт ОДНА ссылка, а не блок.
+ *
+ * Модуль — чистые данные без React: его читают и запись библиотеки, и прогоны.
+ */
+
 import type { V5ProductSlug } from "@/lib/v5-products";
 
-type ProductSeoSpec = {
+export type ServiceGuide = {
   heading: string;
   answer: string;
   usefulFor: string[];
@@ -15,7 +27,7 @@ type ProductSeoSpec = {
   related: Array<{ href: string; label: string }>;
 };
 
-const CONTENT: Partial<Record<V5ProductSlug, ProductSeoSpec>> = {
+export const SERVICE_GUIDES: Partial<Record<V5ProductSlug, ServiceGuide>> = {
   "chat-analysis": {
     heading: "Что даёт анализ переписки",
     answer: "Анализ переписки помогает отделить текст сообщений от тревожных догадок: увидеть тон, смену инициативы, прямые просьбы, избегание и места, где собеседники могут понимать одну фразу по-разному. Результат не читает чужие мысли, а собирает наблюдаемые сигналы и предлагает варианты ответа без давления и манипуляций.",
@@ -153,93 +165,31 @@ const CONTENT: Partial<Record<V5ProductSlug, ProductSeoSpec>> = {
   },
 };
 
-export function ProductSeoContent({ slug }: { slug: V5ProductSlug }) {
-  const content = CONTENT[slug];
-  if (!content) return null;
-  const faqJsonLd = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: content.faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: { "@type": "Answer", text: faq.answer },
-    })),
-  }).replace(/</g, "\\u003c");
+/**
+ * Услуга → запись библиотеки, где живёт её корпус.
+ *
+ * Держим соответствие ДАННЫМИ, а не соглашением об именах: слаг записи
+ * подчиняется поисковому запросу, а слаг услуги — маршруту продукта, и
+ * совпадать они не обязаны (урок B600 — «файл роута ≠ живой адрес»).
+ */
+export const SERVICE_GUIDE_LIBRARY_SLUG: Partial<Record<V5ProductSlug, string>> = {
+  "chat-analysis": "kak-razobrat-perepisku-i-ne-nakrutit-sebya",
+  tarot: "kak-chitat-rasklad-taro-onlayn",
+  "natal-chart": "chto-pokazyvaet-natalnaya-karta",
+  "compatibility-by-date": "sovmestimost-po-date-rozhdeniya-chto-eto-znachit",
+  numerology: "kak-chitat-matricu-sudby-po-date-rozhdeniya",
+};
 
-  return (
-    <article className="soft-shell border-t border-[var(--soft-paper-edge)] py-10 md:py-14" data-testid={`product-seo-content-${slug}`}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJsonLd }} />
-      <div className="mx-auto w-full max-w-4xl">
-        <header className="max-w-3xl">
-          <p className="premium-eyebrow">Коротко и по делу</p>
-          <h2 className="soft-h2 mt-2">{content.heading}</h2>
-          <p className="mt-4 text-base leading-7 text-[var(--soft-ink-soft)]">{content.answer}</p>
-        </header>
+export function serviceGuideLibraryHref(slug: V5ProductSlug): string | null {
+  const librarySlug = SERVICE_GUIDE_LIBRARY_SLUG[slug];
+  return librarySlug ? `/library/${librarySlug}` : null;
+}
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <section className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
-            <h3 className="font-semibold text-[var(--soft-ink)]">Когда формат особенно полезен</h3>
-            <ul className="mt-3 grid gap-3 text-sm leading-6 text-[var(--soft-ink-soft)]">
-              {content.usefulFor.map((item) => <li key={item} className="flex gap-2"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--soft-terracotta)]" aria-hidden="true" /><span>{item}</span></li>)}
-            </ul>
-          </section>
-          <section className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
-            <h3 className="font-semibold text-[var(--soft-ink)]">{content.interpretationTitle}</h3>
-            <ul className="mt-3 grid gap-3 text-sm leading-6 text-[var(--soft-ink-soft)]">
-              {content.interpretation.map((item) => <li key={item} className="flex gap-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-[var(--soft-sage)]" /><span>{item}</span></li>)}
-            </ul>
-          </section>
-        </div>
-
-        <section className="mt-10">
-          <h3 className="text-xl font-semibold text-[var(--soft-ink)]">Как проходит разбор</h3>
-          <ol className="mt-4 grid gap-3 md:grid-cols-3">
-            {content.process.map((step, index) => (
-              <li key={step.title} className="rounded-2xl border border-[var(--soft-paper-edge)] bg-white/70 p-4">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--soft-terracotta-dark)]">Шаг {index + 1}</span>
-                <h4 className="mt-1 font-semibold text-[var(--soft-ink)]">{step.title}</h4>
-                <p className="mt-2 text-sm leading-6 text-[var(--soft-ink-soft)]">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="mt-10 grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
-          <div>
-            <h3 className="text-xl font-semibold text-[var(--soft-ink)]">Примеры живых вопросов</h3>
-            <ul className="mt-3 grid gap-2">
-              {content.examples.map((example) => <li key={example} className="rounded-xl bg-[var(--soft-surface)] px-4 py-3 text-sm leading-6 text-[var(--soft-ink)]">«{example}»</li>)}
-            </ul>
-          </div>
-          <aside className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-apricot)]/50 p-5">
-            <h3 className="font-semibold text-[var(--soft-ink)]">Важная граница</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--soft-ink-soft)]">{content.boundary}</p>
-          </aside>
-        </section>
-
-        <section className="mt-10">
-          <h3 className="text-xl font-semibold text-[var(--soft-ink)]">Частые вопросы</h3>
-          <div className="mt-3 divide-y divide-[var(--soft-paper-edge)] rounded-2xl border border-[var(--soft-paper-edge)] bg-white/70 px-5">
-            {content.faqs.map((faq) => (
-              <details key={faq.question} className="group py-4">
-                <summary className="cursor-pointer list-none pr-6 font-semibold text-[var(--soft-ink)] marker:content-none">{faq.question}</summary>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--soft-ink-soft)]">{faq.answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        <nav className="mt-10" aria-label="Материалы по теме">
-          <h3 className="text-xl font-semibold text-[var(--soft-ink)]">Разобрать похожую ситуацию</h3>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {content.related.map((item) => (
-              <Link key={item.href} href={item.href} className="group flex items-center justify-between gap-3 rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-3 text-sm font-medium text-[var(--soft-ink)] transition hover:border-[var(--soft-terracotta)]">
-                <span>{item.label}</span><ArrowRight className="size-4 shrink-0 transition group-hover:translate-x-0.5" aria-hidden="true" />
-              </Link>
-            ))}
-          </div>
-        </nav>
-      </div>
-    </article>
-  );
+export function serviceGuideBySlug(slug: string): { service: V5ProductSlug; guide: ServiceGuide } | null {
+  for (const [service, librarySlug] of Object.entries(SERVICE_GUIDE_LIBRARY_SLUG)) {
+    if (librarySlug !== slug) continue;
+    const guide = SERVICE_GUIDES[service as V5ProductSlug];
+    if (guide) return { service: service as V5ProductSlug, guide };
+  }
+  return null;
 }

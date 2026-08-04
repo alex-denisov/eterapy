@@ -68,7 +68,10 @@ describe("B627 — разделение продуктового и деплой
     // самом цикле, а не позиция в строке: B640 добавил рядом соседний ключ, и
     // привязка к переносу строки ловила бы форматирование, а не механизм.
     const loopStart = content.indexOf("for key in ROBOKASSA_MERCHANT_LOGIN");
-    const loopEnd = content.indexOf("YANDEX_CLOUD_FOLDER_ID; do", loopStart);
+    // Конец цикла ищем по САМОЙ КОНСТРУКЦИИ `; do`, а не по имени последнего
+    // ключа: B650 дописал ключи Google после `YANDEX_CLOUD_FOLDER_ID`, и якорь
+    // на конкретное имя сломался, хотя механизм доставки не изменился ничем.
+    const loopEnd = content.indexOf("; do", loopStart);
     expect(loopStart).toBeGreaterThan(-1);
     expect(loopEnd).toBeGreaterThan(loopStart);
     expect(content.slice(loopStart, loopEnd)).toContain("TELEGRAM_ETERAPY_CHAT_ID");

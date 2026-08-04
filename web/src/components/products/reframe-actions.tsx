@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { loadProductDraft } from "@/lib/product-draft";
+import { useInputDraft } from "@/lib/use-input-draft";
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { dialogueTopicFromChip, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
@@ -307,21 +307,27 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
     return () => { cancelled = true; };
   }, [authStatus, resultId]);
 
-  // INC-082: возврат с оплаты. Раньше человек платил и попадал на ПУСТУЮ
-  // форму — описание ситуации, ради которого он и платил, оставалось на той
-  // стороне редиректа. Черновик снимается перед уходом на провайдера.
-  useEffect(() => {
-    if (resultId) return;
-    const draft = loadProductDraft<{ sourceText?: string; topic?: string | null; feeling?: string | null }>("reframe");
-    if (!draft) return;
-    // Черновик лежит в sessionStorage — на сервере его нет, читать можно только
-    // после монтирования. Инициализатор состояния здесь не годится: он
-    // выполнится и при рендере на сервере и разойдётся с клиентом.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- восстановление из браузерного хранилища, один раз при монтировании
-    if (draft.sourceText) setSourceText(draft.sourceText);
-    if (draft.topic) setTopic(draft.topic);
-    if (draft.feeling) setFeeling(draft.feeling);
-  }, [resultId]);
+  // INC-082 + B656: описание ситуации переживает уход со страницы.
+  //
+  // ⚠ Раньше здесь стоял снимок из `product-draft`, который снимался ТОЛЬКО
+  // перед редиректом на провайдера оплаты. Круг «ушёл платить → вернулся» он
+  // закрывал, а любой другой уход — «посмотреть тарифы», «прочитать оферту»,
+  // «назад» — стирал форму начисто. Замер B656 показал, что и покрытие было
+  // частичным: две услуги из тринадцати. Теперь та же механика, что у
+  // остальных форм (`useInputDraft`): пишем по мере ввода, а не в одной точке
+  // маршрута, — и тогда способ ухода перестаёт иметь значение.
+  const { clear: clearDraft } = useInputDraft(
+    "reframe",
+    { sourceText, topic, feeling },
+    (draft) => {
+      if (typeof draft.sourceText === "string" && draft.sourceText) setSourceText(draft.sourceText);
+      if (typeof draft.topic === "string") setTopic(draft.topic);
+      if (typeof draft.feeling === "string") setFeeling(draft.feeling);
+    },
+    // На экране готового результата формы нет — сохранять нечего, и пустое
+    // состояние не должно затирать черновик.
+    { active: !resultId && !result },
+  );
 
   // Узнаём доступ (entitlement) на свежем экране, чтобы показать прямой CTA.
   useEffect(() => {
@@ -393,6 +399,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
   }
 
   function startNew() {
+    clearDraft();
     setResult(null);
     setSourceText("");
     setTopic(null);
@@ -580,7 +587,6 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
               label="Открыть переосмысление"
               checkoutSource="reframe-generate"
               creditCost={1}
-              draft={() => ({ sourceText, topic, feeling })}
               onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
             />
           )}

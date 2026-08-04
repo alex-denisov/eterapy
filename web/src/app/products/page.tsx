@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ServiceCatalog } from "@/components/products/service-catalog";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
@@ -19,6 +20,20 @@ export default function ProductsPage() {
         <p className="soft-lede">
           Короткий разбор вашей ситуации, разборы в своём темпе или разговор с живым
           специалистом — выберите то, что подходит сейчас.
+        </p>
+        {/* B657: каталог не менялся (владелец оставил плашки как есть) — здесь
+            одна строка подсказки, которая заодно связывает каталог со
+            страницей `/ai-psychologist`. */}
+        <p className="soft-lede mt-2 text-sm">
+          Не знаете, с чего начать?{" "}
+          <Link
+            href="/ai-psychologist"
+            className="text-[var(--soft-bordeaux)] underline-offset-4 hover:underline"
+            data-testid="products-ai-psychologist-link"
+          >
+            Начните с бесплатного разбора у ИИ-психолога
+          </Link>
+          .
         </p>
       </section>
 
