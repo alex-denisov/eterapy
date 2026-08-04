@@ -11,7 +11,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { matchQueryFamily, parseWebmasterQueries, parseWebmasterWindow } from "@/lib/search-marketing-parsers";
+import { buildQueryFamilyMatcher, matchQueryFamily, parseWebmasterQueries, parseWebmasterWindow } from "@/lib/search-marketing-parsers";
 import { MARKETING_PLATFORM_FIELDS } from "@/lib/marketing/platform-settings";
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), "src", relativePath), "utf8");
@@ -96,6 +96,29 @@ describe("B651 — ядро встречается с наблюдаемыми �
   it("не подтягивает чужие запросы по короткому совпадению", () => {
     expect(matchQueryFamily("сон", queries)).toHaveLength(0);
     expect(matchQueryFamily("натальная карта", queries)).toHaveLength(0);
+  });
+
+  it("сшивка ядра с запросами не квадратична по токенизации", () => {
+    // Ядро — 1750 фраз, Вебмастер отдаёт до 500 запросов. Разбор строки запроса
+    // внутри цикла по фразам стоил бы 875 000 токенизаций на один рендер
+    // страницы: сегодня незаметно (запросов 23), на полной выдаче — секунды.
+    const data = source("lib/search-marketing-data.ts");
+    expect(data).toContain("buildQueryFamilyMatcher(webmasterValue.data.queries)");
+    expect(data).not.toContain("matchQueryFamily(keyword.phrase");
+
+    const many = Array.from({ length: 500 }, (_, index) => ({
+      query: `расклад таро онлайн бесплатно вариант ${index}`,
+      impressions: 1,
+      clicks: 0,
+      ctr: 0,
+      averagePosition: 10,
+      opportunity: "Быстрый рост" as const,
+    }));
+    const match = buildQueryFamilyMatcher(many);
+    const started = Date.now();
+    for (let index = 0; index < 1750; index += 1) match("таро");
+    expect(Date.now() - started).toBeLessThan(4000);
+    expect(match("таро")).toHaveLength(500);
   });
 
   it("в строке ядра видно, по скольким запросам считалась позиция", () => {

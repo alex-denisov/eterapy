@@ -8,7 +8,7 @@ import type { SemanticIntent } from "@/lib/seo/semantic-core-types";
 import {
   parseMetrikaTotals,
   parseMetrikaTrafficSources,
-  matchQueryFamily,
+  buildQueryFamilyMatcher,
   parseWebmasterQueries,
   parseWebmasterSummary,
   parseWebmasterWindow,
@@ -364,10 +364,13 @@ export async function getSearchMarketingData(period: AdminPeriod) {
   // целиком («расклад таро онлайн бесплатно»), поэтому совпадения не было бы
   // никогда — даже когда позиция реально появится. Прочерк напротив ВЧ-фразы
   // означал «мы не умеем посмотреть», а читался как «позиции нет».
+  // Запросы раскладываются на токены ОДИН раз: ядро — 1750 фраз, и разбор
+  // строки запроса внутри цикла стоил бы 875 000 токенизаций на рендер.
+  const matchFamily = buildQueryFamilyMatcher(webmasterValue.data.queries);
   const keywordCore = STRATEGIC_KEYWORDS.map((keyword) => {
     const liveDemand = demandByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
     const exact = observedByPhrase.get(keyword.phrase.toLocaleLowerCase("ru-RU"));
-    const family = matchQueryFamily(keyword.phrase, webmasterValue.data.queries);
+    const family = matchFamily(keyword.phrase);
     const positioned = family.filter((item) => item.averagePosition !== null);
     return {
       ...keyword,

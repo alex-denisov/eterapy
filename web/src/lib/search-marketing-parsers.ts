@@ -168,9 +168,8 @@ function stem(token: string) {
   return token.length >= 5 ? token.slice(0, -1) : token;
 }
 
-function tokenMatches(queryToken: string, phraseToken: string) {
-  const left = stem(queryToken);
-  const right = stem(phraseToken);
+/** Сравнение уже приведённых к стему токенов. */
+function stemsMatch(left: string, right: string) {
   if (left === right) return true;
   const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
   // Короткий токен приставкой не считаем: иначе «дом» подтянет «домашний»,
@@ -179,13 +178,29 @@ function tokenMatches(queryToken: string, phraseToken: string) {
   return longer.startsWith(shorter) && longer.length - shorter.length <= 2;
 }
 
+/**
+ * Матчер под одну выборку запросов.
+ *
+ * ⚠ Ядро — 1750 фраз, Вебмастер отдаёт до 500 запросов. Наивная реализация
+ * резала бы строку запроса на токены заново для КАЖДОЙ фразы: 875 000
+ * токенизаций на один рендер страницы. Сегодня это незаметно (запросов 23),
+ * а на полной выдаче страница встала бы на секунды. Поэтому запросы
+ * раскладываются один раз, а фразы сверяются с готовыми стемами.
+ */
+export function buildQueryFamilyMatcher(queries: SearchQueryMetric[]) {
+  const stemmedQueries = queries.map((item) => tokenize(item.query).map(stem));
+  return (phrase: string): SearchQueryMetric[] => {
+    const phraseStems = tokenize(phrase).map(stem);
+    if (phraseStems.length === 0) return [];
+    return queries.filter((_, index) => phraseStems.every(
+      (needle) => stemmedQueries[index].some((candidate) => stemsMatch(candidate, needle)),
+    ));
+  };
+}
+
+/** Разовое сопоставление — удобно в прогонах и на единичном вызове. */
 export function matchQueryFamily(phrase: string, queries: SearchQueryMetric[]): SearchQueryMetric[] {
-  const phraseTokens = tokenize(phrase);
-  if (phraseTokens.length === 0) return [];
-  return queries.filter((item) => {
-    const queryTokens = tokenize(item.query);
-    return phraseTokens.every((token) => queryTokens.some((candidate) => tokenMatches(candidate, token)));
-  });
+  return buildQueryFamilyMatcher(queries)(phrase);
 }
 
 export function weightedAveragePosition(queries: SearchQueryMetric[]) {
