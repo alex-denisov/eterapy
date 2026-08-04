@@ -61,6 +61,13 @@ COPY web web
 COPY --from=build /app/web/.next web/.next
 WORKDIR /app/web
 RUN npx prisma generate
+# B657: владелец выставляется ЗДЕСЬ, в отбрасываемой стадии, а не в runner.
+# Раньше `chown -R` стоял после `COPY /app /app` в финальном образе и создавал
+# вторую копию всех затронутых файлов отдельным слоем — 145 МБ в каждом образе,
+# на каждой из четырёх нод, в каждой передаче. `COPY --from` сохраняет UID/GID
+# исходной стадии, поэтому права в runner остаются те же: писать во время
+# работы нужно только в `.next` (ISR-кеш) и `public` (uploads — том).
+RUN chown -R node:node /app/web/.next /app/web/public
 
 FROM base AS runner
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
@@ -68,8 +75,6 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends chromium fonts-liberation fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=assemble /app /app
-# Runtime write surfaces only (ISR cache, uploads — uploads is volume-mounted).
-RUN chown -R node:node /app/web/.next /app/web/public
 WORKDIR /app/web
 USER node
 EXPOSE 3000

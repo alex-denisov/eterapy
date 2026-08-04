@@ -365,7 +365,16 @@ jobs:
             deploy/seo/eterapy-seo-report.timer \
             deploy/systemd/eterapy-unit-failure@.service \
             deploy/systemd/notify-unit-failure.sh \
+            deploy/systemd/journald-eterapy.conf \
             "$VM_USER@$VM_HOST:/tmp/"
+          # B657/INC-099: потолок системного журнала едет выкаткой, а не руками.
+          # Без него journald занимал 944 МБ на самой тесной ноде — там же, где
+          # выкатка падает по таймауту из-за нехватки места под образ.
+          $SSH "sudo mkdir -p /etc/systemd/journald.conf.d \
+            && sudo install -m 0644 /tmp/journald-eterapy.conf /etc/systemd/journald.conf.d/eterapy.conf \
+            && rm -f /tmp/journald-eterapy.conf \
+            && sudo systemctl restart systemd-journald \
+            && sudo journalctl --disk-usage"
           $SSH "sudo install -m 0755 /tmp/seo-telegram-report.sh /opt/eterapy/seo-telegram-report.sh \
             && sudo install -m 0755 /tmp/notify-unit-failure.sh /opt/eterapy/notify-unit-failure.sh \
             && sudo install -m 0644 /tmp/eterapy-unit-failure@.service /etc/systemd/system/eterapy-unit-failure@.service \

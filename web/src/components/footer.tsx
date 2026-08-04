@@ -21,6 +21,11 @@ export function Footer({ variant = "soft", compact = false }: { variant?: "dark"
       title: "Разборы",
       links: [
         [mainUrl("/"), "Разобрать бесплатно"],
+        // B657: `/ai-psychologist` несёт единственный кластер, в котором сайт
+        // реально ранжируется («ии психолог» — 13 380 показов/мес, позиции
+        // 1–16), и при этом на неё не вело НИ ОДНОЙ внутренней ссылки. Подвал
+        // даёт сквозную ссылку со всех страниц — самый дешёвый вес.
+        [mainUrl("/ai-psychologist"), "ИИ-психолог"],
         [mainUrl("/products/reframe"), "Переосмысление"],
         [mainUrl("/products/deep-report"), "Подробный разбор"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],

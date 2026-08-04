@@ -1,4 +1,5 @@
-import { Compass, Sparkles, Waypoints } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Compass, Sparkles, Waypoints } from "lucide-react";
 
 const steps = [
   {
@@ -47,6 +48,21 @@ export function HowItWorksSection() {
           </li>
         ))}
       </ol>
+
+      {/* B657: одна строка, а не блок — главная намеренно держится в шести
+          экранах (B374/B595). Ссылка ведёт на страницу, которая объясняет
+          формат словами живого запроса и несёт единственный работающий
+          поисковый кластер сайта. */}
+      <p className="mt-6 text-center text-sm">
+        <Link
+          href="/ai-psychologist"
+          className="inline-flex items-center gap-1.5 text-[var(--soft-bordeaux)] underline-offset-4 hover:underline"
+          data-testid="home-ai-psychologist-link"
+        >
+          Что такое ИИ-психолог и чем он не заменяет специалиста
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </p>
     </section>
   );
 }

@@ -191,6 +191,10 @@ export default function AiPsychologistPage() {
                 <Link href="/editorial-policy" className="underline underline-offset-4">Редакционная политика</Link>
                 <Link href="/legal/privacy" className="underline underline-offset-4">Конфиденциальность</Link>
                 <Link href="/how-it-works" className="underline underline-offset-4">Как работает ETerapy</Link>
+                {/* B657: обратные ссылки — страница должна не только получать
+                    вес, но и вести дальше по сайту. */}
+                <Link href="/library" className="underline underline-offset-4">Библиотека разборов</Link>
+                <Link href="/practitioners" className="underline underline-offset-4">Живые специалисты</Link>
               </div>
             </div>
           </div>

@@ -61,6 +61,29 @@ export async function enqueueJob(input: EnqueueJobInput): Promise<Job> {
     idempotencyKey: input.idempotencyKey,
   };
 
+  // B657: у идемпотентной постановки нормальный, ожидаемый исход — «такая
+  // работа уже стоит». Раньше единственным путём к этому исходу был INSERT,
+  // упавший на уникальном индексе: Postgres писал в свой журнал ERROR плюс
+  // полный текст STATEMENT вместе с payload. Планировщик повторяет одни и те
+  // же ключи каждый тик, поэтому журнал рос на ~60 МБ в сутки и держал 400 МБ
+  // на самой тесной ноде флота (INC-099). Сначала спрашиваем, потом вставляем;
+  // гонка по-прежнему ловится ниже по P2002 — она редкая и в журнале уместна.
+  if (input.idempotencyKey) {
+    const known = await db.job.findFirst({
+      where: { queue, type: input.type, idempotencyKey: input.idempotencyKey },
+    });
+    if (known) {
+      log.info("job-enqueue-deduplicated", {
+        requestId: input.requestId,
+        jobId: known.id,
+        queue,
+        type: input.type,
+        idempotencyKey: input.idempotencyKey,
+      });
+      return known;
+    }
+  }
+
   try {
     const job = await db.job.create({ data });
     log.info("job-enqueued", {

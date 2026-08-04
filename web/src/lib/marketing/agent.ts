@@ -914,7 +914,9 @@ export async function processMarketingDraft(publicationId: string) {
       publicationId: publication.id,
       error: serializeError(error),
     });
-    return { status: "failed" as const, error: message };
+    // B658: причина нужна вызывающему циклу — на нехватке ёмкости проход
+    // останавливается, а не идёт за следующим материалом с тем же исходом.
+    return { status: "failed" as const, error: message, capacity: isCapacityError(error) };
   }
 }
 
@@ -953,6 +955,42 @@ export const MARKETING_PLANNED_DRAFTS_PER_HOUR = Math.max(
   1,
   Number(process.env.MARKETING_PLANNED_DRAFTS_PER_HOUR || 2),
 );
+
+/**
+ * B658 — сколько агент не трогает плановую генерацию после отказа по ёмкости.
+ *
+ * Тридцать минут выбраны не наугад: при норме в два материала в час это ровно
+ * один пропущенный слот нормы. Когда ёмкость в порядке, сигнала нет и остывание
+ * не стоит ничего; когда она кончилась, оно превращает полсотни бесполезных
+ * вызовов writer'а в один.
+ */
+export const MARKETING_CAPACITY_COOLDOWN_MS = Number(
+  process.env.MARKETING_CAPACITY_COOLDOWN_MS || 30 * 60_000,
+);
+
+/**
+ * B658 — стоит ли остывание прямо сейчас.
+ *
+ * Читать сигнал — вспомогательное действие: если оно почему-то не удалось,
+ * генерацию это блокировать не должно. Молчаливое «нет» здесь безопаснее
+ * молчаливого «да»: в худшем случае вернётся прежнее поведение, а не встанет
+ * весь контур.
+ */
+export async function marketingCapacityCooldownActive(now: Date): Promise<boolean> {
+  try {
+    const signal = await db.marketingAutomationSignal.findFirst({
+      where: {
+        key: "agent:capacity",
+        status: "OPEN",
+        lastSeenAt: { gte: new Date(now.getTime() - MARKETING_CAPACITY_COOLDOWN_MS) },
+      },
+      select: { lastSeenAt: true },
+    });
+    return Boolean(signal);
+  } catch {
+    return false;
+  }
+}
 
 /** Разговорные материалы идут вне часового шага: ответ нельзя отложить. */
 const CONVERSATIONAL_LOOP_LIMIT = 3;
@@ -999,7 +1037,27 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
       where: { AND: [readyForWork, { scheduledFor: { gt: horizon } }] },
     }),
   ]);
-  const plannedBudget = Math.max(0, Math.min(
+  /**
+   * B658 — часовой шаг считал ПОПЫТКИ, дошедшие до конца, а не сделанные.
+   *
+   * `plannedThisHour` берётся по `agentReviewedAt`, а эта отметка ставится
+   * только на успешно прошедшем материале. Когда reviewer падает на исчерпанном
+   * суточном потолке, отметки нет — счётчик остаётся нулём, норма часа выглядит
+   * нетронутой, и следующий тик воркера (примерно раз в 70 секунд) берёт ТУ ЖЕ
+   * строку заново. Замер прода 2026-08-04: одна публикация
+   * `cms5beiwo001b0vwk569i1p8u` крутилась в этом цикле часами, writer при этом
+   * КАЖДЫЙ раз отрабатывал успешно и списывал токены с того самого потолка, об
+   * который спотыкался reviewer. Норма — 2 материала в час, фактически шло
+   * около пятидесяти.
+   *
+   * Сигнал `agent:capacity` уже пишется при каждом таком отказе, и у него есть
+   * `lastSeenAt`. Его и берём за остывание: пока он свежий, плановая генерация
+   * не запускается вовсе. Разговорные материалы остывания не знают — ответ
+   * человеку откладывать нельзя, а ёмкость у него отдельная.
+   */
+  const capacityCooldown = await marketingCapacityCooldownActive(now);
+
+  const plannedBudget = capacityCooldown ? 0 : Math.max(0, Math.min(
     LOOP_LIMIT,
     MARKETING_PLANNED_DRAFTS_PER_HOUR - plannedThisHour,
   ));
@@ -1037,14 +1095,29 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
       where: { AND: [readyForWork, plannedDue, plannedFilter] },
     });
 
-  for (const draft of [...conversational, ...planned]) await processMarketingDraft(draft.id);
+  // B658: проход останавливается на первой же нехватке ёмкости. Раньше он
+  // честно дорабатывал список — и каждый следующий материал повторял ровно тот
+  // же путь: writer отрабатывал успешно и списывал токены, reviewer падал на
+  // исчерпанном потолке, материал оставался черновиком.
+  let processed = 0;
+  let capacityStop = false;
+  for (const draft of [...conversational, ...planned]) {
+    const outcome = await processMarketingDraft(draft.id);
+    processed += 1;
+    if (outcome.status === "failed" && outcome.capacity) {
+      capacityStop = true;
+      break;
+    }
+  }
   return {
     enabled: true,
-    processed: conversational.length + planned.length,
+    processed,
     conversational: conversational.length,
     planned: planned.length,
     deferred,
     paced,
+    capacityStop,
+    capacityCooldown,
   };
 }
 

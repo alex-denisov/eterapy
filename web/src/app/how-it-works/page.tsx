@@ -110,6 +110,19 @@ export default function HowItWorksPage() {
             Бесплатный диалог — самый мягкий вход, но не обязательный. Если вы уже понимаете, что хотите расклад Таро,
             разбор переписки или встречу со специалистом, перейдите к нужному формату сразу.
           </p>
+          {/* B657: связываем длинный материал с `/ai-psychologist` — до этой
+              правки на страницу не вело ни одной внутренней ссылки. */}
+          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            А если вход нужен именно как разговор —{" "}
+            <Link
+              href="/ai-psychologist"
+              className="text-[var(--soft-bordeaux)] underline-offset-4 hover:underline"
+              data-testid="how-it-works-ai-psychologist-link"
+            >
+              подробнее про ИИ-психолога: что он делает и где его границы
+            </Link>
+            .
+          </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {productGroups.map(([title, text, href]) => (
               <Link
