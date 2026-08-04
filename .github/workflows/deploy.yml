@@ -187,6 +187,11 @@ jobs:
       (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # B659: задача пушит образ релиза в ghcr.io. Токен прогона живёт ровно
+    # столько, сколько идёт прогон, и на нодах не остаётся.
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -221,6 +226,36 @@ jobs:
             --build-arg NEXT_PUBLIC_YANDEX_METRIKA_ID="108502034" \
             -t "eterapy-web:${GITHUB_SHA::8}" .
 
+      # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
+      #
+      # Замер 2026-08-04 на eterapy-1 в одну и ту же минуту: поток
+      # `docker save | gzip | ssh` с раннера шёл 23–59 КБ/с, обычная загрузка
+      # из CDN на той же ноде — 13.5 МБ/с. Три выкатки подряд были отменены по
+      # таймауту задачи в 30 минут. Живая проба на стенде через реестр:
+      # 6066 КБ/с, то есть в сто с лишним раз быстрее того же файла на ту же
+      # ноду в тот же день.
+      #
+      # Пуш не обязан удаться: если реестр недоступен, доставка уходит в
+      # прежний путь по SSH. Шаг не имеет права уронить выкатку.
+      #
+      # Пуш идёт из каждой задачи матрицы. Это не расточительство: содержимое
+      # одинаковое, слои уже в реестре, и второй-четвёртый пуш укладываются в
+      # секунды.
+      - name: Push release image to registry
+        id: registry
+        continue-on-error: true
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eterapy-web:${GITHUB_SHA::8}"
+          printf '%s' "$REGISTRY_TOKEN" \
+            | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "eterapy-web:${GITHUB_SHA::8}" "$REF"
+          docker push "$REF"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "▶ образ в реестре: $REF"
+
       - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.ETERAPY_FLEET_DEPLOY_KEY }}
@@ -236,6 +271,10 @@ jobs:
 
       - name: Ship image + converge stack
         env:
+          # B659: пусто, если пуш в реестр не удался — тогда доставка идёт
+          # прежним путём. Токен прогона, а не долгоживущий ключ на нодах.
+          REGISTRY_REF: ${{ steps.registry.outputs.ref }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # B423: пока эти секреты не заведены, шаг доставки их пропускает и
           # рельс остаётся выключенным — `cardPaymentAvailable()` = false,
           # интерфейс честно говорит «скоро». Порядок включения — в тикете B423.
@@ -541,7 +580,28 @@ jobs:
             echo "::error::На ноде осталось ${DISK_FREE}G — образа ~4.5GB не хватит места. Выкатка остановлена до освобождения диска."
             exit 1
           fi
-          docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          # B659: сначала пробуем реестр — нода тянет слои своим быстрым
+          # каналом. Авторизация уходит через stdin (никогда строкой команды),
+          # токен прогона на ноде не остаётся: `docker logout` в том же вызове.
+          # Любая осечка — прежний путь потоком по SSH.
+          SHIPPED=no
+          if [ -n "${REGISTRY_REF:-}" ]; then
+            echo "▶ пробуем реестр: $REGISTRY_REF"
+            if printf '%s' "$REGISTRY_TOKEN" | $SSH "sudo docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin \
+              && sudo docker pull '$REGISTRY_REF' \
+              && sudo docker tag '$REGISTRY_REF' 'eterapy-web:${GITHUB_SHA::8}' \
+              && sudo docker rmi '$REGISTRY_REF' \
+              && sudo docker logout ghcr.io"; then
+              SHIPPED=yes
+              echo "▶ образ доставлен реестром"
+            else
+              echo "▶ реестр не сработал — уходим в поток по SSH"
+              $SSH "sudo docker logout ghcr.io" || true
+            fi
+          fi
+          if [ "$SHIPPED" != yes ]; then
+            docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
+          fi
           # B541/B537: stamp the node's identity and role into its .env.
           # Values come from env (NODE_SLUG/NODE_STANDBY), never interpolated
           # into the shell. NB: grep must run under sudo — /opt/eterapy/.env is
