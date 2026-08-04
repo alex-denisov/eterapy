@@ -271,6 +271,14 @@ jobs:
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           YANDEX_WORDSTAT_API_KEY: ${{ secrets.YANDEX_WORDSTAT_API_KEY }}
           YANDEX_CLOUD_FOLDER_ID: ${{ secrets.YANDEX_CLOUD_FOLDER_ID }}
+          # B650: Google Search Console — пятый источник панели маркетинга.
+          # Панель без этих трёх значений показывает «не настроен», а НЕ ноль
+          # показов: «мы не спрашивали» и «Google нас не показывал» — разные
+          # утверждения, и в этой панели они уже путались (B649).
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GSC_PROPERTY: ${{ secrets.GSC_PROPERTY }}
           # B616/INC-093: маркетинговые коннекторы читают значение из настроек
           # суперадминки, а при её пустоте — из окружения. Раньше ID канала жил
           # только на машине владельца, поэтому Telegram-коннектор в панели
@@ -572,7 +580,9 @@ jobs:
                      REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET REDDIT_USER_AGENT \
                      REDDIT_SUBREDDITS REDDIT_POST_SUBREDDIT \
                      META_GRAPH_PROXY_BASE META_GRAPH_PROXY_SECRET \
-                     YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID; do
+                     YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID \
+                     GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
+                     GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue
             printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \

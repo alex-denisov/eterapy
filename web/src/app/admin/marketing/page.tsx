@@ -76,7 +76,9 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
 
       <div className="mt-6 grid gap-4">
         <AnalyticsSection title="Состояние источников">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {/* B650: источников стало пять — сетка на четыре колонки оставляла
+              пятый висеть отдельной строкой. */}
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
             {data.sources.map((source) => (
               <div key={source.key} className={`rounded-lg border px-3 py-3 ${sourceTone(source.status)}`}>
                 <div className="flex items-center justify-between gap-2">
@@ -209,6 +211,39 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
               </EmptyState>
             ) : (
               <HorizontalBars data={data.metrika.searchEngines.map((item) => ({ label: item.label, value: item.visits }))} />
+            )}
+          </AnalyticsSection>
+          {/*
+            B650 — Google отдельным блоком, а не строкой в яндексовых итогах.
+            Смешивать их в одну цифру нельзя: у Вебмастера и Search Console
+            разные окна выгрузки, разные правила округления и разное определение
+            показа. Сложенная сумма выглядела бы точнее, чем она есть.
+          */}
+          <AnalyticsSection title="Google Search Console">
+            {data.sources.find((item) => item.key === "searchConsole")?.status !== "ready" ? (
+              <EmptyState>
+                Источник не подключён. Панель не показывает по Google ноль — она показывает, что не спрашивала: нужны `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` и `GOOGLE_OAUTH_REFRESH_TOKEN` в секретах выкатки.
+              </EmptyState>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricCard label="Показы в Google" value={formatNumber(data.searchConsole.totals.impressions)} />
+                  <MetricCard label="Клики из Google" value={formatNumber(data.searchConsole.totals.clicks)} hint={`CTR ${formatPercent(data.searchConsole.totals.ctr)}`} />
+                  <MetricCard label="Средняя позиция" value={formatPosition(data.searchConsole.totals.averagePosition)} />
+                  <MetricCard label="Запросов в отчёте" value={formatNumber(data.searchConsole.queries.length)} />
+                </div>
+                {data.searchConsole.emptyReason ? (
+                  <p className="mt-3 text-xs text-slate-600">{data.searchConsole.emptyReason}</p>
+                ) : (
+                  <div className="mt-4">
+                    <HorizontalBars
+                      data={data.searchConsole.queries
+                        .slice(0, 10)
+                        .map((item) => ({ label: item.query, value: item.impressions }))}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </AnalyticsSection>
           <AnalyticsSection title="Внутренняя маркетинговая воронка">

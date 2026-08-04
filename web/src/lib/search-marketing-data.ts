@@ -20,6 +20,15 @@ import {
   type WebmasterSummary,
   type WordstatMetric,
 } from "@/lib/search-marketing-parsers";
+import {
+  EMPTY_SEARCH_CONSOLE_TOTALS,
+  explainEmptyQueries,
+  fetchSearchConsole,
+  logSearchConsoleFailure,
+  searchConsoleConfig,
+  type SearchConsoleQuery,
+  type SearchConsoleTotals,
+} from "@/lib/search-console";
 
 export type StrategicKeyword = {
   phrase: string;
@@ -62,7 +71,7 @@ export const SEARCH_WATCHLIST = SEMANTIC_CORE
   .filter((phrase): phrase is string => Boolean(phrase));
 
 export type MarketingSourceState = {
-  key: "webmaster" | "metrika" | "wordstat" | "internal";
+  key: "webmaster" | "metrika" | "wordstat" | "internal" | "searchConsole";
   label: string;
   status: "ready" | "missing" | "error";
   note: string;
@@ -196,6 +205,57 @@ async function getWebmaster(period: AdminPeriod): Promise<ExternalResult<{ summa
     return {
       data: { summary: EMPTY_SUMMARY, queries: [], window: null },
       source: sourceState("webmaster", "Яндекс Вебмастер", "error", describeSourceFailure(error)),
+    };
+  }
+}
+
+/**
+ * B650 — Google. До этого панель была целиком яндексовой, и на вопрос «где
+ * данные по Google» ответа не было ни на экране, ни в коде.
+ *
+ * Источник намеренно НЕ обязателен: пока refresh token не доехал выкаткой,
+ * панель говорит «не настроен», а не рисует ноль. Ноль и «мы не смотрели» —
+ * разные утверждения, и в этой панели они уже путались (B649).
+ */
+async function getSearchConsole(period: AdminPeriod): Promise<ExternalResult<{
+  totals: SearchConsoleTotals;
+  queries: SearchConsoleQuery[];
+  emptyReason: string | null;
+}>> {
+  const config = searchConsoleConfig();
+  if (!config) {
+    return {
+      data: { totals: EMPTY_SEARCH_CONSOLE_TOTALS, queries: [], emptyReason: null },
+      source: sourceState(
+        "searchConsole",
+        "Google Search Console",
+        "missing",
+        "Не настроены GOOGLE_OAUTH_CLIENT_ID / _SECRET / _REFRESH_TOKEN",
+      ),
+    };
+  }
+
+  try {
+    const result = await fetchSearchConsole({
+      config,
+      startDate: period.startInput,
+      endDate: period.endInput,
+    });
+    const emptyReason = explainEmptyQueries(result.totals, result.queries.length);
+    return {
+      data: { ...result, emptyReason },
+      source: sourceState(
+        "searchConsole",
+        "Google Search Console",
+        "ready",
+        `${period.startInput} — ${period.endInput} · ${config.property}`,
+      ),
+    };
+  } catch (error) {
+    logSearchConsoleFailure(error);
+    return {
+      data: { totals: EMPTY_SEARCH_CONSOLE_TOTALS, queries: [], emptyReason: null },
+      source: sourceState("searchConsole", "Google Search Console", "error", describeSourceFailure(error)),
     };
   }
 }
@@ -335,11 +395,12 @@ async function getInternal(period: AdminPeriod) {
 }
 
 export async function getSearchMarketingData(period: AdminPeriod) {
-  const [webmaster, metrika, wordstat, internalResult] = await Promise.allSettled([
+  const [webmaster, metrika, wordstat, internalResult, searchConsole] = await Promise.allSettled([
     getWebmaster(period),
     getMetrika(period),
     getWordstat(),
     getInternal(period),
+    getSearchConsole(period),
   ]);
   const internal = internalResult.status === "fulfilled"
     ? internalResult.value
@@ -353,6 +414,12 @@ export async function getSearchMarketingData(period: AdminPeriod) {
   const wordstatValue = wordstat.status === "fulfilled"
     ? wordstat.value
     : { data: SEARCH_WATCHLIST.map((phrase) => ({ phrase, monthlyDemand: null })), source: sourceState("wordstat", "Яндекс Wordstat", "error", describeSourceFailure(wordstat.reason)) };
+  const searchConsoleValue = searchConsole.status === "fulfilled"
+    ? searchConsole.value
+    : {
+      data: { totals: EMPTY_SEARCH_CONSOLE_TOTALS, queries: [], emptyReason: null },
+      source: sourceState("searchConsole", "Google Search Console", "error", describeSourceFailure(searchConsole.reason)),
+    };
   const queryTotals = webmasterValue.data.queries.reduce(
     (totals, row) => ({ impressions: totals.impressions + row.impressions, clicks: totals.clicks + row.clicks }),
     { impressions: 0, clicks: 0 },
@@ -400,6 +467,7 @@ export async function getSearchMarketingData(period: AdminPeriod) {
 
   return {
     webmaster: webmasterValue.data,
+    searchConsole: searchConsoleValue.data,
     metrika: metrikaValue.data,
     wordstat: wordstatValue.data,
     keywordCore,
@@ -414,6 +482,7 @@ export async function getSearchMarketingData(period: AdminPeriod) {
     },
     sources: [
       webmasterValue.source,
+      searchConsoleValue.source,
       metrikaValue.source,
       wordstatValue.source,
       sourceState("internal", "ETerapy analytics", internalResult.status === "fulfilled" ? "ready" : "error", "Только агрегаты, без идентификаторов"),
