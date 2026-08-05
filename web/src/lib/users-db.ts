@@ -77,7 +77,7 @@ export const usersDb = {
       {
         id: "test-practitioner-001",
         email: "practitioner@test.eterapy.com",
-        name: "Елена Морозова",
+        name: "Алиса Бабаева",
         password: process.env.TEST_USER_PASSWORD ?? "test1234",
         role: "PRACTITIONER" as const,
         emailVerified: true,

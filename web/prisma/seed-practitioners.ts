@@ -9,25 +9,29 @@ import { detectCategoriesFromLegacy, directionsForSpecialties } from "../src/lib
 
 const practitioners = [
   {
+    // B665: демо-профиль переименован в реального практика (владелец
+    // 2026-08-05). Почта/пароль не менялись — вход остаётся прежним. Отзывов и
+    // счётчиков сессий у неё нет: выдумывать их под именем живого человека
+    // нельзя, а сидировать реальные неоткуда.
     email: "elena@eterapy.com",
-    name: "Елена Морозова",
+    name: "Алиса Бабаева",
     password: "practitioner_demo",
     role: Role.PRACTITIONER,
     emailVerified: true,
     practitioner: {
       status: PractitionerStatus.ACTIVE,
-      title: "Таролог · Астролог",
-      bio: "Практикую таро и астрологию 8 лет. Специализируюсь на вопросах отношений и карьерных развилках. Работаю с колодой Райдера-Уэйта и ведической астрологией.",
-      experience: "8 лет",
-      pricePerSession: 2500,
-      languages: ["Русский", "English"],
+      title: "Таролог · Астролог · Нумеролог",
+      bio: "Работаю с картами Таро, натальной картой и нумерологическим разбором. В консультации важен не прогноз, а опора: посмотреть на ситуацию со стороны и увидеть следующий шаг. Отдельно веду темы тревоги, отношений и выборов, из которых трудно выйти.",
+      experience: "10 лет",
+      pricePerSession: 2000,
+      languages: ["Русский"],
       verified: true,
       founding: true,
-      specialties: [Specialty.TAROT, Specialty.ASTROLOGY],
-      tags: ["Отношения", "Карьера", "Самопознание"],
-      ratingSum: 4.9 * 147,
-      reviewCount: 147,
-      sessionCount: 312,
+      specialties: [Specialty.TAROT, Specialty.ASTROLOGY, Specialty.NUMEROLOGY],
+      tags: ["Отношения", "Самопознание", "Выборы"],
+      ratingSum: 0,
+      reviewCount: 0,
+      sessionCount: 0,
     },
   },
   {

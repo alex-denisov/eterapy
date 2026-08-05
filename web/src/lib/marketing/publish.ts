@@ -118,6 +118,26 @@ async function downloadPublicationMedia(mediaUrl: string): Promise<{
   return { bytes, contentType, filename: "eterapy-publication.png" };
 }
 
+/**
+ * B660 — обложка поста VK токеном сообщества. Путь найден живой пробой прода.
+ *
+ * Стеновой путь (`photos.getWallUploadServer` → `photos.saveWallPhoto`)
+ * токену сообщества недоступен: VK отвечает `error_code 27, Group
+ * authorization failed: method is unavailable with group auth` — проверено на
+ * боевом токене 2026-08-05. Недоступны там же `photos.getUploadServer`
+ * (альбом, тот же 27) и `docs.getWallUploadServer` (15). Ссылка вместо
+ * картинки тоже закрыта: `wall.post` с `attachments=<url>` отвечает
+ * `link_photo_sizing_rule. No photo given` — и для нашей страницы, и для
+ * постороннего habr.com, то есть это правило VK для сообществ, а не дефект
+ * нашей OG-разметки.
+ *
+ * А вот путь через диалоговое хранилище токену сообщества ОТКРЫТ:
+ * `photos.getMessagesUploadServer(peer_id=0)` → загрузка → `photos.saveMessagesPhoto`
+ * возвращает фотографию, владелец которой — само сообщество
+ * (`owner_id = -<communityId>`, с `access_key`). Такая фотография принимается
+ * в `attachments` у `wall.post`: проба отложенным постом прошла и пост был
+ * удалён.
+ */
 async function vkWallPhotoAttachment(input: {
   token: string;
   communityId: string;
@@ -125,13 +145,15 @@ async function vkWallPhotoAttachment(input: {
 }) {
   const { bytes, contentType, filename } = await downloadPublicationMedia(input.mediaUrl);
 
-  const serverResponse = await fetch("https://api.vk.com/method/photos.getWallUploadServer", {
+  const serverResponse = await fetch("https://api.vk.com/method/photos.getMessagesUploadServer", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       access_token: input.token,
       v: VK_API_VERSION,
-      group_id: input.communityId,
+      // Диалог не указываем: хранилище сообщества общее, а сообщение мы не
+      // отправляем — берём только сохранённую фотографию.
+      peer_id: "0",
     }),
   });
   const serverPayload = await serverResponse.json().catch(() => null) as {
@@ -140,7 +162,7 @@ async function vkWallPhotoAttachment(input: {
   } | null;
   const uploadUrl = serverPayload?.response?.upload_url;
   if (!serverResponse.ok || !uploadUrl) {
-    throw new Error(`VK photos.getWallUploadServer failed: ${serverPayload?.error?.error_msg ?? `HTTP ${serverResponse.status}`}`);
+    throw new Error(`VK photos.getMessagesUploadServer failed: ${serverPayload?.error?.error_msg ?? `HTTP ${serverResponse.status}`}`);
   }
 
   const form = new FormData();
@@ -159,13 +181,12 @@ async function vkWallPhotoAttachment(input: {
     throw new Error(`VK photo upload failed: HTTP ${uploadResponse.status}`);
   }
 
-  const saveResponse = await fetch("https://api.vk.com/method/photos.saveWallPhoto", {
+  const saveResponse = await fetch("https://api.vk.com/method/photos.saveMessagesPhoto", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       access_token: input.token,
       v: VK_API_VERSION,
-      group_id: input.communityId,
       server: String(uploadPayload.server),
       photo: uploadPayload.photo,
       hash: uploadPayload.hash,
@@ -177,7 +198,7 @@ async function vkWallPhotoAttachment(input: {
   } | null;
   const photo = savePayload?.response?.[0];
   if (!saveResponse.ok || !photo?.owner_id || !photo.id) {
-    throw new Error(`VK photos.saveWallPhoto failed: ${savePayload?.error?.error_msg ?? `HTTP ${saveResponse.status}`}`);
+    throw new Error(`VK photos.saveMessagesPhoto failed: ${savePayload?.error?.error_msg ?? `HTTP ${saveResponse.status}`}`);
   }
   return `photo${photo.owner_id}_${photo.id}${photo.access_key ? `_${photo.access_key}` : ""}`;
 }
@@ -192,18 +213,10 @@ export async function publishToVk(
     throw new Error("VK_COMMUNITY_ID must be numeric");
   }
 
-  // ⚠ B642 — ОБЛОЖКА НЕОБЯЗАТЕЛЬНА, И ЭТО НЕ НЕБРЕЖНОСТЬ.
-  //
-  // `wall.post` токеном сообщества работает, а `photos.getWallUploadServer` —
-  // нет: VK отвечает «Group authorization failed: method is unavailable with
-  // group auth». Загрузка фотографии на стену доступна только пользовательскому
-  // токену, то есть живой человеческой сущности в нашем хранилище. Владелец
-  // выдал ровно то, что выдаётся из интерфейса сообщества, а пользовательский
-  // токен снят из периметра осознанно (B637).
-  //
-  // До этой правки падал весь пост, а не картинка: 03.08 так потеряны два
-  // материала. Теперь пост уходит текстом со ссылкой — обложку VK подтягивает
-  // из OG-разметки самой страницы, — а причина остаётся в реестре.
+  // B660 вернул обложку (путь через диалоговое хранилище — см. комментарий у
+  // `vkWallPhotoAttachment`). Мягкая деградация из B642 остаётся: если VK
+  // однажды закроет и этот путь, пост уходит текстом с причиной в реестре, а
+  // не теряется целиком — 03.08 так были потеряны два материала.
   let attachment: string | null = null;
   let note: string | undefined;
   if (publication.mediaUrl) {

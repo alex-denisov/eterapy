@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import db from "@/lib/db";
+import { coverThemeFor } from "@/lib/marketing/cover-theme";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,7 @@ export async function GET(
       cluster: true,
       targetQuery: true,
       platform: true,
+      scheduledFor: true,
     },
   });
   if (!publication) {
@@ -40,6 +42,11 @@ export async function GET(
     52,
   );
   const platform = publication.platform.trim().toUpperCase();
+  const theme = coverThemeFor({
+    key,
+    platform: publication.platform,
+    scheduledFor: publication.scheduledFor,
+  });
 
   return new ImageResponse(
     (
@@ -50,8 +57,8 @@ export async function GET(
           display: "flex",
           position: "relative",
           overflow: "hidden",
-          background: "#081223",
-          color: "#f8fafc",
+          background: theme.bg,
+          color: theme.ink,
           fontFamily: "Arial, sans-serif",
           padding: "82px",
         }}
@@ -62,9 +69,9 @@ export async function GET(
             width: "700px",
             height: "700px",
             borderRadius: "999px",
-            right: "-180px",
+            ...(theme.mirrored ? { left: "-180px" } : { right: "-180px" }),
             top: "-230px",
-            background: "radial-gradient(circle, rgba(255,215,154,.72) 0%, rgba(212,161,90,.24) 38%, rgba(8,18,35,0) 72%)",
+            background: `radial-gradient(circle, rgba(${theme.warm},.72) 0%, rgba(${theme.warm},.24) 38%, rgba(0,0,0,0) 72%)`,
           }}
         />
         <div
@@ -73,9 +80,9 @@ export async function GET(
             width: "720px",
             height: "720px",
             borderRadius: "999px",
-            left: "-300px",
+            ...(theme.mirrored ? { right: "-300px" } : { left: "-300px" }),
             bottom: "-390px",
-            background: "radial-gradient(circle, rgba(142,137,214,.46) 0%, rgba(8,18,35,0) 70%)",
+            background: `radial-gradient(circle, rgba(${theme.cool},.46) 0%, rgba(0,0,0,0) 70%)`,
           }}
         />
         <div
@@ -94,17 +101,17 @@ export async function GET(
                   width: "54px",
                   height: "54px",
                   borderRadius: "999px",
-                  background: "radial-gradient(circle at 42% 38%, #ffd79a 0%, #d4a15a 48%, #8e89d6 100%)",
-                  boxShadow: "0 0 50px rgba(255,215,154,.35)",
+                  background: `radial-gradient(circle at 42% 38%, rgb(${theme.warm}) 0%, ${theme.accent} 48%, rgb(${theme.cool}) 100%)`,
+                  boxShadow: `0 0 50px rgba(${theme.warm},.35)`,
                 }}
               />
               ETerapy
             </div>
-            <div style={{ fontSize: 22, color: "#c7c2f0", letterSpacing: "2px" }}>{platform}</div>
+            <div style={{ fontSize: 22, color: theme.eyebrow, opacity: 0.85, letterSpacing: "2px" }}>{platform}</div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "30px", maxWidth: "940px" }}>
-            <div style={{ fontSize: 25, color: "#f2c37d", textTransform: "uppercase", letterSpacing: "2.5px" }}>
+            <div style={{ fontSize: 25, color: theme.eyebrow, textTransform: "uppercase", letterSpacing: "2.5px" }}>
               {eyebrow}
             </div>
             <div style={{ fontSize: title.length > 76 ? 66 : 78, lineHeight: 1.08, fontWeight: 700, letterSpacing: "-2px" }}>
@@ -113,14 +120,14 @@ export async function GET(
           </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 25 }}>
-            <div style={{ color: "#d7deea" }}>Спокойно разобраться — и увидеть следующий шаг</div>
+            <div style={{ color: theme.ink, opacity: 0.82 }}>Спокойно разобраться — и увидеть следующий шаг</div>
             <div
               style={{
                 display: "flex",
                 padding: "18px 28px",
                 borderRadius: "999px",
-                background: "#ffd79a",
-                color: "#081223",
+                background: theme.accent,
+                color: theme.accentInk,
                 fontWeight: 700,
               }}
             >

@@ -178,20 +178,90 @@ jobs:
             echo "selection=$selection"
           } >> "$GITHUB_OUTPUT"
 
-  deploy:
-    name: Deploy ${{ matrix.vm.name }}
+  # B664 — образ собирается ОДИН раз, а не по разу на каждую ноду.
+  #
+  # Замер прогонов 2026-08-03/04: у стенда одна нода и весь прогон занимал
+  # ~9 минут, у прода четыре ноды матрицы и ~12–13 минут, причём каждая задача
+  # матрицы выполняла свою полную сборку одного и того же образа (7–10 минут) и
+  # свой пуш в реестр. Параллельность прятала стоимость в общем времени, но
+  # платили за неё вчетверо, и хвост самой медленной ноды становился хвостом
+  # всей выкатки.
+  #
+  # Собранный образ забирают из реестра — тот же путь, который B659 уже
+  # измерил как рабочий (6066 КБ/с против 23–59 КБ/с у потока по SSH).
+  # Если пуш не удался, `ref` пуст, и задача ноды собирает образ сама, как
+  # раньше: запасной путь остаётся, а не заменяется надеждой на реестр.
+  image:
+    name: Build release image
     needs: [test, plan]
     if: |
       always() &&
       needs.plan.result == 'success' &&
       (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # B659: задача пушит образ релиза в ghcr.io. Токен прогона живёт ровно
-    # столько, сколько идёт прогон, и на нодах не остаётся.
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
+    outputs:
+      ref: ${{ steps.registry.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release image (prod domains)
+        run: |
+          docker build -f deploy/docker/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL="https://eterapy.com" \
+            --build-arg NEXT_PUBLIC_USE_SUBDOMAINS="true" \
+            --build-arg NEXT_PUBLIC_MAIN_DOMAIN="eterapy.com" \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN="app.eterapy.com" \
+            --build-arg NEXT_PUBLIC_ADMIN_DOMAIN="admin.eterapy.com" \
+            --build-arg NEXT_PUBLIC_LIVEKIT_URL="wss://app.eterapy.com" \
+            --build-arg NEXT_PUBLIC_YANDEX_METRIKA_ID="108502034" \
+            -t "eterapy-web:${GITHUB_SHA::8}" .
+
+      - name: Push release image to registry
+        id: registry
+        continue-on-error: true
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eterapy-web:${GITHUB_SHA::8}"
+          printf '%s' "$REGISTRY_TOKEN" \
+            | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "eterapy-web:${GITHUB_SHA::8}" "$REF"
+          docker push "$REF"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "▶ образ в реестре: $REF"
+
+      - name: Report delivery path
+        env:
+          PUSHED_REF: ${{ steps.registry.outputs.ref }}
+        run: |
+          if [ -n "${PUSHED_REF:-}" ]; then
+            echo "▶ ноды заберут образ из реестра — своей сборки у них не будет"
+          else
+            echo "::warning::пуш в реестр не удался — каждая нода соберёт образ сама (медленный путь)"
+          fi
+
+  deploy:
+    name: Deploy ${{ matrix.vm.name }}
+    needs: [test, plan, image]
+    if: |
+      always() &&
+      needs.plan.result == 'success' &&
+      needs.image.result == 'success' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # B664: задача больше НЕ пушит образ — его собрала и опубликовала задача
+    # `image`. Здесь нужен только доступ на чтение реестра: им нода забирает
+    # образ. Токен прогона живёт ровно столько, сколько идёт прогон, и на нодах
+    # не остаётся (после загрузки шаг делает `docker logout`).
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -214,7 +284,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build release image (prod domains)
+      # B664: сборка здесь — ЗАПАСНОЙ путь. Обычно образ уже собран задачей
+      # `image` и лежит в реестре; тогда этот шаг пропускается целиком, и
+      # задача ноды состоит из доставки и сходимости стека. Собираем сами
+      # только если пуш в реестр не удался — иначе доставлять было бы нечего.
+      #
+      # B659 / INC-099 — почему доставка вообще идёт реестром: замер
+      # 2026-08-04 на eterapy-1 в одну и ту же минуту показал 23–59 КБ/с у
+      # потока `docker save | gzip | ssh` с раннера против 13.5 МБ/с у обычной
+      # загрузки из CDN на той же ноде. Три выкатки подряд были отменены по
+      # таймауту задачи в 30 минут.
+      - name: Build release image (fallback — registry push failed)
+        if: needs.image.outputs.ref == ''
         run: |
           docker build -f deploy/docker/Dockerfile \
             --build-arg NEXT_PUBLIC_APP_URL="https://eterapy.com" \
@@ -225,36 +306,6 @@ jobs:
             --build-arg NEXT_PUBLIC_LIVEKIT_URL="wss://app.eterapy.com" \
             --build-arg NEXT_PUBLIC_YANDEX_METRIKA_ID="108502034" \
             -t "eterapy-web:${GITHUB_SHA::8}" .
-
-      # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
-      #
-      # Замер 2026-08-04 на eterapy-1 в одну и ту же минуту: поток
-      # `docker save | gzip | ssh` с раннера шёл 23–59 КБ/с, обычная загрузка
-      # из CDN на той же ноде — 13.5 МБ/с. Три выкатки подряд были отменены по
-      # таймауту задачи в 30 минут. Живая проба на стенде через реестр:
-      # 6066 КБ/с, то есть в сто с лишним раз быстрее того же файла на ту же
-      # ноду в тот же день.
-      #
-      # Пуш не обязан удаться: если реестр недоступен, доставка уходит в
-      # прежний путь по SSH. Шаг не имеет права уронить выкатку.
-      #
-      # Пуш идёт из каждой задачи матрицы. Это не расточительство: содержимое
-      # одинаковое, слои уже в реестре, и второй-четвёртый пуш укладываются в
-      # секунды.
-      - name: Push release image to registry
-        id: registry
-        continue-on-error: true
-        env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eterapy-web:${GITHUB_SHA::8}"
-          printf '%s' "$REGISTRY_TOKEN" \
-            | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker tag "eterapy-web:${GITHUB_SHA::8}" "$REF"
-          docker push "$REF"
-          echo "ref=$REF" >> "$GITHUB_OUTPUT"
-          echo "▶ образ в реестре: $REF"
 
       - name: Setup SSH
         env:
@@ -273,7 +324,7 @@ jobs:
         env:
           # B659: пусто, если пуш в реестр не удался — тогда доставка идёт
           # прежним путём. Токен прогона, а не долгоживущий ключ на нодах.
-          REGISTRY_REF: ${{ steps.registry.outputs.ref }}
+          REGISTRY_REF: ${{ needs.image.outputs.ref }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # B423: пока эти секреты не заведены, шаг доставки их пропускает и
           # рельс остаётся выключенным — `cardPaymentAvailable()` = false,
