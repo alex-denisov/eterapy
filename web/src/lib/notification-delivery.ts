@@ -70,13 +70,46 @@ function truncateTelegramCaption(text: string) {
   return `${text.slice(0, TELEGRAM_CAPTION_LIMIT - 1).trimEnd()}…`;
 }
 
+type NotificationPhoto = { bytes: ArrayBuffer; filename: string; contentType: string };
+
+/**
+ * Короткая память на скачанные картинки.
+ *
+ * Утренняя рассылка карты дня (B678) — это сотни доставок за несколько минут, и
+ * карт на всех приходится десятки: без кэша один и тот же файл на ~1 МБ
+ * качался бы заново на каждого получателя, то есть сотни мегабайт через
+ * балансировщик ради одинаковых байт. Живёт в процессе воркера и намеренно
+ * недолго: картинка карты неизменна, а вот адрес обложки поста — нет.
+ */
+const PHOTO_CACHE_TTL_MS = 10 * 60_000;
+const PHOTO_CACHE_MAX = 32;
+const photoCache = new Map<string, { at: number; photo: NotificationPhoto }>();
+
+function readPhotoCache(url: string): NotificationPhoto | null {
+  const hit = photoCache.get(url);
+  if (!hit) return null;
+  if (Date.now() - hit.at > PHOTO_CACHE_TTL_MS) {
+    photoCache.delete(url);
+    return null;
+  }
+  return hit.photo;
+}
+
+function writePhotoCache(url: string, photo: NotificationPhoto) {
+  if (photoCache.size >= PHOTO_CACHE_MAX) {
+    const oldest = photoCache.keys().next().value;
+    if (oldest) photoCache.delete(oldest);
+  }
+  photoCache.set(url, { at: Date.now(), photo });
+}
+
 /**
  * Картинка уведомления берётся байтами со своего же контура. Отказ здесь НЕ
  * отменяет уведомление: вызывающая сторона уходит текстом.
  */
-async function downloadNotificationPhoto(url: string): Promise<
-  { bytes: ArrayBuffer; filename: string; contentType: string } | null
-> {
+async function downloadNotificationPhoto(url: string): Promise<NotificationPhoto | null> {
+  const cached = readPhotoCache(url);
+  if (cached) return cached;
   try {
     const source = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: "image/*" } });
     const contentType = source.headers.get("content-type") ?? "";
@@ -84,7 +117,9 @@ async function downloadNotificationPhoto(url: string): Promise<
     const bytes = await source.arrayBuffer();
     // Предел Telegram на фото по URL/файлу — 10 МБ.
     if (bytes.byteLength === 0 || bytes.byteLength > 10 * 1024 * 1024) return null;
-    return { bytes, contentType, filename: "eterapy-card.png" };
+    const photo = { bytes, contentType, filename: "eterapy-card.png" };
+    writePhotoCache(url, photo);
+    return photo;
   } catch (error) {
     log.warn("notification-telegram-photo-skipped", { url, error: serializeError(error) });
     return null;
