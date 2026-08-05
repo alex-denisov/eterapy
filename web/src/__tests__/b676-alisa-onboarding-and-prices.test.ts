@@ -23,6 +23,11 @@ const HOURS_MIGRATION = join(
   "prisma/migrations/20260805170000_b676_alisa_schedule_hours_msk/migration.sql",
 );
 const hoursSql = readFileSync(HOURS_MIGRATION, "utf8");
+const RATES_MIGRATION = join(
+  ROOT,
+  "prisma/migrations/20260805180000_b676_price_rates_single_hour/migration.sql",
+);
+const ratesSql = readFileSync(RATES_MIGRATION, "utf8");
 const source = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("B676 · миграция", () => {
@@ -58,6 +63,18 @@ describe("B676 · миграция", () => {
     // реально лежит в базе, иначе она снова врёт про живого человека.
     expect(sql).toMatch(/sum\(r\.rating\)/);
     expect(sql).not.toMatch(/"sessionCount" = 120/);
+  });
+
+  it("цена правится в `price_rates` — витрина берёт её оттуда, а не с практика", () => {
+    // Готча, найденная живой проверкой стенда: после первой миграции карточка
+    // показывала «от 2 000 ₽ / 45 мин» при `pricePerSession` = 10 000.
+    // Показывается МИНИМАЛЬНАЯ включённая длительность, поэтому включённой
+    // остаётся ровно одна — час. «Других вариантов не делай» буквально.
+    expect(ratesSql).toMatch(/UPDATE price_rates SET enabled = false WHERE "durationMin" <> 60/);
+    expect(ratesSql).toMatch(/THEN 10000 ELSE 9000 END/);
+    // Строка часа может отсутствовать у старого профиля — заводим.
+    expect(ratesSql).toMatch(/INSERT INTO price_rates/);
+    expect(ratesSql).toMatch(/ON CONFLICT \("practitionerId", "durationMin"\) DO NOTHING/);
   });
 
   it("часы расписания хранятся в UTC и означают 10:00–19:00 MSK", () => {
