@@ -35,6 +35,19 @@ import { mskDayKey, tarotDayBroadcastDue, tarotDayDueHourMsk, tarotDayPick } fro
 /** Потолок одной пробежки: рассылка идёт каждый час, остаток догоняется следующей. */
 const BROADCAST_BATCH_LIMIT = 500;
 
+/**
+ * Сколько НЕДОСТАЮЩИХ трактовок дописывать за одну пробежку.
+ *
+ * Рассылка не имеет права ждать модель. Воркер считает работу зависшей через
+ * 10 минут (`DEFAULT_STALE_AFTER_MS` в `job-worker.ts`) и возвращает её в
+ * очередь, а генерация 156 текстов подряд по 2–5 секунд этот порог перешагивает
+ * с запасом: первое же утро превратилось бы в переставляемую работу вместо
+ * отправки. Поэтому текст берётся из кэша, недостающие дописываются по
+ * несколько штук за раз, и библиотека наполняется за несколько утр. До тех пор
+ * человек видит детерминированную трактовку — она осмысленна, а не заглушка.
+ */
+const WARM_INTERPRETATIONS_PER_RUN = 8;
+
 /** Префикс суток в ключе доставки — по нему сводка считает сегодняшнюю рассылку. */
 export function tarotDayDeliveryPrefix(dayKey: string) {
   return `tarot-day:${dayKey}:`;
@@ -52,6 +65,8 @@ export interface TarotDayBroadcastResult extends JobResult {
   candidates: number;
   queued: number;
   failed: number;
+  /** Сколько трактовок дописано моделью за эту пробежку. */
+  warmed: number;
 }
 
 function miniAppUrl() {
@@ -69,7 +84,7 @@ export async function broadcastTarotDay(now: Date = new Date()): Promise<TarotDa
   const dueHourMsk = tarotDayDueHourMsk(now);
 
   if (!tarotDayBroadcastDue(now)) {
-    return { ok: true, due: false, dayKey, dueHourMsk, candidates: 0, queued: 0, failed: 0 };
+    return { ok: true, due: false, dayKey, dueHourMsk, candidates: 0, queued: 0, failed: 0, warmed: 0 };
   }
 
   const recipients = await db.user.findMany({
@@ -86,10 +101,17 @@ export async function broadcastTarotDay(now: Date = new Date()): Promise<TarotDa
 
   let queued = 0;
   let failed = 0;
+  let warmed = 0;
 
   for (const user of recipients) {
     const pick = tarotDayPick(user.id, now);
-    const { interpretation } = await getTarotDayInterpretation(pick);
+    // Генерация разрешена только первым нескольким за пробежку — см.
+    // WARM_INTERPRETATIONS_PER_RUN. `source === "ai"` означает, что текста в
+    // кэше не было и он только что появился.
+    const { interpretation, source } = await getTarotDayInterpretation(pick, {
+      allowGenerate: warmed < WARM_INTERPRETATIONS_PER_RUN,
+    });
+    if (source === "ai") warmed++;
     const quietHours = await getUserQuietHours(user.id, user.timezone);
     const quietDelayMs = getQuietHoursDelayMs(quietHours, now);
 
@@ -131,6 +153,7 @@ export async function broadcastTarotDay(now: Date = new Date()): Promise<TarotDa
     candidates: recipients.length,
     queued,
     failed,
+    warmed,
   };
   log.info("tarot-day-broadcast-completed", result);
   return result;
