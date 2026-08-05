@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import db from "@/lib/db";
+import { coverThemeFor } from "@/lib/marketing/cover-theme";
 
 export const runtime = "nodejs";
 
@@ -10,45 +11,6 @@ function compact(value: string, limit: number) {
   return normalized.length <= limit
     ? normalized
     : `${normalized.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
-}
-
-/**
- * B660 — обложка перестаёт быть одной и той же карточкой.
- *
- * Владелец 2026-08-05 о ленте сообщества: медиа не должны состоять из сплошного
- * текста. Половину проблемы решает сам текст (см. контракт площадок в
- * `agent-prompt`), вторую — обложка: до этой правки все материалы получали
- * идентичный тёмно-синий прямоугольник, и лента выглядела как один пост,
- * повторённый двадцать раз.
- *
- * Тема выбирается ДЕТЕРМИНИРОВАННО по ключу публикации: один и тот же материал
- * всегда отдаёт одну и ту же картинку (площадки перезапрашивают обложку, и
- * «мигающая» картинка выглядела бы как подмена), а соседние материалы —
- * разные. Мы не работаем с генерацией изображений: это разные палитры и разная
- * геометрия свечения, то есть узнаваемый бренд с вариациями, а не случайность.
- */
-const COVER_THEMES = [
-  { bg: "#081223", ink: "#f8fafc", eyebrow: "#f2c37d", warm: "255,215,154", cool: "142,137,214", accent: "#ffd79a", accentInk: "#081223" },
-  { bg: "#141024", ink: "#f6f2ff", eyebrow: "#d9b7ff", warm: "214,171,255", cool: "120,160,232", accent: "#d9b7ff", accentInk: "#191231" },
-  { bg: "#0b1f1c", ink: "#eefaf4", eyebrow: "#9fe3c4", warm: "159,227,196", cool: "120,196,214", accent: "#9fe3c4", accentInk: "#07211c" },
-  { bg: "#231218", ink: "#fff1f0", eyebrow: "#f6ab9d", warm: "246,171,157", cool: "196,140,214", accent: "#f6ab9d", accentInk: "#2b1218" },
-  { bg: "#101a2c", ink: "#eef4ff", eyebrow: "#8fc7ff", warm: "143,199,255", cool: "168,150,236", accent: "#8fc7ff", accentInk: "#0c1626" },
-  { bg: "#1d1608", ink: "#fff8e8", eyebrow: "#f3d07a", warm: "243,208,122", cool: "214,150,110", accent: "#f3d07a", accentInk: "#221904" },
-] as const;
-
-/** Небольшой стабильный хеш строки — тот же на всех нодах и между перезапусками. */
-function coverThemeFor(key: string) {
-  let hash = 2166136261;
-  for (let index = 0; index < key.length; index += 1) {
-    hash ^= key.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  const positive = hash >>> 0;
-  const theme = COVER_THEMES[positive % COVER_THEMES.length];
-  // Геометрия свечения тоже меняется — иначе шесть палитр читаются как один
-  // макет, перекрашенный шесть раз.
-  const mirrored = (positive >>> 8) % 2 === 1;
-  return { ...theme, mirrored };
 }
 
 export async function GET(
@@ -67,6 +29,7 @@ export async function GET(
       cluster: true,
       targetQuery: true,
       platform: true,
+      scheduledFor: true,
     },
   });
   if (!publication) {
@@ -79,7 +42,11 @@ export async function GET(
     52,
   );
   const platform = publication.platform.trim().toUpperCase();
-  const theme = coverThemeFor(key);
+  const theme = coverThemeFor({
+    key,
+    platform: publication.platform,
+    scheduledFor: publication.scheduledFor,
+  });
 
   return new ImageResponse(
     (
