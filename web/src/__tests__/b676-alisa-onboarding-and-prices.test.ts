@@ -18,6 +18,11 @@ const MIGRATION = join(
 );
 
 const sql = readFileSync(MIGRATION, "utf8");
+const HOURS_MIGRATION = join(
+  ROOT,
+  "prisma/migrations/20260805170000_b676_alisa_schedule_hours_msk/migration.sql",
+);
+const hoursSql = readFileSync(HOURS_MIGRATION, "utf8");
 const source = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("B676 · миграция", () => {
@@ -53,6 +58,14 @@ describe("B676 · миграция", () => {
     // реально лежит в базе, иначе она снова врёт про живого человека.
     expect(sql).toMatch(/sum\(r\.rating\)/);
     expect(sql).not.toMatch(/"sessionCount" = 120/);
+  });
+
+  it("часы расписания хранятся в UTC и означают 10:00–19:00 MSK", () => {
+    // Готча, найденная живой проверкой стенда: слот строится из строки без
+    // суффикса зоны, контейнер живёт в UTC, клиент печатает время в зоне
+    // браузера. Правило «10–19» давало москвичу 13:00–22:00.
+    expect(hoursSql).toMatch(/"startHour" = 7, "endHour" = 16/);
+    expect(hoursSql).toMatch(/slug = 'alisa-babaeva'/);
   });
 
   it("заводит недельное расписание, включая явно выключенные выходные", () => {
