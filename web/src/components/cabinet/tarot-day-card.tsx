@@ -10,8 +10,6 @@ export interface TarotDayCardProps {
   cardKey: string;
   cardName: string;
   reversed: boolean;
-  /** Ссылка на собранную картинку карты (`/api/cards/day/<key>`). */
-  imageUrl: string;
   /** Оригинальный скан из `public/tarot` — его и показываем в кабинете. */
   artworkUrl: string;
   dayLabel: string;

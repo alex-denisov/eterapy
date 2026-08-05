@@ -308,7 +308,6 @@ export default async function ClientCabinetPage() {
         cardKey={tarotPick.key}
         cardName={tarotPick.card.name}
         reversed={tarotPick.reversed}
-        imageUrl={`/api/cards/day/${tarotPick.key}`}
         artworkUrl={tarotCardArtworkPath(tarotPick.card)}
         dayLabel={formatMskDayLong(new Date())}
         headline={tarotInterpretation.headline}
