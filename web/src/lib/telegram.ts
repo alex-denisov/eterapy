@@ -143,6 +143,41 @@ export async function sendTelegram(
   return result.result?.message_id ?? null;
 }
 
+/**
+ * B678 — то же личное сообщение, но картинкой с подписью.
+ *
+ * Байты доносим сами по той же причине, что и в B643: серверы Telegram за
+ * ссылкой на РФ-ноду не приходят вовсе (`reference_telegram_wont_fetch_ru_node_urls`),
+ * и отказ выглядит как «failed to get HTTP URL content» без единой записи в
+ * нашем access-логе.
+ *
+ * Предел подписи у `sendPhoto` — 1024 символа против 4096 у сообщения;
+ * обрезку делает вызывающая сторона, здесь она бы молча съела ссылку.
+ */
+export async function sendTelegramPhoto(
+  chatId: string,
+  caption: string,
+  photo: { bytes: ArrayBuffer; filename: string; contentType: string },
+  options?: { replyMarkup?: TelegramInlineKeyboard },
+): Promise<number | null> {
+  if (!BOT_TOKEN) {
+    log.warn("telegram.bot_token_missing");
+    return null;
+  }
+  const result = await callTelegramApiWithPhoto<{ message_id?: number }>(
+    "sendPhoto",
+    {
+      chat_id: chatId,
+      caption,
+      parse_mode: "HTML",
+      ...(options?.replyMarkup ? { reply_markup: JSON.stringify(options.replyMarkup) } : {}),
+    },
+    photo,
+  );
+  if (!result.ok) throw new Error(`Telegram API error: ${result.description ?? "unknown error"}`);
+  return result.result?.message_id ?? null;
+}
+
 /** Configures product-facing bot copy, commands and the persistent Mini App menu button. */
 export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl: string; staging: boolean }) {
   // B576: name carries both the distinctive product word and the discovery

@@ -57,6 +57,36 @@ export function HomeScreen() {
           </span>
         </section>
 
+        {/* B678 — карта дня первым блоком. Трактовка приходит уже готовой из
+            серверных данных: мини-апп открывается на мобильной сети, и ждать
+            здесь модель нельзя. Призыв ведёт в «Расклад Таро» — человек уже в
+            боте, звать его в бот из бота бессмысленно. */}
+        {data.tarotDay ? (
+          <button
+            className={styles["service-teaser"]}
+            type="button"
+            data-testid="miniapp-tarot-day"
+            onClick={() => {
+              const tarot = MINIAPP_SERVICES.find((service) => service.slug === "tarot");
+              if (tarot) openService(tarot);
+              else notify("Расклад Таро временно недоступен");
+            }}
+          >
+            <span>
+              <small>КАРТА ДНЯ</small>
+              <strong>{data.tarotDay.name}{data.tarotDay.reversed ? " (перевёрнутая)" : ""}</strong>
+              <em>{data.tarotDay.focus}</em>
+            </span>
+            <Image
+              src={data.tarotDay.artworkUrl}
+              alt=""
+              width={160}
+              height={273}
+              style={{ transform: data.tarotDay.reversed ? "rotate(180deg)" : undefined }}
+            />
+          </button>
+        ) : null}
+
         <section className={styles["question-panel"]} aria-label="Новый вопрос">
           <label className={styles["sr-only"]} htmlFor="miniapp-question">Опишите ситуацию своими словами</label>
           <textarea id="miniapp-question" value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1200} placeholder="Опишите ситуацию своими словами" data-testid="home-start-question-input" />

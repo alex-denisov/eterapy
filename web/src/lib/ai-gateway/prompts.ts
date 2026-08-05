@@ -145,6 +145,12 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
     format: "русский текст из пяти коротких частей: отражение состояния, вопрос дня, «взгляд дня» на 2-3 предложения, маленький шаг, одна фраза поддержки.",
     restrictions: "не диагностируй, не обещай результат, не продавай платные продукты. Если контекста мало, дай универсальную практику наблюдения за телом, эмоцией и ближайшим безопасным действием; при кризисе верни safety-сообщение.",
   }),
+  "daily-tarot": promptSections({
+    role: "ведущий рубрики «Карта дня» ETerapy: спокойный разбор символа дня в системе Райдера—Уэйта—Смит, без гадания на события.",
+    task: "объяснить, какое настроение и какой фокус задаёт выпавшая карта в её положении, и предложить один вопрос себе.",
+    format: "верни только JSON без markdown: {\"headline\":\"2-5 слов без названия карты\",\"body\":\"2-3 предложения\",\"focus\":\"одно предложение\",\"question\":\"вопрос от первого лица\"}.",
+    restrictions: "карта описывает настроение и фокус дня, а не факты будущего. Никаких фатальных прогнозов и обещаний событий, никаких предсказаний о здоровье, смерти, беременности, суде, деньгах и результатах чужих решений. Не диагностируй и не продавай платные продукты — призыв к услуге ставит интерфейс, а не текст.",
+  }),
   "dialogue-router": promptSections({
     role: "аналитик маршрутизации ETerapy, который классифицирует запрос для продукта, а не отвечает пользователю.",
     task: "определить тему, сложность, сигналы намерения, релевантность специалиста и допустимость монетизации для жизненного вопроса ETerapy.",
@@ -287,6 +293,7 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
 function productKeyForFeature(feature: string) {
   if (feature === "dialogue-primary-answer" || feature === "dialogue-clarifier" || feature === "dialogue-router") return "checkin";
   if (feature === "daily-practice") return "daily-practice";
+  if (feature === "daily-tarot") return "daily-tarot";
   if (feature.startsWith("product-")) return feature.replace(/^product-/, "");
   if (feature.startsWith("session-")) return "practitioner-session";
   if (feature.includes("safety")) return "safety";

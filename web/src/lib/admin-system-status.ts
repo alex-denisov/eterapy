@@ -47,6 +47,11 @@ export const PRODUCT_CRONS = [
     cadence: "1 раз в сутки",
   },
   {
+    path: "/api/cron/tarot-day-broadcast",
+    purpose: "Карта дня в Telegram-бот: 07:00 МСК в будни, 09:00 МСК в выходные",
+    cadence: "ежечасно, отправка один раз за МСК-сутки",
+  },
+  {
     path: "/api/cron/session-escrow-capture",
     purpose: "24ч-grace захват холда сессий, не захваченных при старте (Баг 16)",
     cadence: "ежечасно",

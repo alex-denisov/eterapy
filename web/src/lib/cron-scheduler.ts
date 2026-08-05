@@ -60,6 +60,12 @@ export const CRON_SCHEDULES: CronSchedule[] = [
   { type: "cron.credits-expiring", cadence: "daily", keyPrefix: "credits-expiring" },
   { type: "cron.streak-at-risk", cadence: "daily", keyPrefix: "streak-at-risk" },
   { type: "cron.moment-of-need", cadence: "daily", keyPrefix: "moment-of-need" },
+  // B678: карта дня уходит в 07:00 МСК в будни и в 09:00 МСК в выходные.
+  // Каденция ЧАСОВАЯ, а не суточная: суточная корзина открывается в 00:00 UTC
+  // (03:00 МСК) и рассылка ушла бы среди ночи. Час отправки проверяет сам
+  // обработчик (`tarotDayBroadcastDue`), а повторную отправку в те же МСК-сутки
+  // закрывает ключ доставки на каждого человека.
+  { type: "cron.tarot-day-broadcast", cadence: "hourly", keyPrefix: "tarot-day-broadcast" },
   { type: "cron.subscription-renewal", cadence: "daily", keyPrefix: "subscription-renewal" },
   // B591 фаза 4: сроки ИП за 10 и за 3 дня. Ежедневно и НЕ financial — джоб
   // ничего не двигает, он только пишет владельцу в Telegram. Под финансовым

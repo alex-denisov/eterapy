@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { sendEmail } from "@/lib/email-send";
 import { enqueueJob, type JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
-import { getTelegramRuntimeConfig, sendTelegram } from "@/lib/telegram";
+import { getTelegramRuntimeConfig, sendTelegram, sendTelegramPhoto } from "@/lib/telegram";
 import type { NotifEvent } from "@/lib/notification-events";
 import { APP_URL } from "@/lib/env";
 import { getProductLabel, getProductRoute } from "@/lib/billing-labels";
@@ -62,6 +62,35 @@ export async function queueNotificationDelivery(input: QueueNotificationDelivery
   });
 }
 
+/** Предел подписи у `sendPhoto` — 1024 символа против 4096 у сообщения. */
+const TELEGRAM_CAPTION_LIMIT = 1024;
+
+function truncateTelegramCaption(text: string) {
+  if (text.length <= TELEGRAM_CAPTION_LIMIT) return text;
+  return `${text.slice(0, TELEGRAM_CAPTION_LIMIT - 1).trimEnd()}…`;
+}
+
+/**
+ * Картинка уведомления берётся байтами со своего же контура. Отказ здесь НЕ
+ * отменяет уведомление: вызывающая сторона уходит текстом.
+ */
+async function downloadNotificationPhoto(url: string): Promise<
+  { bytes: ArrayBuffer; filename: string; contentType: string } | null
+> {
+  try {
+    const source = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: "image/*" } });
+    const contentType = source.headers.get("content-type") ?? "";
+    if (!source.ok || !contentType.startsWith("image/")) return null;
+    const bytes = await source.arrayBuffer();
+    // Предел Telegram на фото по URL/файлу — 10 МБ.
+    if (bytes.byteLength === 0 || bytes.byteLength > 10 * 1024 * 1024) return null;
+    return { bytes, contentType, filename: "eterapy-card.png" };
+  } catch (error) {
+    log.warn("notification-telegram-photo-skipped", { url, error: serializeError(error) });
+    return null;
+  }
+}
+
 export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult> {
   const parsed = deliveryPayloadSchema.safeParse(job.payload);
   if (!parsed.success) {
@@ -98,8 +127,21 @@ export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult
   if (payload.channel === "TELEGRAM") {
     if (!payload.recipient.telegramId) throw new Error("Missing Telegram recipient");
     const telegramText = formatTelegramMessage(event, payload.recipient.name ?? "", payload.data);
+    // B678 — событие может нести картинку (карта дня). Тогда уходит `sendPhoto`
+    // с подписью вместо `sendMessage`. Если своя же картинка не отдалась, письмо
+    // уходит текстом: тот же размен, что у B643 и B660 — сообщение важнее
+    // обложки, и молчание хуже картинки без рамки.
+    const photo = payload.data.photoUrl ? await downloadNotificationPhoto(payload.data.photoUrl) : null;
     try {
-      await sendTelegram(payload.recipient.telegramId, telegramText);
+      if (photo) {
+        await sendTelegramPhoto(
+          payload.recipient.telegramId,
+          truncateTelegramCaption(telegramText),
+          photo,
+        );
+      } else {
+        await sendTelegram(payload.recipient.telegramId, telegramText);
+      }
       await recordNotificationDispatch({
         userId: payload.userId,
         recipient: payload.recipient.telegramId,
@@ -256,7 +298,11 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "CARD_REMOVED":
       return { title: "Карта отвязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
     case "DAILY_CARD":
-      return { title: data.title || "Карта дня", body: data.body || "Один бережный фокус на сегодня", href: "/cabinet" };
+      return {
+        title: data.cardName ? `Карта дня: ${data.cardName}` : (data.title || "Карта дня"),
+        body: data.headline || data.body || "Один бережный фокус на сегодня",
+        href: "/cabinet",
+      };
     case "ABANDONED_CHECKOUT":
       return { title: "Оплата не завершена", body: data.productName || "Можно вернуться без спешки", href: data.checkoutUrl || "/pricing" };
     case "REPORT_READY":
@@ -288,7 +334,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
   }
 }
 
-function formatTelegramMessage(event: NotifEvent, name: string, data: Record<string, string>): string {
+export function formatTelegramMessage(event: NotifEvent, name: string, data: Record<string, string>): string {
   const baseUrl = APP_URL;
   switch (event) {
     case "BOOKING_REQUESTED":
@@ -343,7 +389,20 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "CARD_REMOVED":
       return `🗑 Карта отвязана\n${data.brand} •••• ${data.last4} удалена из списка карт.`;
     case "DAILY_CARD":
-      return `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>${data.shareUrl ? `\n<a href="${data.shareUrl}">Поделиться бережно →</a>` : ""}`;
+      // B678: у карты дня Таро подпись строится из карты, положения и трактовки,
+      // а призыв ведёт в мини-апп — сообщение уже пришло в бот, звать «открыть
+      // бот» из бота незачем. Старый вид (title/body «Ежедневной практики»)
+      // остаётся ответом по умолчанию: событие одно, содержимое разное.
+      return data.cardName
+        ? [
+          `🃏 Карта дня · ${data.cardName}${data.reversed === "1" ? " (перевёрнутая)" : ""}`,
+          data.headline ? `<b>${data.headline}</b>` : "",
+          data.body,
+          data.focus,
+          data.question ? `<i>${data.question}</i>` : "",
+          `<a href="${data.miniAppUrl || `${baseUrl}/miniapp`}">Открыть ETerapy →</a>`,
+        ].filter(Boolean).join("\n")
+        : `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>${data.shareUrl ? `\n<a href="${data.shareUrl}">Поделиться бережно →</a>` : ""}`;
     case "ABANDONED_CHECKOUT":
       return `Оплату можно завершить\n${data.productName ?? "Выбранный продукт"}.\n<a href="${data.checkoutUrl ?? `${baseUrl}/pricing`}">Вернуться →</a>`;
     case "REPORT_READY":
