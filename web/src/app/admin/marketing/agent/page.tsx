@@ -37,6 +37,7 @@ import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { MarketingAgentControls } from "./agent-controls";
+import { MarketingInboundTable, type InboundTableRow } from "./inbound-table";
 import { MarketingPlatformSettings } from "./platform-settings";
 import { listMarketingPlatformAdminConfigs } from "@/lib/marketing/platform-settings";
 
@@ -104,9 +105,13 @@ export default async function MarketingAgentPage() {
       by: ["status"],
       _count: { _all: true },
     }).catch(() => [] as Array<{ status: string; _count: { _all: number } }>),
+    // B662 · владелец 2026-08-05: «эту одну запись нужно как-то пометить, что я
+    // ответил уже, и убрать из списка». Раздел — очередь, а не журнал: сюда
+    // попадает всё незакрытое плюс последние закрытые как хвост истории.
+    // Закрытое руками уходит из очереди сразу после отметки.
     db.marketingInboundMessage.findMany({
       orderBy: { receivedAt: "desc" },
-      take: 50,
+      take: 60,
       select: {
         id: true,
         platform: true,
@@ -133,8 +138,15 @@ export default async function MarketingAgentPage() {
   // осталось на месте, в настройках площадки VK.
 
   const now = new Date();
+  const dayStart = new Date(`${moscowDateKey(now)}T00:00:00.000+03:00`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60_000);
+  const moscowTime = (value: Date) => value.toLocaleTimeString("ru-RU", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   const engagementToday = await Promise.all(ENGAGEMENT_PLATFORMS.map(async (platform) => {
-    const dayStart = new Date(`${moscowDateKey(now)}T00:00:00.000+03:00`);
     const planned = await db.externalPublication.count({
       where: {
         platform,
@@ -148,16 +160,49 @@ export default async function MarketingAgentPage() {
     const sessions = engagementSessionsFor(platform, now);
     return {
       platform,
+      mode: "заходы в ленту" as const,
       planned,
       target: engagementDailyTarget(platform, now),
       sessions: sessions.length,
-      times: engagementSlotsFor(platform, now).map((slot) => slot.toLocaleTimeString("ru-RU", {
-        timeZone: "Europe/Moscow",
-        hour: "2-digit",
-        minute: "2-digit",
-      })),
+      times: engagementSlotsFor(platform, now).map(moscowTime),
     };
   }));
+
+  /**
+   * B663 · владелец 2026-08-05: «План живого присутствия не показывает telegram
+   * и dzen расписание».
+   *
+   * И не мог: раздел строился по ENGAGEMENT_PLATFORMS — трём площадкам, где
+   * агент ходит по чужой ленте. У Telegram, Дзена и Instagram присутствие
+   * устроено иначе: там нет чужой ленты, зато есть свой контент-план со
+   * слотами. Раздел про «что сегодня будет на площадках», поэтому в нём должны
+   * быть все площадки, а не только те, где механизм совпал с названием списка.
+   */
+  const SCHEDULED_ONLY_PLATFORMS = ["telegram", "dzen", "instagram"] as const;
+  const scheduledToday = await Promise.all(SCHEDULED_ONLY_PLATFORMS.map(async (platform) => {
+    const rows = await db.externalPublication.findMany({
+      where: {
+        platform,
+        status: { notIn: ["ARCHIVED"] },
+        scheduledFor: { gte: dayStart, lt: dayEnd },
+      },
+      orderBy: { scheduledFor: "asc" },
+      select: { scheduledFor: true, status: true },
+    }).catch(() => [] as Array<{ scheduledFor: Date | null; status: string }>);
+    const done = rows.filter((row) => row.status === "PUBLISHED").length;
+    return {
+      platform,
+      mode: "выпуск по контент-плану" as const,
+      planned: done,
+      target: rows.length,
+      sessions: rows.length,
+      times: rows
+        .map((row) => (row.scheduledFor ? moscowTime(row.scheduledFor) : null))
+        .filter((value): value is string => Boolean(value)),
+    };
+  }));
+
+  const presenceToday = [...engagementToday, ...scheduledToday];
 
   // B626: карточки коннекторов занимали три экрана и повторяли одни и те же
   // подписи. Та же информация в компактной таблице суперадминки читается
@@ -221,18 +266,22 @@ export default async function MarketingAgentPage() {
 
   const engagementColumns: AdminCompactColumn[] = [
     { key: "platform", label: "Площадка", sortable: true, filterKind: "text" },
+    { key: "mode", label: "Как присутствуем", sortable: true, filterKind: "select" },
     { key: "plan", label: "План на сегодня", sortable: true, filterKind: "none", align: "right" },
-    { key: "sessions", label: "Заходов", sortable: true, filterKind: "none", align: "right" },
-    { key: "times", label: "Минуты выхода", filterKind: "none" },
+    { key: "sessions", label: "Выходов", sortable: true, filterKind: "none", align: "right" },
+    { key: "times", label: "Время выхода", filterKind: "none" },
   ];
-  const engagementRows = engagementToday.map((row) => ({
+  const engagementRows = presenceToday.map((row) => ({
     id: row.platform,
     cells: {
       platform: row.platform,
+      mode: row.mode,
       plan: {
         kind: "status" as const,
         label: `${row.planned}/${row.target}`,
-        tone: row.planned >= row.target ? ("ok" as const) : ("warn" as const),
+        tone: row.target === 0
+          ? ("neutral" as const)
+          : row.planned >= row.target ? ("ok" as const) : ("warn" as const),
         sortValue: row.planned,
       },
       sessions: { value: row.sessions, sortValue: row.sessions },
@@ -370,48 +419,36 @@ export default async function MarketingAgentPage() {
   const inboundByStatus = new Map(inboundCounts.map((row) => [row.status, row._count._all]));
   const inboundWaiting = (inboundByStatus.get("RECEIVED") ?? 0) + (inboundByStatus.get("DRAFTED") ?? 0);
   const inboundStaleCutoff = new Date(now.getTime() - INBOUND_STALE_MS);
-  const inboundColumns: AdminCompactColumn[] = [
-    { key: "time", label: "Пришло", sortable: true, filterKind: "date" },
-    { key: "platform", label: "Площадка", sortable: true, filterKind: "select" },
-    { key: "kind", label: "Тип", sortable: true, filterKind: "select" },
-    { key: "author", label: "Автор", sortable: true, filterKind: "text" },
-    { key: "status", label: "Состояние", sortable: true, filterKind: "select" },
-    { key: "text", label: "Сообщение", filterKind: "none" },
-  ];
-  const inboundRows = inboundRecent.map((row) => {
+  const INBOUND_RESOLVED = ["ANSWERED", "IGNORED"];
+  const inboundOpen = inboundRecent.filter((row) => !INBOUND_RESOLVED.includes(row.status));
+  const inboundClosedTail = inboundRecent.filter((row) => INBOUND_RESOLVED.includes(row.status)).slice(0, 10);
+  const inboundRows: InboundTableRow[] = [...inboundOpen, ...inboundClosedTail].map((row) => {
     const stale = ["RECEIVED", "DRAFTED"].includes(row.status) && row.receivedAt < inboundStaleCutoff;
+    const resolved = INBOUND_RESOLVED.includes(row.status);
     return {
       id: row.id,
-      cells: {
-        time: { value: dateTime(row.receivedAt), sortValue: row.receivedAt.getTime() },
-        platform: row.platform,
-        kind: row.kind === "COMMENT" ? "комментарий" : row.kind === "MENTION" ? "упоминание" : "сообщение",
-        author: row.authorLabel ?? "—",
-        status: {
-          kind: "status" as const,
-          label: stale ? `${row.status} · >24 ч` : row.status,
-          tone: row.status === "ANSWERED"
-            ? ("ok" as const)
-            : row.status === "ESCALATED" || stale
-              ? ("danger" as const)
-              : ("warn" as const),
-          filterValue: row.status,
-        },
-        text: {
-          kind: "details" as const,
-          label: "Показать",
-          title: `${row.platform} · ${row.authorLabel ?? "автор не указан"}`,
-          body: [
-            row.text,
-            "",
-            row.permalink ? `Ссылка: ${row.permalink}` : "Ссылки нет",
-            `Балл риска: ${row.harmScore ?? "—"}`,
-            row.reply ? `Ответ: ${row.reply.status}` : "Ответ ещё не заведён",
-            row.answeredAt ? `Отвечено: ${dateTime(row.answeredAt)}` : "",
-          ].filter(Boolean).join("\n"),
-          meta: row.status,
-        },
-      },
+      time: dateTime(row.receivedAt),
+      timeSort: row.receivedAt.getTime(),
+      platform: row.platform,
+      kind: row.kind === "COMMENT" ? "комментарий" : row.kind === "MENTION" ? "упоминание" : "сообщение",
+      author: row.authorLabel ?? "—",
+      statusLabel: stale ? `${row.status} · >24 ч` : row.status,
+      statusTone: resolved
+        ? ("ok" as const)
+        : row.status === "ESCALATED" || stale
+          ? ("danger" as const)
+          : ("warn" as const),
+      statusFilter: row.status,
+      resolved,
+      detailsTitle: `${row.platform} · ${row.authorLabel ?? "автор не указан"}`,
+      detailsBody: [
+        row.text,
+        "",
+        row.permalink ? `Ссылка: ${row.permalink}` : "Ссылки нет",
+        `Балл риска: ${row.harmScore ?? "—"}`,
+        row.reply ? `Ответ: ${row.reply.status}` : "Ответ ещё не заведён",
+        row.answeredAt ? `Отвечено: ${dateTime(row.answeredAt)}` : "",
+      ].filter(Boolean).join("\n"),
     };
   });
 
@@ -481,7 +518,13 @@ export default async function MarketingAgentPage() {
           премодерации в Telegram. Сообщение с кризисной формулировкой агент не
           отвечает вовсе — оно уходит человеку со статусом ESCALATED.
         </p>
-        <AdminCompactDataTable columns={inboundColumns} rows={inboundRows} pageSize={25} minWidth="1100px" empty="Входящих пока не было" />
+        <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+          В таблице — незакрытая очередь и хвост из десяти последних закрытых.
+          Если вы ответили человеку своими руками, отметьте это кнопкой
+          «Ответил вручную»: строка уйдёт из очереди и перестанет поднимать
+          сторож просроченного ответа.
+        </p>
+        <MarketingInboundTable rows={inboundRows} />
       </AnalyticsSection>
 
       {dzenFeed ? (
@@ -513,13 +556,17 @@ export default async function MarketingAgentPage() {
         </AnalyticsSection>
       ) : null}
 
-      <AnalyticsSection title="План живого присутствия на сегодня">
+      <AnalyticsSection title="План присутствия на сегодня">
         <p className="mb-3 text-xs text-[var(--soft-ink-soft)]">
-          Заходы несколькими сессиями в день, а не ровным расписанием. Минимум по
-          решению владельца — {ENGAGEMENT_DAILY_MINIMUM} материалов в сутки на
-          площадку; каждый уходит на премодерацию в Telegram.
+          Два разных механизма в одной таблице. Где есть чужая лента (VK, Reddit,
+          Threads) — заходы несколькими сессиями в день, а не ровным
+          расписанием; минимум по решению владельца — {ENGAGEMENT_DAILY_MINIMUM}{" "}
+          материалов в сутки на площадку, каждый уходит на премодерацию в
+          Telegram. Где чужой ленты нет (Telegram, Дзен, Instagram) —
+          собственный выпуск по слотам контент-плана; «план на сегодня»
+          показывает, сколько из запланированных на сутки слотов уже вышло.
         </p>
-        <AdminCompactDataTable columns={engagementColumns} rows={engagementRows} pageSize={10} minWidth="820px" empty="Площадки живого присутствия не объявлены" />
+        <AdminCompactDataTable columns={engagementColumns} rows={engagementRows} pageSize={10} minWidth="960px" empty="Площадки присутствия не объявлены" />
       </AnalyticsSection>
 
       <AnalyticsSection title="Настройки площадок">

@@ -2,7 +2,7 @@ import { practitionerHelpChips } from "@/lib/practitioner-chips";
 
 describe("B457 practitionerHelpChips", () => {
   it("prefers concrete tasks over direction/specialty labels that echo the title", () => {
-    // Елена Морозова: title «Астролог, нумеролог» + directions echoing it.
+    // Алиса Бабаева: title «Астролог, нумеролог» + directions echoing it.
     // The card/profile should surface the tasks she actually helps with.
     const chips = practitionerHelpChips({
       directions: ["astrology", "numerology"],

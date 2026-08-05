@@ -47,7 +47,9 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
   NODE_ENV=production \
   DATABASE_URL=postgresql://build:build@localhost:5432/build
 WORKDIR /app/web
-RUN npx prisma generate && npm run build && rm -rf .next/cache
+# B664: `trace` и `types` нужны сборке и редактору, но не runtime — это 31 МБ
+# в каждом образе на каждой из четырёх нод. `cache` выбрасывался и раньше.
+RUN npx prisma generate && npm run build && rm -rf .next/cache .next/trace .next/types
 
 # ── runtime assembly: prod deps + source + built .next ──
 FROM base AS assemble
@@ -71,8 +73,19 @@ RUN chown -R node:node /app/web/.next /app/web/public
 
 FROM base AS runner
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+# B664 — chromium снят из образа. 699 МБ из 2.74 ГБ, то есть четверть каждого
+# релиза, на каждой из четырёх нод, при хроническом дефиците диска eterapy-1.
+#
+# Он был нужен ровно одному механизму — браузерному выпуску в Дзен. Этот путь
+# не работает и работать не может: он требует `DZEN_BROWSER_STORAGE_STATE`,
+# слепок авторизованной сессии, который в проде не задан ни разу; выпуск в Дзен
+# с B620 идёт размеченной лентой, а слепок сессии объявлен запасным механизмом
+# и после подтверждения ленты выводится из периметра вовсе.
+#
+# Шрифты остаются: ими рисуются обложки публикаций (`next/og`), а это живой
+# путь, в отличие от браузера.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends chromium fonts-liberation fonts-dejavu-core \
+  && apt-get install -y --no-install-recommends fonts-liberation fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=assemble /app /app
 WORKDIR /app/web

@@ -55,8 +55,11 @@ export const PLATFORM_PUBLISH_LIMITS: Record<string, PlatformPublishLimits> = {
   },
   vk: {
     textLimit: 4_000,
-    mediaBriefRequired: false,
-    note: "предел поста сообщества",
+    // B660: обложка у VK снова прикладывается (путь через диалоговое
+    // хранилище сообщества), поэтому визуальная идея стала обязательной — до
+    // этого лента сообщества состояла из одного сплошного текста.
+    mediaBriefRequired: true,
+    note: "предел поста сообщества; обложка прикладывается, визуальная идея обязательна",
   },
   dzen: {
     textLimit: null,

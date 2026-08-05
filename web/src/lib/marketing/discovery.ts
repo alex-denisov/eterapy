@@ -4,6 +4,7 @@ import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { log, serializeError } from "@/lib/logger";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import {
+  MARKETING_PLATFORM_FIELDS,
   marketingPlatformEnabled,
   marketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
@@ -39,7 +40,27 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
   ] as const;
   const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
   const has = (name: typeof keys[number]) => Boolean(values.get(name));
-  const missing = (...names: Array<typeof keys[number]>) => names.filter((key) => !has(key));
+  /**
+   * B661 — «не заданы» перечисляет только ОБЯЗАТЕЛЬНЫЕ поля.
+   *
+   * B652 объявил у полей площадки `requirement`, но эта функция продолжала
+   * считать необязательное поле недостачей. Из-за этого рабочий Дзен всё ещё
+   * показывался как «нужна настройка»: в недостаче числился слепок браузерной
+   * сессии, который после перехода на ленту (B620) не нужен вовсе. Тот же
+   * дефект висел на VK — там в недостачу попадали два необязательных поля
+   * Callback API.
+   *
+   * Источник обязательности теперь один — `MARKETING_PLATFORM_FIELDS`, а не
+   * повторённый здесь список ключей.
+   */
+  const requirementOf = (name: typeof keys[number]) =>
+    MARKETING_PLATFORM_FIELDS.find((field) => field.key === name);
+  const missing = (...names: Array<typeof keys[number]>) => names.filter((key) => {
+    if (has(key)) return false;
+    const field = requirementOf(key);
+    const requirement = field && "requirement" in field ? field.requirement : "required";
+    return requirement === "required";
+  });
   const enabled = new Map(await Promise.all(
     (["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen"] as const)
       .map(async (platform) => [platform, await marketingPlatformEnabled(platform)] as const),
@@ -117,11 +138,14 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     },
     {
       platform: "Dzen",
-      ownedPublishing: Boolean(enabled.get("Dzen")) && has("DZEN_CHANNEL_URL") && has("DZEN_BROWSER_STORAGE_STATE"),
+      // B661: действующий путь выпуска — размеченная лента (B620/B642), а не
+      // браузерная сессия. Требовать слепок сессии значило бы держать рабочий
+      // канал красным из-за механизма, который мы сами вывели из периметра.
+      ownedPublishing: Boolean(enabled.get("Dzen")) && has("DZEN_CHANNEL_URL"),
       discovery: false,
       inboundReplies: false,
       missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE"),
-      note: "У Дзена нет поддерживаемого серверного API публикации. Выпуск выполняется из изолированной авторизованной Playwright-сессии; истёкшая сессия или CAPTCHA переводит коннектор в требующий участия человека, без обхода защиты.",
+      note: "Выпуск идёт размеченной RSS-лентой, которую канал подключает у себя — законный документированный путь вместо сохранённой браузерной сессии. Слепок сессии остаётся необязательным запасным механизмом до подтверждения ленты и после него не используется.",
     },
   ];
 }

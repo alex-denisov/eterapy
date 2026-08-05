@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,8 +45,21 @@ async function withAuthenticatedPage<T>(
   run: (page: Page) => Promise<T>,
 ) {
   const rawState = await requiredMarketingPlatformValue(storageKey(platform));
+  // B664: chromium снят из релизного образа — он весил четверть образа и
+  // обслуживал только этот путь, ни разу не запускавшийся в проде. Путь
+  // остаётся рабочим там, где браузер есть (локальный запуск, отдельный образ
+  // с `MARKETING_CHROMIUM_EXECUTABLE`), но в проде обязан падать понятной
+  // фразой, а не «spawn ENOENT» в глубине playwright.
+  const executablePath = process.env.MARKETING_CHROMIUM_EXECUTABLE?.trim() || "/usr/bin/chromium";
+  if (!existsSync(executablePath)) {
+    throw new Error(
+      `Браузерный выпуск недоступен: ${executablePath} нет в этом образе (B664). `
+      + "Выпуск в Дзен идёт размеченной лентой; браузерный путь требует отдельного образа "
+      + "с chromium и переменной MARKETING_CHROMIUM_EXECUTABLE.",
+    );
+  }
   const browser = await chromium.launch({
-    executablePath: process.env.MARKETING_CHROMIUM_EXECUTABLE?.trim() || "/usr/bin/chromium",
+    executablePath,
     headless: true,
     chromiumSandbox: false,
     args: ["--disable-dev-shm-usage", "--no-sandbox"],

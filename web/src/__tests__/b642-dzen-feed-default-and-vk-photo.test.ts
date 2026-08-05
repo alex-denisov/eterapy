@@ -114,7 +114,7 @@ describe("B642 · VK: обложка не топит пост", () => {
       if (url.includes("/media.png")) {
         return new Response(new ArrayBuffer(8), { status: 200, headers: { "content-type": "image/png" } });
       }
-      if (url.includes("photos.getWallUploadServer")) {
+      if (url.includes("photos.getMessagesUploadServer")) {
         return Response.json({
           error: { error_msg: "Group authorization failed: method is unavailable with group auth." },
         });
@@ -139,19 +139,22 @@ describe("B642 · VK: обложка не топит пост", () => {
     expect(calls.some((url) => url.includes("wall.post"))).toBe(true);
   });
 
+  // B660: путь загрузки сменился со стенового на диалоговый — стеновой токену
+  // сообщества недоступен в принципе. Проверка «загрузилась → приложена»
+  // остаётся той же по смыслу, методы другие.
   it("когда обложка загрузилась, она прикладывается и заметки нет", async () => {
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/media.png")) {
         return new Response(new ArrayBuffer(8), { status: 200, headers: { "content-type": "image/png" } });
       }
-      if (url.includes("photos.getWallUploadServer")) {
+      if (url.includes("photos.getMessagesUploadServer")) {
         return Response.json({ response: { upload_url: "https://upload.vk.com/x" } });
       }
       if (url.includes("upload.vk.com")) {
         return Response.json({ server: 1, photo: "[]", hash: "h" });
       }
-      if (url.includes("photos.saveWallPhoto")) {
+      if (url.includes("photos.saveMessagesPhoto")) {
         return Response.json({ response: [{ owner_id: -123456, id: 9 }] });
       }
       if (url.includes("wall.post")) {
