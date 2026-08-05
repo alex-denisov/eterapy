@@ -9,6 +9,7 @@ import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { roleLabelRu } from "@/lib/mask-email";
 import { PageContainer } from "@/components/ui/page-container";
+import { getTarotDayStatus } from "@/lib/tarot-day-status";
 import { AdminNotificationJobsTable, type AdminNotificationJobTableRow } from "../jobs/jobs-table";
 
 type DeliveryPayload = {
@@ -39,7 +40,7 @@ export default async function AdminNotificationsPage() {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("notifications.diagnose")) redirect("/admin");
 
-  const [grouped, jobs] = await Promise.all([
+  const [grouped, jobs, tarotStatus] = await Promise.all([
     db.job.groupBy({
       by: ["status"],
       where: { type: NOTIFICATION_DELIVERY_JOB_TYPE },
@@ -60,6 +61,7 @@ export default async function AdminNotificationsPage() {
         updatedAt: true,
       },
     }),
+    getTarotDayStatus(),
   ]);
 
   const stats: Record<JobStatus, number> = {
@@ -128,6 +130,39 @@ export default async function AdminNotificationsPage() {
           ))}
         </div>
       </div>
+
+      {/* B678.5 — карта дня отдельным блоком. В общей таблице доставок она
+          неотличима от остальных уведомлений, а вопрос по ней конкретный:
+          ушла ли сегодня, скольким и есть ли кому. */}
+      <section className="mb-6" data-testid="admin-tarot-day-status">
+        <h2 className="premium-subtitle text-lg">Карта дня · {tarotStatus.dayKey}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Рассылка в Telegram-бот в {tarotStatus.dueHourMsk}:00 МСК (07:00 в будни, 09:00 в выходные).
+          {tarotStatus.recipients === 0
+            ? " Получателей нет: ни у кого из клиентов не привязан Telegram с включённым переключателем «Карта дня» — это не сбой рассылки."
+            : null}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="soft-admin-status-pill" data-tone={tarotStatus.recipients > 0 ? "ok" : "warn"}>
+            Получателей: {tarotStatus.recipients.toLocaleString("ru-RU")}
+          </span>
+          <span className="soft-admin-status-pill" data-tone="ok">
+            Отправлено сегодня: {tarotStatus.deliveredToday.toLocaleString("ru-RU")} из {tarotStatus.queuedToday.toLocaleString("ru-RU")}
+          </span>
+          <span className="soft-admin-status-pill" data-tone={tarotStatus.failedToday > 0 ? "danger" : "ok"}>
+            Не доставлено: {tarotStatus.failedToday.toLocaleString("ru-RU")}
+          </span>
+          <span className="soft-admin-status-pill" data-tone={tarotStatus.interpretations.cached > 0 ? "ok" : "warn"}>
+            Трактовок готово: {tarotStatus.interpretations.cached} из {tarotStatus.interpretations.total}
+          </span>
+          <span className="soft-admin-status-pill" data-tone="ok">
+            Показов в кабинете: {tarotStatus.viewsToday.toLocaleString("ru-RU")}
+          </span>
+          <span className="soft-admin-status-pill" data-tone="ok">
+            Переходов на «Расклад Таро»: {tarotStatus.ctaClicksToday.toLocaleString("ru-RU")}
+          </span>
+        </div>
+      </section>
 
       <section data-testid="admin-notification-jobs-table">
         <AdminNotificationJobsTable rows={tableRows} />

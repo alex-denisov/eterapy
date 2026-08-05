@@ -27,6 +27,10 @@ import {
   getSubscriptionStatusLabel,
 } from "@/lib/billing-labels";
 import { getReferralStats } from "@/lib/referral-stats";
+import { TarotDayCard } from "@/components/cabinet/tarot-day-card";
+import { tarotCardArtworkPath, tarotDayPick } from "@/lib/tarot-day";
+import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
+import { formatMskDayLong } from "@/lib/msk-time";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 
@@ -278,6 +282,15 @@ export default async function ClientCabinetPage() {
     ? nearestCreditExpiry.expiresAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
+  // B678 — «карта дня» первым блоком кабинета (задача владельца, пункт 9).
+  // Карта вычисляется детерминированно и НИЧЕГО не пишет в базу: открытие
+  // Главной по-прежнему не заводит запись «Ежедневной практики» (B602).
+  // Трактовка берётся из общего кэша по карте; если её там ещё нет, страница
+  // рисует детерминированный текст, а клиентский компонент дозапрашивает
+  // развёрнутый — первый экран не ждёт модель.
+  const tarotPick = tarotDayPick(userId);
+  const tarotInterpretation = (await getTarotDayInterpretation(tarotPick, { allowGenerate: false })).interpretation;
+
   return (
     <div className="max-w-6xl px-4 py-6 sm:px-6 md:py-8" style={{ paddingBottom: 80 }}>
 
@@ -290,6 +303,21 @@ export default async function ClientCabinetPage() {
           <span className="soft-italic">{firstName}</span>, ваша работа продолжается
         </h1>
       </section>
+
+      <TarotDayCard
+        cardKey={tarotPick.key}
+        cardName={tarotPick.card.name}
+        reversed={tarotPick.reversed}
+        artworkUrl={tarotCardArtworkPath(tarotPick.card)}
+        dayLabel={formatMskDayLong(new Date())}
+        headline={tarotInterpretation.headline}
+        body={tarotInterpretation.body}
+        focus={tarotInterpretation.focus}
+        question={tarotInterpretation.question}
+        // Кризис: платный призыв убирается вместе с остальной монетизацией —
+        // безопасность выше продажи (B464).
+        showCta={showMonetization}
+      />
 
       {/* ═══════ РЯД 1 — подписка · кошелёк · подарите разбор ═══════
           ТЗ владельца, п. 9.1. Сетка без `items-start`: именно она делала

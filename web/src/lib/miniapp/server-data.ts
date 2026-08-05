@@ -8,6 +8,8 @@ import { listJournalEntries } from "@/lib/journal-entries";
 import { log, serializeError } from "@/lib/logger";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { effectivePracticeStreak } from "@/lib/streak-display";
+import { tarotCardArtworkPath, tarotDayPick } from "@/lib/tarot-day";
+import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
 import { startOfPracticeWeek } from "@/lib/weekly-summary";
 import { formatSessionFloor } from "@/lib/session-pricing";
 import { canJoinBooking } from "@/lib/booking-actions";
@@ -53,7 +55,7 @@ function baseData(viewer?: MiniAppViewer | null): MiniAppInitialData {
     },
     dialogues: [], dialogueNextCursor: null, diaryItems: [], journalEntries: [], libraryItems: libraryItems(), practitioner: null,
     bookings: [], materials: [], profileNotice: false,
-    upcomingBookingLabel: null, streak: 0, completedWeekdays: [],
+    upcomingBookingLabel: null, streak: 0, completedWeekdays: [], tarotDay: null,
     cardPaymentEnabled: cardPaymentAvailable(), loadError: false,
   };
 }
@@ -91,6 +93,19 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       }),
       listDiaryItems(viewer.id),
     ]);
+
+    const tarotPick = tarotDayPick(viewer.id);
+    const tarotDay = await getTarotDayInterpretation(tarotPick, { allowGenerate: false })
+      .then(({ interpretation }) => ({
+        key: tarotPick.key,
+        name: tarotPick.card.name,
+        reversed: tarotPick.reversed,
+        artworkUrl: tarotCardArtworkPath(tarotPick.card),
+        headline: interpretation.headline,
+        body: interpretation.body,
+        focus: interpretation.focus,
+      }))
+      .catch(() => null);
 
     const [practitioner, bookings, materials, unreadNotifications, streak, weekCards, journal] = await Promise.all([
       db.practitioner.findFirst({
@@ -211,6 +226,10 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
       }) ?? null,
       streak: effectivePracticeStreak(streak.count, streak.lastDoneDate),
       completedWeekdays: weekCards.map((card) => card.cardDate.getDay()),
+      // B678: карта дня. Трактовка берётся ТОЛЬКО из общего кэша
+      // (`allowGenerate: false`) — первый экран мини-аппа не имеет права ждать
+      // модель; если развёрнутого текста ещё нет, показывается значение колоды.
+      tarotDay,
     };
   } catch (error) {
     log.warn("miniapp.initial_data_failed", { error: serializeError(error) });

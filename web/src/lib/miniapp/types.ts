@@ -143,6 +143,11 @@ export type MiniAppInitialData = {
   streak: number;
   completedWeekdays: number[];
   /**
+   * B678 — карта дня Таро. Вычисляется детерминированно по человеку и
+   * МСК-дате, в базу ничего не пишет. `null` у гостя и при сбое загрузки.
+   */
+  tarotDay: MiniAppTarotDay | null;
+  /**
    * B554 (owner): готов ли платёжный рельс принимать карту ПРЯМО СЕЙЧАС.
    * Кнопки и копия про оплату идут от этого флага, а не от захардкоженного
    * «скоро» — иначе после подключения провайдера интерфейс продолжал бы врать,
@@ -150,4 +155,14 @@ export type MiniAppInitialData = {
    */
   cardPaymentEnabled: boolean;
   loadError: boolean;
+};
+
+export type MiniAppTarotDay = {
+  key: string;
+  name: string;
+  reversed: boolean;
+  artworkUrl: string;
+  headline: string;
+  body: string;
+  focus: string;
 };

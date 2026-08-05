@@ -25,6 +25,7 @@ import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { marketingAgentEnabled } from "@/lib/marketing/agent";
 import { cleanupExpiredVideoChats } from "@/lib/video-chat-retention";
 import { runMarketingTriggers } from "@/lib/marketing/triggers";
+import { runTarotDayBroadcastJob } from "@/lib/tarot-day-broadcast";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
@@ -520,4 +521,5 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.marketing-publish": runMarketingPublishJob as JobHandler,
   "cron.marketing-triggers": runMarketingTriggersJob as JobHandler,
   "cron.video-chat-retention": runVideoChatRetentionJob as JobHandler,
+  "cron.tarot-day-broadcast": runTarotDayBroadcastJob as JobHandler,
 };
