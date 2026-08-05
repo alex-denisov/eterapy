@@ -47,11 +47,23 @@ const TAROT_MAJOR_ARCANA: TarotDeckCard[] = [
   { code: "major-21", name: "Мир", arcana: "major", glyph: "XXI", upright: "целостность, завершение круга", reversedMeaning: "незавершённость, последняя деталь перед итогом" },
 ];
 
-const TAROT_MINOR_SUITS: Array<{ suit: string; glyph: string; theme: string }> = [
-  { suit: "Жезлы", glyph: "Ж", theme: "действие, импульс, направление" },
-  { suit: "Кубки", glyph: "К", theme: "чувства, связь, внутренний отклик" },
-  { suit: "Мечи", glyph: "М", theme: "мысль, слова, различение и конфликт" },
-  { suit: "Пентакли", glyph: "П", theme: "тело, быт, деньги и устойчивость" },
+/**
+ * B679 — у младшего аркана в названии стоит РОДИТЕЛЬНЫЙ падеж масти.
+ *
+ * Правильно «Двойка Кубков», «Король Мечей», «Туз Жезлов» — так масть названа
+ * во всех русских изданиях Райдера—Уэйта. До этого имя склеивалось из
+ * именительных форм (`Двойка Кубки`), и ошибка попадала всюду, где имя карты
+ * показывается человеку: карта дня в кабинете и мини-аппе, утренняя рассылка,
+ * расклады Таро, «Арканы судьбы».
+ *
+ * `suit` остаётся именительным: это НАЗВАНИЕ масти («масть: Кубки»), а падеж
+ * нужен только внутри имени карты.
+ */
+const TAROT_MINOR_SUITS: Array<{ suit: string; suitOf: string; glyph: string; theme: string }> = [
+  { suit: "Жезлы", suitOf: "Жезлов", glyph: "Ж", theme: "действие, импульс, направление" },
+  { suit: "Кубки", suitOf: "Кубков", glyph: "К", theme: "чувства, связь, внутренний отклик" },
+  { suit: "Мечи", suitOf: "Мечей", glyph: "М", theme: "мысль, слова, различение и конфликт" },
+  { suit: "Пентакли", suitOf: "Пентаклей", glyph: "П", theme: "тело, быт, деньги и устойчивость" },
 ];
 
 const TAROT_MINOR_RANKS: Array<{ rank: string; upright: string; reversedMeaning: string }> = [
@@ -75,7 +87,7 @@ export const TAROT_DECK: TarotDeckCard[] = [
   ...TAROT_MAJOR_ARCANA,
   ...TAROT_MINOR_SUITS.flatMap((suit) => TAROT_MINOR_RANKS.map((rank, index) => ({
     code: `minor-${suit.glyph}-${index + 1}`,
-    name: `${rank.rank} ${suit.suit}`,
+    name: `${rank.rank} ${suit.suitOf}`,
     arcana: "minor" as const,
     suit: suit.suit,
     rank: rank.rank,
@@ -90,9 +102,20 @@ export const TAROT_DECK: TarotDeckCard[] = [
 // {name, meaning, position, reversed} with no `code`, which crashed the page
 // when the card image path was derived (card.code.split → undefined). Matching
 // by name restores the correct Rider-Waite-Smith image deterministically.
-const TAROT_CARD_BY_NAME: Map<string, TarotDeckCard> = new Map(
-  TAROT_DECK.map((card) => [card.name.trim().toLowerCase(), card]),
-);
+// B679: в сохранённых результатах лежат имена ОБОИХ поколений — до правки
+// падежа («Двойка Кубки») и после («Двойка Кубков»). Старое имя остаётся
+// синонимом: иначе у прошлых раскладов перестанет находиться код карты, и
+// страница снова упадёт на выводе картинки. Синоним добавляется первым, чтобы
+// правильное имя перекрыло его при совпадении.
+const TAROT_CARD_BY_NAME: Map<string, TarotDeckCard> = new Map([
+  ...TAROT_DECK
+    .filter((card) => card.arcana === "minor" && card.rank && card.suit)
+    .map((card): [string, TarotDeckCard] => [
+      `${card.rank} ${card.suit}`.trim().toLowerCase(),
+      card,
+    ]),
+  ...TAROT_DECK.map((card): [string, TarotDeckCard] => [card.name.trim().toLowerCase(), card]),
+]);
 
 export function tarotDeckCardByName(name: string | null | undefined): TarotDeckCard | null {
   if (!name) return null;
