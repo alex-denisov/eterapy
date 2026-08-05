@@ -81,6 +81,41 @@ export class MarketingTruncatedOutputError extends Error {
 }
 
 /**
+ * B680 — один материал не имеет права съесть суточную ёмкость.
+ *
+ * Замер прода 2026-08-06 (`ai_requests`, роли агента, двое суток): 1190 вызовов
+ * и 6.6 млн токенов на ПЯТЬ вышедших публикаций — по ~120 вызовов на материал
+ * при среднем промпте около 5 тысяч токенов. Редактор при этом каждые сутки
+ * упирался ровно в свой потолок 2 000 000, после чего проход переходил в
+ * cooldown с 103 отложенными строками.
+ *
+ * Ёмкость съедает не длина текста, а ВЕЕР ПОВТОРОВ: раунд правки × перебор
+ * провайдеров × ступени бюджета вывода. Каждая неудачная попытка платит полным
+ * промптом, и стоит она столько же, сколько удачная. Ограничение по числу
+ * попыток на материал — единственный рубеж, который держит расход независимо от
+ * того, какой именно провайдер сегодня сломан.
+ *
+ * Это НЕ брак материала: строка остаётся черновиком и возвращается следующим
+ * проходом (`isDeferrableError`), когда пул уже может быть здоров.
+ */
+export class MarketingAttemptBudgetError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingAttemptBudgetError";
+  }
+}
+
+/**
+ * Сколько обращений к моделям тратится на ОДИН материал за проход — обе роли,
+ * все раунды правки, все ступени бюджета вывода вместе.
+ *
+ * 12 — это три полных раунда «автор + редактор» плюс двойной запас на перебор
+ * провайдера. Больше уже не даёт материала: в замере прода материалы с сотней
+ * попыток не выходили ни разу.
+ */
+export const MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL = 12;
+
+/**
  * B644 — признак обрыва по лимиту вывода. Площадки называют его по-разному:
  * Gemini и Cohere — `MAX_TOKENS`, OpenAI-совместимые — `length`, Anthropic —
  * `max_tokens`.
@@ -141,7 +176,11 @@ export function isCapacityError(error: unknown): boolean {
  * проход — FAILED здесь означал бы «материал негоден», а он не при чём.
  */
 export function isDeferrableError(error: unknown): boolean {
-  return isCapacityError(error) || error instanceof MarketingModelSeparationError;
+  return isCapacityError(error)
+    || error instanceof MarketingModelSeparationError
+    // B680: попытки кончились у ОДНОГО материала, а не ёмкость у системы.
+    // Материал годен и ждёт следующего прохода — `FAILED` тут был бы неправдой.
+    || error instanceof MarketingAttemptBudgetError;
 }
 
 /**
@@ -449,6 +488,12 @@ async function completeWithValidStructure<T>(input: {
    * перестаёт быть независимой.
    */
   excludeModel?: string | null;
+  /**
+   * B680 — общий на весь материал счётчик обращений к моделям. Один и тот же
+   * объект передаётся обеим ролям и всем раундам: рубеж имеет смысл только
+   * тогда, когда он считает материал целиком, а не каждый вызов по отдельности.
+   */
+  attempts?: { used: number };
 }) {
   const failures: string[] = [];
   let capacityFailures = 0;
@@ -463,6 +508,16 @@ async function completeWithValidStructure<T>(input: {
   while (queue.length > 0) {
     const provider = queue[0];
     let retrySameProvider = false;
+    if (input.attempts) {
+      if (input.attempts.used >= MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL) {
+        throw new MarketingAttemptBudgetError(
+          `Материал израсходовал ${input.attempts.used} обращений к моделям за проход `
+          + `(предел ${MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL}) и остаётся черновиком. `
+          + `Последние отказы: ${failures.slice(-3).join("; ") || "нет"}`,
+        );
+      }
+      input.attempts.used += 1;
+    }
     try {
       const response = await aiComplete({
         feature: input.feature,
@@ -674,6 +729,9 @@ export async function processMarketingDraft(publicationId: string) {
 
   try {
     const cycleSeed = `${publication.id}:${publication.attemptCount + 1}`;
+    // B680: счётчик обращений к моделям на весь материал — общий для обеих
+    // ролей и всех раундов правки.
+    const attempts = { used: 0 };
     const research = await buildMarketingResearchBrief(publication);
     const iterationHistory: Array<{
       round: number;
@@ -713,6 +771,7 @@ export async function processMarketingDraft(publicationId: string) {
           : marketingProviderOrder(`writer:${cycleSeed}`),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
+        attempts,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           { role: "system", content: MARKETING_AGENT_SYSTEM_PROMPT },
@@ -779,6 +838,7 @@ export async function processMarketingDraft(publicationId: string) {
         excludeModel: writer.model,
         maxTokens: MARKETING_REVIEWER_MAX_TOKENS,
         temperature: 0.05,
+        attempts,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
@@ -890,7 +950,12 @@ export async function processMarketingDraft(publicationId: string) {
       ? {
         // Один сигнал на исчерпание, а не инцидент на каждый пост: иначе
         // кокпит владельца заливает сотней одинаковых строк.
-        key: "agent:capacity",
+        // B680: расход одного материала — отдельная причина с отдельным
+        // именем. В `agent:capacity` она читалась бы как «провайдеры отказали»,
+        // и владелец опять пошёл бы проверять ключи.
+        key: error instanceof MarketingAttemptBudgetError
+          ? "agent:attempt-budget"
+          : "agent:capacity",
         kind: "AGENT_RUN",
         severity: "WARNING",
         // B638: заголовок называет ПРИЧИНУ, а не первое подвернувшееся слово.
@@ -899,7 +964,9 @@ export async function processMarketingDraft(publicationId: string) {
         // проверять ключи вместо того, чтобы поднять число у себя. Тот же класс
         // ошибки, что стухшая отметка в панели провайдеров: панель называла не
         // ту причину.
-        title: error instanceof MarketingModelSeparationError
+        title: error instanceof MarketingAttemptBudgetError
+          ? "Материал израсходовал лимит попыток и ждёт следующего прохода"
+          : error instanceof MarketingModelSeparationError
           ? "SMM-агент ждёт вторую независимую модель"
           : isOwnBudgetCeiling(message)
             ? "SMM-агент остановлен: упёрся в наш суточный потолок токенов"
