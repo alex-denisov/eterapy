@@ -6,16 +6,33 @@ import { expect, test } from "@playwright/test";
 // without a real Telegram client.
 
 const MOBILE = { width: 390, height: 844 };
+const DESKTOP = { width: 1280, height: 900 };
 
 test.describe("B381 — mini-app lean layout", () => {
-  test("normal tab keeps the site header and footer", async ({ page }) => {
-    await page.setViewportSize(MOBILE);
+  test("normal tab keeps the site header; подвал на десктопе виден", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-testid="public-shell-header"]')).toBeVisible();
     await expect(page.locator('[data-testid="public-shell-footer"]')).toBeVisible();
     await expect(page.locator("html")).not.toHaveAttribute("data-miniapp", /.+/);
+  });
+
+  // B671 (владелец 2026-08-05): на мобильной подвала нет — он сбивал людей с
+  // толку. Это НЕ отменяет контракт B381: разница между обычной вкладкой и
+  // мини-аппом осталась содержательной и проверяется здесь буквально.
+  // Обычная вкладка: подвал в DOM есть, но скрыт правилом CSS.
+  // Мини-апп: подвала в DOM нет вовсе — React его не монтирует.
+  test("B671 — на мобильной подвал есть в DOM, но скрыт", async ({ page }) => {
+    await page.setViewportSize(MOBILE);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.locator('[data-testid="public-shell-header"]')).toBeVisible();
+    const footer = page.locator('[data-testid="public-shell-footer"]');
+    await expect(footer).toHaveCount(1);
+    await expect(footer).toBeHidden();
   });
 
   test("?miniapp=telegram hides the site header and footer (no double header)", async ({ page }) => {
