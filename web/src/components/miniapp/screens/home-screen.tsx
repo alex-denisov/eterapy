@@ -63,7 +63,7 @@ export function HomeScreen() {
             боте, звать его в бот из бота бессмысленно. */}
         {data.tarotDay ? (
           <button
-            className={styles["service-teaser"]}
+            className={styles["tarot-day"]}
             type="button"
             data-testid="miniapp-tarot-day"
             onClick={() => {
