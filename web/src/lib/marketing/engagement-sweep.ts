@@ -86,10 +86,24 @@ async function publishedTargets(platform: SweepPlatform, now: Date): Promise<Swe
 }
 
 /**
- * VK отдаёт комментарии к своей же стене по токену сообщества — здесь не нужен
- * ни пользовательский токен, ни настроенный Callback API. Именно поэтому обход
- * работает у владельца сразу, а не после похода в настройки сообщества.
+ * ⚠ B677, живая проба 2026-08-05: прежняя запись здесь была НЕВЕРНА. VK отвечает
+ * на `wall.getComments` токеном сообщества так:
+ *
+ *   «Group authorization failed: method is unavailable with group auth»
+ *
+ * То есть чтение комментариев к собственной стене токену сообщества недоступно —
+ * ровно как загрузка фото через стеновое хранилище в B660. Это ограничение на
+ * стороне VK, а не наша ошибка настройки, и повторные попытки его не снимут.
+ *
+ * Рабочий путь (не сделан, отдельная работа): Bots Long Poll сообщества —
+ * `groups.setLongPollSettings` + событие `wall_reply_new`, оба доступны тому же
+ * токену сообщества. Пока его нет, обход VK возвращает пусто и говорит об этом
+ * ОДИН раз уровнем INFO, а не поднимает предупреждение каждый час.
  */
+const VK_GROUP_AUTH_LIMIT = /unavailable with group auth|group authorization failed/i;
+
+/** Ошибка, причина которой — правила площадки, а не наш сбой. */
+type PlatformLimitedError = Error & { platformLimited?: boolean };
 async function sweepVk(target: SweepTarget): Promise<SweptComment[]> {
   const token = await marketingPlatformValue("VK_COMMUNITY_TOKEN");
   const communityId = (await marketingPlatformValue("VK_COMMUNITY_ID"))?.replace(/^-/, "");
@@ -120,7 +134,18 @@ async function sweepVk(target: SweepTarget): Promise<SweptComment[]> {
     };
     error?: { error_msg?: string };
   } | null;
-  if (payload?.error) throw new Error(`VK comments: ${payload.error.error_msg ?? "unknown error"}`);
+  if (payload?.error) {
+    const message = payload.error.error_msg ?? "unknown error";
+    // Известное ограничение площадки — не сбой обхода. Молча вернуть пусто
+    // было бы хуже: причина исчезла бы вовсе. Поэтому одна строка INFO.
+    const error = new Error(`VK comments: ${message}`);
+    // Ограничение площадки помечается на самой ошибке: обработчик наверху
+    // один на все площадки, и различать причины по тексту в нём — расползание.
+    if (VK_GROUP_AUTH_LIMIT.test(message)) {
+      (error as PlatformLimitedError).platformLimited = true;
+    }
+    throw error;
+  }
 
   const community = Number(communityId);
   const flat = (payload?.response?.items ?? []).flatMap((item) => [
@@ -267,13 +292,23 @@ export async function sweepOwnPublicationComments(
       outcomes.push({ platform, publications: targets.length, found, ingested, skippedOwn });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      // B677: «площадка так не умеет» и «обход упал» — разные вещи. Первое не
+      // чинится повторами и не должно неделями висеть предупреждением рядом с
+      // настоящими сбоями; второе — должно.
+      const limited = Boolean((error as PlatformLimitedError | undefined)?.platformLimited);
       await upsertMarketingSignal({
         key: `sweep:${platform}`,
         kind: "INBOUND",
-        severity: "WARNING",
-        title: `Обход комментариев не прошёл: ${platform}`,
-        summary: message,
-        evidence: { platform },
+        severity: limited ? "INFO" : "WARNING",
+        title: limited
+          ? `${platform}: комментарии недоступны нашему токену`
+          : `Обход комментариев не прошёл: ${platform}`,
+        summary: limited
+          ? `${message}. Это ограничение площадки, а не настройка: повторные попытки его не снимут. `
+            + "Рабочий путь для VK — Bots Long Poll сообщества (groups.setLongPollSettings + wall_reply_new), "
+            + "он доступен тому же токену сообщества и пока не реализован."
+          : message,
+        evidence: { platform, platformLimited: limited },
       }).catch(() => undefined);
       log.error("marketing-sweep.failed", { platform, error: serializeError(error) });
       outcomes.push({ platform, publications: 0, found: 0, ingested: 0, skippedOwn: 0, error: message });

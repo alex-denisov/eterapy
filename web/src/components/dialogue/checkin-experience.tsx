@@ -665,7 +665,7 @@ export function CheckinExperience({
                   is a blocking popup rendered below (see LimitPopup overlay). */}
               <div className="soft-ask-foot">
                 <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                  {restoring ? "Восстанавливаю сохраненный диалог..." : "Первый разбор — бесплатно."}
+                  {restoring ? "Восстанавливаю сохраненный диалог..." : "Бесплатно, без регистрации."}
                 </p>
                 <span
                   className={`text-xs tabular-nums ${

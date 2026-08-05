@@ -15,7 +15,7 @@ describe("v5 public home page", () => {
     expect(hero).toContain('data-testid="v5-question-entry"');
     expect(hero).toContain('name="question"');
     expect(hero).toContain('action="/checkin"');
-    expect(hero).toContain("Получить разбор");
+    expect(hero).toContain("Понять, что дальше");
     expect(hero).toContain('data-analytics-event="dialogue_cta_clicked"');
     expect(hero).toContain("PLACEHOLDERS[phIdx]");
     expect(hero).toContain("setQuestion(`${topic}: `)");
@@ -47,7 +47,7 @@ describe("v5 public home page", () => {
     // Primary разбор is /checkin (no standalone product page after B293).
     expect(services).toContain('href: "/checkin"');
     // B456: the free entry is the calm «Первый разбор» row (no «бесплатно» CTA).
-    expect(services).toContain("Первый разбор");
+    expect(services).toContain("Понять, что дальше");
     // B366: session floor derives from the single source (formatSessionFloor()).
     expect(services).toContain("formatSessionFloor");
     expect(services).toContain('href: "/products/tarot"');
@@ -92,8 +92,8 @@ describe("v5 public home page", () => {
 
     expect(howItWorks).toContain("Опишите своими словами");
     // B374: how-it-works trimmed to three steps; углубление folded into step 03.
-    expect(howItWorks).toContain("Первичный разбор");
-    expect(cta).toContain("Начать разбор");
+    expect(howItWorks).toContain("Понять, что дальше");
+    expect(cta).toContain("Понять, что дальше");
     expect(cta).toContain('href="/checkin"');
   });
 });

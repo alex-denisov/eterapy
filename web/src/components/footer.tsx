@@ -29,7 +29,7 @@ export function Footer({ variant = "soft", compact = false }: { variant?: "dark"
         [mainUrl("/products/reframe"), "Переосмысление"],
         [mainUrl("/products/deep-report"), "Подробный разбор"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],
-        [mainUrl("/products/pair"), "Вместе"],
+        [mainUrl("/products/pair"), "Разбор для двоих"],
       ],
     },
     {

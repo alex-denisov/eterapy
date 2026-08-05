@@ -130,6 +130,31 @@ export async function isDemoPractitioner(practitionerId: string) {
   return Boolean(practitioner?.demoAccount);
 }
 
+/**
+ * B676 · Ниже какой даты записи нет.
+ *
+ * Расписание описано недельными правилами без дат, и слоты считаются на лету —
+ * значит «принимаю с 10 сентября» невыразимо ни правилом, ни блокировкой
+ * (блокировать пришлось бы всё прошлое до бесконечности). Гейт живёт в выдаче
+ * доступности: правила у специалиста заведены сразу, а слотов до этой даты
+ * просто нет.
+ *
+ * Возвращает `null`, когда ограничения нет или оно уже наступило, — вызывающий
+ * тогда ничего не меняет в своей логике.
+ */
+export async function getPractitionerBookableFrom(
+  practitionerId: string,
+  now: Date = new Date(),
+): Promise<Date | null> {
+  const practitioner = await db.practitioner.findUnique({
+    where: { id: practitionerId },
+    select: { bookableFrom: true },
+  });
+  const from = practitioner?.bookableFrom ?? null;
+  if (!from || from <= now) return null;
+  return from;
+}
+
 export async function assertPractitionerBookingAllowed(practitionerId: string) {
   const practitioner = await db.practitioner.findUnique({
     where: { id: practitionerId },

@@ -557,7 +557,7 @@ export function buildUsageRecommendations(
         productKey: null,
         kind: "start" as const,
         title: "Задать свой вопрос",
-        reason: "Первый разбор бесплатный — с него понятнее всё остальное",
+        reason: "Бесплатно — после него понятнее всё остальное",
         cta: "Задать вопрос",
         route: "/checkin",
         surface: "main" as const,

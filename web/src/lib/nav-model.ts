@@ -158,6 +158,11 @@ export const GUEST_MORE_ITEMS: MobileTab[] = [
   { href: mainUrl("/how-it-works"), label: "Как работает", iconKey: "how" },
   { href: mainUrl("/library"), label: "Библиотека", iconKey: "library" },
   { href: mainUrl("/pricing"), label: "Тарифы", iconKey: "pricing" },
+  // B671: подвал на мобильной убран целиком, а он был единственным местом, где
+  // с публичной страницы можно было дойти до оферты и политики. Две строки
+  // здесь — замена ровно этому, а не попытка вернуть подвал через меню.
+  { href: mainUrl("/help"), label: "Поддержка и FAQ", iconKey: "support" },
+  { href: mainUrl("/legal/offer"), label: "Оферта и документы", iconKey: "settings" },
 ];
 
 // ── B466 — practitioner «Practice cockpit» IA. One 5-item model drives BOTH

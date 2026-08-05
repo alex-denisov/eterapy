@@ -138,9 +138,14 @@ export async function POST(req: NextRequest) {
       log.error("register.channel_attribution_failed", { err: attributionErr });
     });
 
+    // B669: отказ письма больше не выдаётся за отправку. Регистрация состоялась
+    // в любом случае — падать из-за почты нельзя, — но ответ говорит правду,
+    // иначе экран «мы отправили письмо» врёт человеку, который его не получит.
+    let emailSent = true;
     try {
       await sendVerificationEmail(email, name, user.verificationToken!);
     } catch (emailErr) {
+      emailSent = false;
       log.error("register.email_send_failed", { err: emailErr });
     }
 
@@ -153,7 +158,7 @@ export async function POST(req: NextRequest) {
     });
     await logAudit(user.id, "REGISTER", undefined, details, meta.ip ?? undefined);
     
-    return NextResponse.json({ ok: true, emailSent: true });
+    return NextResponse.json({ ok: true, emailSent });
   } catch (err) {
     log.error("register.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });

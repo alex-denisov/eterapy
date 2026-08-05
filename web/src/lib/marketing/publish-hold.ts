@@ -179,12 +179,16 @@ export async function holdChannel(input: {
   const queued = await db.externalPublication.count({
     where: { status: "SCHEDULED", platform: { equals: input.platform, mode: "insensitive" } },
   }).catch(() => 0);
+  // B677: «канал не подключён» и «канал сломался» — разные вещи, а severity у
+  // них была одна. Instagram и Threads стоят потому, что владелец сознательно
+  // не заводил их доступ (внешний гейт B610/B655), и висели на доске как
+  // INCIDENT неделями рядом с настоящими сбоями. Отсутствие ключа — ожидание,
+  // а не инцидент; всё остальное — по-прежнему инцидент.
+  const awaitingSetup = /\bis not configured\b|\bnot configured\b|отключ|disabled/i.test(input.reason);
   await upsertMarketingSignal({
     key: `publish-hold:${hold.platform}`,
     kind: "REGISTRY",
-    // Канал стоит целиком — это не деградация одной строки, а остановка
-    // направления. INCIDENT, чтобы это было видно рядом с падением сервиса.
-    severity: "INCIDENT",
+    severity: awaitingSetup ? "WARNING" : "INCIDENT",
     title: `${input.platform}: очередь публикаций приостановлена`,
     summary: `Отказ на стороне канала: ${input.reason}. Материалы не отменены и не заархивированы — `
       + `в очереди ожидают ${queued}. Следующая проверка доступа: `

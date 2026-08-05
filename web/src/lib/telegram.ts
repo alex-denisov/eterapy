@@ -154,11 +154,11 @@ export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl
     ["setMyDescription", { description: `Анонимный ИИ-чат, чтобы разобрать отношения, работу или трудное решение. Ответьте на 2–3 уточнения и получите первичный разбор: факты, главная развилка и следующий шаг. Бесплатно, без карты, около 3 минут. Не заменяет психолога и экстренную помощь. Здесь же приходят выбранные уведомления ETerapy.${suffix}` }],
     ["setMyShortDescription", { short_description: `Анонимный ИИ-чат: разберите ситуацию и получите первый шаг бесплатно. Не заменяет психолога.${suffix}` }],
     ["setMyCommands", { commands: [
-      { command: "start", description: "Начать разбор бесплатно" },
+      { command: "start", description: "Понять, что дальше — бесплатно" },
       { command: "status", description: "Проверить связь с аккаунтом" },
       { command: "stop", description: "Отключить уведомления Telegram" },
     ] }],
-    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Начать разбор", web_app: { url: miniAppUrl } } }],
+    ["setChatMenuButton", { menu_button: { type: "web_app", text: "Понять, что дальше", web_app: { url: miniAppUrl } } }],
   ];
   const results = [];
   for (const [method, body] of requests) {

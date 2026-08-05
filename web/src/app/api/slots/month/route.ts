@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { dayHasAvailability, calendarDateStr, type SlotInterval } from "@/lib/slot-availability";
-import { isDemoPractitioner } from "@/lib/practitioner-compliance";
+import { getPractitionerBookableFrom, isDemoPractitioner } from "@/lib/practitioner-compliance";
 
 /**
  * GET /api/slots/month?practitionerId=xxx&year=2026&month=5&durationMin=60
@@ -52,8 +52,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const wallClock = new Date();
+    // B676: дата открытия записи поднимает «сейчас» для расчёта доступности —
+    // `dayHasAvailability` уже отбрасывает всё, что не позже `now`, поэтому
+    // отдельного фильтра не нужно, и одноразовые слоты тоже не протекут.
+    const bookableFrom = await getPractitionerBookableFrom(practitionerId, wallClock);
+    const now = bookableFrom && bookableFrom > wallClock ? bookableFrom : wallClock;
+    const todayStart = new Date(wallClock.getFullYear(), wallClock.getMonth(), wallClock.getDate());
 
     const monthStartDate = new Date(year, month, 1);
     const monthEndDate = new Date(year, month + 1, 0); // последний день месяца

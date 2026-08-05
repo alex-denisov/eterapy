@@ -26,7 +26,7 @@ describe("B533 — имя мини-аппа утверждено владель�
   });
 
   it("кнопка запуска и /start зовут одним глаголом", () => {
-    const launches = telegram.match(/Начать разбор/g) ?? [];
+    const launches = telegram.match(/Понять, что дальше/g) ?? [];
     expect(launches.length).toBeGreaterThanOrEqual(2);
     expect(telegram).not.toContain("Разобрать вопрос");
   });

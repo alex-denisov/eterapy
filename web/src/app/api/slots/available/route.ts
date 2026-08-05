@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { canAccessPrioritySlot, isEarlyAccessSlot } from "@/lib/priority-booking";
 import { trackServerEvent } from "@/lib/analytics";
-import { isDemoPractitioner } from "@/lib/practitioner-compliance";
+import { getPractitionerBookableFrom, isDemoPractitioner } from "@/lib/practitioner-compliance";
 import { generatePotentialSlots, slotsOverlap } from "@/lib/slot-availability";
 
 /**
@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
   if (await isDemoPractitioner(practitionerId)) {
     return NextResponse.json({ slots: [], reason: "demo_account" });
   }
+
+  // B676: до даты открытия записи слотов нет вовсе. Проверка стоит ДО чтения
+  // расписания: правила у специалиста заведены сразу, чтобы кабинет показывал
+  // рабочую неделю, — открывает запись именно дата, а не наличие правил.
+  const bookableFrom = await getPractitionerBookableFrom(practitionerId);
 
   const session = await auth().catch(() => null);
   const activePlan = session?.user?.id ? await getUserActivePlan(session.user.id).catch(() => null) : null;
@@ -89,6 +94,8 @@ export async function GET(req: NextRequest) {
   const available = potentialSlots.filter(slot => {
     // В прошлом
     if (slot.startAt <= now) return false;
+    // Раньше даты открытия записи
+    if (bookableFrom && slot.startAt < bookableFrom) return false;
     // Заблокирован практиком
     if (blocked.some(b => slotsOverlap(slot.startAt, slot.endAt, b.startAt, b.endAt))) return false;
     // Занят бронированием

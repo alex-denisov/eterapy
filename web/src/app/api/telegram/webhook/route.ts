@@ -42,7 +42,7 @@ const MINI_APP_URL = getTrackedTelegramMiniAppUrl(
   "bot_welcome",
 );
 // B576: one outcome-led action in welcome, commands and the persistent menu.
-const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Начать разбор", web_app: { url: MINI_APP_URL } }]] };
+const OPEN_APP_KEYBOARD = { inline_keyboard: [[{ text: "Понять, что дальше", web_app: { url: MINI_APP_URL } }]] };
 
 async function safeSend(chatId: string, text: string, withAppButton = false) {
   try {
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
           "<b>Что сейчас не даёт вам покоя?</b>\n\n"
           + "Опишите ситуацию своими словами. ETerapy задаст 2–3 коротких вопроса и соберёт первичный разбор: "
           + "факты, главную развилку и один следующий шаг.\n\n"
-          + "Первичный разбор бесплатно, без карты и регистрации. Обычно около трёх минут.\n\n"
+          + "Бесплатно, без карты и регистрации. Обычно около трёх минут.\n\n"
           + "Этот же бот присылает выбранные уведомления ETerapy. Проверить связь: /status, отключить: /stop.",
           true,
         );

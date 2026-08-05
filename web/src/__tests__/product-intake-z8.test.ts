@@ -61,7 +61,8 @@ describe("Z8 product-local dialogue intake", () => {
 
     expect(v5Products.find((product) => product.slug === "pair")?.directHref).toBe("/products/pair");
     // «Круг ясности» merged into «Вместе» — no standalone catalogue card and the route 404s.
-    expect(v5Products.find((product) => product.slug === "pair")?.name).toBe("Вместе");
+    // B674: имя отображаемое, слаг `pair` — ключ биллинга, он не менялся.
+    expect(v5Products.find((product) => product.slug === "pair")?.name).toBe("Разбор для двоих");
     expect(products).not.toContain('slug: "circle"');
     expect(products).not.toContain('directHref: "/checkin?entry=pair"');
     expect(pairPage).not.toContain("/checkin?entry=pair");

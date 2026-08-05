@@ -22,6 +22,31 @@ function getResendClient() {
   return resendClient;
 }
 
+type ResendPayload = Parameters<Resend["emails"]["send"]>[0];
+
+/**
+ * B669 · Единственная точка отправки письма.
+ *
+ * ⚠ SDK Resend НЕ БРОСАЕТ исключение на отказ апстрима: `emails.send()`
+ * возвращает `{ data, error }` и промис резолвится в обоих случаях. Из-за
+ * этого журнал служебных отправок (`withAccountEmailLog`) писал `sent` даже
+ * там, где Resend отказал, а вызывающий код в `register/route.ts` считал
+ * доставку состоявшейся. Симптом на проде: два живых пользователя без
+ * подтверждения почты и НОЛЬ строк в журнале — сказать «письмо уходило?»
+ * было нечем.
+ *
+ * Отказ превращается в исключение здесь, один раз на все шестнадцать писем:
+ * рядом с каждым вызовом означало бы шестнадцать мест и семнадцатое забытое.
+ */
+export async function sendViaResend(payload: ResendPayload) {
+  const result = await getResendClient().emails.send(payload);
+  if (result.error) {
+    const { name, message } = result.error;
+    throw new Error(`Resend отказал в отправке: ${name}: ${message}`);
+  }
+  return result;
+}
+
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
 // Оформление вынесено в `email-theme.ts` — им пользуются и транзакционные
@@ -36,7 +61,7 @@ export async function sendVerificationEmail(email: string, name: string, token: 
   const url = `${APP_URL}/auth/verify-email?token=${token}`;
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_EMAIL_VERIFY", subject: "Подтвердите email — ETerapy" },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
     from: FROM, to: email,
     subject: "Подтвердите email — ETerapy",
     html: emailWrapper(`
@@ -54,7 +79,7 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
   const url = `${APP_URL}/auth/reset-password?token=${token}`;
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_PASSWORD_RESET", subject: "Сброс пароля — ETerapy" },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
     from: FROM, to: email,
     subject: "Сброс пароля — ETerapy",
     html: emailWrapper(`
@@ -91,7 +116,7 @@ export async function sendAccountInvitationEmail(
 
   return withAccountEmailLog(
     { recipient: email, event, subject },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
       from: FROM,
       to: email,
       subject,
@@ -115,7 +140,7 @@ export async function sendPractitionerApplicationApprovedEmail(
   const subject = "Заявка специалиста одобрена — ETerapy";
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_APPLICATION_DECISION", subject },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
       from: FROM,
       to: email,
       subject,
@@ -139,7 +164,7 @@ export async function sendPractitionerApplicationDecisionEmail(
     : "Решение по заявке специалиста — ETerapy";
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_APPLICATION_DECISION", subject },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
       from: FROM,
       to: email,
       subject,
@@ -180,7 +205,7 @@ export async function sendAccountDeletionRequestedEmail(
 
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_DELETION_REQUESTED", subject: "Аккаунт деактивирован — ETerapy" },
-    () => getResendClient().emails.send({
+    () => sendViaResend({
     from: FROM, to: email,
     subject: "Аккаунт деактивирован — ETerapy",
     html: emailWrapper(`
@@ -211,7 +236,7 @@ interface BookingEmailData {
 
 /** Клиенту: запрос принят, ждём подтверждения практика */
 export async function sendBookingRequestedClient(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.clientEmail,
     subject: `Запрос отправлен — ${d.practitionerName} · ETerapy`,
     html: emailWrapper(`
@@ -237,7 +262,7 @@ export async function sendBookingRequestedClient(d: BookingEmailData) {
 
 /** Практику: новый запрос от клиента */
 export async function sendBookingRequestedPractitioner(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.practitionerEmail,
     subject: `Новый запрос от ${d.clientName} · ETerapy`,
     html: emailWrapper(`
@@ -259,7 +284,7 @@ export async function sendBookingRequestedPractitioner(d: BookingEmailData) {
 
 /** Клиенту: практик подтвердил */
 export async function sendBookingConfirmedClient(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.clientEmail,
     subject: `Сессия подтверждена — ${d.practitionerName} · ETerapy`,
     html: emailWrapper(`
@@ -286,7 +311,7 @@ export async function sendBookingConfirmedClient(d: BookingEmailData) {
 /** Практику: запись подтверждена (ссылка на видеочат) */
 export async function sendBookingConfirmedPractitioner(d: BookingEmailData & { sessionUrl?: string }) {
   const sessionUrl = d.sessionUrl || `${APP_URL}/session/${d.bookingId}`;
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.practitionerEmail,
     subject: `Запись подтверждена — ${d.clientName} · ETerapy`,
     html: emailWrapper(`
@@ -311,7 +336,7 @@ export async function sendBookingConfirmedPractitioner(d: BookingEmailData & { s
 
 /** Практику: напоминание за 24 часа */
 export async function sendReminderPractitioner(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.practitionerEmail,
     subject: `Напоминание: сессия завтра — ${d.clientName} · ETerapy`,
     html: emailWrapper(`
@@ -330,7 +355,7 @@ export async function sendReminderPractitioner(d: BookingEmailData) {
 
 /** Клиенту: напоминание за 24 часа */
 export async function sendReminderClient(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.clientEmail,
     subject: `Напоминание: сессия завтра — ${d.practitionerName} · ETerapy`,
     html: emailWrapper(`
@@ -349,7 +374,7 @@ export async function sendReminderClient(d: BookingEmailData) {
 
 /** Клиенту: сессия завершена — предложение оставить отзыв */
 export async function sendReviewRequestClient(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.clientEmail,
     subject: `Как прошла сессия с ${d.practitionerName}? · ETerapy`,
     html: emailWrapper(`
@@ -367,7 +392,7 @@ export async function sendReviewRequestClient(d: BookingEmailData) {
 
 /** Клиенту: запись отменена */
 export async function sendBookingCancelledClient(d: BookingEmailData, cancelledBy: "client" | "practitioner") {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.clientEmail,
     subject: `Запись отменена — ETerapy`,
     html: emailWrapper(`
@@ -385,7 +410,7 @@ export async function sendBookingCancelledClient(d: BookingEmailData, cancelledB
 
 /** Практику: запись отменена клиентом */
 export async function sendBookingCancelledPractitioner(d: BookingEmailData) {
-  return getResendClient().emails.send({
+  return sendViaResend({
     from: FROM, to: d.practitionerEmail,
     subject: `Запись отменена клиентом — ETerapy`,
     html: emailWrapper(`

@@ -1008,6 +1008,10 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
     return { enabled: false, processed: 0, deferred: 0, conversational: 0, planned: 0, paced: 0 };
   }
   const now = input.now ?? new Date();
+  // B677: снимаем с доски то, чего больше не происходит. Первым действием
+  // прохода, а не последним: если ниже что-то упадёт, доска всё равно окажется
+  // честной, и владелец увидит сегодняшнюю причину, а не позавчерашнюю.
+  await sweepStaleMarketingSignals(now).catch(() => undefined);
   const horizon = marketingGenerationHorizon(now);
   // Материал без плановой даты — это ответ на входящее или ручной черновик:
   // ждать нечего, он идёт в этот же проход.
@@ -1139,4 +1143,81 @@ export async function resolveMarketingSignal(key: string) {
     where: { key, status: "OPEN" },
     data: { status: "RESOLVED", resolvedAt: now, lastSeenAt: now },
   });
+}
+
+/** Сколько молчания достаточно, чтобы считать сигнал прекратившимся. */
+export const MARKETING_SIGNAL_STALE_MS = 24 * 60 * 60_000;
+
+/**
+ * B677 · Сигнал закрывается сам, когда перестал повторяться.
+ *
+ * Владелец 2026-08-05: «в блоке накопились проблемы». Накопились они не потому,
+ * что их не чинили, а потому, что закрыть сигнал МОГ ТОЛЬКО тот код, который его
+ * поднял, — и только если снова дошёл до того же места. Разовые сигналы такой
+ * возможности не имеют вовсе:
+ *
+ *  • `agent-draft:<id>` поднимается на конкретный материал. Материал потом
+ *    выходит, переносится или архивируется — второго прохода по нему не будет
+ *    никогда, и строка висит вечно. Здесь она закрывается по СОСТОЯНИЮ
+ *    материала, а не по таймеру: вышел или заархивирован — вопрос закрыт.
+ *  • Повторяющиеся сигналы (провайдер, обход, метрики) закрываются молчанием:
+ *    если причина ещё жива, ближайший проход поднимет строку заново тем же
+ *    ключом, и она вернётся с честным свежим `lastSeenAt`.
+ *
+ * Функция ничего не «чинит» — она снимает с доски то, чего уже не происходит.
+ */
+export async function sweepStaleMarketingSignals(now = new Date()) {
+  const staleBefore = new Date(now.getTime() - MARKETING_SIGNAL_STALE_MS);
+
+  const open = await db.marketingAutomationSignal.findMany({
+    where: { status: "OPEN" },
+    select: { id: true, key: true, lastSeenAt: true },
+  }).catch(() => []);
+  if (open.length === 0) return { closedStale: 0, closedDraft: 0 };
+
+  // Разовые сигналы про конкретный материал: смотрим на сам материал.
+  const draftIds = open
+    .filter((row) => row.key.startsWith("agent-draft:"))
+    .map((row) => row.key.slice("agent-draft:".length));
+  const settled = draftIds.length
+    ? await db.externalPublication.findMany({
+      where: { id: { in: draftIds }, status: { notIn: ["DRAFT", "REVIEW"] } },
+      select: { id: true },
+    }).catch(() => [])
+    : [];
+  const settledKeys = settled.map((row) => `agent-draft:${row.id}`);
+
+  // Материал, который удалили целиком, тоже не должен держать строку.
+  const knownDraftIds = draftIds.length
+    ? new Set((await db.externalPublication.findMany({
+      where: { id: { in: draftIds } },
+      select: { id: true },
+    }).catch(() => [])).map((row) => row.id))
+    : new Set<string>();
+  const vanishedKeys = draftIds
+    .filter((id) => !knownDraftIds.has(id))
+    .map((id) => `agent-draft:${id}`);
+
+  const draftKeys = [...new Set([...settledKeys, ...vanishedKeys])];
+  const staleKeys = open
+    .filter((row) => !row.key.startsWith("agent-draft:") && row.lastSeenAt < staleBefore)
+    .map((row) => row.key);
+
+  const closedDraft = draftKeys.length
+    ? (await db.marketingAutomationSignal.updateMany({
+      where: { key: { in: draftKeys }, status: "OPEN" },
+      data: { status: "RESOLVED", resolvedAt: now },
+    }).catch(() => ({ count: 0 }))).count
+    : 0;
+  const closedStale = staleKeys.length
+    ? (await db.marketingAutomationSignal.updateMany({
+      where: { key: { in: staleKeys }, status: "OPEN" },
+      data: { status: "RESOLVED", resolvedAt: now },
+    }).catch(() => ({ count: 0 }))).count
+    : 0;
+
+  if (closedDraft || closedStale) {
+    log.info("marketing.signals_swept", { closedDraft, closedStale });
+  }
+  return { closedStale, closedDraft };
 }

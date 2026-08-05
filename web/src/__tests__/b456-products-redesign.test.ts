@@ -34,14 +34,16 @@ describe("B456 — /products calm catalog redesign", () => {
 
   it("renders the free первичный разбор as a slim entry row → /checkin", () => {
     expect(catalog).toContain("soft-entry-row");
-    expect(catalog).toContain("Первый разбор");
+    // B672: триаж больше не называется порядковым номером.
+    expect(catalog).toContain("Понять, что дальше");
     expect(catalog).toContain("/checkin");
   });
 
   it("keeps the five calm section labels without the redundant esoteric subtitle", () => {
-    expect(catalog).toContain("С чего начать");
-    expect(catalog).toContain("Разобраться самостоятельно");
-    expect(catalog).toContain("Вместе");
+    expect(catalog).toContain("Если пока не знаете, что выбрать");
+    // B673: чип и заголовок секции — «Психология», «Вместе» переехало внутрь.
+    expect(catalog).toContain("Психология");
+    expect(catalog).toContain("Разбор для двоих");
     expect(catalog).toContain("Эзотерика");
     expect(catalog).not.toContain("символический взгляд");
     expect(catalog).toContain("Поговорить с человеком");
