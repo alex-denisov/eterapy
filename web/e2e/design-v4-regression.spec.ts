@@ -47,7 +47,16 @@ test.describe("Design v4 Soft Clarity public regression", () => {
 
           expect(await page.locator(".soft-clarity-page").count()).toBeGreaterThan(0);
           await expect(page.locator('[data-testid="public-shell-header"]')).toBeVisible();
-          await expect(page.locator('[data-testid="public-shell-footer"]')).toBeVisible();
+          // B671 (владелец 2026-08-05): на мобильной подвала нет — он сбивал
+          // людей с толку. Присутствие в DOM проверяем всегда (сборка не
+          // должна его терять), видимость — только там, где он положен.
+          const footer = page.locator('[data-testid="public-shell-footer"]');
+          await expect(footer).toHaveCount(1);
+          if (viewport.name === "mobile") {
+            await expect(footer).toBeHidden();
+          } else {
+            await expect(footer).toBeVisible();
+          }
           await expect(page.locator(".premium-shell")).toHaveCount(0);
 
           const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
