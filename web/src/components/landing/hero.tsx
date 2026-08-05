@@ -43,15 +43,14 @@ export function HeroSection() {
       <div className="soft-shell">
         <div className="mx-auto max-w-[54rem] text-center">
           <div className="mb-3 flex flex-wrap items-center justify-center gap-3">
-            <span className="soft-badge soft-badge-warm">Бесплатный первый разбор</span>
-            <span className="text-sm text-[var(--soft-ink-faint)]">· без регистрации</span>
+            <span className="soft-badge soft-badge-warm">Бесплатно, без регистрации</span>
           </div>
 
           <h1 id="home-hero-title" className="soft-display">
             Разберитесь в ситуации <span className="soft-italic">за несколько минут.</span>
           </h1>
           <p className="soft-lede mx-auto mt-3 max-w-2xl">
-            Короткий, тёплый диалог поможет добраться до сути и выбрать ближайший шаг.
+            Расскажите своими словами — покажем, что происходит, и подскажем, какой формат поможет.
           </p>
         </div>
 
@@ -59,8 +58,16 @@ export function HeroSection() {
           <div className="soft-ask-card" data-testid="v5-question-entry">
             <div className="mb-3 flex items-center gap-2">
               <SoftHaloMark size={14} />
-              <span className="soft-eyebrow">Разбор</span>
+              <span className="soft-eyebrow">Своими словами</span>
             </div>
+            {/* B675 (владелец 2026-08-05): блок называл себя существительным
+                «Разбор» — существительное называет ВЕЩЬ, то есть товар, и люди
+                считывали «вот главный продукт», хотя механизм только
+                ориентирует. Строка ниже впервые вслух говорит, что будет
+                дальше: выбор формата, и он платный. */}
+            <p className="mb-3 text-sm text-[var(--soft-ink-faint)]">
+              Бесплатно и без регистрации: покажем, что происходит, и подскажем, какой формат подойдёт.
+            </p>
             <form action="/checkin" data-testid="question-entry">
               <label htmlFor="home-question" className="sr-only">
                 Что сейчас хочется понять?
@@ -89,7 +96,7 @@ export function HeroSection() {
                   data-analytics-target="/checkin"
                   data-testid="home-dialogue-cta"
                 >
-                  Получить разбор
+                  Понять, что дальше
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </button>
               </div>

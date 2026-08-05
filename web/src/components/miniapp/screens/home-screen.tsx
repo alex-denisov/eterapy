@@ -66,7 +66,7 @@ export function HomeScreen() {
           </div>
         </section>
 
-        <button className={styles["primary-action"]} type="button" onClick={submit} data-testid="home-start-dialogue-button">Начать разбор</button>
+        <button className={styles["primary-action"]} type="button" onClick={submit} data-testid="home-start-dialogue-button">Понять, что дальше</button>
 
         {active ? (
           <Link href={`/miniapp/dialogues/${encodeURIComponent(active.id)}`} className={styles["continue-row"]}>

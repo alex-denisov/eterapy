@@ -191,6 +191,11 @@ model Practitioner {
   // override именно демо-аккаунтам). Живой специалист создаётся с `false`, то
   // есть подключение реального человека кодом не сопровождается.
   demoAccount             Boolean                     @default(false) @map("demo_account")
+  // B676 (владелец 2026-08-05): дата, РАНЬШЕ которой записаться нельзя.
+  // Расписание в системе — недельные правила без дат, слоты считаются на лету,
+  // поэтому «открыть запись с 10 сентября» иначе выражается только
+  // блокировками до бесконечности. `null` — ограничения нет.
+  bookableFrom            DateTime?                   @map("bookable_from")
   agentOfferAcceptedAt    DateTime?                   @map("agent_offer_accepted_at")
   agentOfferVersion       String?                     @map("agent_offer_version")
   taxStatus               PractitionerTaxStatus       @default(UNKNOWN) @map("tax_status")

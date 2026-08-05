@@ -33,17 +33,23 @@ describe("B665 · переименование профиля", () => {
     expect(alisa?.name).toBe("Алиса Бабаева");
   });
 
-  it("специализации — таро, астрология и нумерология", () => {
-    expect(alisa?.specialties).toEqual(
-      expect.arrayContaining(["tarot", "astrology", "numerology"]),
-    );
+  it("профиль психолога, а не эзотерическая витрина предыдущего владельца слага (B676)", () => {
+    // Эзотерические специализации достались профилю от демо-«Елены Морозовой»;
+    // Алиса — психолог-консультант (КПТ, гештальт, интегральная терапия).
+    expect(alisa?.specialties).toEqual([]);
+    expect(alisa?.title).toContain("Психолог");
   });
 
-  it("у живого человека нет выдуманных отзывов и счётчиков", () => {
-    expect(alisa?.reviews).toEqual([]);
-    expect(alisa?.reviewCount).toBe(0);
-    expect(alisa?.sessionCount).toBe(0);
-    expect(alisa?.rating).toBe(0);
+  it("цена — 10 000 ₽ за час, других вариантов нет (B676)", () => {
+    expect(alisa?.pricePerSession).toBe(10000);
+  });
+
+  it("отзывы возвращены решением владельца 2026-08-05 (B676)", () => {
+    // B665 их сняла как выдуманные; владелец вернул их явным указанием.
+    // Счётчики совпадают с числом строк в базе, а не с прежними 120 сессиями.
+    expect(alisa?.reviews.length).toBeGreaterThan(0);
+    expect(alisa?.reviewCount).toBe(15);
+    expect(alisa?.sessionCount).toBe(15);
   });
 });
 

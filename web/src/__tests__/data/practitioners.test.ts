@@ -16,7 +16,10 @@ describe('Practitioners Data', () => {
       expect(typeof p.avatar).toBe('string');
       expect(p.title).toBeTruthy();
       expect(Array.isArray(p.specialties)).toBe(true);
-      expect(p.specialties.length).toBeGreaterThan(0);
+      // B676: `specialties` — ЭЗОТЕРИЧЕСКИЙ enum (таро, руны, сновидения).
+      // У психолога он пуст по существу, а витрину держат taxonomy-колонки
+      // categories/directions. Требовать непустой список значило бы требовать
+      // от психолога эзотерическую специализацию.
       expect(typeof p.rating).toBe('number');
       expect(p.rating).toBeGreaterThanOrEqual(0);
       expect(p.rating).toBeLessThanOrEqual(5);
@@ -95,8 +98,13 @@ describe('Practitioners Data', () => {
     });
 
     it('should be able to filter by online status', () => {
+      // B676: у сидированных профилей больше НЕТ ни `online`, ни `nextSlot` —
+      // владелец 2026-08-05 просил не открывать им запись, а «Сегодня 18:00»
+      // на карточке было обещанием слота, которого не существует. Проверяем
+      // работоспособность фильтра, а не наличие онлайн-практика.
       const onlinePractitioners = practitioners.filter((p: any) => p.online);
-      expect(onlinePractitioners.length).toBeGreaterThan(0);
+      expect(Array.isArray(onlinePractitioners)).toBe(true);
+      expect(practitioners.every((p: any) => typeof p.online === 'boolean')).toBe(true);
     });
 
     it('should be able to filter by rating >= 4.5', () => {

@@ -45,28 +45,34 @@ export const SPECIALTY_LABELS: Record<Specialty, string> = {
 
 export const practitioners: Practitioner[] = [
   {
-    // B665 · владелец 2026-08-05: профиль полностью переименован в реального
-    // практика. Вымышленные отзывы и счётчики сессий убраны намеренно: под
-    // демо-именем это была витрина, под именем живого человека это были бы
-    // выдуманные отзывы о конкретном специалисте.
+    // B676 · владелец 2026-08-05: онбординг завершён, профиль переписан по
+    // её собственному сайту (alisababaeva.ru). Она ПСИХОЛОГ — КПТ, гештальт,
+    // интегральная и провокативная терапия, — а не таролог: эзотерическая
+    // витрина досталась ей от демо-профиля прошлого владельца слага.
+    // Отзывы возвращены владельцем осознанно (те же, что были до B665).
+    // Запись открыта с 10 сентября 2026 — гейт `bookableFrom` в базе.
     id: "alisa-babaeva",
     name: "Алиса Бабаева",
-    avatar: "🌙",
-    title: "Таролог · Астролог · Нумеролог",
-    specialties: ["tarot", "astrology", "numerology"],
-    rating: 0,
-    reviewCount: 0,
-    sessionCount: 0,
-    pricePerSession: 2000,
-    bio: "Работаю с картами Таро, натальной картой и нумерологическим разбором. В консультации важен не прогноз, а опора: посмотреть на ситуацию со стороны и увидеть следующий шаг. Отдельно веду темы тревоги, отношений и выборов, из которых трудно выйти.",
+    avatar: "🌿",
+    title: "Психолог-консультант · КПТ, гештальт, интегральная терапия",
+    specialties: [],
+    rating: 4.87,
+    reviewCount: 15,
+    sessionCount: 15,
+    pricePerSession: 10000,
+    bio: "Работаю в интегральном подходе и опираюсь на четыре школы — когнитивно-поведенческую и гештальт-терапию, интегральную и провокативную терапию. В практике взрослые женщины, пары и семьи: тревога, депрессия и апатия, зависимости, компульсивное переедание. Помогаю не «починить» себя, а увидеть, как можно жить иначе.",
     experience: "10 лет",
     languages: ["Русский"],
     verified: true,
     founding: true,
     online: false,
     nextSlot: null,
-    tags: ["Отношения", "Самопознание", "Выборы"],
-    reviews: [],
+    tags: ["Тревога", "Депрессия и апатия", "Зависимости", "Отношения", "Компульсивное переедание"],
+    reviews: [
+      { author: "Клиент", text: "Спокойный профессиональный разговор без давления. Рекомендую.", rating: 5, date: "2026-05-25" },
+      { author: "Клиент", text: "Конкретные шаги и поддержка — ушёл с ясностью.", rating: 5, date: "2026-05-20" },
+      { author: "Клиент", text: "Чувствовалась настоящая включённость, ни одной банальности.", rating: 5, date: "2026-05-15" },
+    ],
   },
   {
     id: "mikhail-volkov",
@@ -77,14 +83,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.8,
     reviewCount: 89,
     sessionCount: 201,
-    pricePerSession: 3000,
+    pricePerSession: 9000,
     bio: "Астролог с западной и ведической специализацией. Строю натальные карты, анализирую транзиты и прогрессии. Нумерология по системе Пифагора.",
     experience: "6 лет",
     languages: ["Русский"],
     verified: true,
     founding: true,
     online: false,
-    nextSlot: "Завтра 11:00",
+    nextSlot: null,
     tags: ["Натальная карта", "Транзиты", "Прогнозы"],
     reviews: [
       {
@@ -110,14 +116,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.7,
     reviewCount: 63,
     sessionCount: 118,
-    pricePerSession: 2000,
+    pricePerSession: 9000,
     bio: "Работаю с классическими раскладами Таро и скандинавскими рунами. Помогаю найти ответы в ситуациях неопределённости и принять сложные решения.",
     experience: "4 года",
     languages: ["Русский"],
     verified: true,
     founding: false,
-    online: true,
-    nextSlot: "Сегодня 20:00",
+    online: false,
+    nextSlot: null,
     tags: ["Решения", "Неопределённость", "Руны"],
     reviews: [
       {
@@ -143,14 +149,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.9,
     reviewCount: 42,
     sessionCount: 87,
-    pricePerSession: 1800,
+    pricePerSession: 9000,
     bio: "Специализируюсь на нумерологическом анализе личности и совместимости. Помогаю понять жизненный путь, сильные стороны и скрытые ресурсы.",
     experience: "3 года",
     languages: ["Русский", "English"],
     verified: true,
     founding: false,
-    online: true,
-    nextSlot: "Завтра 14:00",
+    online: false,
+    nextSlot: null,
     tags: ["Личность", "Совместимость", "Ресурсы"],
     reviews: [
       {
@@ -170,7 +176,7 @@ export const practitioners: Practitioner[] = [
     rating: 4.6,
     reviewCount: 31,
     sessionCount: 54,
-    pricePerSession: 2200,
+    pricePerSession: 9000,
     bio: "Работаю с западной астрологией, специализация — предсказательная астрология и выбор благоприятного времени для важных событий.",
     experience: "5 лет",
     languages: ["Русский"],
@@ -197,14 +203,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.8,
     reviewCount: 55,
     sessionCount: 110,
-    pricePerSession: 2300,
+    pricePerSession: 9000,
     bio: "Таролог и исследователь символики сновидений. Помогаю расшифровать послания подсознания через карты и анализ снов.",
     experience: "5 лет",
     languages: ["Русский"],
     verified: true,
     founding: true,
-    online: true,
-    nextSlot: "Сегодня 19:30",
+    online: false,
+    nextSlot: null,
     tags: ["Сны", "Подсознание", "Символы"],
     reviews: [
       {
@@ -230,14 +236,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.8,
     reviewCount: 76,
     sessionCount: 163,
-    pricePerSession: 2800,
+    pricePerSession: 9000,
     bio: "Работаю с западной астрологией и нумерологией Шаньяпта. Специализируюсь на вопросах призвания, самопознания и выбора жизненного направления.",
     experience: "7 лет",
     languages: ["Русский"],
     verified: true,
     founding: false,
-    online: true,
-    nextSlot: "Завтра 16:00",
+    online: false,
+    nextSlot: null,
     tags: ["Призвание", "Самопознание", "Выбор"],
     reviews: [
       {
@@ -263,14 +269,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.9,
     reviewCount: 118,
     sessionCount: 247,
-    pricePerSession: 3500,
+    pricePerSession: 9000,
     bio: "Таролог с 10-летним стажем, работаю с системой Таро Тота. Специализируюсь на вопросах отношений, деловых решений и личностного роста.",
     experience: "10 лет",
     languages: ["Русский", "English", "Deutsch"],
     verified: true,
     founding: true,
-    online: true,
-    nextSlot: "Сегодня 21:00",
+    online: false,
+    nextSlot: null,
     tags: ["Таро Тота", "Отношения", "Решения"],
     reviews: [
       {
@@ -302,14 +308,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.7,
     reviewCount: 44,
     sessionCount: 91,
-    pricePerSession: 4500,
+    pricePerSession: 9000,
     bio: "Ведический астролог, специализируюсь на натальных картах и прогнозировании ключевых периодов жизни. Особое внимание — карьере и финансам.",
     experience: "9 лет",
     languages: ["Русский"],
     verified: true,
     founding: false,
     online: false,
-    nextSlot: "Послезавтра 12:00",
+    nextSlot: null,
     tags: ["Ведическая астрология", "Карьера", "Финансы"],
     reviews: [
       {
@@ -335,14 +341,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.8,
     reviewCount: 61,
     sessionCount: 128,
-    pricePerSession: 2100,
+    pricePerSession: 9000,
     bio: "Работаю со старшим Футарком и юнгианским подходом к символике снов. Помогаю интерпретировать повторяющиеся сны и найти личное значение рунических посланий.",
     experience: "6 лет",
     languages: ["Русский"],
     verified: true,
     founding: false,
-    online: true,
-    nextSlot: "Завтра 19:00",
+    online: false,
+    nextSlot: null,
     tags: ["Руны", "Сны", "Символы"],
     reviews: [
       {
@@ -368,14 +374,14 @@ export const practitioners: Practitioner[] = [
     rating: 4.9,
     reviewCount: 93,
     sessionCount: 204,
-    pricePerSession: 2600,
+    pricePerSession: 9000,
     bio: "Совмещаю нумерологию и Таро для комплексного взгляда на жизненную ситуацию. Особое направление — вопросы совместимости и выбора момента для важных шагов.",
     experience: "8 лет",
     languages: ["Русский", "English"],
     verified: true,
     founding: true,
-    online: true,
-    nextSlot: "Сегодня 17:30",
+    online: false,
+    nextSlot: null,
     tags: ["Совместимость", "Таро", "Нумерология"],
     reviews: [
       {

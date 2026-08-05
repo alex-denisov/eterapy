@@ -135,11 +135,18 @@ describe("B512 nav-model — client «Ещё» hub sections", () => {
     }
   });
 
-  it("guest «Ещё» = Как работает · Библиотека · Тарифы (Войти is already a tab)", () => {
+  it("guest «Ещё» несёт правовые ссылки — на мобильной подвала больше нет (B671)", () => {
     expect(labels(GUEST_MORE_ITEMS)).toEqual([
       "Как работает",
       "Библиотека",
       "Тарифы",
+      "Поддержка и FAQ",
+      "Оферта и документы",
     ]);
+    // Смысл проверки — достижимость, а не порядок: подвал был единственным
+    // местом, откуда с публичной мобильной страницы можно было дойти до оферты.
+    const hrefs = GUEST_MORE_ITEMS.map((item) => item.href);
+    expect(hrefs.some((href) => href.includes("/legal/offer"))).toBe(true);
+    expect(hrefs.some((href) => href.includes("/help"))).toBe(true);
   });
 });

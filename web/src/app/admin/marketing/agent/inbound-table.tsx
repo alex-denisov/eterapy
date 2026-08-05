@@ -85,13 +85,18 @@ export function MarketingInboundTable({ rows }: { rows: InboundTableRow[] }) {
         ? "—"
         : {
           kind: "actions" as const,
+          // B670: иконки РАЗНЫЕ. Без явной иконки обе кнопки получали общий
+          // запасной значок — владелец 2026-08-05 закрыл строку наугад, потому
+          // что «ответил вручную» и «ответ не нужен» выглядели одинаково.
           actions: [
             {
               label: busy === row.id ? "…" : "Ответил вручную",
+              icon: "check" as const,
               onClick: () => void close(row.id, "ANSWERED"),
             },
             {
               label: "Ответ не нужен",
+              icon: "dismiss" as const,
               onClick: () => void close(row.id, "IGNORED"),
             },
           ],

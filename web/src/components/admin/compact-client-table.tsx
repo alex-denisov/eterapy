@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, Edit3, ExternalLink, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, Edit3, ExternalLink, MinusCircle, RotateCcw, Search, Trash2, X } from "lucide-react";
 import {
   adminMonthDays,
   adminMonthTitle,
@@ -36,7 +36,10 @@ export type AdminCompactAction = {
   label: string;
   href?: string;
   onClick?: () => void;
-  icon?: "open" | "download" | "edit" | "delete" | "cancel" | "check" | "refresh";
+  // B670: у каждого действия в строке должна быть СВОЯ иконка. Без неё
+  // `actionIcon` отдаёт общий запасной значок, и два разных действия в одной
+  // строке выглядят одинаково — владелец 2026-08-05 закрыл входящее наугад.
+  icon?: "open" | "download" | "edit" | "delete" | "cancel" | "check" | "refresh" | "dismiss";
   variant?: "default" | "primary" | "danger";
   external?: boolean;
   disabled?: boolean;
@@ -849,6 +852,7 @@ function actionIcon(icon: AdminCompactAction["icon"]) {
   if (icon === "cancel") return <Ban className="size-3.5" aria-hidden="true" />;
   if (icon === "check") return <CheckCircle2 className="size-3.5" aria-hidden="true" />;
   if (icon === "refresh") return <RotateCcw className="size-3.5" aria-hidden="true" />;
+  if (icon === "dismiss") return <MinusCircle className="size-3.5" aria-hidden="true" />;
   return <ExternalLink className="size-3.5" aria-hidden="true" />;
 }
 

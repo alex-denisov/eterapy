@@ -127,7 +127,7 @@ export default function HowToChoosePage() {
         {/* CTA */}
         <div className="text-center pt-4">
           <Link href="/checkin" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
-            Начать разбор
+            Понять, что дальше
           </Link>
         </div>
       </div>

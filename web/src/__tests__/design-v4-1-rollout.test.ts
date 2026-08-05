@@ -51,9 +51,9 @@ describe("design v4.2 rollout", () => {
 
     // M26/B370: каталог = 5 групп; «Вместе» — одна карточка, практик-карточек нет.
     // B456: calm section labels (de-anchored from «бесплатно»/internal terms).
-    expect(catalog).toContain("С чего начать");
-    expect(catalog).toContain("Разобраться самостоятельно");
-    expect(catalog).toContain("Вместе");
+    expect(catalog).toContain("Если пока не знаете, что выбрать");
+    expect(catalog).toContain("Психология");
+    expect(catalog).toContain("Разбор для двоих");
     expect(catalog).toContain("Эзотерика");
     expect(catalog).toContain("Поговорить с человеком");
     expect(catalog).toContain("soft-svc-card");

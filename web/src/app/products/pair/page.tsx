@@ -69,7 +69,7 @@ export default async function TogetherPage({
               >
                 <ChevronLeft className="size-5" aria-hidden="true" />
               </Link>
-              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Вместе</h1>
+              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Разбор для двоих</h1>
             </div>
             {product && <ProductHeroPrice product={product} />}
           </div>
