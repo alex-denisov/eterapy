@@ -65,6 +65,41 @@ const DZEN_FEED_TOPUP_PREFIX = "b620-rss-dzen-";
 const FEED_TOPUP_RESTORE_STEP_MS = 40 * 60_000;
 const FEED_TOPUP_RESTORE_LEAD_MS = 30 * 60_000;
 
+/**
+ * Сколько раз одну статью можно поднять из архива.
+ *
+ * Без предела возврат замкнулся бы в круг: отказ → архив → возврат → тот же
+ * отказ, и каждый оборот стоит полного цикла «автор + редактор» из общей
+ * бесплатной ёмкости. Порог ленты кругу не помеха — он как раз и не берётся,
+ * пока статьи не выходят.
+ */
+export const MAX_FEED_TOPUP_RESTORES = 2;
+/** Счётчик живёт в `notes` строки: отдельная колонка ради четырёх статей лишняя. */
+function feedTopUpRestoreCount(notes: string | null | undefined): number {
+  if (!notes) return 0;
+  try {
+    const parsed = JSON.parse(notes) as { b695Restores?: unknown };
+    return typeof parsed.b695Restores === "number" ? parsed.b695Restores : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function withFeedTopUpRestoreCount(notes: string | null | undefined, next: number): string {
+  let parsed: Record<string, unknown> = {};
+  if (notes) {
+    try {
+      const candidate = JSON.parse(notes) as unknown;
+      if (candidate && typeof candidate === "object") parsed = candidate as Record<string, unknown>;
+    } catch {
+      // Notes не JSON — прежнее содержимое сохраняем отдельным полем, чтобы
+      // счётчик не стёр редакционную заметку.
+      parsed = { note: notes };
+    }
+  }
+  return JSON.stringify({ ...parsed, b695Restores: next });
+}
+
 export async function restoreDzenFeedTopUp(
   input: { now?: Date } = {},
 ): Promise<number> {
@@ -81,7 +116,7 @@ export async function restoreDzenFeedTopUp(
 
   const archived = await db.externalPublication.findMany({
     where: { status: "ARCHIVED", key: { startsWith: DZEN_FEED_TOPUP_PREFIX } },
-    select: { id: true, key: true, archiveReason: true, lastError: true },
+    select: { id: true, key: true, archiveReason: true, lastError: true, notes: true },
     orderBy: { key: "asc" },
   }).catch(() => []);
 
@@ -91,6 +126,8 @@ export async function restoreDzenFeedTopUp(
     // Решение редактора и safety-блок остаются архивом: материал признан
     // негодным по существу, и повтор дал бы тот же результат за ту же ёмкость.
     if (!isRecoverablePublicationError(reason)) continue;
+    const restoresSoFar = feedTopUpRestoreCount(row.notes);
+    if (restoresSoFar >= MAX_FEED_TOPUP_RESTORES) continue;
     await db.externalPublication.update({
       where: { id: row.id },
       data: {
@@ -100,6 +137,7 @@ export async function restoreDzenFeedTopUp(
         attemptCount: 0,
         recoveryCount: 0,
         archiveReason: null,
+        notes: withFeedTopUpRestoreCount(row.notes, restoresSoFar + 1),
         scheduledFor: new Date(
           now.getTime() + FEED_TOPUP_RESTORE_LEAD_MS + restored * FEED_TOPUP_RESTORE_STEP_MS,
         ),

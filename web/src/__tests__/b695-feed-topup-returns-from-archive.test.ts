@@ -20,7 +20,10 @@
  * — только пока порог ленты не взят. Взяли — возврат выключается сам.
  */
 
-import { restoreDzenFeedTopUp } from "@/lib/marketing/publication-queue";
+import {
+  MAX_FEED_TOPUP_RESTORES,
+  restoreDzenFeedTopUp,
+} from "@/lib/marketing/publication-queue";
 
 const findMany = jest.fn();
 const count = jest.fn();
@@ -39,12 +42,16 @@ jest.mock("@/lib/db", () => ({
 
 const NOW = new Date("2026-08-06T18:00:00.000Z");
 
-const archivedRow = (key: string, reason: string) => ({
+const archivedRow = (key: string, reason: string, notes: string | null = null) => ({
   id: `id-${key}`,
   key,
   archiveReason: reason,
   lastError: null,
+  notes,
 });
+
+const TECHNICAL = "Срок слота прошёл, пока материал был в отказе: "
+  + "No free provider returned valid structured output (GROQ: All AI providers failed)";
 
 beforeEach(() => {
   findMany.mockReset().mockResolvedValue([]);
@@ -76,6 +83,19 @@ describe("возврат статей пополнения ленты", () => {
     // упрётся в ту же ёмкость, из-за которой они и сгорели.
     const times = data.map((row) => (row.scheduledFor as Date).getTime());
     expect(new Set(times).size).toBe(times.length);
+  });
+
+  it("возврат не превращается в круг: у статьи есть предел подъёмов", async () => {
+    findMany.mockResolvedValue([
+      archivedRow("b620-rss-dzen-01", TECHNICAL,
+        JSON.stringify({ format: "статья", b695Restores: MAX_FEED_TOPUP_RESTORES })),
+      archivedRow("b620-rss-dzen-03", TECHNICAL, JSON.stringify({ b695Restores: 1 })),
+    ]);
+
+    expect(await restoreDzenFeedTopUp({ now: NOW })).toBe(1);
+    const data = update.mock.calls[0][0] as { data: { notes: string } };
+    // Счётчик растёт и не затирает редакционную заметку.
+    expect(JSON.parse(data.data.notes)).toMatchObject({ b695Restores: 2 });
   });
 
   it("решение редактора и safety-блок остаются архивом", async () => {
