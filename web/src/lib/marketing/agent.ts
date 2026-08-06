@@ -176,7 +176,17 @@ const CAPACITY_ERROR_MARKERS = [
  * Требуем, чтобы ёмкостными были ВСЕ отказы: один посторонний код означает, что
  * дело не только в квоте, и ждать «пока само пройдёт» было бы неправдой.
  */
-const CAPACITY_ATTEMPT_CODES = new Set(["HTTP_429", "HTTP_402", "RATE_LIMITED", "INSUFFICIENT_CREDITS"]);
+const CAPACITY_ATTEMPT_CODES = new Set([
+  "HTTP_429",
+  "HTTP_402",
+  "RATE_LIMITED",
+  "INSUFFICIENT_CREDITS",
+  // B694: ключи провайдера остывают после квоты. Это та же исчерпанная ёмкость,
+  // только замеченная на проход позже — и она тоже проходит сама. До правки
+  // такой проход приходил кодом `MISSING_ADAPTER`, ёмкостью не считался, и
+  // годный материал сгорал в FAILED.
+  "PROVIDER_COOLDOWN",
+]);
 
 function routingErrorIsCapacity(error: unknown): boolean {
   if (!(error instanceof AIGatewayRoutingError)) return false;

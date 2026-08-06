@@ -339,6 +339,55 @@ interface PickCredentialInput {
   now?: Date;
 }
 
+/**
+ * B694 — какие ключи провайдера считаются доступными сейчас.
+ *
+ * Условие вынесено из двух выборок в одно место по двум причинам. Во-первых,
+ * `listActiveCredentialsForProvider` и `pickCredentialForProvider` обязаны
+ * отвечать одинаково: иначе перебор увидит ключ, которого нет в списке. Во-
+ * вторых, у него появилась смысловая часть, которую нужно проверять прогоном, а
+ * не живой базой (`feedback_migration_check_schema`).
+ *
+ * РЕГИОНАЛЬНАЯ БЛОКИРОВКА. Раньше `regionBlocked: false` было жёстким условием,
+ * а флаг ставился по любому HTTP 403 и не снимался ничем, кроме правки в базе.
+ * Один разовый 403 навсегда выводил провайдера из пула: замер прода 2026-08-06
+ * показал Cerebras с `region_blocked=t` и 130 пропусками за сутки при живом
+ * ключе. Теперь у блокировки есть срок: по нему ключ возвращается на пробу.
+ * Ответит тем же 403 — заблокируется снова, это дешевле вечного выбывания.
+ *
+ * Строки без срока (`cooldownUntil: null`) — наследство прежнего поведения, и
+ * они тоже идут на пробу: иначе правка не починила бы уже сломанное.
+ */
+export function activeCredentialWhere(provider: AIProvider, now: Date) {
+  return {
+    provider,
+    enabled: true,
+    OR: [
+      { regionBlocked: false, cooldownUntil: null },
+      { regionBlocked: false, cooldownUntil: { lt: now } },
+      { regionBlocked: true, cooldownUntil: null },
+      { regionBlocked: true, cooldownUntil: { lt: now } },
+    ],
+  };
+}
+
+/**
+ * B694 — когда у провайдера снова появится ёмкость.
+ *
+ * Отвечает на вопрос «список пуст — это надолго?». `null` означает «ключей нет
+ * вовсе», дата — «все ключи остывают, вот ближайший срок».
+ */
+export async function providerCooldownUntil(input: { provider: AIProvider; now?: Date }): Promise<Date | null> {
+  const now = input.now ?? new Date();
+  if (!isAICredentialEncryptionConfigured()) return null;
+  const row = await db.aIProviderCredential.findFirst({
+    where: { provider: input.provider, enabled: true, cooldownUntil: { gt: now } },
+    orderBy: { cooldownUntil: "asc" },
+    select: { cooldownUntil: true },
+  });
+  return row?.cooldownUntil ?? null;
+}
+
 export async function listActiveCredentialsForProvider(input: { provider: AIProvider; now?: Date }): Promise<DecryptedAICredential[]> {
   const now = input.now ?? new Date();
   const envCredential = input.provider === AIProvider.YANDEX ? yandexEnvCredential() : null;
@@ -346,12 +395,7 @@ export async function listActiveCredentialsForProvider(input: { provider: AIProv
   if (!isAICredentialEncryptionConfigured()) return envCredential ? [envCredential] : [];
 
   const rows = await db.aIProviderCredential.findMany({
-    where: {
-      provider: input.provider,
-      enabled: true,
-      regionBlocked: false,
-      OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }],
-    },
+    where: activeCredentialWhere(input.provider, now),
     orderBy: [
       { priority: "asc" },
       { lastUsedAt: { sort: "asc", nulls: "first" } },
@@ -374,13 +418,8 @@ export async function pickCredentialForProvider(input: PickCredentialInput): Pro
 
   const rows = await db.aIProviderCredential.findMany({
     where: {
-      provider: input.provider,
-      enabled: true,
-      regionBlocked: false,
-      AND: [
-        excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {},
-        { OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }] },
-      ],
+      ...activeCredentialWhere(input.provider, now),
+      ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
     },
     orderBy: [
       { priority: "asc" },

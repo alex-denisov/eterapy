@@ -26,6 +26,7 @@ import {
   listActiveCredentialsForProvider,
   markCredentialFailure,
   markCredentialSuccess,
+  providerCooldownUntil,
   type DecryptedAICredential,
 } from "@/lib/ai-gateway/credentials";
 import {
@@ -122,7 +123,11 @@ interface FailureClassification {
 
 function classifyCredentialFailure(code: string | undefined): FailureClassification {
   if (!code) return { cooldownMs: 60_000, regionBlocked: false };
-  if (code === "HTTP_403") return { cooldownMs: 0, regionBlocked: true };
+  // B694: у региональной блокировки есть срок. Раньше `cooldownMs: 0` вместе с
+  // жёстким `regionBlocked: false` в выборке означал вечное выбывание — снять
+  // флаг было нечем, кроме правки в базе, и один разовый 403 навсегда уводил
+  // провайдера из пула. Сутки — это «сегодня не ходим», а не «никогда».
+  if (code === "HTTP_403") return { cooldownMs: 24 * 60 * 60_000, regionBlocked: true };
   if (code === "HTTP_401") return { cooldownMs: 30 * 60_000, regionBlocked: false };
   if (code === "HTTP_402") return { cooldownMs: 60 * 60_000, regionBlocked: false };
   if (code === "HTTP_429") return { cooldownMs: 5 * 60_000, regionBlocked: false };
@@ -302,6 +307,10 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           { requireCloudflareAIGateway: publicMarketingRequest },
         );
       },
+      // B694: пустой список — это либо остывание после квоты, либо отсутствие
+      // ключа. Спрашиваем только когда список пуст, поэтому лишнего запроса к
+      // базе на успешном пути нет.
+      resolveCooldown: async (provider) => providerCooldownUntil({ provider }),
     });
     const providerConfig = providerConfigs.find((config) => config.provider === response.provider);
     const costRate = await resolveAIModelCostRate({

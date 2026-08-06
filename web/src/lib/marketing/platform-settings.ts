@@ -34,6 +34,11 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Instagram", key: "INSTAGRAM_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false, requirement: "oauth" },
   { platform: "Instagram", key: "INSTAGRAM_USER_ID", label: "Instagram-scoped User ID", secret: false, multiline: false, requirement: "oauth" },
   { platform: "Instagram", key: "INSTAGRAM_TOKEN_EXPIRES_AT", label: "Срок токена (ISO, обновляется автоматически)", secret: false, multiline: false, requirement: "oauth" },
+  // B693: адресат, вычисленный обходом графа Страниц. Заполняется разбором
+  // маркера, а не руками: значение, вписанное на глаз, снова сделало бы сверку
+  // адресата бессмысленной (ровно та ловушка, что описана в meta-brand-account).
+  { platform: "Instagram", key: "INSTAGRAM_PAGE_ID", label: "ID страницы Facebook (вычисляется разбором маркера)", secret: false, multiline: false, requirement: "oauth" },
+  { platform: "Instagram", key: "INSTAGRAM_TOKEN_KIND", label: "Род маркера: page или instagram_login", secret: false, multiline: false, requirement: "oauth" },
   { platform: "Instagram", key: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN", label: "Маркер подтверждения webhook (необязательно) · адрес: https://hooks.eterapy.com/api/integrations/meta/instagram/webhook", secret: false, multiline: false, requirement: "optional" },
   { platform: "Telegram", key: "TELEGRAM_BOT_TOKEN", label: "Bot token", secret: true, multiline: false },
   { platform: "Telegram", key: "TELEGRAM_CHANNEL_ID", label: "Маркетинговый канал", secret: false, multiline: false },

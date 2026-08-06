@@ -30,6 +30,9 @@ export function decideFailureFallback(code: string | undefined): CredentialFailu
   if (code === "MODEL_NOT_ALLOWED") return "skipProvider";
   if (code === "MISSING_CONFIG") return "skipProvider";
   if (code === "MISSING_ADAPTER") return "skipProvider";
+  // B694: ключи есть, но остывают после квоты. Другие ключи ЭТОГО провайдера
+  // остывают вместе с ним — идём к следующему провайдеру, а не по кругу.
+  if (code === "PROVIDER_COOLDOWN") return "skipProvider";
   if (code === "HTTP_400") return "skipProvider"; // bad payload — same on every key
   if (code === "HTTP_404") return "skipProvider"; // model not found — same on every key
   return "retryNextCredential";
@@ -309,6 +312,12 @@ export interface AICredentialAdapter {
 export interface AICredentialAttempt extends AIGatewayFallbackAttempt {
   credentialId?: string;
   credentialLabel?: string;
+  /**
+   * B694 — когда ёмкость этого провайдера вернётся. Заполняется только для
+   * `PROVIDER_COOLDOWN`: у остывания есть срок, и это единственное, что по нему
+   * можно решить — ждать минуту или час.
+   */
+  cooldownUntil?: Date;
 }
 
 /**
@@ -328,18 +337,33 @@ export async function runAIGatewayFallbackWithCredentials(input: {
   plan: AIRoutingPlan;
   request: Omit<AIGatewayCompletionRequest, "feature" | "model" | "maxTokens" | "temperature" | "timeoutMs">;
   resolveAdapters: (provider: AIProvider) => Promise<AICredentialAdapter[]>;
+  /**
+   * B694 — почему список ключей пуст.
+   *
+   * Спрашивается ТОЛЬКО когда `resolveAdapters` вернул пусто, и различает два
+   * события, которые раньше выходили наружу одним кодом: «ключи есть, но все
+   * остывают после квоты» (возвращается срок) и «ключей нет вовсе»
+   * (возвращается `null`). Разница не косметическая: первое проходит само и
+   * материал обязан дождаться следующего прохода, второе — жалоба на
+   * конфигурацию, которая сама не рассосётся.
+   *
+   * Необязательный: без него поведение прежнее.
+   */
+  resolveCooldown?: (provider: AIProvider) => Promise<Date | null>;
 }): Promise<{ response: AIGatewayCompletionResponse; attempts: AICredentialAttempt[] }> {
   const attempts: AICredentialAttempt[] = [];
 
   for (const attempt of input.plan.attempts) {
     const credentialAdapters = await input.resolveAdapters(attempt.provider);
     if (credentialAdapters.length === 0) {
+      const cooldownUntil = await input.resolveCooldown?.(attempt.provider) ?? null;
       attempts.push({
         provider: attempt.provider,
         model: attempt.model,
         status: "skipped",
-        code: "MISSING_ADAPTER",
+        code: cooldownUntil ? "PROVIDER_COOLDOWN" : "MISSING_ADAPTER",
         retryable: true,
+        ...(cooldownUntil ? { cooldownUntil } : {}),
       });
       continue;
     }

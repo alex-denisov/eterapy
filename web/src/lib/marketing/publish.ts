@@ -46,6 +46,23 @@ const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
 const META_GRAPH_VERSION = "v25.0";
 
+/**
+ * B693 — хост Instagram зависит от РОДА маркера, а не от площадки.
+ *
+ * Маркер Страницы (Facebook Login или системный пользователь бизнес-портфеля)
+ * обслуживается `graph.facebook.com`; маркер Instagram Login —
+ * `graph.instagram.com`. Это два разных механизма Meta с разными хостами, и
+ * перепутать их нельзя: чужой хост отвечает «неверный маркер», а разбор такого
+ * отказа уводит к ключам вместо адреса.
+ *
+ * Умолчание — прежний хост: пока не разобран маркер Страницы, поведение ровно
+ * такое, каким было.
+ */
+async function instagramGraphHost(): Promise<string> {
+  const kind = await marketingPlatformValue("INSTAGRAM_TOKEN_KIND").catch(() => null);
+  return metaEndpoint(kind?.trim().toLowerCase() === "page" ? "facebook" : "instagram");
+}
+
 export function marketingAutopublishEnabled(
   env: Partial<NodeJS.ProcessEnv> = process.env,
 ): boolean {
@@ -567,12 +584,17 @@ export async function publishToInstagram(
   await ensurePlatformEnabled("Instagram");
   const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("INSTAGRAM_USER_ID");
+  // B693: род маркера решает ХОСТ. Маркер Страницы (Facebook Login или
+  // системный пользователь) работает через graph.facebook.com; маркер Instagram
+  // Login — через graph.instagram.com. Перепутать их нельзя: чужой хост
+  // отвечает «неверный маркер», и разбор уходит не туда.
+  const host = await instagramGraphHost();
   // B682: публикуем только от брендовой страницы, см. meta-brand-account.ts
   await assertMetaBrandAccount({ platform: "instagram", token, userId });
   if (!publication.mediaUrl || !/^https:\/\//i.test(publication.mediaUrl)) {
     throw new Error("Instagram requires a public HTTPS mediaUrl");
   }
-  const create = await fetch(`${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media`, {
+  const create = await fetch(`${host}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media`, {
     method: "POST",
     headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
@@ -586,7 +608,7 @@ export async function publishToInstagram(
   if (!create.ok || !created?.id) {
     throw new Error(`Instagram media creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media_publish`, {
+  const publish = await fetch(`${host}/${META_GRAPH_VERSION}/${encodeURIComponent(userId)}/media_publish`, {
     method: "POST",
     headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({ access_token: token, creation_id: created.id }),
@@ -596,7 +618,7 @@ export async function publishToInstagram(
     throw new Error(`Instagram media publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
   }
   const permalinkResponse = await fetch(
-    `${metaEndpoint("instagram")}/${META_GRAPH_VERSION}/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
+    `${host}/${META_GRAPH_VERSION}/${encodeURIComponent(published.id)}?fields=permalink&access_token=${encodeURIComponent(token)}`,
     { headers: metaRequestHeaders() },
   );
   const permalink = await permalinkResponse.json().catch(() => null) as { permalink?: string } | null;

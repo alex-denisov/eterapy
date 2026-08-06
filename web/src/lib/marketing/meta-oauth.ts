@@ -93,6 +93,12 @@ export async function metaAuthorizationUrl(input: {
   url.searchParams.set("redirect_uri", metaOAuthRedirectUri(input.platform));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", input.state);
+  // B693: у Instagram Login нет экрана выбора аккаунта — маркер молча достаётся
+  // тому профилю, под которым открыт браузер. Именно так брендовая публикация и
+  // ушла бы на личную страницу владельца. `force_reauth` заставляет ввести
+  // учётные данные нужного аккаунта заново. У Threads такого параметра в
+  // документации нет, поэтому там ставить нечего.
+  if (input.platform === "Instagram") url.searchParams.set("force_reauth", "true");
   url.searchParams.set("scope", input.platform === "Threads"
     ? "threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights"
     : "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_insights");
