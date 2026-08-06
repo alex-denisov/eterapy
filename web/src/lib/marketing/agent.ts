@@ -1,5 +1,6 @@
 import type { AIProvider, Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
+import { AIGatewayRoutingError } from "@/lib/ai-gateway/routing";
 import db from "@/lib/db";
 import { approvedStatusForPlatform } from "@/lib/marketing/manual-platforms";
 import { log, serializeError } from "@/lib/logger";
@@ -164,9 +165,31 @@ const CAPACITY_ERROR_MARKERS = [
   "insufficient_quota",
 ];
 
+/**
+ * B692 — коды попыток, спрятанные в обёртке маршрутизатора.
+ *
+ * `AIGatewayRoutingError` сообщает «все провайдеры отказали» и НЕ повторяет в
+ * тексте причину: она лежит в `attempts[].code`. Пока классификация смотрела
+ * только на текст, исчерпанная квота выглядела браком материала, и хороший
+ * текст сгорал в `FAILED` вместо того, чтобы дождаться следующего прохода.
+ *
+ * Требуем, чтобы ёмкостными были ВСЕ отказы: один посторонний код означает, что
+ * дело не только в квоте, и ждать «пока само пройдёт» было бы неправдой.
+ */
+const CAPACITY_ATTEMPT_CODES = new Set(["HTTP_429", "HTTP_402", "RATE_LIMITED", "INSUFFICIENT_CREDITS"]);
+
+function routingErrorIsCapacity(error: unknown): boolean {
+  if (!(error instanceof AIGatewayRoutingError)) return false;
+  const codes = (error.attempts ?? [])
+    .map((attempt) => attempt.code)
+    .filter((code): code is string => Boolean(code));
+  return codes.length > 0 && codes.every((code) => CAPACITY_ATTEMPT_CODES.has(code));
+}
+
 export function isCapacityError(error: unknown): boolean {
   if (error instanceof MarketingCapacityError) return true;
   if (error instanceof Error && error.name === "AIBudgetExceededError") return true;
+  if (routingErrorIsCapacity(error)) return true;
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
   return CAPACITY_ERROR_MARKERS.some((marker) => message.includes(marker));
 }
