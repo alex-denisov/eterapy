@@ -60,6 +60,8 @@ export interface SweepOutcome {
   ingested: number;
   skippedOwn: number;
   error?: string;
+  /** B690: площадка доставляет комментарии push’ем — опрос не выполнялся. */
+  deliveredByPush?: boolean;
 }
 
 interface SweepTarget {
@@ -246,6 +248,26 @@ const SWEEPERS: Record<SweepPlatform, (target: SweepTarget) => Promise<SweptComm
 };
 
 /**
+ * B690 — комментарии VK приходят сами, если подключён Callback API сообщества.
+ *
+ * `wall.getComments` токену сообщества недоступен в принципе, поэтому обход VK
+ * не мог закончиться ничем, кроме отказа, и сигнал `sweep:vk` не мог погаснуть.
+ * Но работающий путь у нас уже есть и он не опрос: VK шлёт `wall_reply_new` на
+ * `/api/integrations/vk/callback`, и маршрут этот fail-closed — без секрета он
+ * не принимает ничего. Значит наличие секрета и есть признак «push настроен».
+ *
+ * Обход отключается ТОЛЬКО при настроенном push. Снимут секрет — тишина снова
+ * станет подозрительной, обход вернётся вместе со своим сигналом: менять
+ * шумный отказ на молчаливый нельзя.
+ */
+export function vkCommentsArriveByPush(input: {
+  callbackSecret?: string | null;
+  confirmation?: string | null;
+}): boolean {
+  return Boolean(input.callbackSecret?.trim());
+}
+
+/**
  * Один обход. Возвращает по площадке: сколько публикаций опрошено, сколько
  * комментариев увидено и сколько попало в очередь. Ноль найденных и отказ
  * площадки — разные строки, и это намеренно: молчание, неотличимое от «нет
@@ -260,6 +282,16 @@ export async function sweepOwnPublicationComments(
   for (const platform of input.platforms ?? SWEEP_PLATFORMS) {
     if (!await marketingPlatformEnabled(CONNECTOR_BY_PLATFORM[platform]).catch(() => false)) {
       outcomes.push({ platform, publications: 0, found: 0, ingested: 0, skippedOwn: 0 });
+      continue;
+    }
+    // B690: у VK комментарии доставляет Callback API. Опрашивать площадку
+    // методом, который ей недоступен, значит каждую минуту поднимать сигнал о
+    // проблеме, которой нет.
+    if (platform === "vk" && vkCommentsArriveByPush({
+      callbackSecret: await marketingPlatformValue("VK_CALLBACK_SECRET").catch(() => null),
+    })) {
+      await resolveMarketingSignal(`sweep:${platform}`).catch(() => undefined);
+      outcomes.push({ platform, publications: 0, found: 0, ingested: 0, skippedOwn: 0, deliveredByPush: true });
       continue;
     }
     try {

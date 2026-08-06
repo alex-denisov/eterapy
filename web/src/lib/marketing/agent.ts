@@ -1,6 +1,7 @@
 import type { AIProvider, Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import db from "@/lib/db";
+import { approvedStatusForPlatform } from "@/lib/marketing/manual-platforms";
 import { log, serializeError } from "@/lib/logger";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
@@ -908,7 +909,11 @@ export async function processMarketingDraft(publicationId: string) {
       return { status: "rejected" as const };
     }
 
-    const nextStatus = isConversational ? "REVIEW" : "SCHEDULED";
+    // B654: у площадки без автоматического выпуска утверждённый материал ждёт
+    // человека, а не встаёт в очередь, которой для неё не существует.
+    const nextStatus = isConversational
+      ? "REVIEW"
+      : approvedStatusForPlatform(platform);
     const updated = await db.externalPublication.update({
       where: { id: publication.id },
       data: {
@@ -918,7 +923,9 @@ export async function processMarketingDraft(publicationId: string) {
           ? null
           : `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`,
         status: nextStatus,
-        autoPublish: !isConversational,
+        // Ручная площадка не «публикуется сама» ни при каком выключателе:
+        // дороги наружу у неё нет, и признак должен говорить это прямо.
+        autoPublish: !isConversational && nextStatus === "SCHEDULED",
         attemptCount: { increment: 1 },
         lastError: null,
         agentWriterProvider: lastWriter.provider,

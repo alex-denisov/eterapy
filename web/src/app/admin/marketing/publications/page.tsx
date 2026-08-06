@@ -23,7 +23,9 @@ export default async function ExternalPublicationsPage({ searchParams }: PagePro
   // B589 фаза 1: очередь черновиков. Отдельный запрос, а не часть реестра за
   // период: черновик ещё не опубликован, и датой публикации его не отфильтровать.
   const drafts = await db.externalPublication.findMany({
-    where: { status: { in: ["DRAFT", "REVIEW", "SCHEDULED", "FAILED"] } },
+    // B654: `MANUAL` — материал, который ждёт человека. Он обязан быть виден
+    // здесь: очередь ручных публикаций и есть его единственная дорога наружу.
+    where: { status: { in: ["DRAFT", "REVIEW", "SCHEDULED", "MANUAL", "FAILED"] } },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
