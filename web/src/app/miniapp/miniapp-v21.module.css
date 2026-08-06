@@ -6230,48 +6230,56 @@ a.service-row {
    абсолютом в кадре 150×132 с `object-fit: cover` и прозрачностью 0.78.
    Портретная карта Таро в таком кадре превращается в обрезанный кусок — а
    владелец просил именно КАРТУ, целиком и разборчиво. */
+/* B681: блок ужат — карта не должна занимать первый экран. Картинка 74 → 56 px,
+   отступы 14 → 11 px, суть обрезается двумя строками. Высота падает со ~155 до
+   ~100 px, и под ней снова помещается поле вопроса. */
 .tarot-day {
   width: 100%;
   margin-top: 10px;
-  padding: 14px;
+  padding: 11px 12px;
   border: 1px solid rgba(217, 178, 106, 0.32);
-  border-radius: 18px;
+  border-radius: 16px;
   background: #0a1421;
   text-align: left;
   cursor: pointer;
   display: flex;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
 }
 
 .tarot-day img {
-  width: 74px;
+  width: 56px;
   height: auto;
-  border-radius: 8px;
+  border-radius: 7px;
   flex-shrink: 0;
 }
 
 .tarot-day > span {
   display: grid;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
 }
 
 .tarot-day small {
   color: #d9b26a;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.72px;
 }
 
 .tarot-day strong {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.2;
   font-weight: 700;
 }
 
 .tarot-day em {
   color: var(--muted-strong);
-  font-size: 13px;
+  font-size: 12.5px;
   font-style: normal;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

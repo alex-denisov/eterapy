@@ -9,6 +9,7 @@ import { log, serializeError } from "@/lib/logger";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { effectivePracticeStreak } from "@/lib/streak-display";
 import { tarotCardArtworkPath, tarotDayPick } from "@/lib/tarot-day";
+import { hasCompletedEsotericService } from "@/lib/tarot-day-audience";
 import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
 import { startOfPracticeWeek } from "@/lib/weekly-summary";
 import { formatSessionFloor } from "@/lib/session-pricing";
@@ -71,10 +72,12 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
   const fallback = baseData(viewer);
   if (!viewer?.id || !fallback.viewer.client) return fallback;
   try {
-    const [account, telegramIdentity, points, subscription, dialogues, diary] = await Promise.all([
+    const [account, telegramIdentity, points, subscription, dialogues, diary, tarotDayEligible] = await Promise.all([
       db.user.findUnique({
         where: { id: viewer.id },
-        select: { password: true },
+        // B681: `tarotDayHidden` читается из уже загружаемой строки — второго
+        // обращения к `users` ради одного флажка не нужно.
+        select: { password: true, tarotDayHidden: true },
       }),
       db.platformIdentity.findUnique({
         where: { provider_userId: { provider: "telegram", userId: viewer.id } },
@@ -92,10 +95,16 @@ export async function loadMiniAppInitialData(viewer?: MiniAppViewer | null): Pro
         select: { id: true, title: true, topic: true, status: true, updatedAt: true, _count: { select: { messages: true } } },
       }),
       listDiaryItems(viewer.id),
+      hasCompletedEsotericService(viewer.id).catch(() => false),
     ]);
 
+    // B681 — те же два гейта, что и в кабинете: аудитория (пройдена хотя бы
+    // одна эзотерическая услуга) и собственное скрытие. Мини-апп и кабинет
+    // показывают одному человеку одно и то же — иначе крестик в кабинете
+    // выглядел бы сломанным.
+    const showTarotDay = tarotDayEligible && !account?.tarotDayHidden;
     const tarotPick = tarotDayPick(viewer.id);
-    const tarotDay = await getTarotDayInterpretation(tarotPick, { allowGenerate: false })
+    const tarotDay = !showTarotDay ? null : await getTarotDayInterpretation(tarotPick, { allowGenerate: false })
       .then(({ interpretation }) => ({
         key: tarotPick.key,
         name: tarotPick.card.name,

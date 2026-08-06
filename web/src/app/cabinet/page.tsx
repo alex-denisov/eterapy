@@ -29,6 +29,7 @@ import {
 import { getReferralStats } from "@/lib/referral-stats";
 import { TarotDayCard } from "@/components/cabinet/tarot-day-card";
 import { tarotCardArtworkPath, tarotDayPick } from "@/lib/tarot-day";
+import { hasCompletedEsotericService } from "@/lib/tarot-day-audience";
 import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
 import { formatMskDayLong } from "@/lib/msk-time";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
@@ -86,7 +87,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, todayCard, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats, nearestCreditExpiry, awaitingEntitlements] = await Promise.all([
+  const [recentDialogues, recentResults, upcomingBooking, lastPastBooking, activeSubscription, dialogueCount, productCount, activeRoutes, todayCard, clarityCredits, topicGroups, journalTotal, missionChecklist, practiceStreak, referralStats, nearestCreditExpiry, awaitingEntitlements, tarotDayPrefs, tarotDayEligible] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -180,6 +181,11 @@ export default async function ClientCabinetPage() {
       take: 3,
       select: { id: true, productKey: true },
     }).catch(() => []),
+    // B681 — два гейта «карты дня». Оба запроса идут в общей пачке, а не
+    // последовательно: иначе первый экран ждал бы два круга к базе ради блока,
+    // которого у большинства вообще не будет.
+    db.user.findUnique({ where: { id: userId }, select: { tarotDayHidden: true } }).catch(() => null),
+    hasCompletedEsotericService(userId).catch(() => false),
   ]);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
@@ -288,8 +294,16 @@ export default async function ClientCabinetPage() {
   // Трактовка берётся из общего кэша по карте; если её там ещё нет, страница
   // рисует детерминированный текст, а клиентский компонент дозапрашивает
   // развёрнутый — первый экран не ждёт модель.
+  //
+  // B681: блок видит только тот, кто хотя бы раз прошёл эзотерическую услугу
+  // (решение владельца: иначе колода на главной смущает пришедших к психологу),
+  // и только пока сам его не убрал. Скрытие сильнее аудитории — вернуть показ
+  // можно лишь в «Настройки → Уведомления».
+  const showTarotDay = tarotDayEligible && !tarotDayPrefs?.tarotDayHidden;
   const tarotPick = tarotDayPick(userId);
-  const tarotInterpretation = (await getTarotDayInterpretation(tarotPick, { allowGenerate: false })).interpretation;
+  const tarotInterpretation = showTarotDay
+    ? (await getTarotDayInterpretation(tarotPick, { allowGenerate: false })).interpretation
+    : null;
 
   return (
     <div className="max-w-6xl px-4 py-6 sm:px-6 md:py-8" style={{ paddingBottom: 80 }}>
@@ -304,20 +318,22 @@ export default async function ClientCabinetPage() {
         </h1>
       </section>
 
-      <TarotDayCard
-        cardKey={tarotPick.key}
-        cardName={tarotPick.card.name}
-        reversed={tarotPick.reversed}
-        artworkUrl={tarotCardArtworkPath(tarotPick.card)}
-        dayLabel={formatMskDayLong(new Date())}
-        headline={tarotInterpretation.headline}
-        body={tarotInterpretation.body}
-        focus={tarotInterpretation.focus}
-        question={tarotInterpretation.question}
-        // Кризис: платный призыв убирается вместе с остальной монетизацией —
-        // безопасность выше продажи (B464).
-        showCta={showMonetization}
-      />
+      {showTarotDay && tarotInterpretation ? (
+        <TarotDayCard
+          cardKey={tarotPick.key}
+          cardName={tarotPick.card.name}
+          reversed={tarotPick.reversed}
+          artworkUrl={tarotCardArtworkPath(tarotPick.card)}
+          dayLabel={formatMskDayLong(new Date())}
+          headline={tarotInterpretation.headline}
+          body={tarotInterpretation.body}
+          focus={tarotInterpretation.focus}
+          question={tarotInterpretation.question}
+          // Кризис: платный призыв убирается вместе с остальной монетизацией —
+          // безопасность выше продажи (B464).
+          showCta={showMonetization}
+        />
+      ) : null}
 
       {/* ═══════ РЯД 1 — подписка · кошелёк · подарите разбор ═══════
           ТЗ владельца, п. 9.1. Сетка без `items-start`: именно она делала

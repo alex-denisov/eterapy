@@ -66,6 +66,9 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   });
   const [loading, setLoading] = useState(true);
   const [marketingConsent, setMarketingConsent] = useState(false);
+  // B681: показ блока «карта дня» на первом экране. Убрать его можно прямо на
+  // блоке (крестик), а вернуть — только здесь; так просил владелец.
+  const [tarotDayVisible, setTarotDayVisible] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tgStatus, setTgStatus] = useState(telegramStatus);
   const [tgLinkUrl, setTgLinkUrl] = useState<string | null>(telegramStatus.url ?? null);
@@ -85,6 +88,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
         setPrefs(d.prefs ?? []);
         if (d.quietHours) setQuietHours(d.quietHours);
         setMarketingConsent(Boolean(d.marketingConsent));
+        setTarotDayVisible(d.tarotDayVisible !== false);
         setLoading(false);
       })
       .catch(() => {
@@ -235,7 +239,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     const res = await fetch("/api/notifications/preferences", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prefs, quietHours, marketingConsent }),
+      body: JSON.stringify({ prefs, quietHours, marketingConsent, tarotDayVisible }),
     });
     if ((await res.json()).ok) toast.success("Настройки уведомлений сохранены");
     else toast.error("Ошибка сохранения");
@@ -374,6 +378,27 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
               enabled={marketingConsent}
               onToggle={() => setMarketingConsent((value) => !value)}
               label="Разрешить рекламные сообщения"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {role === "CLIENT" ? (
+        <div className="soft-card p-5" data-testid="tarot-day-visibility-setting">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[var(--soft-ink-strong)]">Карта дня</h3>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                Показывать карту Таро первым блоком на главной. Блок появляется
+                только у тех, кто хотя бы раз проходил эзотерическую услугу; убрать
+                его можно прямо на нём, а вернуть — здесь. Утреннее сообщение в
+                Telegram настраивается отдельно, в списке ниже.
+              </p>
+            </div>
+            <ToggleSwitch
+              enabled={tarotDayVisible}
+              onToggle={() => setTarotDayVisible((value) => !value)}
+              label="Показывать карту дня"
             />
           </div>
         </div>

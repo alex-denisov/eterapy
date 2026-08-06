@@ -14,7 +14,9 @@
  * и достаётся всем остальным.
  */
 import type { NextRequest } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
+import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
@@ -45,4 +47,33 @@ export async function GET(request: NextRequest) {
     { status: 200 },
     context,
   );
+}
+
+const visibilitySchema = z.object({ visible: z.boolean() });
+
+/**
+ * B681 — «показывать: вкл/выкл».
+ *
+ * Крестик на блоке шлёт сюда `{"visible": false}`. Обратно включает только
+ * экран «Настройки → Уведомления» (через `/api/notifications/preferences`), но
+ * маршрут принимает и `true`: держать одностороннюю запись значило бы, что
+ * состояние можно загнать в угол одним запросом и не вынуть.
+ */
+export async function PATCH(request: NextRequest) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+
+  const parsed = visibilitySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return errorWithRequestContext("INVALID_PAYLOAD", "Ожидается { visible: boolean }", 400, context);
+  }
+
+  await db.user.update({
+    where: { id: userId },
+    data: { tarotDayHidden: !parsed.data.visible },
+  });
+
+  return jsonWithRequestContext({ ok: true, visible: parsed.data.visible }, { status: 200 }, context);
 }

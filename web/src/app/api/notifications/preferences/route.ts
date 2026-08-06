@@ -31,6 +31,10 @@ const putSchema = z.object({
   prefs: z.array(preferenceSchema).max(200),
   quietHours: quietHoursSchema.optional(),
   marketingConsent: z.boolean().optional(),
+  // B681: показ блока «карта дня» на первом экране. Живёт здесь, а не в
+  // матрице событий, потому что это не канал доставки — это видимость блока.
+  // Владелец потребовал, чтобы вернуть его можно было именно на этом экране.
+  tarotDayVisible: z.boolean().optional(),
 });
 const patchSchema = preferenceSchema.partial({ enabled: true, remindBeforeHours: true }).required({
   event: true,
@@ -57,6 +61,7 @@ export async function GET() {
         marketingConsentAt: true,
         marketingConsentSource: true,
         marketingOptOutAt: true,
+        tarotDayHidden: true,
       },
     }),
   ]);
@@ -83,6 +88,7 @@ export async function GET() {
     quietHours: await getUserQuietHours(userId, user?.timezone),
     marketingConsent: Boolean(user?.marketingConsentAt && !user.marketingOptOutAt),
     marketingConsentSource: user?.marketingConsentSource ?? null,
+    tarotDayVisible: !user?.tarotDayHidden,
   });
 }
 
@@ -119,7 +125,7 @@ export async function PUT(req: NextRequest) {
   const userId = session.user.id;
   const parsed = putSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid preferences payload" }, { status: 400 });
-  const { prefs, quietHours, marketingConsent } = parsed.data;
+  const { prefs, quietHours, marketingConsent, tarotDayVisible } = parsed.data;
   const allowedEvents = new Set<string>(getEventsForRole((session.user.role ?? "CLIENT") as UserRole).map((item) => item.event));
   if (prefs.some((pref) => !allowedEvents.has(pref.event))) {
     return NextResponse.json({ error: "Notification event is not available for this account" }, { status: 403 });
@@ -141,6 +147,9 @@ export async function PUT(req: NextRequest) {
 
   await db.$transaction(writes);
   if (quietHours) await setUserQuietHours(userId, quietHours);
+  if (tarotDayVisible !== undefined) {
+    await db.user.update({ where: { id: userId }, data: { tarotDayHidden: !tarotDayVisible } });
+  }
   if (marketingConsent !== undefined) {
     await db.user.update({
       where: { id: userId },

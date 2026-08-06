@@ -61,6 +61,13 @@ model User {
   marketingConsentSource String?   @map("marketing_consent_source") // где именно человек согласился
   marketingOptOutAt      DateTime? @map("marketing_opt_out_at")
 
+  // B681: человек убрал блок «карта дня» с первого экрана кабинета и мини-аппа.
+  // Отдельная колонка, а не канал WEB события DAILY_CARD: тот канал уже
+  // управляет записью психологической «Ежедневной практики» в колокольчике, и
+  // один тумблер на две разные вещи скрыл бы заодно её. Вернуть показ можно
+  // только в «Настройки → Уведомления» — так просил владелец.
+  tarotDayHidden Boolean @default(false) @map("tarot_day_hidden")
+
   // Extended profile (for AI personalization)
   birthDate       DateTime?
   birthDateSource String?   @map("birth_date_source")

@@ -35,6 +35,7 @@ import {
 } from "@/lib/marketing/browser-publisher";
 import { dzenFeedConfirmed, dzenFeedGuid } from "@/lib/marketing/dzen-feed";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
+import { assertMetaBrandAccount } from "@/lib/marketing/meta-brand-account";
 import {
   marketingPlatformEnabled,
   marketingPlatformValue,
@@ -408,6 +409,8 @@ export async function publishThreadsReply(
   await ensurePlatformEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
+  // B682: публикуем только от брендовой страницы, см. meta-brand-account.ts
+  await assertMetaBrandAccount({ platform: "threads", token, userId });
   if (!publication.engagementTargetId) throw new Error("Threads target media id is missing");
   const create = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
@@ -444,6 +447,8 @@ export async function publishToThreads(
   await ensurePlatformEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("THREADS_USER_ID");
+  // B682: публикуем только от брендовой страницы, см. meta-brand-account.ts
+  await assertMetaBrandAccount({ platform: "threads", token, userId });
   const create = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads`, {
     method: "POST",
     headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
@@ -562,6 +567,8 @@ export async function publishToInstagram(
   await ensurePlatformEnabled("Instagram");
   const token = await requiredMarketingPlatformValue("INSTAGRAM_ACCESS_TOKEN");
   const userId = await requiredMarketingPlatformValue("INSTAGRAM_USER_ID");
+  // B682: публикуем только от брендовой страницы, см. meta-brand-account.ts
+  await assertMetaBrandAccount({ platform: "instagram", token, userId });
   if (!publication.mediaUrl || !/^https:\/\//i.test(publication.mediaUrl)) {
     throw new Error("Instagram requires a public HTTPS mediaUrl");
   }
