@@ -52,6 +52,20 @@ export class MarketingCapacityError extends Error {
 }
 
 /**
+ * B695 — дорога отвалилась: таймаут, 5xx, пустой ответ, ошибка провайдера.
+ *
+ * От ёмкости отличается тем, что ждать возврата квоты нечего, и проход НЕ
+ * останавливается: следующий материал может уйти по другому маршруту. От брака
+ * материала — тем, что о самом тексте эти коды не сказали ничего.
+ */
+export class MarketingInfrastructureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingInfrastructureError";
+  }
+}
+
+/**
  * B623 — писатель и редактор сошлись на одной модели. Это тоже состояние пула,
  * а не брак материала: сузился набор живых провайдеров. Материал ждёт, пока
  * появится вторая независимая модель, и не сжигает попытку.
@@ -154,7 +168,19 @@ const TRUNCATION_BUDGET_FACTOR = 1.75;
  * текст хватало с запасом, на «текст плюс размышление» — нет ни разу.
  */
 export const MARKETING_WRITER_MAX_TOKENS = 4_000;
-export const MARKETING_REVIEWER_MAX_TOKENS = 4_000;
+/**
+ * B695 — у редактора своя ступень, выше авторской.
+ *
+ * Замер реестра прода 2026-08-06: ВСЕ десять обрывов по лимиту вывода пришлись
+ * на модели роли редактора (`nemotron-3-super` — 8, `gemini-3.5-flash` — 2), у
+ * автора — ни одного. Роль различает не длина ответа (у редактора она меньше),
+ * а размышление: маршруты редактора думающие.
+ *
+ * Поднимать здесь дёшево: `maxTokens` — потолок, а не расход, и платим мы за
+ * фактический вывод. Зато обрезанный шаг лестницы платит ПОЛНЫМ промптом и не
+ * даёт ничего — стартовать с 4000 значит гарантированно выбросить две ступени.
+ */
+export const MARKETING_REVIEWER_MAX_TOKENS = 8_000;
 
 const CAPACITY_ERROR_MARKERS = [
   "daily token budget exceeded",
@@ -188,12 +214,53 @@ const CAPACITY_ATTEMPT_CODES = new Set([
   "PROVIDER_COOLDOWN",
 ]);
 
-function routingErrorIsCapacity(error: unknown): boolean {
-  if (!(error instanceof AIGatewayRoutingError)) return false;
-  const codes = (error.attempts ?? [])
+/**
+ * B695 — коды, при которых ждать бесполезно: нужен человек.
+ *
+ * Адаптера нет вовсе, ключ не принят, запрос отвергнут как неверный — всё это
+ * не проходит само по себе. Такой отказ обязан оставаться жалобой, иначе
+ * сломанная конфигурация будет молча копить черновики.
+ *
+ * Всё остальное на уровне маршрута — состояние дороги: таймаут, 5xx, пустой
+ * ответ, ошибка провайдера. О материале эти коды не говорят ничего.
+ */
+const NON_DEFERRABLE_ATTEMPT_CODES = new Set([
+  "MISSING_ADAPTER",
+  "MISSING_CONFIG",
+  "HTTP_400",
+  "HTTP_401",
+  "HTTP_403",
+]);
+
+function routingErrorCodes(error: unknown): string[] {
+  if (!(error instanceof AIGatewayRoutingError)) return [];
+  return (error.attempts ?? [])
     .map((attempt) => attempt.code)
     .filter((code): code is string => Boolean(code));
+}
+
+function routingErrorIsCapacity(error: unknown): boolean {
+  const codes = routingErrorCodes(error);
   return codes.length > 0 && codes.every((code) => CAPACITY_ATTEMPT_CODES.has(code));
+}
+
+/**
+ * B695 — отказ ДОРОГИ, а не материала.
+ *
+ * Замер прода 2026-08-06: правило B692 «откладываем, только если ВСЕ коды
+ * ёмкостные» отправляло в `FAILED` проходы, где среди остывших ключей
+ * попадался один `TIMEOUT` или `HTTP_503`. Оттуда материал за две попытки
+ * восстановления уезжал в `ARCHIVED` с освобождением слота (B643) — 36 строк
+ * по реестру.
+ *
+ * Настоящий брак материала кодом маршрута не приходит: он приходит ошибкой
+ * разбора ПОЛНОГО ответа, safety-флагом или решением редактора, и все три
+ * обрабатываются отдельно. Поэтому граница проходит по вине конфигурации, а не
+ * по признаку ёмкости.
+ */
+export function isInfrastructureRoutingError(error: unknown): boolean {
+  const codes = routingErrorCodes(error);
+  return codes.length > 0 && codes.every((code) => !NON_DEFERRABLE_ATTEMPT_CODES.has(code));
 }
 
 export function isCapacityError(error: unknown): boolean {
@@ -214,7 +281,13 @@ export function isDeferrableError(error: unknown): boolean {
     || error instanceof MarketingModelSeparationError
     // B680: попытки кончились у ОДНОГО материала, а не ёмкость у системы.
     // Материал годен и ждёт следующего прохода — `FAILED` тут был бы неправдой.
-    || error instanceof MarketingAttemptBudgetError;
+    || error instanceof MarketingAttemptBudgetError
+    // B695: обрыв по НАШЕМУ потолку вывода. Текст не виноват в том, что модель
+    // потратила бюджет на размышление; следующий проход возьмёт другую модель.
+    || error instanceof MarketingTruncatedOutputError
+    // B695: дорога отвалилась — таймаут, 5xx, пустой ответ. Материал ни при чём.
+    || error instanceof MarketingInfrastructureError
+    || isInfrastructureRoutingError(error);
 }
 
 /**
@@ -532,6 +605,11 @@ async function completeWithValidStructure<T>(input: {
   const failures: string[] = [];
   let capacityFailures = 0;
   let separationFailures = 0;
+  // B695: сколько маршрутов упёрлось в НАШ потолок вывода и сколько отвалилось
+  // по состоянию дороги. Оба счёта нужны в конце: если весь перебор состоял из
+  // них, материал ждёт следующего прохода, а не бракуется.
+  let truncationFailures = 0;
+  let infrastructureFailures = 0;
   // B644: бюджет вывода живёт внутри прохода. Обрыв по лимиту — не отказ
   // маршрута, а нехватка нашего же бюджета, и лечится он одним способом:
   // повторить ТЕМ ЖЕ маршрутом с большим потолком. Перебор провайдеров здесь
@@ -608,10 +686,30 @@ async function completeWithValidStructure<T>(input: {
         }
       }
     } catch (error) {
-      // Обрыв по лимиту прекращает проход целиком: остальные маршруты вернут
-      // тот же оборванный ответ за ту же ёмкость.
-      if (error instanceof MarketingTruncatedOutputError) throw error;
+      /**
+       * B695 — обрыв по потолку снимает с перебора ЭТУ модель, а не весь проход.
+       *
+       * B644 останавливал здесь проход целиком, полагая, что «остальные
+       * маршруты вернут тот же оборванный ответ за ту же ёмкость». Замер прода
+       * 2026-08-06 это опроверг: обрывается ДУМАЮЩАЯ модель (размышление идёт
+       * из того же бюджета и в `completion_tokens` не видно), а `mistral-small`
+       * в той же очереди отвечает в свои 4000 без обрыва. Цена прежнего вывода —
+       * девять слотов контент-плана, сгоревших на одной модели OpenRouter.
+       *
+       * Ступень бюджета при этом сбрасывается: следующая модель начинает со
+       * своего стартового лимита, а не с чужого потолка — иначе один думающий
+       * маршрут задирал бы расход всем остальным.
+       */
+      if (error instanceof MarketingTruncatedOutputError) {
+        truncationFailures += 1;
+        failures.push(`${provider}: ${error.message}`);
+        budget = input.maxTokens;
+        truncationRetries = 0;
+        queue.shift();
+        continue;
+      }
       if (isCapacityError(error)) capacityFailures += 1;
+      else if (isInfrastructureRoutingError(error)) infrastructureFailures += 1;
       failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!retrySameProvider) queue.shift();
@@ -627,6 +725,24 @@ async function completeWithValidStructure<T>(input: {
   if (separationFailures > 0 && separationFailures + capacityFailures === failures.length) {
     throw new MarketingModelSeparationError(
       `В пуле не осталось модели, отличной от модели автора (${summary})`,
+    );
+  }
+  // B695: весь перебор упёрся в наш потолок вывода. Это одна причина с одним
+  // лечением — другая модель на следующем проходе, — и материал тут ни при чём.
+  if (truncationFailures > 0
+    && truncationFailures + capacityFailures + separationFailures === failures.length) {
+    throw new MarketingTruncatedOutputError(
+      `Все маршруты обрезаны по лимиту вывода: думающие модели тратят бюджет на `
+      + `размышление. Материал ждёт следующего прохода (${summary})`,
+    );
+  }
+  // B695: перебор состоял из отказов дороги. Ждать здесь честнее, чем браковать
+  // текст: ни один код ничего не сказал о материале.
+  if (infrastructureFailures > 0
+    && infrastructureFailures + truncationFailures + capacityFailures + separationFailures
+      === failures.length) {
+    throw new MarketingInfrastructureError(
+      `Маршруты отвечали отказом дороги, а не по существу материала (${summary})`,
     );
   }
   throw new Error(`No free provider returned valid structured output (${summary})`);
@@ -971,8 +1087,12 @@ export async function processMarketingDraft(publicationId: string) {
     });
     if (isConversational) await requestMarketingModeration(updated.id);
     await resolveMarketingSignal(`agent-draft:${publication.id}`).catch(() => undefined);
-    // Прошла хоть одна генерация — ёмкость вернулась.
-    await resolveMarketingSignal("agent:capacity").catch(() => undefined);
+    // Прошла хоть одна генерация — ёмкость вернулась. B695: вместе с ней
+    // закрываются и соседние причины простоя, иначе кокпит покажет открытым
+    // то, что уже прошло.
+    for (const key of ["agent:capacity", "agent:output-ceiling", "agent:route-failure"]) {
+      await resolveMarketingSignal(key).catch(() => undefined);
+    }
     return { status: nextStatus.toLowerCase() as "review" | "scheduled" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -993,8 +1113,15 @@ export async function processMarketingDraft(publicationId: string) {
         // B680: расход одного материала — отдельная причина с отдельным
         // именем. В `agent:capacity` она читалась бы как «провайдеры отказали»,
         // и владелец опять пошёл бы проверять ключи.
+        // B695: обрыв по нашему потолку и отказ дороги — тоже отдельные
+        // причины. Под именем `agent:capacity` владелец пошёл бы проверять
+        // квоты там, где чинить нужно потолок вывода или маршрут.
         key: error instanceof MarketingAttemptBudgetError
           ? "agent:attempt-budget"
+          : error instanceof MarketingTruncatedOutputError
+          ? "agent:output-ceiling"
+          : error instanceof MarketingInfrastructureError
+          ? "agent:route-failure"
           : "agent:capacity",
         kind: "AGENT_RUN",
         severity: "WARNING",
@@ -1008,12 +1135,19 @@ export async function processMarketingDraft(publicationId: string) {
           ? "Материал израсходовал лимит попыток и ждёт следующего прохода"
           : error instanceof MarketingModelSeparationError
           ? "SMM-агент ждёт вторую независимую модель"
+          : error instanceof MarketingTruncatedOutputError
+          ? "Ответ модели обрезан НАШИМ потолком вывода — материал ждёт другую модель"
+          : error instanceof MarketingInfrastructureError
+          ? "Маршруты отвечали отказом дороги — материал ждёт следующего прохода"
           : isOwnBudgetCeiling(message)
             ? "SMM-агент остановлен: упёрся в наш суточный потолок токенов"
             : "SMM-агент остановлен: провайдеры отказали в ёмкости",
         summary: isOwnBudgetCeiling(message)
           ? `${message} — это НАШ потолок (\`dailyTokenBudget\` в task-policy), а не квота провайдера. `
             + "Ключи и аккаунты проверять не нужно."
+          : error instanceof MarketingTruncatedOutputError
+          ? `${message} — чинится потолком \`MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS\` `
+            + "или заменой думающей модели роли, а не ключами."
           : message,
         evidence: { platform },
       }

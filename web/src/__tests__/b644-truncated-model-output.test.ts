@@ -188,8 +188,28 @@ describe("обрыв лечится бюджетом, а не перебором
     const budgets = callsFor("writer").map((call) => call.maxTokens);
     expect(budgets[0]).toBe(MARKETING_WRITER_MAX_TOKENS);
     expect(budgets.at(-1)).toBe(MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS);
-    // Один и тот же обрыв не воспроизводится по всем шести маршрутам.
-    expect(new Set(callsFor("writer").map((call) => call.providerOrder[0])).size).toBe(1);
+    /**
+     * Здесь стояло «один и тот же обрыв не воспроизводится по всем шести
+     * маршрутам»: перебор останавливался на первом же обрыве. B695 эту границу
+     * подвинул — замер прода 2026-08-06 показал, что обрывается ДУМАЮЩАЯ модель,
+     * а соседняя в той же очереди отвечает в свои 4000 без обрыва, и остановка
+     * на первой стоила девяти слотов контент-плана.
+     *
+     * Что осталось от правила B644: лестница бюджета принадлежит МАРШРУТУ, а не
+     * материалу. Каждый провайдер поднимается от своей ступени до потолка ровно
+     * один раз, чужой потолок на следующего не переносится, а общий расход
+     * держит рубеж попыток на материал (B680).
+     */
+    const ladders = new Map<string, number[]>();
+    for (const call of callsFor("writer")) {
+      const provider = call.providerOrder[0];
+      ladders.set(provider, [...(ladders.get(provider) ?? []), call.maxTokens]);
+    }
+    for (const ladder of ladders.values()) {
+      expect(ladder[0]).toBe(MARKETING_WRITER_MAX_TOKENS);
+      expect(ladder).toEqual([...ladder].sort((left, right) => left - right));
+      expect(new Set(ladder).size).toBe(ladder.length);
+    }
   });
 });
 
