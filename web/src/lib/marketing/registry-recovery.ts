@@ -169,6 +169,54 @@ export async function recoverFailedPublications(
     const technical = isRecoverablePublicationError(row.lastError);
     const repeatable = technical && row.recoveryCount < MAX_RECOVERY_ATTEMPTS;
 
+    /**
+     * B696 — СТРОКА БЕЗ ВРЕМЕНИ ВЫПУСКА.
+     *
+     * Все три дороги ниже начинаются с `scheduledFor`: `slotAhead` у строки без
+     * времени ложен всегда, архив по прошедшему сроку тоже требует даты. Замер
+     * прода 2026-08-06 — четыре строки `FAILED` с пустым временем лежат с 04.08
+     * и не двигаются: их не возвращают, не архивируют и не выпускают.
+     *
+     * Опасность не в числе строк, а в классе. Без времени выпуска живут ответы
+     * живым людям и комментарии (B616): у них нет слота НАМЕРЕННО, потому что
+     * откладывать ответ человеку до утра нельзя. Технический отказ такого
+     * ответа означал, что человеку не ответят никогда.
+     *
+     * Такая строка не «просрочена», а «выходит сразу»: возврат немедленный и
+     * без времени — ближайший проход подхватит её как обычный черновик.
+     */
+    if (!row.scheduledFor && technical) {
+      if (repeatable) {
+        await db.externalPublication.update({
+          where: { id: row.id },
+          data: {
+            status: "DRAFT",
+            agentReviewedAt: null,
+            attemptCount: 0,
+            recoveryCount: { increment: 1 },
+            lastError: `Возвращено в работу после технического отказа: ${row.lastError ?? "причина не записана"}`,
+          },
+        });
+        await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
+        requeued += 1;
+        continue;
+      }
+      // Попытки исчерпаны. Молча висеть `FAILED` строка не должна ни одна:
+      // архив с причиной — единственный честный конец.
+      await db.externalPublication.update({
+        where: { id: row.id },
+        data: {
+          status: "ARCHIVED",
+          autoPublish: false,
+          archiveReason: `Материал не восстановлен за ${MAX_RECOVERY_ATTEMPTS} попытки и `
+            + `времени выпуска у него нет: ${row.lastError ?? "причина не записана"}`,
+        },
+      });
+      await resolveMarketingSignal(`agent-draft:${row.id}`).catch(() => undefined);
+      archived += 1;
+      continue;
+    }
+
     // B645 — УТВЕРЖДЁННЫЙ ТЕКСТ НЕ АРХИВИРУЕТСЯ И НЕ ПЕРЕПИСЫВАЕТСЯ.
     //
     // Требование владельца 2026-08-03: «если статья хорошая, нужно решедулить,
