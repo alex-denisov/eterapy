@@ -15,7 +15,12 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor, topicArticleSlug, withUnusedTopic } from "@/lib/marketing/content-plan";
+import {
+  DZEN_FEED_MINIMUM_ITEMS,
+  DZEN_FEED_POST_PREFIX,
+} from "@/lib/marketing/dzen-feed";
 import { generatePost } from "@/lib/marketing/post-generator";
+import { isRecoverablePublicationError } from "@/lib/marketing/registry-recovery";
 
 /** Сколько черновиков держим наготове. Больше — не читает никто. */
 export const DRAFT_QUEUE_TARGET = CONTENT_PLAN.length;
@@ -40,6 +45,76 @@ export function slotKeyForGeneration(slotKey: string, generation: number): strin
   return generation <= 1 ? slotKey : `${slotKey}${SLOT_GENERATION_SUFFIX}${generation}`;
 }
 
+/**
+ * B620/B695 — статьи пополнения ленты Дзена, сожжённые дефектом.
+ *
+ * Порог площадки считается по материалам В ЛЕНТЕ, и ради него заведены статьи
+ * с ключами `b620-rss-dzen-*` — вне двухнедельного плана. Замер прода
+ * 2026-08-06: три из четырёх архивированы за один день с причиной «No free
+ * provider returned valid structured output», то есть по отказу дороги,
+ * который B695 признал НЕ виной материала. Написан не был ни один — гореть
+ * было нечему.
+ *
+ * Возврат узкий намеренно. У плановых слотов свой механизм перевыпуска
+ * (`slotKeyForGeneration`, B643), и второй здесь означал бы двойное
+ * восстановление; массовое воскрешение всего архива вывалило бы в каналы
+ * десятки строк разом.
+ */
+const DZEN_FEED_TOPUP_PREFIX = "b620-rss-dzen-";
+/** Разводка возвращённых статей по времени: проход берёт их не все разом. */
+const FEED_TOPUP_RESTORE_STEP_MS = 40 * 60_000;
+const FEED_TOPUP_RESTORE_LEAD_MS = 30 * 60_000;
+
+export async function restoreDzenFeedTopUp(
+  input: { now?: Date } = {},
+): Promise<number> {
+  const now = input.now ?? new Date();
+  const inFeed = await db.externalPublication.count({
+    where: {
+      platform: { in: ["dzen", "Dzen", "DZEN"] },
+      status: "PUBLISHED",
+      externalPostId: { startsWith: DZEN_FEED_POST_PREFIX },
+    },
+  }).catch(() => DZEN_FEED_MINIMUM_ITEMS);
+  // Порог взят — возврат выключается сам, и реестр не читается вовсе.
+  if (inFeed >= DZEN_FEED_MINIMUM_ITEMS) return 0;
+
+  const archived = await db.externalPublication.findMany({
+    where: { status: "ARCHIVED", key: { startsWith: DZEN_FEED_TOPUP_PREFIX } },
+    select: { id: true, key: true, archiveReason: true, lastError: true },
+    orderBy: { key: "asc" },
+  }).catch(() => []);
+
+  let restored = 0;
+  for (const row of archived) {
+    const reason = `${row.archiveReason ?? ""} ${row.lastError ?? ""}`;
+    // Решение редактора и safety-блок остаются архивом: материал признан
+    // негодным по существу, и повтор дал бы тот же результат за ту же ёмкость.
+    if (!isRecoverablePublicationError(reason)) continue;
+    await db.externalPublication.update({
+      where: { id: row.id },
+      data: {
+        status: "DRAFT",
+        autoPublish: false,
+        agentReviewedAt: null,
+        attemptCount: 0,
+        recoveryCount: 0,
+        archiveReason: null,
+        scheduledFor: new Date(
+          now.getTime() + FEED_TOPUP_RESTORE_LEAD_MS + restored * FEED_TOPUP_RESTORE_STEP_MS,
+        ),
+        lastError: `Возвращено в работу: архив был следствием отказа дороги, а не браком `
+          + `материала (B695). Прежняя причина: ${row.archiveReason ?? row.lastError ?? "не записана"}`,
+      },
+    }).catch(() => undefined);
+    restored += 1;
+  }
+  if (restored > 0) {
+    log.info("marketing.dzen_feed_topup_restored", { restored, inFeed });
+  }
+  return restored;
+}
+
 export interface GenerateDraftsResult {
   created: number;
   skippedNoArticle: string[];
@@ -47,6 +122,8 @@ export interface GenerateDraftsResult {
   exhaustedSlots: string[];
   /** B686: слоты, пропущенные из-за того, что все темы площадки уже заняты. */
   duplicateTopics: string[];
+  /** B620/B695: статьи пополнения ленты, возвращённые из архива этим проходом. */
+  feedTopUpRestored: number;
   planExhausted: boolean;
 }
 
@@ -58,6 +135,10 @@ export async function generateMarketingDrafts(input: {
   const activePlan = contentPlanFor(now);
   const target = input.target ?? activePlan.length;
   const firstVkSlot = activePlan.find((entry) => entry.channel === "vk");
+
+  // B620/B695: статьи пополнения ленты, сожжённые отказом дороги, возвращаются
+  // в работу до того, как проход начнёт считать свободные слоты.
+  const feedTopUpRestored = await restoreDzenFeedTopUp({ now }).catch(() => 0);
 
   // INC-094: the launch post was entered before the autonomous editor existed
   // and remained forever in the non-executable PLANNED state. Put it through
@@ -238,6 +319,7 @@ export async function generateMarketingDrafts(input: {
     // `exhaustedSlots` значило бы спрятать «в канале кончились темы» внутри
     // «слот исчерпал перевыпуски»: причины разные и чинятся по-разному.
     duplicateTopics,
+    feedTopUpRestored,
     planExhausted: taken.length + created >= activePlan.length,
   };
 }
