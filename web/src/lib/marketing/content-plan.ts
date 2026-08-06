@@ -149,8 +149,25 @@ function keyDate(date: string) {
   return date.replaceAll("-", "");
 }
 
+export const TOPIC_COUNT = TOPICS.length;
+
 function topicAt(index: number, offset = 0) {
-  return TOPICS[(index + offset) % TOPICS.length];
+  // Остаток может быть отрицательным для дат до эпохи — приводим в диапазон.
+  const size = TOPICS.length;
+  return TOPICS[(((index + offset) % size) + size) % size];
+}
+
+/**
+ * B686 — номер календарных суток, а не позиция дня в окне.
+ *
+ * План пересобирается каждый заход и всегда «от завтра», поэтому позиция дня
+ * внутри окна у одной и той же даты каждый день другая, а `sequence` каждый
+ * раз начинается с нуля. Из-за этого Дзену пожизненно доставались одни и те же
+ * шесть тем из шестнадцати — и три статьи про карту Смерть в очереди были не
+ * промахом модели, а прямым следствием расписания.
+ */
+function dayNumber(date: string): number {
+  return Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
 }
 
 function slot(input: {
@@ -190,7 +207,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
         channel: "telegram",
         date,
         time: ["08:30", "13:00", "20:30"][sequence],
-        topic: topicAt(dayIndex * 3 + sequence),
+        topic: topicAt(dayNumber(date) * 3 + sequence),
         sequence: sequence + 1,
         format,
         editorialAngle,
@@ -202,7 +219,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
         channel: "threads",
         date,
         time: ["10:45", "18:45"][sequence],
-        topic: topicAt(dayIndex * 2 + sequence, 5),
+        topic: topicAt(dayNumber(date) * 2 + sequence, 5),
         sequence: sequence + 1,
         format,
         editorialAngle,
@@ -217,7 +234,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       channel: "instagram",
       date: dates[dayIndex],
       time: "12:15",
-      topic: topicAt(sequence, 8),
+      topic: topicAt(dayNumber(dates[dayIndex]), 8),
       sequence: 1,
       format,
       editorialAngle,
@@ -231,7 +248,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       channel: "vk",
       date: dates[dayIndex],
       time: sequence % 2 === 0 ? "11:30" : "19:15",
-      topic: topicAt(sequence, 2),
+      topic: topicAt(dayNumber(dates[dayIndex]), 2),
       sequence: 1,
       format,
       editorialAngle,
@@ -244,7 +261,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       channel: "dzen",
       date: dates[dayIndex],
       time: "09:30",
-      topic: topicAt(sequence, 4),
+      topic: topicAt(dayNumber(dates[dayIndex]), 4),
       sequence: 1,
       format: "структурированная статья",
       editorialAngle: "ответ читателю, объяснение, примеры, практический шаг и честный мягкий CTA",
@@ -256,7 +273,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       channel: "reddit",
       date: dates[dayIndex],
       time: "17:00",
-      topic: topicAt(sequence, 6),
+      topic: topicAt(dayNumber(dates[dayIndex]), 6),
       sequence: 1,
       format: "community discussion",
       editorialAngle: "полезная самостоятельная дискуссия без рекламного лида; ссылка только после полной пользы и с раскрытием аффилированности",
@@ -311,4 +328,60 @@ export function nextPlanSlots(
   return plan
     .filter((entry) => !taken.has(entry.key))
     .slice(0, Math.max(0, limit));
+}
+
+/**
+ * B686 — слот с уже занятой темой получает свободную, а не становится дублем.
+ *
+ * Правило владельца: «если произошла ошибка в генерации контента, значит весь
+ * дублирующий контент нужно заменить новым». Заменяется именно ТЕМА — адрес
+ * слота, время и формат остаются, иначе подмена сдвинула бы расписание канала.
+ *
+ * Возвращает `null`, когда свободных тем не осталось: молчаливый дубль хуже
+ * пропущенного слота, а пропуск виден в журнале и в счётчике плана.
+ */
+export function withUnusedTopic(
+  slot: ContentPlanSlot,
+  usedArticleSlugs: ReadonlySet<string>,
+): ContentPlanSlot | null {
+  if (!usedArticleSlugs.has(slot.articleSlug)) return slot;
+  // Перебор начинается от собственной темы слота, а не с начала списка: так
+  // соседние слоты не сходятся на одной и той же «первой свободной».
+  const start = TOPICS.findIndex((topic) => topic.articleSlug === slot.articleSlug);
+  for (let step = 1; step <= TOPICS.length; step++) {
+    const candidate = TOPICS[(start + step) % TOPICS.length];
+    if (usedArticleSlugs.has(candidate.articleSlug)) continue;
+    return {
+      ...slot,
+      cluster: candidate.cluster,
+      articleSlug: candidate.articleSlug,
+      targetQuery: candidate.targetQuery,
+    };
+  }
+  return null;
+}
+
+/**
+ * B686 — по какой теме сделана уже существующая строка реестра.
+ *
+ * В строке лежат `targetQuery` и `cluster`, но не сам `articleSlug`: адрес
+ * статьи хранится целиком в `destinationUrl` вместе с UTM-метками, и разбирать
+ * его обратно значило бы зависеть от формы ссылки. Запрос — точное поле темы,
+ * кластер — запасной ключ для строк, заведённых до появления `targetQuery`.
+ */
+export function topicArticleSlug(row: {
+  targetQuery?: string | null;
+  cluster?: string | null;
+}): string | null {
+  const byQuery = row.targetQuery?.trim().toLowerCase();
+  if (byQuery) {
+    const topic = TOPICS.find((entry) => entry.targetQuery.toLowerCase() === byQuery);
+    if (topic) return topic.articleSlug;
+  }
+  const byCluster = row.cluster?.trim().toLowerCase();
+  if (byCluster) {
+    const topic = TOPICS.find((entry) => entry.cluster.toLowerCase() === byCluster);
+    if (topic) return topic.articleSlug;
+  }
+  return null;
 }

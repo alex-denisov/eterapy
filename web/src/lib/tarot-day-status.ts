@@ -12,7 +12,7 @@
  * состояния важнее всех остальных чисел на экране.
  */
 import db from "@/lib/db";
-import { mskDayKey, tarotDayDueHourMsk } from "@/lib/tarot-day";
+import { tarotDayDueHourMsk, tarotDayKey } from "@/lib/tarot-day";
 import { tarotDayInterpretationCoverage } from "@/lib/tarot-day-content";
 import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { tarotDayDeliveryPrefix } from "@/lib/tarot-day-broadcast";
@@ -36,7 +36,10 @@ export interface TarotDayStatus {
 
 export async function getTarotDayStatus(now: Date = new Date()): Promise<TarotDayStatus> {
   const { start, end } = mskDayRange(now);
-  const dayKey = mskDayKey(now);
+  // B684: сводка считает доставки по СУТКАМ КАРТЫ, а не по календарным. Иначе
+  // между полуночью и 7 утра она смотрела бы на ключ, по которому рассылки ещё
+  // не было, и показывала бы «разослано 0» на исправно работающем контуре.
+  const dayKey = tarotDayKey(now);
   // Ключ доставки уникален на человека и сутки — он же служит признаком
   // «это карта дня», потому что тип работы у всех уведомлений общий.
   const idempotencyPrefix = tarotDayDeliveryPrefix(dayKey);

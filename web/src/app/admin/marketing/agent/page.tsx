@@ -32,6 +32,7 @@ import {
   MARKETING_WRITER_MODEL_PREFERENCES,
   marketingModelFreshness,
 } from "@/lib/marketing/model-pool";
+import { auditMetaBrandAccounts } from "@/lib/marketing/meta-brand-account";
 import { redditOAuthConnected } from "@/lib/marketing/reddit-oauth";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
@@ -62,6 +63,7 @@ export default async function MarketingAgentPage() {
     inboundCounts,
     inboundRecent,
     dzenFeed,
+    metaBrandAudit,
   ] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { status: "REVIEW" } }),
@@ -127,6 +129,10 @@ export default async function MarketingAgentPage() {
       },
     }).catch(() => []),
     dzenFeedReadiness().catch(() => null),
+    // B685: живой ответ площадки на вопрос «от чьего имени уйдёт пост».
+    // Отдельно от `connectors`: там состояние считается по заполненности
+    // полей, а заполнены они могут быть верно по форме и неверно по сути.
+    auditMetaBrandAccounts().catch(() => []),
   ]);
   // B617: у Reddit больше нет отдельного режима комментирования, который надо
   // было доуточнять состоянием OAuth — остались только свои посты и входящее.
@@ -215,7 +221,20 @@ export default async function MarketingAgentPage() {
     { key: "note", label: "Пояснение", filterKind: "none" },
     { key: "connect", label: "Подключение", sortable: false, filterKind: "none" },
   ];
+  /**
+   * B685 — адресат Meta строкой коннектора.
+   *
+   * Строка «готово» у Threads и Instagram означала только «поля заполнены».
+   * Живая проверка 2026-08-06 показала, что заполнены они были маркерами
+   * ЛИЧНОГО аккаунта владельца, и панель об этом молчала. Теперь состояние
+   * строки не может быть зелёным, пока площадка не назвала брендовую страницу.
+   */
+  const brandAuditByPlatform = new Map(
+    metaBrandAudit.map((row) => [row.platform === "threads" ? "Threads" : "Instagram", row]),
+  );
+
   const connectorRows = effectiveConnectors.map((connector) => {
+    const brand = brandAuditByPlatform.get(connector.platform);
     const abilities = [
       connector.ownedPublishing ? "свои посты" : null,
       connector.discovery ? "поиск" : null,
@@ -230,19 +249,55 @@ export default async function MarketingAgentPage() {
       id: connector.platform,
       cells: {
         platform: connector.platform,
-        state: {
-          kind: "status" as const,
-          label: connector.missing.length ? "нужна настройка" : "готово",
-          tone: connector.missing.length ? ("warn" as const) : ("ok" as const),
-          filterValue: connector.missing.length ? "нужна настройка" : "готово",
-        },
+        state: (() => {
+          if (connector.missing.length) {
+            return {
+              kind: "status" as const,
+              label: "нужна настройка",
+              tone: "warn" as const,
+              filterValue: "нужна настройка",
+            };
+          }
+          // Несовпадение адресата — это НЕ «нужна настройка»: поля заполнены,
+          // публикация уйдёт не туда, и один повтор ничего не исправит.
+          if (brand?.status === "mismatch") {
+            return {
+              kind: "status" as const,
+              label: `не тот аккаунт: ${brand.actualHandle ?? "неизвестно"}`,
+              tone: "danger" as const,
+              filterValue: "не тот аккаунт",
+            };
+          }
+          if (brand?.status === "unknown") {
+            return {
+              kind: "status" as const,
+              label: "адресат не проверен",
+              tone: "warn" as const,
+              filterValue: "адресат не проверен",
+            };
+          }
+          return {
+            kind: "status" as const,
+            label: brand?.status === "ok" ? `готово · @${brand.actualHandle}` : "готово",
+            tone: "ok" as const,
+            filterValue: "готово",
+          };
+        })(),
         abilities,
         missing: connector.missing.length ? connector.missing.join(", ") : "—",
         note: {
           kind: "details" as const,
           label: "Показать",
           title: connector.platform,
-          body: connector.note,
+          body: brand
+            ? `${connector.note}\n\nАдресат публикаций: ${
+              brand.status === "not_connected"
+                ? "маркер не задан — площадка не подключена."
+                : brand.status === "unknown"
+                  ? `проверить не удалось (${brand.error ?? "нет ответа площадки"}). Пока адресат не подтверждён, публикация будет остановлена.`
+                  : `площадка отвечает «${brand.actualHandle}», публиковать разрешено только от «${brand.expectedHandle}».`
+            }`
+            : connector.note,
           meta: abilities,
         },
         connect: oauthHref

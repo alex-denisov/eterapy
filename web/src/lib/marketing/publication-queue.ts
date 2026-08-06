@@ -14,7 +14,7 @@
 
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
-import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor } from "@/lib/marketing/content-plan";
+import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor, topicArticleSlug, withUnusedTopic } from "@/lib/marketing/content-plan";
 import { generatePost } from "@/lib/marketing/post-generator";
 
 /** Сколько черновиков держим наготове. Больше — не читает никто. */
@@ -45,6 +45,8 @@ export interface GenerateDraftsResult {
   skippedNoArticle: string[];
   /** B643: слоты, исчерпавшие право на перевыпуск. */
   exhaustedSlots: string[];
+  /** B686: слоты, пропущенные из-за того, что все темы площадки уже заняты. */
+  duplicateTopics: string[];
   planExhausted: boolean;
 }
 
@@ -127,9 +129,50 @@ export async function generateMarketingDrafts(input: {
 
   const skippedNoArticle: string[] = [];
   const exhaustedSlots: string[] = [];
+  const duplicateTopics: string[] = [];
   let created = 0;
 
-  for (const slot of slots) {
+  /**
+   * B686 — площадки, где две статьи на одну тему это дубль, а не два взгляда.
+   *
+   * У Дзена материал длинный и живёт в ленте: повтор темы читается как повтор
+   * статьи и портит канал (владелец 2026-08-06). У Telegram и Threads формат
+   * короткий, в плане на две недели 42 слота на 16 тем, и возврат к теме другим
+   * форматом — норма; запрет уникальности выкосил бы там две трети плана.
+   */
+  const UNIQUE_TOPIC_PLATFORMS = new Set(["dzen"]);
+
+  // Занятые темы считаются ОДИН раз на проход и пополняются по мере создания:
+  // иначе два слота одного окна выберут одну и ту же «первую свободную».
+  const usedTopicsByPlatform = new Map<string, Set<string>>();
+  for (const platform of UNIQUE_TOPIC_PLATFORMS) {
+    const rows = await db.externalPublication.findMany({
+      where: {
+        platform,
+        // Архив — это отбракованное; его темы снова свободны
+        // (`feedback_reschedule_never_archive_media` про обратное — про то, что
+        // хороший материал в архив не отправляют вовсе).
+        status: { not: "ARCHIVED" },
+        planSlot: { not: null },
+      },
+      select: { cluster: true, targetQuery: true },
+    }).catch(() => []);
+    usedTopicsByPlatform.set(
+      platform,
+      new Set(rows.map(topicArticleSlug).filter((value): value is string => Boolean(value))),
+    );
+  }
+
+  for (const rawSlot of slots) {
+    const used = usedTopicsByPlatform.get(rawSlot.channel);
+    const slot = used ? withUnusedTopic(rawSlot, used) : rawSlot;
+    if (!slot) {
+      // Свободных тем не осталось. Пропуск виден снаружи, дубль — нет.
+      duplicateTopics.push(rawSlot.key);
+      log.warn("marketing.plan_slot_topic_exhausted", { slot: rawSlot.key, platform: rawSlot.channel });
+      continue;
+    }
+    used?.add(slot.articleSlug);
     const generation = Array.from({ length: MAX_SLOT_GENERATIONS }, (_, index) => index + 1)
       .find((candidate) => !spentKeys.has(slotKeyForGeneration(slot.key, candidate)));
     if (!generation) {
@@ -191,6 +234,10 @@ export async function generateMarketingDrafts(input: {
     created,
     skippedNoArticle,
     exhaustedSlots,
+    // B686: пропуск из-за занятой темы — отдельное число. Свести его с
+    // `exhaustedSlots` значило бы спрятать «в канале кончились темы» внутри
+    // «слот исчерпал перевыпуски»: причины разные и чинятся по-разному.
+    duplicateTopics,
     planExhausted: taken.length + created >= activePlan.length,
   };
 }

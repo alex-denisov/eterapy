@@ -13,10 +13,11 @@
  * он же служит отпиской. Тихие часы человека соблюдаются: в 7:00 они у многих
  * ещё активны, и правильный ответ — отложить, а не разбудить.
  *
- * ИДЕМПОТЕНТНОСТЬ ПО МСК-СУТКАМ. Ключ доставки — `tarot-day:<user>:<МСК-дата>`.
- * Работа ставится часовой каденцией (см. `tarotDayBroadcastDue`), поэтому за
- * сутки её обработчик вызовется много раз — и все вызовы после первого не
- * добавят ни одного сообщения.
+ * ИДЕМПОТЕНТНОСТЬ ПО СУТКАМ КАРТЫ. Ключ доставки —
+ * `tarot-day:<сутки карты>:<user>`, где сутки считает `tarotDayKey` (B684):
+ * они открываются в 07:00 МСК в будни и в 09:00 в выходные. Работа ставится
+ * часовой каденцией, поэтому за сутки её обработчик вызовется много раз — и все
+ * вызовы после первого не добавят ни одного сообщения.
  */
 import type { Job } from "@prisma/client";
 import db from "@/lib/db";
@@ -30,7 +31,7 @@ import {
 import { getQuietHoursDelayMs, getUserQuietHours } from "@/lib/notification-preference-settings";
 import { absoluteMainUrl } from "@/lib/subdomain";
 import { getTarotDayInterpretation } from "@/lib/tarot-day-content";
-import { mskDayKey, tarotDayBroadcastDue, tarotDayDueHourMsk, tarotDayPick } from "@/lib/tarot-day";
+import { tarotDayDueHourMsk, tarotDayKey, tarotDayPick } from "@/lib/tarot-day";
 
 /** Потолок одной пробежки: рассылка идёт каждый час, остаток догоняется следующей. */
 const BROADCAST_BATCH_LIMIT = 500;
@@ -80,12 +81,13 @@ function miniAppUrl() {
  * одного не отменяет рассылку остальным.
  */
 export async function broadcastTarotDay(now: Date = new Date()): Promise<TarotDayBroadcastResult> {
-  const dayKey = mskDayKey(now);
+  // B684: ключ суток сам открывается ровно в час расписания — до 07:00 (09:00 в
+  // выходные) он ещё вчерашний, а вчерашняя рассылка уже отмечена ключом
+  // идемпотентности. Поэтому отдельный предикат «пора ли» больше не нужен: он
+  // был вторым местом, где жило расписание, и именно расхождение этих двух мест
+  // давало «карта сменилась в полночь, письмо пришло в семь».
+  const dayKey = tarotDayKey(now);
   const dueHourMsk = tarotDayDueHourMsk(now);
-
-  if (!tarotDayBroadcastDue(now)) {
-    return { ok: true, due: false, dayKey, dueHourMsk, candidates: 0, queued: 0, failed: 0, warmed: 0 };
-  }
 
   const recipients = await db.user.findMany({
     where: {

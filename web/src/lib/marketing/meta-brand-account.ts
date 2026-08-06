@@ -22,6 +22,7 @@
  * (`feedback_config_via_deploy`).
  */
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
+import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 export const META_BRAND_HANDLES = {
   threads: "eterapy_official",
@@ -91,4 +92,68 @@ export async function assertMetaBrandAccount(input: {
     );
   }
   verified.set(cacheKey, username);
+}
+
+/**
+ * B685 — АУДИТ АДРЕСАТА для панели.
+ *
+ * `assertMetaBrandAccount` защищает публикацию, но узнать о неверном аккаунте
+ * можно было только по отказу материала. Живая проверка 2026-08-06 показала,
+ * что оба маркера принадлежат личному аккаунту владельца, — и панель при этом
+ * считала обе площадки готовыми, потому что все поля заполнены. Заполнены они
+ * были неверно.
+ *
+ * Поэтому здесь тот же вопрос задаётся заранее и БЕЗ броска: панель обязана
+ * показать состояние, а не упасть вместе с недоступной площадкой.
+ */
+export type MetaBrandAuditStatus = "ok" | "mismatch" | "unknown" | "not_connected";
+
+export interface MetaBrandAuditRow {
+  platform: MetaBrandPlatform;
+  expectedHandle: string;
+  actualHandle: string | null;
+  status: MetaBrandAuditStatus;
+  error: string | null;
+}
+
+const TOKEN_KEYS = {
+  threads: "THREADS_ACCESS_TOKEN",
+  instagram: "INSTAGRAM_ACCESS_TOKEN",
+} as const;
+
+async function auditPlatform(platform: MetaBrandPlatform): Promise<MetaBrandAuditRow> {
+  const expectedHandle = META_BRAND_HANDLES[platform];
+  const base = { platform, expectedHandle, actualHandle: null, error: null };
+
+  const token = await marketingPlatformValue(TOKEN_KEYS[platform]).catch(() => null);
+  // Без маркера в Meta не ходим вовсе: сетевой вызов ради заведомого 400 стоит
+  // времени на каждой отрисовке панели и засоряет журнал релея.
+  if (!token) return { ...base, status: "not_connected" };
+
+  try {
+    const username = await fetchUsername(platform, token);
+    if (!username) return { ...base, status: "unknown", error: "площадка не вернула имя аккаунта" };
+    return {
+      ...base,
+      actualHandle: username,
+      // Сравниваем нормализованно (регистр и «@»), но показываем как есть —
+      // владельцу важно увидеть ровно ту строку, которую отдала площадка.
+      status: normalizeHandle(username) === expectedHandle ? "ok" : "mismatch",
+    };
+  } catch (error) {
+    // Молчание сети НЕ засчитывается за подтверждение: иначе достаточно
+    // отвалиться релею, чтобы панель показала зелёное на неверном аккаунте.
+    return {
+      ...base,
+      status: "unknown",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/** Порядок строк постоянный — панель не должна перетасовываться между заходами. */
+export async function auditMetaBrandAccounts(): Promise<MetaBrandAuditRow[]> {
+  return Promise.all(
+    (Object.keys(META_BRAND_HANDLES) as MetaBrandPlatform[]).map(auditPlatform),
+  );
 }

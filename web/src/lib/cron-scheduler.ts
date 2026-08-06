@@ -62,9 +62,9 @@ export const CRON_SCHEDULES: CronSchedule[] = [
   { type: "cron.moment-of-need", cadence: "daily", keyPrefix: "moment-of-need" },
   // B678: карта дня уходит в 07:00 МСК в будни и в 09:00 МСК в выходные.
   // Каденция ЧАСОВАЯ, а не суточная: суточная корзина открывается в 00:00 UTC
-  // (03:00 МСК) и рассылка ушла бы среди ночи. Час отправки проверяет сам
-  // обработчик (`tarotDayBroadcastDue`), а повторную отправку в те же МСК-сутки
-  // закрывает ключ доставки на каждого человека.
+  // (03:00 МСК) и рассылка ушла бы среди ночи. Час отправки задаёт сам ключ
+  // суток карты (`tarotDayKey`, B684): до 07:00/09:00 он ещё вчерашний, а
+  // вчерашняя рассылка уже отмечена ключом доставки на каждого человека.
   { type: "cron.tarot-day-broadcast", cadence: "hourly", keyPrefix: "tarot-day-broadcast" },
   { type: "cron.subscription-renewal", cadence: "daily", keyPrefix: "subscription-renewal" },
   // B591 фаза 4: сроки ИП за 10 и за 3 дня. Ежедневно и НЕ financial — джоб

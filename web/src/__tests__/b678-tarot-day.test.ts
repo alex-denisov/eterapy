@@ -13,7 +13,7 @@ import {
   mskWeekday,
   parseTarotDayInterpretation,
   tarotCardArtworkPath,
-  tarotDayBroadcastDue,
+  tarotDayKey,
   tarotDayDueHourMsk,
   tarotDayPick,
   tarotDayPickFromKey,
@@ -43,9 +43,11 @@ describe("B678 · выбор карты дня", () => {
   it("МСК-сутки меняются в 21:00 UTC, а не в полночь UTC", () => {
     // 20:59 UTC — это ещё 23:59 МСК того же дня.
     expect(mskDayKey(new Date("2026-08-05T20:59:00Z"))).toBe("2026-08-05");
-    // 21:00 UTC — уже 00:00 МСК следующего дня, карта обязана смениться.
+    // 21:00 UTC — уже 00:00 МСК следующего дня.
     expect(mskDayKey(new Date("2026-08-05T21:00:00Z"))).toBe("2026-08-06");
-    expect(tarotDayPick("user-1", new Date("2026-08-05T21:00:00Z")).dayKey).toBe("2026-08-06");
+    // Сама карта в полночь НЕ меняется — рубеж у неё в 07:00/09:00 МСК
+    // (B684, `b684-tarot-day-schedule.test.ts`).
+    expect(tarotDayPick("user-1", new Date("2026-08-05T21:00:00Z")).dayKey).toBe("2026-08-05");
   });
 
   it("ключ разбирается обратно в карту и положение", () => {
@@ -84,19 +86,15 @@ describe("B678 · час рассылки по МСК", () => {
     expect(tarotDayDueHourMsk(new Date("2026-08-09T09:00:00Z"))).toBe(9);
   });
 
-  it("до нужного часа рассылка не наступила, после — наступила и не пропадает", () => {
-    // Среда: 03:59 UTC = 06:59 МСК — рано.
-    expect(tarotDayBroadcastDue(new Date("2026-08-05T03:59:00Z"))).toBe(false);
-    // 04:00 UTC = 07:00 МСК — пора.
-    expect(tarotDayBroadcastDue(new Date("2026-08-05T04:00:00Z"))).toBe(true);
-    // Воркер лежал до 09:00 МСК — рассылка всё равно уходит, с опозданием.
-    expect(tarotDayBroadcastDue(new Date("2026-08-05T06:00:00Z"))).toBe(true);
-  });
-
-  it("в выходной в 07:00 МСК ещё рано", () => {
+  it("рубеж суток карты и есть час рассылки", () => {
+    // B684: отдельного предиката «пора ли слать» больше нет — расписание живёт
+    // в одном месте, в ключе суток карты. Среда: 03:59 UTC = 06:59 МСК — ключ
+    // ещё вчерашний, значит вчерашняя рассылка уже отмечена и новой не будет.
+    expect(tarotDayKey(new Date("2026-08-05T03:59:00Z"))).toBe("2026-08-04");
+    expect(tarotDayKey(new Date("2026-08-05T04:00:00Z"))).toBe("2026-08-05");
     // Суббота, 04:00 UTC = 07:00 МСК: в будни это час отправки, в выходной нет.
-    expect(tarotDayBroadcastDue(new Date("2026-08-08T04:00:00Z"))).toBe(false);
-    expect(tarotDayBroadcastDue(new Date("2026-08-08T06:00:00Z"))).toBe(true);
+    expect(tarotDayKey(new Date("2026-08-08T04:00:00Z"))).toBe("2026-08-07");
+    expect(tarotDayKey(new Date("2026-08-08T06:00:00Z"))).toBe("2026-08-08");
   });
 });
 

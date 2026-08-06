@@ -4,15 +4,17 @@
  * B678 — карта дня в Telegram-бот. Только диспетчер: сама рассылка идёт в
  * очереди воркера (`cron.tarot-day-broadcast`), как у остальных суточных работ.
  *
- * Ключ идемпотентности — МСК-дата, а не UTC-дата: рассылка привязана к
- * московскому утру, и на границе суток UTC она иначе разъехалась бы на две
- * корзины.
+ * Ключ идемпотентности — СУТКИ КАРТЫ (`tarotDayKey`, B684), а не UTC- и даже не
+ * календарная МСК-дата. С календарной датой единственная работа за сутки
+ * заводилась бы уже в 00:01 МСК, отрабатывала вхолостую (в тот час карта ещё
+ * вчерашняя и вчера уже разослана) и съедала бы ключ до 7 утра — то есть
+ * маршрут-подстраховка молча переставал бы страховать.
  */
 import { NextRequest } from "next/server";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { enqueueJob } from "@/lib/job-queue";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { mskDayKey } from "@/lib/tarot-day";
+import { tarotDayKey } from "@/lib/tarot-day";
 
 function isCronAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET ?? "";
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const idempotencyKey = `tarot-day-broadcast:${mskDayKey(now)}`;
+  const idempotencyKey = `tarot-day-broadcast:${tarotDayKey(now)}`;
   const job = await enqueueJob({
     queue: "cron",
     type: "cron.tarot-day-broadcast",

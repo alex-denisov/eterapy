@@ -37,7 +37,7 @@ export interface TarotDayPick {
   reversed: boolean;
   /** Ключ картинки и кэша трактовки: `major-00-up`, `minor-К-3-rev`. */
   key: string;
-  /** Дата карты по МСК, `YYYY-MM-DD`. */
+  /** Сутки карты по МСК, `YYYY-MM-DD` (см. `tarotDayKey` — рубеж в 7:00/9:00). */
   dayKey: string;
 }
 
@@ -54,7 +54,12 @@ export interface TarotDayInterpretation {
 
 export const TAROT_DAY_INTERPRETATION_VERSION = "v1";
 
-/** Дата по МСК в виде `YYYY-MM-DD`. */
+/**
+ * Календарная дата по МСК в виде `YYYY-MM-DD`.
+ *
+ * Служебная величина: по ней считается, какой сегодня день недели и наступил ли
+ * рубеж смены карты. Сама карта живёт по `tarotDayKey`, а не по календарю.
+ */
 export function mskDayKey(now: Date = new Date()): string {
   return new Date(now.getTime() + MSK_OFFSET_MS).toISOString().slice(0, 10);
 }
@@ -74,17 +79,25 @@ export function tarotDayDueHourMsk(now: Date = new Date()): 7 | 9 {
 }
 
 /**
- * Наступил ли момент рассылки за текущие МСК-сутки.
+ * B684 — СУТКИ КАРТЫ. Начинаются в час из расписания владельца (07:00 МСК в
+ * будни, 09:00 МСК в выходные) и длятся до следующего такого часа.
  *
- * Планировщик (`cron-scheduler.ts`) не умеет «в 7 утра»: он ведёт часовые и
- * суточные корзины. Поэтому работа ставится ЧАСОВОЙ каденцией, ключ
- * идемпотентности — МСК-дата, а этот предикат пропускает её только начиная с
- * нужного часа. Если воркер лежал в 7:00, рассылка уйдёт в 8:00 — с опозданием,
- * но уйдёт, и ровно один раз за сутки.
+ * ПОЧЕМУ НЕ КАЛЕНДАРНАЯ ДАТА. Раньше карта выбиралась по `mskDayKey`, то есть
+ * менялась в полночь, а рассылка уходила в 7:00. Между 00:00 и 07:00 человек
+ * видел в кабинете уже завтрашнюю карту, про которую ему ещё не написали, а
+ * утреннее сообщение приходило про карту, которую он успел посмотреть ночью.
+ * Расписание относится к СМЕНЕ карты, поэтому рубеж один и тот же для экрана,
+ * мини-аппа и бота — иначе они снова разъедутся.
+ *
+ * Сдвиг «на сутки назад» берётся от МСК-полуночи, а не вычитанием 24 часов из
+ * текущего момента: у МСК нет перевода часов, но так результат не зависит от
+ * времени внутри суток и остаётся чистой календарной арифметикой.
  */
-export function tarotDayBroadcastDue(now: Date = new Date()): boolean {
-  const hour = new Date(now.getTime() + MSK_OFFSET_MS).getUTCHours();
-  return hour >= tarotDayDueHourMsk(now);
+export function tarotDayKey(now: Date = new Date()): string {
+  const msk = new Date(now.getTime() + MSK_OFFSET_MS);
+  if (msk.getUTCHours() >= tarotDayDueHourMsk(now)) return msk.toISOString().slice(0, 10);
+  const previous = Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate() - 1);
+  return new Date(previous).toISOString().slice(0, 10);
 }
 
 function orientationSuffix(reversed: boolean) {
@@ -100,7 +113,7 @@ function orientationSuffix(reversed: boolean) {
  * значения у колоды прописаны и не мягче прямых.
  */
 export function tarotDayPick(userId: string, now: Date = new Date()): TarotDayPick {
-  const dayKey = mskDayKey(now);
+  const dayKey = tarotDayKey(now);
   const digest = crypto.createHash("sha256").update(`tarot-day:${userId}:${dayKey}`).digest();
   const index = digest.readUInt32BE(0) % TAROT_DECK.length;
   const card = TAROT_DECK[index];
