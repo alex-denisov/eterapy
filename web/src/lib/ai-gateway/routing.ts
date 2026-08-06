@@ -165,6 +165,18 @@ export function resolveAIRoutingPlan(input: {
   providerConfigs: AIRoutingProviderConfig[];
   policy?: AIRoutingPolicyConfig | null;
   allowForeignInYandexOnlyMode?: boolean;
+  /**
+   * B687 — заказанный вызывающим маршрут исполняется дословно.
+   *
+   * По умолчанию к списку из политики дописываются все остальные включённые
+   * провайдеры: для обычной функции это отказоустойчивость, и она нужна. Но
+   * когда провайдер выбирает САМ вызывающий — как редактор SMM-агента, который
+   * обязан попасть на модель, отличную от модели автора, — дописывание
+   * превращает «спроси GROQ» в «спроси кого угодно». Редактор шесть раз просил
+   * разных провайдеров, шесть раз получал одну и ту же цепочку отката и один и
+   * тот же Mistral, и конвейер вставал на «в пуле не осталось второй модели».
+   */
+  restrictToProviderOrder?: boolean;
 }): AIRoutingPlan {
   const feature = normalizeAIFeatureKey(input.feature);
   const policy = input.policy;
@@ -190,7 +202,11 @@ export function resolveAIRoutingPlan(input: {
     .sort((a, b) => a.priority - b.priority)
     .map((config) => config.provider);
   const policyProviders = policy?.providerOrder?.length ? policy.providerOrder : defaultProviderOrder();
-  const orderedProviders = uniqueProviderOrder([...policyProviders, ...priorityProviders]);
+  const orderedProviders = uniqueProviderOrder(
+    input.restrictToProviderOrder && policy?.providerOrder?.length
+      ? policy.providerOrder
+      : [...policyProviders, ...priorityProviders],
+  );
 
   const attempts = orderedProviders
     .map((provider): AIRoutingAttemptPlan | null => {

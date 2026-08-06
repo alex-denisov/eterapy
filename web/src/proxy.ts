@@ -401,13 +401,25 @@ export default async function proxy(request: NextRequest) {
 
   // Logged-in user hitting main domain
   if (role) {
+    // B688: переброс на поддомен несёт строку запроса. Возврат из OAuth Meta
+    // приходит на `eterapy.com/admin/marketing/agent?threads=connected`, и без
+    // этого метка исхода терялась ровно на последнем шаге — владелец видел
+    // админку, но не узнавал, чем кончилось подключение.
     // /cabinet here → push to app subdomain
     if (pathname.startsWith("/cabinet")) {
-      return applyRobotsPolicy(redirectAbs(APP_DOMAIN, pathname, context), host, pathname);
+      return applyRobotsPolicy(
+        redirectAbs(APP_DOMAIN, withOriginalSearch(pathname, request.nextUrl.search), context),
+        host,
+        pathname,
+      );
     }
     // /admin here → push to admin subdomain
     if (pathname.startsWith("/admin")) {
-      return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, pathname, context), host, pathname);
+      return applyRobotsPolicy(
+        redirectAbs(ADMIN_DOMAIN, withOriginalSearch(pathname, request.nextUrl.search), context),
+        host,
+        pathname,
+      );
     }
     // Login/register while logged in → home
     if (pathname === "/login" || pathname === "/register") {

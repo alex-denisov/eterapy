@@ -99,6 +99,27 @@ export async function metaAuthorizationUrl(input: {
   return url.toString();
 }
 
+/**
+ * B689 — id аккаунта Meta длиннее, чем умеет число JavaScript.
+ *
+ * `27155594637449426` больше `Number.MAX_SAFE_INTEGER`, а площадка отдаёт
+ * `user_id` числом. `JSON.parse` округляет его до ближайшего представимого —
+ * получается `27155594637449424`, и порча молчаливая: тип верный, длина
+ * верная. Поэтому длинные значения полей-идентификаторов переводятся в строки
+ * ДО разбора. Всё остальное, включая длинный `expires_in`, не трогаем: оно
+ * число по смыслу и в опасный диапазон не попадает.
+ */
+export function preserveMetaLargeIds(raw: string): string {
+  return raw.replace(
+    /"(id|user_id)"(\s*:\s*)(\d{16,})/g,
+    (_match, field: string, separator: string, digits: string) => (
+      Number.isSafeInteger(Number(digits))
+        ? `"${field}"${separator}${digits}`
+        : `"${field}"${separator}"${digits}"`
+    ),
+  );
+}
+
 async function jsonRequest(
   url: string,
   init?: RequestInit,
@@ -112,7 +133,9 @@ async function jsonRequest(
     ),
     signal: AbortSignal.timeout(15_000),
   });
-  const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+  const payload = await response.text()
+    .then((raw) => JSON.parse(preserveMetaLargeIds(raw)) as Record<string, unknown>)
+    .catch(() => null);
   if (!response.ok || !payload) {
     const error = payload?.error;
     const message = typeof error === "object" && error && "message" in error

@@ -240,6 +240,11 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     providerConfigs,
     policy,
     allowForeignInYandexOnlyMode: publicMarketingRequest,
+    // B687: список, названный вызывающим, — это ограничение. Единственный, кто
+    // его называет, — SMM-агент, и называет он ровно одного провайдера за
+    // проход: перебор ведёт он сам, чтобы отличить редактора от автора по
+    // модели. Достроенный план отнимал у него именно эту возможность.
+    restrictToProviderOrder: Boolean(options.providerOrder?.length),
   });
   const requestPlan = {
     ...plan,
