@@ -93,12 +93,15 @@ export async function dzenBrowserHealth(): Promise<BrowserSessionHealth> {
     return { reachable: false, authorized: false, reason: "браузерный сервис не настроен" };
   }
   try {
-    const health = await callBrowser<{ authorized: boolean; reason: string | null }>({
-      path: "/health",
+    // `probe=1` — просим сервис реально сходить на площадку. Дешёвая проверка
+    // без пробы отвечает «жив ли процесс», а нам здесь нужно «узнаёт ли нас
+    // Дзен»: путать эти два ответа мы уже научены на Meta (B685).
+    const health = await callBrowser<{ authorized: boolean | null; reason: string | null }>({
+      path: "/health?probe=1",
       method: "GET",
       timeoutMs: CONTROL_TIMEOUT_MS,
     });
-    return { reachable: true, authorized: health.authorized, reason: health.reason };
+    return { reachable: true, authorized: health.authorized === true, reason: health.reason };
   } catch (error) {
     return {
       reachable: false,

@@ -62,7 +62,9 @@ async function ensureContext() {
     return context;
   }
   context = await chromium.launchPersistentContext(PROFILE_DIR, {
-    channel: "chromium",
+    // Канал НЕ указываем: берём сборку, которую положил `patchright install
+    // chromium`. `channel: "chromium"` потребовал бы отдельной установки канала
+    // и падал бы на старте — а сервис обязан либо работать, либо сказать почему.
     headless: false,
     viewport: null,
     locale: "ru-RU",
@@ -283,10 +285,16 @@ const server = createServer((request, response) => {
       }
 
       if (request.method === "GET" && url.pathname === "/health") {
-        const state = await serial(() => dzenSessionState().catch((error) => ({
-          authorized: false,
-          reason: error instanceof Error ? error.message : String(error),
-        })));
+        // Проба площадки — ТОЛЬКО по явному запросу. Проверка контейнера
+        // ходит сюда раз в минуту; если бы она каждый раз открывала dzen.ru,
+        // мы сами создали бы ровно тот признак робота, от которого уходим:
+        // обращение секунда в секунду, круглые сутки, без единой публикации.
+        const state = url.searchParams.get("probe") === "1"
+          ? await serial(() => dzenSessionState().catch((error) => ({
+            authorized: false,
+            reason: error instanceof Error ? error.message : String(error),
+          })))
+          : { authorized: null, reason: null };
         send(response, 200, {
           ok: true,
           profileExists: existsSync(join(PROFILE_DIR, "Default")),
