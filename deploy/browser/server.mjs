@@ -252,12 +252,22 @@ const DZEN_CREATE_SELECTORS = [
   'button:has-text("Создать публикацию")',
 ];
 
-/** Пункт меню «+»: статья, а не пост и не видео. */
+/**
+ * Пункт меню «+»: статья, а не пост и не видео.
+ *
+ * ⚠ ЭТО НЕ КНОПКА И НЕ MENUITEM. Снято с живого меню 2026-08-07: пункт — это
+ * `LABEL` с `role="button"` (класс `editor--context-menu__item-…`) внутри
+ * `[data-testid="popup-base"]`. Прежний список искал `button`, `[role=menuitem]`
+ * и `a` — мимо всеми тремя, поэтому меню РАСКРЫВАЛОСЬ, а выпуск сообщал «в меню
+ * нет пункта». Снимок экрана с открытым меню и пустой выдачей `querySelectorAll`
+ * — тот самый случай, когда глазами видно одно, а поиском находится другое.
+ */
 const DZEN_ARTICLE_SELECTORS = [
+  '[data-testid="popup-base"] [role="button"]:has-text("Написать статью")',
+  '[role="button"]:has-text("Написать статью")',
+  'label:has-text("Написать статью")',
   'button:has-text("Написать статью")',
   '[role="menuitem"]:has-text("Написать статью")',
-  '[role="menuitem"]:has-text("Статья")',
-  'a:has-text("Написать статью")',
 ];
 
 async function firstVisible(page, selectors) {
@@ -329,9 +339,14 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
      * раз: первое нажатие иногда лишь переводит фокус в шапку.
      */
     const articleItem = page.locator(DZEN_ARTICLE_SELECTORS.join(", ")).first();
+    const popup = page.locator('[data-testid="popup-base"]');
     let article = null;
     for (const attempt of [0, 1]) {
-      await create.click();
+      // Повторное нажатие ЗАКРЫЛО бы уже раскрытое меню, поэтому второй раз
+      // жмём только если всплывающего окна на экране нет.
+      const opened = attempt > 0
+        && await popup.first().isVisible().catch(() => false);
+      if (!opened) await create.click();
       article = await articleItem.waitFor({ state: "visible", timeout: 8_000 })
         .then(() => articleItem)
         .catch(() => null);
@@ -339,7 +354,12 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
       if (attempt === 0) await humanPause(page, 700);
     }
     if (!article) {
-      const visible = await page.evaluate(() => Array.from(document.querySelectorAll('button,[role="menuitem"]'))
+      // Список берётся ШИРЕ, чем ищет селектор: именно узкий список
+      // (`button, [role=menuitem]`) в прошлый раз показал пустое меню там, где
+      // на снимке экрана оно было раскрыто.
+      const visible = await page.evaluate(() => Array.from(
+        document.querySelectorAll('button,[role="button"],[role="menuitem"],label,a'),
+      )
         .filter((element) => element.getBoundingClientRect().width > 0)
         .map((element) => (element.textContent ?? "").trim())
         .filter(Boolean).slice(0, 12)).catch(() => []);
@@ -404,18 +424,27 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
     ]);
     if (!publish) throw new Error("Редактор Дзена изменился: кнопка публикации не найдена");
     await publish.click();
-    // Окно подтверждения появляется не мгновенно и не всегда. Ждём его
-    // недолго: его отсутствие — законный исход, а вот «не дождались» выглядело
-    // бы как «выпуск не подтверждён» и стоило бы материалу слота.
-    const confirmSelectors = [
+
+    /**
+     * ⚠ ВЫПУСК В ДВА НАЖАТИЯ. Кнопка в шапке (`article-publish-btn`) НЕ
+     * публикует — она открывает окно «Публикация» с настройками (название, кто
+     * может комментировать), и выпуск делает вторая кнопка,
+     * `[data-testid="publish-btn"]`. Снято с живого редактора 2026-08-07 после
+     * того, как заход прошёл весь путь и встал на «Дзен не вернул публичный
+     * адрес»: статья осталась черновиком «Готово к публикации».
+     *
+     * Прежний поиск шёл по `[role="dialog"]`, а у этого окна роли нет вовсе.
+     */
+    const confirm = page.locator([
+      '[data-testid="publish-btn"]',
       '[role="dialog"] button:has-text("Опубликовать")',
       '[role="dialog"] button:has-text("Подтвердить")',
-      '[role="dialog"] [data-testid*="publish"]',
-    ];
-    const confirm = page.locator(confirmSelectors.join(", ")).first();
-    if (await confirm.waitFor({ state: "visible", timeout: 6_000 }).then(() => true).catch(() => false)) {
-      await confirm.click();
+    ].join(", ")).first();
+    if (!await confirm.waitFor({ state: "visible", timeout: 20_000 }).then(() => true).catch(() => false)) {
+      throw new Error("Дзен не показал окно подтверждения выпуска: статья осталась черновиком");
     }
+    await humanPause(page, 900);
+    await confirm.click();
 
     // Ждём именно адрес публикации, а не «страница загрузилась»: успехом
     // считается только то, что у материала появился публичный адрес.

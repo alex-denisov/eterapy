@@ -26,7 +26,12 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
   },
 }));
 
-import { dzenChannelUrlFrom, dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
+import {
+  dzenChannelUrlFrom,
+  dzenLoginUrlFrom,
+  dzenPlainText,
+  dzenStudioUrlFrom,
+} from "@/lib/marketing/dzen-studio";
 import {
   dzenBrowserHealth,
   openDzenBrowserSession,
@@ -132,6 +137,47 @@ describe("сервис получает адреса от приложения",
       channelUrl: "https://dzen.ru/eterapy",
       studioUrl: null,
     });
+  });
+});
+
+describe("разметка не уезжает в статью", () => {
+  // Первый живой заход напечатал в редакторе Дзена «**Что стоит проверить:**»
+  // ровно так, со звёздочками: markdown там визуальный редактор не понимает.
+  it("жирный и курсив снимаются", () => {
+    expect(dzenPlainText("**Что стоит проверить:**")).toBe("Что стоит проверить:");
+    expect(dzenPlainText("вопрос — *«Какое чувство сейчас?»* и всё")).toBe("вопрос — «Какое чувство сейчас?» и всё");
+  });
+
+  it("маркер списка становится тире, а не остаётся дефисом", () => {
+    // С дефиса редактор Дзена сам заводит список, и следующая строка получает
+    // второй маркер — в живой статье это выглядело как «– » внутри пункта.
+    expect(dzenPlainText("- Какая вода в вашем сне?\n- Что именно вода угрожает?"))
+      .toBe("— Какая вода в вашем сне?\n— Что именно вода угрожает?");
+  });
+
+  it("заголовки теряют решётки", () => {
+    expect(dzenPlainText("## Практика\nТекст")).toBe("Практика\nТекст");
+  });
+
+  it("подчёркивания в адресах остаются нетронутыми", () => {
+    const url = "https://eterapy.com/library/son?utm_source=dzen&utm_medium=social";
+    expect(dzenPlainText(url)).toBe(url);
+  });
+
+  it("выпуск получает текст уже без разметки", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, externalPostId: "anPQ", publicUrl: "https://dzen.ru/a/anPQ" }),
+    });
+
+    await publishToDzenBrowser({
+      title: "Вода во сне",
+      body: "**Что стоит проверить:**\n- Какая вода?",
+      mediaUrl: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(init.body).body).toBe("Что стоит проверить:\n— Какая вода?");
   });
 });
 

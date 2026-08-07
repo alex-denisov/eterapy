@@ -68,3 +68,28 @@ export function dzenStudioUrlFrom(channelUrl: string): string | null {
 export function dzenLoginUrlFrom(channelUrl: string): string {
   return `https://passport.yandex.ru/auth?retpath=${encodeURIComponent(channelUrl)}`;
 }
+
+/**
+ * Текст статьи без разметки markdown.
+ *
+ * ⚠ ЗАЧЕМ. Конвейер пишет материал в markdown — им живут Telegram и лента. У
+ * Дзена редактор визуальный: он показывает `**Что стоит проверить:**` ровно так,
+ * со звёздочками. Первый живой заход это и напечатал; публиковать такое на
+ * канал нельзя.
+ *
+ * Маркеры списка заменяются на тире, а НЕ оставляются как `- `: с дефиса
+ * редактор Дзена сам заводит список, и следующие строки получают второй маркер.
+ * Подчёркивания не трогаем вовсе — они живут в адресах (`utm_source`), и
+ * «курсив» съел бы часть ссылки.
+ */
+export function dzenPlainText(markdown: string): string {
+  return markdown
+    .replace(/^#{1,6}[ \t]+/gm, "")
+    .replace(/^[ \t]*>[ \t]?/gm, "")
+    // `[\s\S]` вместо флага `s`: он требует цели es2018, а она здесь ниже.
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1")
+    .replace(/^[ \t]*[-*+][ \t]+/gm, "— ")
+    .replace(/\*(?=\S)([^*\n]+?)(?<=\S)\*/g, "$1")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
+}

@@ -19,7 +19,12 @@
  * собственные публикации — тот же периметр, что в `perimeter.ts`.
  */
 
-import { dzenChannelUrlFrom, dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
+import {
+  dzenChannelUrlFrom,
+  dzenLoginUrlFrom,
+  dzenPlainText,
+  dzenStudioUrlFrom,
+} from "@/lib/marketing/dzen-studio";
 import { marketingPlatformValue, requiredMarketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 type BrowserPlatform = "Dzen";
@@ -200,8 +205,10 @@ export async function publishToDzenBrowser(
     path: "/publish/dzen",
     method: "POST",
     body: {
-      title: publication.title,
-      body: publication.body,
+      title: dzenPlainText(publication.title),
+      // Разметку снимаем ЗДЕСЬ, а не в сервисе: у редактора Дзена нет markdown,
+      // и звёздочки он показывает читателю как есть.
+      body: dzenPlainText(publication.body),
       mediaUrl: publication.mediaUrl,
       channelUrl: target.channelUrl,
       studioUrl: target.studioUrl,
