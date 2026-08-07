@@ -217,8 +217,11 @@ async function dzenSessionState({ studioUrl, channelUrl }) {
     if (/captcha|подтвердите, что вы не робот/i.test(body)) {
       return { authorized: false, account, reason: "площадка показывает проверку — нужен вход владельца" };
     }
-    const create = await firstVisible(page, DZEN_CREATE_SELECTORS);
-    if (create) return { authorized: true, account, reason: null };
+    // Ждём кнопку, а не смотрим один раз: студия — тяжёлое одностраничное
+    // приложение, и «не успела нарисоваться» читалось бы как «не открылась».
+    const created = await page.locator(DZEN_CREATE_SELECTORS.join(", ")).first()
+      .waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+    if (created) return { authorized: true, account, reason: null };
 
     const title = (await page.title().catch(() => "")).trim();
     const buttons = await page.evaluate(() => Array.from(document.querySelectorAll('button,[role="button"]'))
@@ -307,16 +310,44 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
     }
     await humanPause(page, 1_200);
 
-    const create = await firstVisible(page, DZEN_CREATE_SELECTORS);
+    // Студия — тяжёлое одностраничное приложение: к `domcontentloaded` шапки
+    // ещё нет. Ждём саму кнопку, а не отсчитываем секунды.
+    const createButton = page.locator(DZEN_CREATE_SELECTORS.join(", ")).first();
+    const create = await createButton.waitFor({ state: "visible", timeout: 30_000 })
+      .then(() => createButton)
+      .catch(() => null);
     if (!create) throw new Error("Редактор Дзена изменился: кнопка создания публикации не найдена");
-    await create.click();
-    await humanPause(page, 900);
 
-    // Пункт меню обязателен, а не «если нашёлся». Прежде его отсутствие
-    // проходило молча, и следующий шаг падал на «поле заголовка не найдено» —
-    // сообщение указывало не туда, где сломалось.
-    const article = await firstVisible(page, DZEN_ARTICLE_SELECTORS);
-    if (!article) throw new Error("Редактор Дзена изменился: в меню создания нет пункта «Написать статью»");
+    /**
+     * ⚠ МЕНЮ СОЗДАНИЯ ЖДЁМ, А НЕ ОТСЧИТЫВАЕМ. Первая версия нажимала «+» и
+     * делала паузу в секунду, после чего искала пункт ОДИН раз. Меню рисуется
+     * порталом и к этому мгновению существует не всегда — второй живой заход
+     * 2026-08-07 упал именно так: «в меню создания нет пункта».
+     *
+     * Пауза, отмеренная на глаз, — это не ожидание, а ставка. Здесь ждём
+     * появления самого пункта, а если меню не раскрылось — нажимаем «+» ещё
+     * раз: первое нажатие иногда лишь переводит фокус в шапку.
+     */
+    const articleItem = page.locator(DZEN_ARTICLE_SELECTORS.join(", ")).first();
+    let article = null;
+    for (const attempt of [0, 1]) {
+      await create.click();
+      article = await articleItem.waitFor({ state: "visible", timeout: 8_000 })
+        .then(() => articleItem)
+        .catch(() => null);
+      if (article) break;
+      if (attempt === 0) await humanPause(page, 700);
+    }
+    if (!article) {
+      const visible = await page.evaluate(() => Array.from(document.querySelectorAll('button,[role="menuitem"]'))
+        .filter((element) => element.getBoundingClientRect().width > 0)
+        .map((element) => (element.textContent ?? "").trim())
+        .filter(Boolean).slice(0, 12)).catch(() => []);
+      throw new Error(
+        "Редактор Дзена изменился: в меню создания нет пункта «Написать статью»"
+        + (visible.length > 0 ? `. Видимые кнопки: ${visible.join(", ")}` : ". Видимых кнопок нет вовсе"),
+      );
+    }
     await article.click();
     // Признак того, что редактор действительно открылся: адрес черновика.
     await page.waitForURL((url) => /\/edit(\/|\?|$)/i.test(url.toString()), { timeout: 40_000 })
@@ -373,11 +404,18 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
     ]);
     if (!publish) throw new Error("Редактор Дзена изменился: кнопка публикации не найдена");
     await publish.click();
-    const confirm = await firstVisible(page, [
+    // Окно подтверждения появляется не мгновенно и не всегда. Ждём его
+    // недолго: его отсутствие — законный исход, а вот «не дождались» выглядело
+    // бы как «выпуск не подтверждён» и стоило бы материалу слота.
+    const confirmSelectors = [
       '[role="dialog"] button:has-text("Опубликовать")',
       '[role="dialog"] button:has-text("Подтвердить")',
-    ]);
-    if (confirm) await confirm.click();
+      '[role="dialog"] [data-testid*="publish"]',
+    ];
+    const confirm = page.locator(confirmSelectors.join(", ")).first();
+    if (await confirm.waitFor({ state: "visible", timeout: 6_000 }).then(() => true).catch(() => false)) {
+      await confirm.click();
+    }
 
     // Ждём именно адрес публикации, а не «страница загрузилась»: успехом
     // считается только то, что у материала появился публичный адрес.
