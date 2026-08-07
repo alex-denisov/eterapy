@@ -20,8 +20,16 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const db = new PrismaClient();
+/**
+ * Клиент строится ТАК ЖЕ, как в приложении (`web/src/lib/db.ts`): Prisma 7
+ * требует адаптер, и пустой `new PrismaClient()` падает при первом же запуске —
+ * скрипт выглядел рабочим ровно до попытки применить его на проде.
+ */
+const db = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 const apply = process.argv.includes("--apply");
 
 const rows = await db.externalPublication.findMany({
