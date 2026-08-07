@@ -312,39 +312,49 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
     await create.click();
     await humanPause(page, 900);
 
+    // Пункт меню обязателен, а не «если нашёлся». Прежде его отсутствие
+    // проходило молча, и следующий шаг падал на «поле заголовка не найдено» —
+    // сообщение указывало не туда, где сломалось.
     const article = await firstVisible(page, DZEN_ARTICLE_SELECTORS);
-    if (article) {
-      await article.click();
-      await humanPause(page, 1_500);
-    }
+    if (!article) throw new Error("Редактор Дзена изменился: в меню создания нет пункта «Написать статью»");
+    await article.click();
+    // Признак того, что редактор действительно открылся: адрес черновика.
+    await page.waitForURL((url) => /\/edit(\/|\?|$)/i.test(url.toString()), { timeout: 40_000 })
+      .catch(() => { throw new Error("Редактор Дзена не открылся: адрес черновика не появился"); });
+    await humanPause(page, 1_500);
 
-    const titleField = await firstVisible(page, [
-      'textarea[placeholder*="Заголов"]',
-      'input[placeholder*="Заголов"]',
-      '[contenteditable="true"][data-placeholder*="Заголов"]',
-      '[contenteditable="true"][aria-label*="Заголов"]',
-    ]);
-    if (!titleField) throw new Error("Редактор Дзена изменился: поле заголовка не найдено");
+    /**
+     * ⚠ ПОЛЯ РЕДАКТОРА — ДВА DRAFT.JS БЕЗ ЕДИНОЙ ПОДСКАЗКИ. Снято с живого
+     * редактора 2026-08-07: заголовок и текст статьи это
+     * `div[contenteditable="true"].public-DraftEditor-content` с
+     * `role="textbox"`, БЕЗ `placeholder`, `data-placeholder` и `aria-label`.
+     * Слова «Заголовок» и «Текст» на экране рисует сам Draft.js поверх пустого
+     * блока, в разметке их нет. Прежний список искал именно подсказки и
+     * закономерно не нашёл ничего: выпуск падал с «поле заголовка не найдено»
+     * уже после того, как студия открылась и редактор загрузился.
+     *
+     * Различаются они только порядком: первый — заголовок, второй — текст.
+     */
+    const editors = page.locator('.public-DraftEditor-content[contenteditable="true"]');
+    await editors.first().waitFor({ state: "visible", timeout: 30_000 })
+      .catch(() => { throw new Error("Редактор Дзена изменился: поля статьи не появились"); });
+    if (await editors.count().catch(() => 0) < 2) {
+      throw new Error("Редактор Дзена изменился: вместо двух полей статьи найдено меньше");
+    }
+    const titleField = editors.first();
+    const bodyField = editors.nth(1);
+
     await titleField.click();
-    // Заголовок печатается посимвольно: он короткий, а мгновенная вставка в
-    // первое же поле — самый заметный признак автоматизации.
+    // Печатаем, а не вставляем: Draft.js — управляемый редактор, он принимает
+    // ввод с клавиатуры и молча откатывает прямую подстановку значения.
     await titleField.pressSequentially(title.trim(), { delay: 45 });
     await humanPause(page, 800);
 
-    const bodyField = await firstVisible(page, [
-      '[contenteditable="true"][data-placeholder*="текст"]',
-      '[contenteditable="true"][aria-label*="текст"]',
-      '.public-DraftEditor-content[contenteditable="true"]',
-    ]) ?? await (async () => {
-      const editors = page.locator('div[contenteditable="true"]');
-      return await editors.count().catch(() => 0) > 1 ? editors.last() : null;
-    })();
-    if (!bodyField) throw new Error("Редактор Дзена изменился: поле текста статьи не найдено");
     await bodyField.click();
-    // Текст статьи вставляется целиком, а не печатается: живой автор тоже
-    // вставляет готовый черновик, а посимвольный ввод трёх тысяч знаков занял
-    // бы минуты и держал бы сессию открытой без нужды.
-    await bodyField.fill(body.trim());
+    // Текст длиннее, поэтому пауза между знаками меньше, а срок операции задан
+    // явно: при трёх тысячах знаков умолчание в 20 секунд истекло бы посреди
+    // ввода и оставило бы половину статьи в черновике.
+    await bodyField.pressSequentially(body.trim(), { delay: 8, timeout: 150_000 });
     await humanPause(page, 1_200);
 
     if (media) {
@@ -356,6 +366,8 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
     }
 
     const publish = await firstVisible(page, [
+      // Снято с живого редактора 2026-08-07.
+      '[data-testid="article-publish-btn"]',
       'button:has-text("Опубликовать")',
       '[role="button"]:has-text("Опубликовать")',
     ]);
