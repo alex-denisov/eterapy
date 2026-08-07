@@ -17,8 +17,20 @@
  *   свой механизм перевыпуска (`slotKeyForGeneration`, B643), и второй здесь
  *   означал бы двойное восстановление;
  * — только технический отказ. Решение редактора и safety-блок остаются архивом;
- * — только пока порог ленты не взят. Взяли — возврат выключается сам.
+ * — только пока планка ленты не взята. Взяли — возврат выключается сам;
+ * — только пока лента вообще что-то доставляет. B698 перевёл выпуск на
+ *   браузерную сессию, и лента перестала расти: «выключится сам на десятом
+ *   материале» стало невыполнимым обещанием, а возврат — вечным.
  */
+
+const feedPublishing = { enabled: true };
+
+jest.mock("@/lib/marketing/dzen-feed", () => ({
+  __esModule: true,
+  DZEN_FEED_POST_PREFIX: "dzen-feed:",
+  DZEN_FEED_TARGET_ITEMS: 10,
+  dzenFeedPublishingEnabled: async () => feedPublishing.enabled,
+}));
 
 import {
   MAX_FEED_TOPUP_RESTORES,
@@ -57,6 +69,7 @@ beforeEach(() => {
   findMany.mockReset().mockResolvedValue([]);
   count.mockReset().mockResolvedValue(0);
   update.mockReset().mockResolvedValue({});
+  feedPublishing.enabled = true;
 });
 
 describe("возврат статей пополнения ленты", () => {
@@ -109,7 +122,7 @@ describe("возврат статей пополнения ленты", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("порог ленты взят — возврат выключается сам", async () => {
+  it("планка ленты взята — возврат выключается сам", async () => {
     count.mockResolvedValue(10);
     findMany.mockResolvedValue([
       archivedRow("b620-rss-dzen-01", "Срок слота прошёл: No free provider returned valid structured output"),
@@ -117,7 +130,22 @@ describe("возврат статей пополнения ленты", () => {
 
     expect(await restoreDzenFeedTopUp({ now: NOW })).toBe(0);
     expect(update).not.toHaveBeenCalled();
-    // Реестр даже не читается: порог берётся первым запросом.
+    // Реестр даже не читается: планка берётся первым запросом.
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("B698: выпуск лентой выключен — возврат не работает вовсе", async () => {
+    // Иначе механизм воскрешал бы архив бесконечно: лента не растёт, пока
+    // выпуск идёт браузером, и условие «планка взята» недостижимо.
+    feedPublishing.enabled = false;
+    count.mockResolvedValue(0);
+    findMany.mockResolvedValue([
+      archivedRow("b620-rss-dzen-01", TECHNICAL),
+    ]);
+
+    expect(await restoreDzenFeedTopUp({ now: NOW })).toBe(0);
+    expect(update).not.toHaveBeenCalled();
+    expect(count).not.toHaveBeenCalled();
     expect(findMany).not.toHaveBeenCalled();
   });
 });

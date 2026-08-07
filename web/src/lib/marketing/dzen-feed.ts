@@ -21,8 +21,22 @@
 import db from "@/lib/db";
 import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 
-/** Порог площадки при первом подключении ленты. */
-export const DZEN_FEED_MINIMUM_ITEMS = 10;
+/**
+ * Сколько материалов мы хотим видеть в ленте к первому подключению.
+ *
+ * ⚠ ЭТО НЕ ПОРОГ ПЛОЩАДКИ. Порог у Дзена — 10 ПОДПИСЧИКОВ канала (владелец
+ * 2026-08-07, B698), и с материалами в ленте он не связан никак. Прежнее имя
+ * `DZEN_FEED_MINIMUM_ITEMS` и подпись «порог площадки» держали на себе два
+ * ускорителя — досрочный выпуск черновиков Дзена мимо окна опережения и возврат
+ * добивающих материалов из архива, — и оба обещали, что «условие снимется само
+ * на десятом материале». После перевода выпуска на браузер лента не растёт
+ * вовсе: условие остановки стало недостижимым. Поэтому оба ускорителя теперь
+ * живут ровно столько, сколько живёт выпуск лентой.
+ *
+ * Само число — наша редакционная планка: ленту, в которой лежит меньше десятка
+ * материалов, подключать незачем.
+ */
+export const DZEN_FEED_TARGET_ITEMS = 10;
 /** Сколько материалов держим в ленте. Дзен читает ленту целиком. */
 export const DZEN_FEED_WINDOW = 20;
 /** Префикс идентификатора выпуска через ленту — отличает его от браузерного. */
@@ -196,20 +210,39 @@ export async function dzenFeedPublishingEnabled(): Promise<boolean> {
   return isTrue(await marketingPlatformValue("DZEN_FEED_PUBLISHING_ENABLED").catch(() => null));
 }
 
+/**
+ * Нужно ли ускорять наполнение ленты (B632 + B698).
+ *
+ * Правило жило внутри большого запроса воркера и не проверялось ничем — а
+ * стоило оно того, что черновики Дзена берутся ВНЕ окна опережения, то есть их
+ * расписание перестаёт значить что-либо. Пока лента доставляла, у ускорения
+ * было условие окончания: десятый материал. С переводом выпуска на браузер
+ * лента расти перестала, и условие стало недостижимым. Поэтому первый вопрос
+ * здесь — работает ли то, что мы ускоряем.
+ */
+export async function dzenFeedNeedsTopUp(): Promise<boolean> {
+  if (!await dzenFeedPublishingEnabled().catch(() => false)) return false;
+  return dzenFeedItems(DZEN_FEED_TARGET_ITEMS)
+    .then((items) => items.length < DZEN_FEED_TARGET_ITEMS)
+    .catch(() => false);
+}
+
 export interface DzenFeedReadiness {
   /** Материалов в ленте сейчас. */
   items: number;
   /** Одобренных материалов для Дзена, ожидающих своего слота. */
   pending: number;
-  /** Хватает ли материалов, чтобы площадка приняла ленту. */
+  /** Набрана ли наша редакционная планка материалов. НЕ признак готовности площадки. */
   enough: boolean;
+  /** Выпускаем ли ЧЕРЕЗ ленту прямо сейчас. Пока нет — лента не растёт. */
+  publishing: boolean;
   /** Признал ли владелец ленту подключённой (тогда браузерный путь не нужен). */
   confirmed: boolean;
   feedUrl: string;
 }
 
 export async function dzenFeedReadiness(origin = "https://eterapy.com"): Promise<DzenFeedReadiness> {
-  const [items, pending, confirmed] = await Promise.all([
+  const [items, pending, confirmed, publishing] = await Promise.all([
     db.externalPublication.count({
       where: {
         platform: { in: ["dzen", "Dzen", "DZEN"] },
@@ -224,11 +257,13 @@ export async function dzenFeedReadiness(origin = "https://eterapy.com"): Promise
       },
     }),
     dzenFeedConfirmed(),
+    dzenFeedPublishingEnabled(),
   ]);
   return {
     items,
     pending,
-    enough: items >= DZEN_FEED_MINIMUM_ITEMS,
+    enough: items >= DZEN_FEED_TARGET_ITEMS,
+    publishing,
     confirmed,
     feedUrl: new URL("/api/marketing/dzen/rss", origin).toString(),
   };

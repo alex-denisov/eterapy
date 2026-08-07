@@ -16,8 +16,9 @@ import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor, topicArticleSlug, withUnusedTopic } from "@/lib/marketing/content-plan";
 import {
-  DZEN_FEED_MINIMUM_ITEMS,
   DZEN_FEED_POST_PREFIX,
+  DZEN_FEED_TARGET_ITEMS,
+  dzenFeedPublishingEnabled,
 } from "@/lib/marketing/dzen-feed";
 import { generatePost } from "@/lib/marketing/post-generator";
 import { isRecoverablePublicationError } from "@/lib/marketing/registry-recovery";
@@ -104,15 +105,21 @@ export async function restoreDzenFeedTopUp(
   input: { now?: Date } = {},
 ): Promise<number> {
   const now = input.now ?? new Date();
+  // B698: возврат добивал ленту до нашей планки и обещал выключиться «сам, на
+  // десятом материале». После перевода выпуска на браузер лента не растёт
+  // вовсе — обещанное условие остановки стало недостижимым, и возврат
+  // воскрешал бы архив бесконечно. Живёт ровно столько, сколько живёт выпуск
+  // лентой.
+  if (!await dzenFeedPublishingEnabled().catch(() => false)) return 0;
   const inFeed = await db.externalPublication.count({
     where: {
       platform: { in: ["dzen", "Dzen", "DZEN"] },
       status: "PUBLISHED",
       externalPostId: { startsWith: DZEN_FEED_POST_PREFIX },
     },
-  }).catch(() => DZEN_FEED_MINIMUM_ITEMS);
-  // Порог взят — возврат выключается сам, и реестр не читается вовсе.
-  if (inFeed >= DZEN_FEED_MINIMUM_ITEMS) return 0;
+  }).catch(() => DZEN_FEED_TARGET_ITEMS);
+  // Планка взята — возврат выключается сам, и реестр не читается вовсе.
+  if (inFeed >= DZEN_FEED_TARGET_ITEMS) return 0;
 
   const archived = await db.externalPublication.findMany({
     where: { status: "ARCHIVED", key: { startsWith: DZEN_FEED_TOPUP_PREFIX } },

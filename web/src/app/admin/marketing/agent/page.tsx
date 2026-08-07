@@ -12,7 +12,7 @@ import {
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
 import {
-  DZEN_FEED_MINIMUM_ITEMS,
+  DZEN_FEED_TARGET_ITEMS,
   dzenFeedReadiness,
 } from "@/lib/marketing/dzen-feed";
 import { INBOUND_STALE_MS } from "@/lib/marketing/inbound";
@@ -590,29 +590,35 @@ export default async function MarketingAgentPage() {
       </AnalyticsSection>
 
       {dzenFeed ? (
-        <AnalyticsSection title="Дзен: лента вместо браузерной сессии">
+        <AnalyticsSection title="Дзен: выпуск браузером, лента ждёт подписчиков">
           <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             <p className="flex items-center gap-2 font-semibold text-[var(--soft-ink-strong)]">
               <Rss className="size-4" />
-              {dzenFeed.confirmed
-                ? "Лента подтверждена: выпуск идёт через неё"
-                : "Лента наполняется — подключить её в Дзене можно с 10 материалов"}
+              {dzenFeed.publishing
+                ? "Выпуск идёт ЧЕРЕЗ ленту — так включил владелец"
+                : "Выпуск идёт браузерной сессией владельца, лента выключена"}
             </p>
             <p className="mt-2">
-              Материалов в ленте: <b>{dzenFeed.items}</b> из {DZEN_FEED_MINIMUM_ITEMS},
-              нужных площадке при первом подключении. В работе (черновики,
-              премодерация, расписание): <b>{dzenFeed.pending}</b>.
-              {dzenFeed.enough
-                ? " Порог пройден — ленту можно подключать в кабинете Дзена."
-                : " До порога лента ещё пополняется по контент-плану."}
+              Порог у площадки — <b>10 подписчиков канала</b>, а не материалов в
+              ленте. Пока их нет, лента читателю ничего не доставляет: у
+              материалов, «выпущенных» ею, публичного адреса не появилось вовсе.
+              Поэтому выпуск переведён на живую сессию, а лента ждёт своего часа.
+            </p>
+            <p className="mt-2">
+              В ленте лежит материалов: <b>{dzenFeed.items}</b> (наша планка к
+              подключению — {DZEN_FEED_TARGET_ITEMS}, справочно). В работе
+              (черновики, премодерация, расписание): <b>{dzenFeed.pending}</b>.
+              {dzenFeed.publishing
+                ? null
+                : " Пока выпуск идёт браузером, лента не пополняется."}
             </p>
             <p className="mt-2 break-all font-mono text-xs">{dzenFeed.feedUrl}</p>
             <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
               Тексты в ленте написаны под формат Дзена тем же конвейером, а не
               скопированы со статьи сайта: прямой перенос площадка почти не
-              показывает, а дубль вредит SEO. После подтверждения ленты
-              переключатель «Лента подключена» в настройках Дзена выводит
-              браузерную сессию из периметра.
+              показывает, а дубль вредит SEO. Когда подписчиков станет десять,
+              ленту можно подключить в кабинете Дзена и включить признаком
+              «Выпускать ЧЕРЕЗ ленту RSS» в настройках площадки.
             </p>
           </div>
         </AnalyticsSection>
