@@ -124,7 +124,31 @@ function checkedUrl(value, allowedHosts, what) {
 }
 
 const studioUrlOf = (value) => checkedUrl(value, ["dzen.ru"], "адрес студии");
+const channelUrlOf = (value) => checkedUrl(value, ["dzen.ru"], "адрес канала");
 const loginUrlOf = (value) => checkedUrl(value, ["passport.yandex.ru", "dzen.ru"], "адрес формы входа");
+
+/**
+ * Адрес студии по странице канала.
+ *
+ * ⚠ ПОЧЕМУ ЕГО НЕЛЬЗЯ СЛОЖИТЬ ИЗ СЛАГА. Студия открывается только по
+ * `/profile/editor/id/<id>`. Вид со слагом появляется в адресной строке ПОСЛЕ
+ * загрузки студии (её SPA переписывает адрес), но холодный переход по нему
+ * уводит на публичную страницу канала — и под живой сессией владельца тоже.
+ * Проверено вживую 2026-08-07.
+ *
+ * Идентификатор берём оттуда, где его показывает сама площадка: на странице
+ * канала под владельцем есть ссылка в студию («Продвигать канал»). Так владелец
+ * не вводит руками строку, которую ему пришлось бы искать в разметке (тот же
+ * приём, что с адресатом Meta в B693).
+ */
+async function discoverStudioUrl(page, channelUrl) {
+  await page.goto(channelUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.waitForTimeout(2_500);
+  const href = await page.locator('a[href*="/profile/editor/id/"]').first()
+    .getAttribute("href").catch(() => null);
+  const id = href?.match(/\/profile\/editor\/id\/([0-9a-z]{16,})/i)?.[1] ?? null;
+  return id ? `https://dzen.ru/profile/editor/id/${id}` : null;
+}
 
 /**
  * Кто вошёл в профиль.
@@ -162,7 +186,7 @@ async function signedInAccount(ctx) {
  * заголовок и видимые кнопки, чтобы следующий разбор не требовал пересборки
  * образа.
  */
-async function dzenSessionState(studioUrl) {
+async function dzenSessionState({ studioUrl, channelUrl }) {
   const ctx = await ensureContext();
   const account = await signedInAccount(ctx);
   if (!account) {
@@ -175,7 +199,15 @@ async function dzenSessionState(studioUrl) {
 
   const page = await ctx.newPage();
   try {
-    await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    const studio = studioUrl ?? await discoverStudioUrl(page, channelUrl);
+    if (!studio) {
+      return {
+        authorized: false,
+        account,
+        reason: `на странице канала нет ссылки в студию — аккаунт ${account} не владелец этого канала?`,
+      };
+    }
+    await page.goto(studio, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(2_500);
     const url = page.url();
     if (/passport\.yandex|id\.yandex|\/auth(?:\/|$)|\/login/i.test(url)) {
@@ -209,9 +241,20 @@ async function dzenSessionState(studioUrl) {
  * «получится выпустить», а это ровно то, что мы здесь и чиним.
  */
 const DZEN_CREATE_SELECTORS = [
+  // Снято с живой студии 2026-08-07: кнопка создания — иконка «+» в шапке, без
+  // единой буквы текста. Прежний список искал «Создать публикацию» и не нашёл
+  // бы её никогда.
+  '[data-testid="add-publication-button"]',
+  'button:has-text("Написать статью")',
   'button:has-text("Создать публикацию")',
-  '[role="button"]:has-text("Создать публикацию")',
-  'button:has-text("Создать")',
+];
+
+/** Пункт меню «+»: статья, а не пост и не видео. */
+const DZEN_ARTICLE_SELECTORS = [
+  'button:has-text("Написать статью")',
+  '[role="menuitem"]:has-text("Написать статью")',
+  '[role="menuitem"]:has-text("Статья")',
+  'a:has-text("Написать статью")',
 ];
 
 async function firstVisible(page, selectors) {
@@ -248,13 +291,15 @@ function humanPause(page, base) {
   return page.waitForTimeout(base + Math.floor(Math.random() * base));
 }
 
-async function publishToDzen({ title, body, mediaUrl, studioUrl }) {
+async function publishToDzen({ title, body, mediaUrl, studioUrl, channelUrl }) {
   if (!title?.trim() || !body?.trim()) throw new Error("У материала нет заголовка или текста");
-  const studio = studioUrlOf(studioUrl);
+  const channel = channelUrlOf(channelUrl);
   const media = await downloadMedia(mediaUrl ?? null);
   const ctx = await ensureContext();
   const page = await ctx.newPage();
   try {
+    const studio = studioUrl ? studioUrlOf(studioUrl) : await discoverStudioUrl(page, channel);
+    if (!studio) throw new Error("Не найдена студия канала: нужен вход владельца");
     await page.goto(studio, { waitUntil: "domcontentloaded", timeout: 40_000 });
     await assertNoChallenge(page);
     if (/passport\.yandex|id\.yandex|\/login/i.test(page.url())) {
@@ -267,11 +312,7 @@ async function publishToDzen({ title, body, mediaUrl, studioUrl }) {
     await create.click();
     await humanPause(page, 900);
 
-    const article = await firstVisible(page, [
-      '[role="menuitem"]:has-text("Статья")',
-      'button:has-text("Статья")',
-      'a:has-text("Статья")',
-    ]);
+    const article = await firstVisible(page, DZEN_ARTICLE_SELECTORS);
     if (article) {
       await article.click();
       await humanPause(page, 1_500);
@@ -380,7 +421,10 @@ const server = createServer((request, response) => {
         // сказать словами, что именно не так. Иначе экран покажет «сервис
         // недоступен» там, где недоступна всего лишь сессия.
         const state = url.searchParams.get("probe") === "1"
-          ? await serial(() => dzenSessionState(studioUrlOf(url.searchParams.get("studio"))))
+          ? await serial(() => dzenSessionState({
+            studioUrl: url.searchParams.get("studio") ? studioUrlOf(url.searchParams.get("studio")) : null,
+            channelUrl: channelUrlOf(url.searchParams.get("channel")),
+          }))
             .catch((error) => ({
               authorized: false,
               account: null,

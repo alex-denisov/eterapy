@@ -26,7 +26,7 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
   },
 }));
 
-import { dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
+import { dzenChannelUrlFrom, dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
 import {
   dzenBrowserHealth,
   openDzenBrowserSession,
@@ -48,28 +48,25 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
-describe("адрес студии выводится из адреса канала", () => {
-  it("канал со слагом → студия с тем же слагом", () => {
-    expect(dzenStudioUrlFrom("https://dzen.ru/eterapy")).toBe("https://dzen.ru/profile/editor/eterapy");
+describe("адрес студии", () => {
+  it("по слагу студию НЕ строим: такой адрес уводит на публичную страницу", () => {
+    // Снято живьём 2026-08-07: холодный переход на /profile/editor/<слаг> даёт
+    // публичную страницу канала даже под владельцем. Вид со слагом появляется в
+    // адресной строке только ПОСЛЕ загрузки студии, её SPA переписывает адрес.
+    expect(dzenStudioUrlFrom("https://dzen.ru/eterapy")).toBeNull();
   });
 
   it("канал видом /id/<id> → студия видом /profile/editor/id/<id>", () => {
-    expect(dzenStudioUrlFrom("https://dzen.ru/id/60201eac4a559e72fca5340f"))
-      .toBe("https://dzen.ru/profile/editor/id/60201eac4a559e72fca5340f");
+    expect(dzenStudioUrlFrom("https://dzen.ru/id/6a615eb7638cca4e9cf25c2a"))
+      .toBe("https://dzen.ru/profile/editor/id/6a615eb7638cca4e9cf25c2a");
   });
 
-  it("уже адрес студии — оставляем как есть", () => {
-    expect(dzenStudioUrlFrom("https://dzen.ru/profile/editor/eterapy/"))
-      .toBe("https://dzen.ru/profile/editor/eterapy");
+  it("уже адрес студии с идентификатором — он же, без хвостов", () => {
+    expect(dzenStudioUrlFrom("https://dzen.ru/profile/editor/id/6a615eb7638cca4e9cf25c2a/?x=1"))
+      .toBe("https://dzen.ru/profile/editor/id/6a615eb7638cca4e9cf25c2a");
   });
 
-  it("хвост запроса и слеш отбрасываются", () => {
-    expect(dzenStudioUrlFrom("https://dzen.ru/eterapy/?utm_source=x#top"))
-      .toBe("https://dzen.ru/profile/editor/eterapy");
-  });
-
-  it("адрес БЕЗ канала — это и была поломка: он не годится", () => {
-    expect(() => dzenStudioUrlFrom("https://dzen.ru/profile/editor")).toThrow(/канал/i);
+  it("адрес БЕЗ канала не годится вовсе", () => {
     expect(() => dzenStudioUrlFrom("https://dzen.ru/")).toThrow(/канал/i);
   });
 
@@ -78,39 +75,51 @@ describe("адрес студии выводится из адреса кана�
   });
 });
 
+describe("публичный адрес канала", () => {
+  it("чистится от хвостов запроса и слеша", () => {
+    expect(dzenChannelUrlFrom("https://dzen.ru/eterapy/?utm_source=x#top")).toBe("https://dzen.ru/eterapy");
+  });
+});
+
 describe("адрес входа ведёт на форму Яндекс ID", () => {
-  it("паспорт с возвратом в студию", () => {
-    expect(dzenLoginUrlFrom("https://dzen.ru/profile/editor/eterapy")).toBe(
-      "https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fdzen.ru%2Fprofile%2Feditor%2Feterapy",
+  it("паспорт с возвратом на канал", () => {
+    expect(dzenLoginUrlFrom("https://dzen.ru/eterapy")).toBe(
+      "https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fdzen.ru%2Feterapy",
     );
   });
 
   it("никогда не ведёт на страницу Дзена: с неё войти нельзя", () => {
-    expect(dzenLoginUrlFrom("https://dzen.ru/profile/editor/eterapy")).toMatch(/^https:\/\/passport\.yandex\.ru\//);
+    expect(dzenLoginUrlFrom("https://dzen.ru/eterapy")).toMatch(/^https:\/\/passport\.yandex\.ru\//);
   });
 });
 
 describe("сервис получает адреса от приложения", () => {
-  it("окно входа поднимается на форме входа, а не на студии", async () => {
+  it("окно входа поднимается на форме входа, а не на странице площадки", async () => {
     await openDzenBrowserSession();
 
     const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }];
     expect(url).toBe("http://10.77.0.2:7801/session/open");
     expect(JSON.parse(init.body)).toEqual({
-      studioUrl: "https://dzen.ru/profile/editor/eterapy",
-      loginUrl: "https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fdzen.ru%2Fprofile%2Feditor%2Feterapy",
+      channelUrl: "https://dzen.ru/eterapy",
+      studioUrl: null,
+      loginUrl: "https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fdzen.ru%2Feterapy",
     });
   });
 
-  it("проба сессии идёт на студию с каналом", async () => {
+  it("проба сессии несёт канал, а студию — только когда та известна", async () => {
     await dzenBrowserHealth();
+    const [slug] = fetchMock.mock.calls[0] as [string];
+    expect(decodeURIComponent(slug)).toContain("channel=https://dzen.ru/eterapy");
+    expect(slug).not.toContain("studio=");
 
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("/health?probe=1");
-    expect(decodeURIComponent(url)).toContain("https://dzen.ru/profile/editor/eterapy");
+    fetchMock.mockClear();
+    settings.DZEN_CHANNEL_URL = "https://dzen.ru/id/6a615eb7638cca4e9cf25c2a";
+    await dzenBrowserHealth();
+    const [byId] = fetchMock.mock.calls[0] as [string];
+    expect(decodeURIComponent(byId)).toContain("studio=https://dzen.ru/profile/editor/id/6a615eb7638cca4e9cf25c2a");
   });
 
-  it("выпуск идёт в ту же студию, что и проверка", async () => {
+  it("выпуск несёт те же адреса, что и проверка", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ ok: true, externalPostId: "anPQ", publicUrl: "https://dzen.ru/a/anPQ" }),
@@ -119,7 +128,10 @@ describe("сервис получает адреса от приложения",
     await publishToDzenBrowser({ title: "Заголовок", body: "Текст", mediaUrl: null });
 
     const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
-    expect(JSON.parse(init.body).studioUrl).toBe("https://dzen.ru/profile/editor/eterapy");
+    expect(JSON.parse(init.body)).toMatchObject({
+      channelUrl: "https://dzen.ru/eterapy",
+      studioUrl: null,
+    });
   });
 });
 

@@ -19,7 +19,7 @@ describe("security headers", () => {
 
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain("frame-src https://yoomoney.ru https://*.yookassa.ru");
+    expect(csp).toContain("frame-src 'self' https://yoomoney.ru https://*.yookassa.ru");
     expect(csp).toContain("script-src 'self'");
     expect(csp).toContain("https://id.vk.com");
     expect(csp).toContain("connect-src 'self' https: wss: ws:");
@@ -29,6 +29,18 @@ describe("security headers", () => {
     expect(reportOnly).toContain("report-uri /api/csp-report");
     expect(reportOnlyScript).not.toContain("'unsafe-inline'");
     expect(reportOnlyScript).not.toContain("'unsafe-eval'");
+  });
+
+  it("B698: своя страница может показать в рамке свой же адрес", () => {
+    // Окно браузерной сессии — рамка на `/ops/browser/…`, то есть собственный
+    // адрес. `'self'` в `frame-src` в списке не значился, и браузер резал
+    // вставку МОЛЧА: пустая рамка, ни одной ошибки в сети. От перехвата кликов
+    // защищает `frame-ancestors`, и он остаётся запретом для всех.
+    for (const options of [{ production: true }, { production: true, nonce: "n" }, {}]) {
+      const csp = securityHeaders(options).find((header) => header.key.startsWith("Content-Security-Policy"))?.value ?? "";
+      expect(csp).toContain("frame-src 'self'");
+      expect(csp).toContain("frame-ancestors 'none'");
+    }
   });
 
   it("B523: nonce-политика убирает unsafe-inline и режет inline-атрибуты", () => {

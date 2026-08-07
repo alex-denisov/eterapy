@@ -46,11 +46,33 @@ export default async function DzenBrowserSessionPage() {
       </div>
 
       {health.reachable ? (
-        <iframe
-          title="Окно браузера"
-          src={VNC_PATH}
-          className="mt-4 h-[80vh] w-full rounded-lg border border-[var(--soft-paper-edge)] bg-white"
-        />
+        <>
+          {/*
+            Запасной путь — не украшение. Рамку молча режет любая политика,
+            запрещающая вставку: своя CSP (так и было до B698 — `frame-src` без
+            `'self'`), расширение браузера, корпоративный прокси. Отдельная
+            вкладка не зависит ни от одной из них, а вход владельцу нужен
+            здесь и сейчас.
+          */}
+          <p className="mt-4 text-sm">
+            <a
+              className="font-semibold text-blue-700 hover:underline"
+              href={VNC_PATH}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Открыть окно отдельной вкладкой
+            </a>
+            <span className="ml-2 text-[var(--soft-ink-faint)]">
+              — если рамка ниже осталась пустой.
+            </span>
+          </p>
+          <iframe
+            title="Окно браузера"
+            src={VNC_PATH}
+            className="mt-4 h-[80vh] w-full rounded-lg border border-[var(--soft-paper-edge)] bg-white"
+          />
+        </>
       ) : (
         <p className="mt-4 text-sm text-red-700">
           Браузерный сервис недоступен, показывать нечего. Проверьте адрес и

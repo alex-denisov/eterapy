@@ -64,7 +64,13 @@ export function cspValue(options: { production: boolean; reportOnly?: boolean; n
     "connect-src 'self' https: wss: ws:",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
-    "frame-src https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org",
+    // B698: `'self'` — не послабление, а условие работы окна браузерной сессии.
+    // Список хостов рос от платежей и входов, и собственного адреса в нём не
+    // оказалось: страница админки не имела права показать в рамке даже свой
+    // `/ops/browser/…`. Браузер резал вставку МОЛЧА — пустая рамка, ни одной
+    // ошибки в сети. От перехвата кликов защищает `frame-ancestors 'none'`
+    // выше: наши страницы по-прежнему не может встроить никто, включая нас.
+    "frame-src 'self' https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org",
     "form-action 'self' https://yoomoney.ru https://*.yookassa.ru",
     ...(options.reportOnly || options.nonce ? ["report-uri /api/csp-report"] : []),
   ];

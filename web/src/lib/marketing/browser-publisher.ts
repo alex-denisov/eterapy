@@ -19,7 +19,7 @@
  * собственные публикации — тот же периметр, что в `perimeter.ts`.
  */
 
-import { dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
+import { dzenChannelUrlFrom, dzenLoginUrlFrom, dzenStudioUrlFrom } from "@/lib/marketing/dzen-studio";
 import { marketingPlatformValue, requiredMarketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 type BrowserPlatform = "Dzen";
@@ -66,16 +66,24 @@ export async function browserFallbackConfigured(_platform: BrowserPlatform) {
  * тестов, а ошибка в этом адресе уже стоила владельцу входа (студия живёт по
  * `/profile/editor/<канал>`, а мы ходили на `/profile/editor`).
  */
-async function dzenStudioUrl(): Promise<string> {
+type DzenTarget = {
+  channelUrl: string;
+  /** Известен, только если в настройке стоит адрес с идентификатором. Иначе студию ищет сервис. */
+  studioUrl: string | null;
+  loginUrl: string;
+};
+
+async function dzenTarget(): Promise<DzenTarget> {
   // Хвост `is not configured` — не украшение: по нему отказ распознаётся как
   // отказ КАНАЛА (B636). Неисправная настройка ставит площадку на паузу, а не
   // бракует материал и не сжигает его слот.
-  const channelUrl = await marketingPlatformValue("DZEN_CHANNEL_URL");
-  if (!channelUrl) {
+  const configured = await marketingPlatformValue("DZEN_CHANNEL_URL");
+  if (!configured) {
     throw new Error("не задан адрес канала Дзена в «Площадки и возможности» (DZEN_CHANNEL_URL is not configured)");
   }
   try {
-    return dzenStudioUrlFrom(channelUrl);
+    const channelUrl = dzenChannelUrlFrom(configured);
+    return { channelUrl, studioUrl: dzenStudioUrlFrom(configured), loginUrl: dzenLoginUrlFrom(channelUrl) };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`${detail} (DZEN_CHANNEL_URL is not configured)`);
@@ -120,31 +128,35 @@ export async function dzenBrowserHealth(): Promise<BrowserSessionHealth> {
   // Без адреса канала пробу делать нечем — но спросить сервис, жив ли он, всё
   // равно надо: окно входа показывается именно по этому признаку, а владельцу
   // без окна не войти.
-  let studioUrl: string | null = null;
-  let studioProblem: string | null = null;
+  let target: DzenTarget | null = null;
+  let targetProblem: string | null = null;
   try {
-    studioUrl = await dzenStudioUrl();
+    target = await dzenTarget();
   } catch (error) {
-    studioProblem = error instanceof Error ? error.message : String(error);
+    targetProblem = error instanceof Error ? error.message : String(error);
   }
 
   try {
     // `probe=1` — просим сервис реально сходить на площадку. Дешёвая проверка
     // без пробы отвечает «жив ли процесс», а нам здесь нужно «узнаёт ли нас
     // Дзен»: путать эти два ответа мы уже научены на Meta (B685).
+    const query = target
+      ? `/health?probe=1&channel=${encodeURIComponent(target.channelUrl)}`
+        + (target.studioUrl ? `&studio=${encodeURIComponent(target.studioUrl)}` : "")
+      : "/health";
     const health = await callBrowser<{
       authorized: boolean | null;
       reason: string | null;
       account?: string | null;
     }>({
-      path: studioUrl ? `/health?probe=1&studio=${encodeURIComponent(studioUrl)}` : "/health",
+      path: query,
       method: "GET",
       timeoutMs: CONTROL_TIMEOUT_MS,
     });
     return {
       reachable: true,
-      authorized: studioProblem === null && health.authorized === true,
-      reason: studioProblem ?? health.reason,
+      authorized: targetProblem === null && health.authorized === true,
+      reason: targetProblem ?? health.reason,
       account: health.account ?? null,
     };
   } catch (error) {
@@ -165,11 +177,11 @@ export async function dzenBrowserHealth(): Promise<BrowserSessionHealth> {
  * владелец и застрял: окно открывалось на 404-странице без единой кнопки.
  */
 export async function openDzenBrowserSession(): Promise<{ vncPort: number }> {
-  const studioUrl = await dzenStudioUrl();
+  const target = await dzenTarget();
   return callBrowser<{ vncPort: number }>({
     path: "/session/open",
     method: "POST",
-    body: { studioUrl, loginUrl: dzenLoginUrlFrom(studioUrl) },
+    body: { channelUrl: target.channelUrl, studioUrl: target.studioUrl, loginUrl: target.loginUrl },
     timeoutMs: CONTROL_TIMEOUT_MS,
   });
 }
@@ -181,6 +193,9 @@ export async function closeDzenBrowserSession(): Promise<void> {
 export async function publishToDzenBrowser(
   publication: BrowserPublication,
 ): Promise<BrowserPublishedPost> {
+  // Те же адреса, что и у проверки: разъедься они — «подключено» перестало бы
+  // означать «получится выпустить».
+  const target = await dzenTarget();
   const result = await callBrowser<BrowserPublishedPost>({
     path: "/publish/dzen",
     method: "POST",
@@ -188,9 +203,8 @@ export async function publishToDzenBrowser(
       title: publication.title,
       body: publication.body,
       mediaUrl: publication.mediaUrl,
-      // Тот же адрес, что и у проверки: разъедься они — «подключено» перестало
-      // бы означать «получится выпустить».
-      studioUrl: await dzenStudioUrl(),
+      channelUrl: target.channelUrl,
+      studioUrl: target.studioUrl,
     },
     timeoutMs: PUBLISH_TIMEOUT_MS,
   });
