@@ -102,27 +102,56 @@ setInterval(() => {
 }, 30_000).unref();
 
 /**
- * Авторизован ли профиль. Проверяем не наличие куки, а ответ площадки: кука
- * может лежать и быть просроченной, и тогда «подключено» на экране админки было
- * бы неправдой ровно до первой публикации.
+ * Авторизован ли профиль.
+ *
+ * ⚠ ПОЧЕМУ ЗДЕСЬ ИЩЕТСЯ ПРИЗНАК ВХОДА, А НЕ ОТСУТСТВИЕ ОТКАЗА. Первая версия
+ * считала сессию живой, если её не увели на паспорт и не показали капчу. Живая
+ * проба прода 2026-08-07 показала, чего эта логика стоит: анониму Дзен отдаёт
+ * НЕ редирект на паспорт, а собственную страницу «Дзен. Страница не найдена» с
+ * кодом 200. Ни одного признака отказа — и экран админки бодро сообщал
+ * «сессия жива, площадка узнаёт аккаунт», когда не входил ещё никто.
+ *
+ * Признаком входа считается ровно то, без чего выпуск невозможен: доступный
+ * элемент создания публикации. Всё остальное — «не знаем», и говорить об этом
+ * надо словами страницы, а не догадкой (тот же урок, что с адресатом Meta,
+ * B685: «поля заполнены» и «площадка нас узнаёт» — разные утверждения).
  */
 async function dzenSessionState() {
   const ctx = await ensureContext();
   const page = await ctx.newPage();
   try {
     await page.goto("https://dzen.ru/profile/editor", { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(1_500);
+    await page.waitForTimeout(2_500);
     const url = page.url();
-    if (/passport\.yandex|id\.yandex|\/login/i.test(url)) return { authorized: false, reason: "нужен вход в Яндекс" };
+    if (/passport\.yandex|id\.yandex|\/auth(?:\/|$)|\/login/i.test(url)) {
+      return { authorized: false, reason: "нужен вход в Яндекс" };
+    }
     const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 4_000);
     if (/captcha|подтвердите, что вы не робот/i.test(body)) {
       return { authorized: false, reason: "площадка показывает проверку — нужен вход владельца" };
     }
-    return { authorized: true, reason: null };
+    const create = await firstVisible(page, DZEN_CREATE_SELECTORS);
+    if (create) return { authorized: true, reason: null };
+    const title = (await page.title().catch(() => "")).trim();
+    return {
+      authorized: false,
+      reason: `студия не открылась (страница «${title || "без заголовка"}») — нужен вход владельца`,
+    };
   } finally {
     await page.close().catch(() => undefined);
   }
 }
+
+/**
+ * Элемент, без которого выпуск невозможен. Один список на проверку сессии и на
+ * саму публикацию: разъедься они — «подключено» перестало бы означать
+ * «получится выпустить», а это ровно то, что мы здесь и чиним.
+ */
+const DZEN_CREATE_SELECTORS = [
+  'button:has-text("Создать публикацию")',
+  '[role="button"]:has-text("Создать публикацию")',
+  'button:has-text("Создать")',
+];
 
 async function firstVisible(page, selectors) {
   for (const selector of selectors) {
@@ -171,11 +200,7 @@ async function publishToDzen({ title, body, mediaUrl }) {
     }
     await humanPause(page, 1_200);
 
-    const create = await firstVisible(page, [
-      'button:has-text("Создать публикацию")',
-      '[role="button"]:has-text("Создать публикацию")',
-      'button:has-text("Создать")',
-    ]);
+    const create = await firstVisible(page, DZEN_CREATE_SELECTORS);
     if (!create) throw new Error("Редактор Дзена изменился: кнопка создания публикации не найдена");
     await create.click();
     await humanPause(page, 900);
