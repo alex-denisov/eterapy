@@ -571,8 +571,15 @@ jobs:
           # при этом ни секунды не работает на битом конфиге.
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             deploy/nginx-marketing-browser.conf "$VM_USER@$VM_HOST:/tmp/"
+          # ⚠ Правим ТОТ файл, который nginx действительно читает. На eterapy-1
+          # `sites-enabled/eterapy` — не симлинк, а отдельная копия, разошедшаяся
+          # с `sites-available` ещё 19 июля. Первая версия этого шага правила
+          # sites-available, отчиталась «include вписан», прошла `nginx -t` — и
+          # не изменила ничего: в `nginx -T` маршрута не было. `readlink -f`
+          # снимает разницу между обеими раскладками.
           $SSH "set -e
-            if [ ! -f /etc/nginx/sites-available/eterapy ] || ! sudo grep -q 'server_name admin.eterapy.com;' /etc/nginx/sites-available/eterapy; then
+            TARGET=\$(readlink -f /etc/nginx/sites-enabled/eterapy 2>/dev/null || true)
+            if [ -z \"\$TARGET\" ] || [ ! -f \"\$TARGET\" ] || ! sudo grep -q 'server_name admin.eterapy.com;' \"\$TARGET\"; then
               rm -f /tmp/nginx-marketing-browser.conf
               echo '▶ browser: блока admin на этой ноде нет — пропуск'
               exit 0
@@ -580,19 +587,17 @@ jobs:
             sudo mkdir -p /etc/nginx/snippets
             sudo install -m 0644 /tmp/nginx-marketing-browser.conf /etc/nginx/snippets/eterapy-browser.conf
             rm -f /tmp/nginx-marketing-browser.conf
-            if sudo grep -q 'snippets/eterapy-browser.conf' /etc/nginx/sites-available/eterapy; then
-              if sudo nginx -t; then sudo systemctl reload nginx; echo '▶ browser: сниппет обновлён'; else echo '▶ browser: сниппет отвергнут проверкой' >&2; exit 1; fi
-              exit 0
+            if ! sudo grep -q 'snippets/eterapy-browser.conf' \"\$TARGET\"; then
+              sudo cp \"\$TARGET\" \"\$TARGET.b698.bak\"
+              sudo sed -i 's#^\\( *\\)server_name admin.eterapy.com;#\\1server_name admin.eterapy.com;\\n\\1include snippets/eterapy-browser.conf;#' \"\$TARGET\"
             fi
-            sudo cp /etc/nginx/sites-available/eterapy /etc/nginx/sites-available/eterapy.b698.bak
-            sudo sed -i 's#^\\( *\\)server_name admin.eterapy.com;#\\1server_name admin.eterapy.com;\\n\\1include snippets/eterapy-browser.conf;#' /etc/nginx/sites-available/eterapy
-            if sudo nginx -t; then
+            if sudo nginx -t && sudo nginx -T 2>/dev/null | grep -q 'location /ops/browser/'; then
               sudo systemctl reload nginx
-              echo '▶ browser: include вписан, nginx перезагружен'
+              echo \"▶ browser: маршрут живёт в \$TARGET, nginx перезагружен\"
             else
-              sudo cp /etc/nginx/sites-available/eterapy.b698.bak /etc/nginx/sites-available/eterapy
+              [ -f \"\$TARGET.b698.bak\" ] && sudo cp \"\$TARGET.b698.bak\" \"\$TARGET\" || true
               sudo nginx -t
-              echo '▶ browser: правка отвергнута проверкой, конфиг возвращён' >&2
+              echo '▶ browser: маршрут не появился в действующем конфиге, правка отменена' >&2
               exit 1
             fi"
           # INC-080: конфиг контурного балансировщика тоже едет выкаткой. До
