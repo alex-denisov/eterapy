@@ -1,0 +1,56 @@
+# B698 — образ браузерного сервиса.
+#
+# Отдельный workflow, а не шаг релизной выкатки: образ меняется редко (когда
+# правится сам сервис или обновляется Chromium), а весит около гигабайта.
+# Гонять его на каждой выкатке приложения значило бы платить минутами сборки и
+# местом на ноде за файл, который не менялся.
+#
+# Тег `latest` — тот, что стоит умолчанием в compose; тег по SHA нужен, чтобы
+# откат был возможен и здесь: `ETERAPY_BROWSER_IMAGE=…:<sha>` в `.env` ноды.
+#
+# Ничего из полей события в командах не используется — только secrets и
+# собственные переменные GitHub, поэтому подстановки в `run:` здесь нет вовсе.
+name: browser image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/browser/**"
+      - ".github/workflows/browser-image.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: browser-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to ghcr.io
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          REF="ghcr.io/$OWNER/eterapy-browser"
+          docker build -t "$REF:${GITHUB_SHA::8}" -t "$REF:latest" deploy/browser
+          docker push "$REF:${GITHUB_SHA::8}"
+          docker push "$REF:latest"
+          # Размер важен: нода, которая его несёт, живёт на 30 ГБ диска, и рост
+          # образа — первое, что там упрётся (INC-095).
+          docker image ls "$REF" --format '{{.Tag}} {{.Size}}'
+          echo "▶ образ опубликован: $REF:${GITHUB_SHA::8} и :latest"
+
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io || true

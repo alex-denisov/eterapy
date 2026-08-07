@@ -176,9 +176,24 @@ export async function dzenFeedItems(limit = DZEN_FEED_WINDOW): Promise<DzenFeedI
   }));
 }
 
-export async function dzenFeedConfirmed(): Promise<boolean> {
-  const value = await marketingPlatformValue("DZEN_FEED_CONFIRMED").catch(() => null);
+function isTrue(value: string | null) {
   return value?.trim().toLowerCase() === "true" || value?.trim() === "1";
+}
+
+export async function dzenFeedConfirmed(): Promise<boolean> {
+  return isTrue(await marketingPlatformValue("DZEN_FEED_CONFIRMED").catch(() => null));
+}
+
+/**
+ * B698 — выпускать ли ЧЕРЕЗ ленту. Отдельный признак, а не тот же самый.
+ *
+ * «Лента подключена в Дзене» и «лента доставляет читателю» — разные утверждения:
+ * порог площадки оказался в десяти ПОДПИСЧИКАХ канала, а не в десяти материалах
+ * ленты (владелец 2026-08-07). Пока подписчиков нет, выпуск лентой выключен, и
+ * включает его владелец явно — одним этим признаком.
+ */
+export async function dzenFeedPublishingEnabled(): Promise<boolean> {
+  return isTrue(await marketingPlatformValue("DZEN_FEED_PUBLISHING_ENABLED").catch(() => null));
 }
 
 export interface DzenFeedReadiness {

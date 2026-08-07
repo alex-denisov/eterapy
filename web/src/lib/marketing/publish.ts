@@ -33,7 +33,7 @@ import {
   browserFallbackConfigured,
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
-import { dzenFeedConfirmed, dzenFeedGuid } from "@/lib/marketing/dzen-feed";
+import { dzenFeedGuid, dzenFeedPublishingEnabled } from "@/lib/marketing/dzen-feed";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 import { assertMetaBrandAccount } from "@/lib/marketing/meta-brand-account";
 import {
@@ -564,18 +564,43 @@ export async function publishToReddit(
  *
  * Правильный порядок обратный: лента наполняется всегда, а признак
  * подтверждения означает ровно одно — «браузерный путь больше не нужен».
- * Браузерная сессия используется, только если она настроена И лента ещё не
- * подтверждена.
+ *
+ * ⚠ B698 — И ЭТО ТОЖЕ ОКАЗАЛОСЬ НЕВЕРНО. Владелец 2026-08-07: порог площадки —
+ * не десять материалов В ЛЕНТЕ, а десять ПОДПИСЧИКОВ канала. Их нет, и до тех
+ * пор лента не доставляет читателю ничего: всё, что через неё «выпущено», не
+ * увидел никто. Замер прода это подтвердил — у строк, ушедших лентой, нет
+ * публичного адреса вообще.
+ *
+ * Поэтому порядок теперь простой и без развилок по подтверждению:
+ *
+ *   браузерная сессия настроена → выпускаем ею;
+ *   иначе включён выпуск лентой → отдаём в ленту;
+ *   иначе — отказ, и это ТЕХНИЧЕСКИЙ отказ конфигурации, а не брак материала:
+ *   слот такая строка не жжёт (B695).
+ *
+ * Лента из кода не удалена: к ней возвращаются, когда подписчиков станет 10 —
+ * тогда владелец ставит `DZEN_FEED_PUBLISHING_ENABLED`.
  */
 export async function publishToDzen(
   publication: { key?: string; title: string; body: string; mediaUrl: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Dzen");
-  if (!(await dzenFeedConfirmed()) && (await browserFallbackConfigured("Dzen"))) {
+  if (await browserFallbackConfigured("Dzen")) {
     return publishToDzenBrowser(publication);
   }
-  if (!publication.key) throw new Error("Dzen feed publication has no registry key");
-  return { externalPostId: dzenFeedGuid(publication.key), publicUrl: null };
+  if (await dzenFeedPublishingEnabled()) {
+    if (!publication.key) throw new Error("Dzen feed publication has no registry key");
+    return { externalPostId: dzenFeedGuid(publication.key), publicUrl: null };
+  }
+  // Формулировка не косметическая: по маркеру `is not configured` этот отказ
+  // распознаётся как ОТКАЗ КАНАЛА (B636) — площадка встаёт на паузу, а строки
+  // остаются `SCHEDULED` и слот не жгут. Без него настроечная проблема
+  // архивировала бы годный материал (класс B695).
+  throw new Error(
+    "Dzen connector is not configured: браузерная сессия не настроена, а выпуск "
+    + "лентой выключен (порог площадки — 10 подписчиков канала). "
+    + "Пройдите подключение в «Площадки и возможности».",
+  );
 }
 
 export async function publishToInstagram(

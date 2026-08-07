@@ -152,9 +152,13 @@ describe("B660 · обложка поста VK", () => {
 });
 
 describe("B661 · «нужна настройка» только там, где действительно не задано обязательное", () => {
-  it("Дзен с адресом канала готов публиковать без слепка браузерной сессии", async () => {
+  it("Дзен готов публиковать, когда есть адрес канала и браузерный сервис", async () => {
+    // B698: слепок сессии заменён адресом сервиса и маркером доступа. Оба
+    // обязательны — без них выпускать в Дзен нечем, а лента читателя не видит.
     enabled.Dzen = true;
     settings.DZEN_CHANNEL_URL = "https://dzen.ru/eterapy";
+    settings.DZEN_BROWSER_ENDPOINT = "http://10.77.0.2:7801";
+    settings.DZEN_BROWSER_TOKEN = "secret";
 
     const dzen = (await marketingConnectorStates()).find((row) => row.platform === "Dzen");
 

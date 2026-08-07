@@ -35,7 +35,7 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
 
 jest.mock("@/lib/marketing/browser-publisher", () => ({
   __esModule: true,
-  browserFallbackConfigured: async () => Boolean(settings.DZEN_BROWSER_STORAGE_STATE),
+  browserFallbackConfigured: async () => Boolean(settings.DZEN_BROWSER_ENDPOINT),
   publishToDzenBrowser: (...args: unknown[]) => browserPublish(...args),
 }));
 
@@ -61,18 +61,24 @@ beforeEach(() => {
   settings.DZEN_FEED_CONFIRMED = null;
 });
 
-describe("B642 · Дзен: лента наполняется до подтверждения", () => {
-  it("без браузерной сессии материал идёт в ленту, а не падает", async () => {
-    const published = await publishToDzen(dzenPublication);
+describe("B642 → B698 · Дзен: дорога выпуска", () => {
+  /**
+   * B642 объявил ленту путём по умолчанию, чтобы разорвать замкнутый круг
+   * «лента нужна для подтверждения, подтверждение нужно для ленты». Порог
+   * оказался другим: владелец 2026-08-07 выяснил, что площадка требует 10
+   * ПОДПИСЧИКОВ канала. Пока их нет, лента не доставляет читателю ничего, и
+   * путь по умолчанию у Дзена теперь браузерный (B698).
+   */
+  it("без браузерной сессии и без явного включения ленты — отказ канала, а не тихий выпуск в никуда", async () => {
+    const error = await publishToDzen(dzenPublication).then(() => "", (reason: Error) => reason.message);
 
     expect(browserPublish).not.toHaveBeenCalled();
-    expect(published.externalPostId).toBe("dzen-feed:b642-dzen-2026-08-03");
-    // Лента — pull: адреса в момент передачи ещё нет, и выдумывать его нельзя.
-    expect(published.publicUrl).toBeNull();
+    expect(error).toMatch(/not configured/i);
   });
 
-  it("настроенная браузерная сессия остаётся действующим путём до подтверждения", async () => {
-    settings.DZEN_BROWSER_STORAGE_STATE = '{"cookies":[],"origins":[]}';
+  it("настроенная браузерная сессия — действующий путь", async () => {
+    settings.DZEN_BROWSER_ENDPOINT = "http://10.77.0.2:7801";
+    settings.DZEN_BROWSER_TOKEN = "secret";
     browserPublish.mockResolvedValue({ externalPostId: "dzen-123", publicUrl: "https://dzen.ru/a/123" });
 
     const published = await publishToDzen(dzenPublication);
@@ -81,14 +87,26 @@ describe("B642 · Дзен: лента наполняется до подтве�
     expect(published.externalPostId).toBe("dzen-123");
   });
 
-  it("после подтверждения ленты браузерная сессия не используется даже если настроена", async () => {
-    settings.DZEN_BROWSER_STORAGE_STATE = '{"cookies":[],"origins":[]}';
+  it("отметка «лента подключена» больше не отбирает выпуск у браузера", async () => {
+    settings.DZEN_BROWSER_ENDPOINT = "http://10.77.0.2:7801";
+    settings.DZEN_BROWSER_TOKEN = "secret";
     settings.DZEN_FEED_CONFIRMED = "true";
+    settings.DZEN_FEED_PUBLISHING_ENABLED = "true";
+    browserPublish.mockResolvedValue({ externalPostId: "dzen-123", publicUrl: "https://dzen.ru/a/123" });
+
+    await publishToDzen(dzenPublication);
+
+    expect(browserPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it("лента остаётся рабочей дорогой — её включают явно, когда наберётся 10 подписчиков", async () => {
+    settings.DZEN_FEED_PUBLISHING_ENABLED = "true";
 
     const published = await publishToDzen(dzenPublication);
 
-    expect(browserPublish).not.toHaveBeenCalled();
     expect(published.externalPostId).toBe("dzen-feed:b642-dzen-2026-08-03");
+    // Лента — pull: адреса в момент передачи ещё нет, и выдумывать его нельзя.
+    expect(published.publicUrl).toBeNull();
   });
 });
 

@@ -21,19 +21,28 @@ export interface MarketingSnapshotTableRow {
   impressions: number;
   clicks: number;
   averagePosition: number | null;
-  searchablePages: number;
+  searchablePages: number | null;
   organicVisits: number;
-  observedQueries: number;
+  observedQueries: number | null;
 }
 
 const numberFormat = new Intl.NumberFormat("ru-RU");
 const positionFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 
-function delta(current: number, previous: number | undefined) {
-  if (previous === undefined) return undefined;
+function delta(current: number | null, previous: number | null | undefined) {
+  if (current === null || previous === null || previous === undefined) return undefined;
   const diff = current - previous;
   if (diff === 0) return "без изменений";
   return `${diff > 0 ? "+" : "−"}${numberFormat.format(Math.abs(diff))} за сутки`;
+}
+
+/**
+ * B697: уровень известен только за сутки, когда срез действительно снимался.
+ * За остальные сутки в строке есть поток, но состояния индексации нет, и
+ * показывать там `0` значило бы утверждать «в поиске не было ни одной страницы».
+ */
+function level(value: number | null) {
+  return value === null ? "нет замера" : numberFormat.format(value);
 }
 
 export function MarketingSnapshotTable({ rows }: { rows: MarketingSnapshotTableRow[] }) {
@@ -74,14 +83,14 @@ export function MarketingSnapshotTable({ rows }: { rows: MarketingSnapshotTableR
           sortValue: row.averagePosition ?? Number.MAX_SAFE_INTEGER,
         },
         pages: {
-          value: numberFormat.format(row.searchablePages),
+          value: level(row.searchablePages),
           subvalue: delta(row.searchablePages, older?.searchablePages),
-          sortValue: row.searchablePages,
+          sortValue: row.searchablePages ?? -1,
         },
         queries: {
-          value: numberFormat.format(row.observedQueries),
+          value: level(row.observedQueries),
           subvalue: delta(row.observedQueries, older?.observedQueries),
-          sortValue: row.observedQueries,
+          sortValue: row.observedQueries ?? -1,
         },
         visits: {
           value: numberFormat.format(row.organicVisits),

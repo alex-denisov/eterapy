@@ -1420,9 +1420,12 @@ model MarketingDailySnapshot {
   /// Средняя позиция взвешена по показам. `null` — замера не было вовсе, и это
   /// не то же самое, что «позиция ноль».
   averagePosition Float? @map("average_position")
-  searchablePages Int   @default(0) @map("searchable_pages")
+  /// B697: уровень известен только за сутки, когда срез действительно снимался.
+  /// Хвост окна переснимается посуточным рядом источника — там есть поток, но
+  /// нет состояния индексации на тот день, и `0` вместо него был бы неправдой.
+  searchablePages Int?  @map("searchable_pages")
   organicVisits   Int   @default(0) @map("organic_visits")
-  observedQueries Int   @default(0) @map("observed_queries")
+  observedQueries Int?  @map("observed_queries")
   /// Состояние каждого источника на момент среза: живой замер это или отказ.
   sources     Json?
   createdAt   DateTime @default(now()) @map("created_at")

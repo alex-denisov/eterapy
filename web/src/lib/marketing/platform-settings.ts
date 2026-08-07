@@ -47,11 +47,17 @@ export const MARKETING_PLATFORM_FIELDS = [
   // одного комментария, поэтому это отдельное поле, а не догадка по каналу.
   { platform: "Telegram", key: "TELEGRAM_DISCUSSION_CHAT_ID", label: "Группа обсуждений канала (для ответов на комментарии)", secret: false, multiline: false, requirement: "optional" },
   { platform: "Dzen", key: "DZEN_CHANNEL_URL", label: "Адрес канала", secret: false, multiline: false },
-  { platform: "Dzen", key: "DZEN_BROWSER_STORAGE_STATE", label: "Браузерная сессия (Playwright storageState JSON)", secret: true, multiline: true, requirement: "optional" },
-  // B620: пока лента не подтверждена площадкой, действующий путь выпуска не
-  // отключается. `true` здесь означает «канал принял RSS» — после этого
-  // браузерная сессия выходит из периметра и больше не используется.
+  // B698: слепок `storageState` больше не используется — профиль живёт в томе
+  // браузерного сервиса и стареет естественно. Здесь остались только адрес
+  // сервиса и маркер доступа к нему; вход владельца идёт кнопкой подключения.
+  { platform: "Dzen", key: "DZEN_BROWSER_ENDPOINT", label: "Адрес браузерного сервиса (например http://10.77.0.2:7801)", secret: false, multiline: false },
+  { platform: "Dzen", key: "DZEN_BROWSER_TOKEN", label: "Маркер браузерного сервиса", secret: true, multiline: false },
+  // B620 → B698: порог ленты оказался не «10 материалов в ленте», а «10
+  // ПОДПИСЧИКОВ канала» (владелец 2026-08-07). Пока их нет, лента не доставляет
+  // ничего, и путь выпуска через неё выключен признаком ниже. Признак
+  // «лента подключена» остаётся — он управляет самой лентой, а не выпуском.
   { platform: "Dzen", key: "DZEN_FEED_CONFIRMED", label: "Лента подключена в Дзене (true / пусто)", secret: false, multiline: false, requirement: "optional" },
+  { platform: "Dzen", key: "DZEN_FEED_PUBLISHING_ENABLED", label: "Выпускать ЧЕРЕЗ ленту RSS (true / пусто) — включать с 10 подписчиков", secret: false, multiline: false, requirement: "optional" },
   { platform: "Research", key: "MARKETING_COMPETITOR_URLS", label: "Публичные страницы конкурентов, по одной URL в строке", secret: false, multiline: true, requirement: "optional" },
 ] as const;
 

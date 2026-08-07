@@ -281,6 +281,9 @@ jobs:
       # из репозиторного deploy/fleet-matrix.json, не из события, и дальше
       # используется только как "$NODE_WEB_BIND" внутри run.
       NODE_WEB_BIND: ${{ matrix.vm.webBind }}
+      # B698: адрес, на котором узел слышен пиру для браузерного сервиса.
+      # Пусто — узел браузер не несёт.
+      NODE_BROWSER_BIND: ${{ matrix.vm.browserBind }}
     steps:
       - uses: actions/checkout@v4
 
@@ -395,6 +398,10 @@ jobs:
           REDDIT_POST_SUBREDDIT: ${{ secrets.REDDIT_POST_SUBREDDIT }}
           META_GRAPH_PROXY_BASE: ${{ secrets.META_GRAPH_PROXY_BASE }}
           META_GRAPH_PROXY_SECRET: ${{ secrets.META_GRAPH_PROXY_SECRET }}
+          # B698: один маркер обслуживает обе стороны — браузерный сервис им
+          # представляется, приложение им ходит. Разъехаться они не могут.
+          MARKETING_BROWSER_TOKEN: ${{ secrets.MARKETING_BROWSER_TOKEN }}
+          DZEN_BROWSER_TOKEN: ${{ secrets.MARKETING_BROWSER_TOKEN }}
         run: |
           set -euo pipefail
           SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
@@ -553,6 +560,41 @@ jobs:
               echo '▶ hooks: конфиг отвергнут проверкой, vhost снят' >&2
               exit 1
             fi"
+          # B698: окно браузерной сессии на admin.eterapy.com. Фрагмент — набор
+          # `location`, поэтому он ложится сниппетом ВНУТРЬ существующего
+          # server-блока, а не отдельным vhost. Строку `include` вписываем сами:
+          # шаг, который надо доделать руками, — это шаг, который не сделан
+          # (урок стейджевого allowlist, B554).
+          #
+          # Порядок безопасный: копия живого конфига → правка → `nginx -t` →
+          # reload. Проверка не прошла — возвращаем копию и падаем, живой контур
+          # при этом ни секунды не работает на битом конфиге.
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/nginx-marketing-browser.conf "$VM_USER@$VM_HOST:/tmp/"
+          $SSH "set -e
+            if [ ! -f /etc/nginx/sites-available/eterapy ] || ! sudo grep -q 'server_name admin.eterapy.com;' /etc/nginx/sites-available/eterapy; then
+              rm -f /tmp/nginx-marketing-browser.conf
+              echo '▶ browser: блока admin на этой ноде нет — пропуск'
+              exit 0
+            fi
+            sudo mkdir -p /etc/nginx/snippets
+            sudo install -m 0644 /tmp/nginx-marketing-browser.conf /etc/nginx/snippets/eterapy-browser.conf
+            rm -f /tmp/nginx-marketing-browser.conf
+            if sudo grep -q 'snippets/eterapy-browser.conf' /etc/nginx/sites-available/eterapy; then
+              if sudo nginx -t; then sudo systemctl reload nginx; echo '▶ browser: сниппет обновлён'; else echo '▶ browser: сниппет отвергнут проверкой' >&2; exit 1; fi
+              exit 0
+            fi
+            sudo cp /etc/nginx/sites-available/eterapy /etc/nginx/sites-available/eterapy.b698.bak
+            sudo sed -i 's#^\\( *\\)server_name admin.eterapy.com;#\\1server_name admin.eterapy.com;\\n\\1include snippets/eterapy-browser.conf;#' /etc/nginx/sites-available/eterapy
+            if sudo nginx -t; then
+              sudo systemctl reload nginx
+              echo '▶ browser: include вписан, nginx перезагружен'
+            else
+              sudo cp /etc/nginx/sites-available/eterapy.b698.bak /etc/nginx/sites-available/eterapy
+              sudo nginx -t
+              echo '▶ browser: правка отвергнута проверкой, конфиг возвращён' >&2
+              exit 1
+            fi"
           # INC-080: конфиг контурного балансировщика тоже едет выкаткой. До
           # сих пор haproxy.cfg ставился руками (deploy/lb/README.md) — то есть
           # правка в репозитории могла молча не доехать до ноды, ровно как это
@@ -689,6 +731,30 @@ jobs:
             $SSH "sudo sed -i '/^ETERAPY_WEB_BIND=/d' /opt/eterapy/.env"
             echo "▶ ETERAPY_WEB_BIND снят (нода вне моста флота)"
           fi
+          # B698: адрес прослушивания браузерного сервиса и адрес, по которому
+          # к нему ходит приложение. Оба едут из матрицы, а не пишутся руками:
+          # значение, которого нет в git, исчезает при пересборке ноды вместе с
+          # выпуском в Дзен (тот же урок, что с ETERAPY_WEB_BIND).
+          #
+          # Пусто → ключ УДАЛЯЕМ: в compose стоит `${MARKETING_BROWSER_BIND:-127.0.0.1}`,
+          # и оставленный пустой ключ читался бы как «слушать все интерфейсы»,
+          # а файрвола на хостах нет (PRB-009).
+          if [ -n "$NODE_BROWSER_BIND" ]; then
+            $SSH "sudo sed -i '/^MARKETING_BROWSER_BIND=/d' /opt/eterapy/.env \
+              && echo 'MARKETING_BROWSER_BIND=$NODE_BROWSER_BIND' | sudo tee -a /opt/eterapy/.env >/dev/null"
+            echo "▶ MARKETING_BROWSER_BIND=$NODE_BROWSER_BIND"
+          else
+            $SSH "sudo sed -i '/^MARKETING_BROWSER_BIND=/d' /opt/eterapy/.env"
+          fi
+          # Адрес сервиса одинаков для ВСЕХ нод: браузер один на флот, и ходят
+          # к нему по WireGuard. Берём его из матрицы — из того узла, который
+          # браузер несёт, — чтобы адрес не пришлось помнить отдельно.
+          BROWSER_HOST=$(jq -r 'map(select(.browserBind != null and .browserBind != "")) | .[0].browserBind // ""' deploy/fleet-matrix.json)
+          if [ -n "$BROWSER_HOST" ]; then
+            $SSH "sudo sed -i '/^DZEN_BROWSER_ENDPOINT=/d' /opt/eterapy/.env \
+              && echo 'DZEN_BROWSER_ENDPOINT=http://$BROWSER_HOST:7801' | sudo tee -a /opt/eterapy/.env >/dev/null"
+            echo "▶ DZEN_BROWSER_ENDPOINT=http://$BROWSER_HOST:7801"
+          fi
           # B423/B566: платёжные креды приезжают выкаткой из секретов репозитория.
           # Владелец не правит .env на хосте руками — значит значение, которого
           # нет в git-управляемом пути, до прода не доедет (так уже случилось со
@@ -713,7 +779,8 @@ jobs:
                      META_GRAPH_PROXY_BASE META_GRAPH_PROXY_SECRET \
                      YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID \
                      GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
-                     GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY; do
+                     GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY \
+                     MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue
             printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \
@@ -738,6 +805,21 @@ jobs:
             && printf 'FLEET_NODES=%s\n' \"\$v\" | sudo tee -a /opt/eterapy/.env >/dev/null"
           echo "▶ FLEET_NODES доставлен ($(printf '%s' "$FLEET_NODES" | jq 'length') нод)"
 
+          # B698: образ браузерного сервиса тянет только та нода, что его несёт.
+          # Он публикуется отдельным workflow (`browser-image.yml`) и меняется
+          # редко, поэтому `pull` тихий: нет образа в реестре — сервис просто не
+          # поднимется, а выкатка приложения из-за этого падать не должна.
+          if [ -n "$NODE_BROWSER_BIND" ]; then
+            BROWSER_REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eterapy-browser:latest"
+            if printf '%s' "$REGISTRY_TOKEN" | $SSH "sudo docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin \
+              && sudo docker pull '$BROWSER_REF' \
+              && sudo docker logout ghcr.io"; then
+              echo "▶ образ браузера обновлён: $BROWSER_REF"
+            else
+              echo "::warning::Образ браузера не подтянулся ($BROWSER_REF) — выпуск в Дзен останется на паузе канала"
+              $SSH "sudo docker logout ghcr.io" || true
+            fi
+          fi
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web:${GITHUB_SHA::8}#' /opt/eterapy/.env \
             && cd /opt/eterapy && { sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME $PROFILE_ARGS up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \

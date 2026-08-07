@@ -240,11 +240,16 @@ export default async function MarketingAgentPage() {
       connector.discovery ? "поиск" : null,
       connector.inboundReplies ? "ответы на входящее" : null,
     ].filter(Boolean).join(" · ") || "нет";
+    // B698: у Дзена нет OAuth — «подключение» поднимает окно живого браузера,
+    // в котором владелец входит под своим аккаунтом Яндекса. Кнопка та же, но
+    // ведёт не на обмен токена, а на окно входа.
     const oauthHref = connector.platform === "Reddit"
       ? "/api/admin/marketing/reddit/connect"
       : connector.platform === "Threads" || connector.platform === "Instagram"
         ? `/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`
-        : null;
+        : connector.platform === "Dzen"
+          ? "/api/admin/marketing/dzen/connect"
+          : null;
     return {
       id: connector.platform,
       cells: {
@@ -306,7 +311,9 @@ export default async function MarketingAgentPage() {
             actions: [{
               label: connector.platform === "Reddit" && redditConnected
                 ? "Переподключить Reddit"
-                : `Подключить ${connector.platform}`,
+                : connector.platform === "Dzen"
+                  ? "Открыть окно входа в Дзен"
+                  : `Подключить ${connector.platform}`,
               href: oauthHref,
               // B624: без внешней цели Next префетчит ссылку и вызывает
               // эндпоинт без нажатия (класс INC-070).

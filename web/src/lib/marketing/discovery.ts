@@ -36,7 +36,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
     "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID",
-    "DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE",
+    "DZEN_CHANNEL_URL", "DZEN_BROWSER_ENDPOINT", "DZEN_BROWSER_TOKEN",
   ] as const;
   const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
   const has = (name: typeof keys[number]) => Boolean(values.get(name));
@@ -144,7 +144,9 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       ownedPublishing: Boolean(enabled.get("Dzen")) && has("DZEN_CHANNEL_URL"),
       discovery: false,
       inboundReplies: false,
-      missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_STORAGE_STATE"),
+      // B698: слепок сессии заменён адресом браузерного сервиса и маркером
+      // доступа к нему — оба обязательны, без них выпуск в Дзен невозможен.
+      missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_ENDPOINT", "DZEN_BROWSER_TOKEN"),
       note: "Выпуск идёт размеченной RSS-лентой, которую канал подключает у себя — законный документированный путь вместо сохранённой браузерной сессии. Слепок сессии остаётся необязательным запасным механизмом до подтверждения ленты и после него не используется.",
     },
   ];

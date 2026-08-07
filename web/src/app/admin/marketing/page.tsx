@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Activity, FileCheck2, MousePointerClick, Search, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getSearchMarketingData } from "@/lib/search-marketing-data";
-import { resolveAdminPeriod } from "../admin-analytics-data";
+import { chartDayLabel, resolveAdminPeriod } from "../admin-analytics-data";
 import {
   AdminHero,
   AnalyticsSection,
@@ -117,12 +117,15 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
           <p className="mb-3 text-xs text-slate-600">
             Блоки выше собираются живым запросом при каждом открытии страницы.
             Отличить «источник пуст» от «мы перестали спрашивать» по пустой
-            таблице невозможно, поэтому раз в московские сутки снимается срез с
+            таблице невозможно, поэтому у каждых московских суток есть строка с
             отметкой времени. Ноль с вчерашней датой — это ответ; пустая ячейка —
-            нет. B657: прежняя подпись про единственную проиндексированную
-            страницу снята — она устарела и вводила в заблуждение. Замер
-            2026-08-04: в поиске Яндекса 213 страниц при нуле исключённых,
-            индексация давно не узкое место.
+            нет. B697: показы, клики и визиты — это поток ЗА сутки, он берётся
+            посуточным рядом Вебмастера и Метрики; страницы, запросы и позиция —
+            уровень НА сутки. Оба источника правят вчерашние данные задним
+            числом, поэтому хвост окна переснимается несколько раз в день, а не
+            застывает с первым ответом. «Нет замера» в колонке уровня значит, что
+            в те сутки срез не снимался: поток за них восстановлен рядом
+            источника, состояние индексации — нет.
             Низкие показы здесь — про спрос и позиции, а не про сбой
             интеграции; это открытая работа B470/B550.
           </p>
@@ -135,12 +138,18 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
                 динамику по ним никто не рисовал. Средняя позиция сознательно
                 НЕ на графике: у неё шкала перевёрнута (меньше = лучше), и на
                 одной оси с показами она читалась бы ровно наоборот.
+
+                B697: до этого в каждом столбце лежал итог за 28 дней, а не за
+                день. Соседние сутки перекрывались на 27 дней из 28, и график
+                читался как нарастающий итог. Теперь слева — поток за сутки,
+                справа — уровень на сутки, и это два разных графика по существу,
+                а не по оформлению.
               */}
               <div className="mb-4 grid gap-4 xl:grid-cols-2">
                 <VerticalBarChart
-                  label="Показы, клики и визиты по дням"
+                  label="Показы, клики и визиты ЗА сутки"
                   data={trend.map((row) => ({
-                    label: row.dayKey.slice(5),
+                    label: chartDayLabel(row.dayKey),
                     value: row.impressions,
                     secondary: row.clicks,
                     tertiary: row.organicVisits,
@@ -149,12 +158,16 @@ export default async function AdminMarketingPage({ searchParams }: PageProps) {
                   integerTicks
                 />
                 <VerticalBarChart
-                  label="Страниц в индексе и наблюдаемых запросов"
-                  data={trend.map((row) => ({
-                    label: row.dayKey.slice(5),
-                    value: row.searchablePages,
-                    secondary: row.observedQueries,
-                  }))}
+                  label="Страниц в индексе и наблюдаемых запросов НА сутки"
+                  // Сутки без замера уровня в этот график не попадают: пустой
+                  // столбец там читался бы как «страниц в поиске не осталось».
+                  data={trend
+                    .filter((row) => row.searchablePages !== null || row.observedQueries !== null)
+                    .map((row) => ({
+                      label: chartDayLabel(row.dayKey),
+                      value: row.searchablePages ?? 0,
+                      secondary: row.observedQueries ?? 0,
+                    }))}
                   seriesLabels={["страниц в поиске", "запросов"]}
                   integerTicks
                 />

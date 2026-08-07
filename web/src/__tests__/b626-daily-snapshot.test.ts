@@ -30,6 +30,17 @@ jest.mock("@/lib/search-marketing-data", () => ({
   getSearchMarketingData: (...args: unknown[]) => getSearchMarketingData(...args),
 }));
 
+// B697: поток теперь берётся посуточным рядом источника, а не итогом окна.
+// Разбор самих рядов и посуточная запись проверяются в b697-*.
+const fetchWebmasterDailySeries = jest.fn();
+const fetchMetrikaDailyVisits = jest.fn();
+jest.mock("@/lib/marketing/search-daily-series", () => ({
+  __esModule: true,
+  ...jest.requireActual("@/lib/marketing/search-daily-series"),
+  fetchWebmasterDailySeries: (...args: unknown[]) => fetchWebmasterDailySeries(...args),
+  fetchMetrikaDailyVisits: (...args: unknown[]) => fetchMetrikaDailyVisits(...args),
+}));
+
 import {
   captureMarketingDailySnapshot,
   marketingSnapshotDue,
@@ -46,6 +57,8 @@ beforeEach(() => {
   }));
   findUnique.mockReset().mockResolvedValue(null);
   getSearchMarketingData.mockReset();
+  fetchWebmasterDailySeries.mockReset().mockResolvedValue(new Map([["2026-07-31", { impressions: 12, clicks: 1 }]]));
+  fetchMetrikaDailyVisits.mockReset().mockResolvedValue(new Map([["2026-07-31", 30]]));
 });
 
 describe("ключ суток", () => {
@@ -79,6 +92,8 @@ describe("снятие среза", () => {
 
   it("отказ источника не записывается как нулевой замер", async () => {
     getSearchMarketingData.mockRejectedValue(new Error("Webmaster 502"));
+    fetchWebmasterDailySeries.mockRejectedValue(new Error("Webmaster 502"));
+    fetchMetrikaDailyVisits.mockRejectedValue(new Error("Metrika 502"));
 
     const row = await captureMarketingDailySnapshot({ now: NOW });
 
@@ -90,8 +105,10 @@ describe("снятие среза", () => {
 });
 
 describe("нужен ли срез", () => {
-  it("не нужен, если за эти сутки строка уже есть", async () => {
-    findUnique.mockResolvedValue({ id: "snap-1" });
+  it("не нужен, если строка за эти сутки только что переснята", async () => {
+    // B697: строка за сутки одна, но переснимается несколько раз в день —
+    // источники правят вчерашние данные задним числом.
+    findUnique.mockResolvedValue({ capturedAt: new Date(NOW.getTime() - 30 * 60_000) });
     expect(await marketingSnapshotDue(NOW)).toBe(false);
   });
 

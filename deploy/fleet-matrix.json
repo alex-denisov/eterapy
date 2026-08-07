@@ -18,12 +18,13 @@
     "host": "192.144.13.153",
     "user": "admin",
     "compose": "docker-compose.yml",
-    "profile_args": "-f docker-compose.livekit.yml --profile livekit",
+    "profile_args": "-f docker-compose.livekit.yml --profile livekit --profile marketing-browser",
     "standby": true,
     "role": "standby",
     "contour": "ru",
     "webBind": "10.77.0.2",
-    "baseUrl": "http://10.77.0.2:3200"
+    "baseUrl": "http://10.77.0.2:3200",
+    "browserBind": "10.77.0.2"
   },
   {
     "name": "eterapy-3 US racknerd (107.172.153.202)",

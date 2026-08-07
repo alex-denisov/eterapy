@@ -1,0 +1,14 @@
+{
+  "name": "eterapy-marketing-browser",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "B698 — браузерная сессия владельца для площадок без API публикации",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "patchright": "^1.52.5"
+  }
+}

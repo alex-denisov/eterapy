@@ -36,7 +36,9 @@ describe("B649 — период и шкала CTR", () => {
   it("суточные срезы рисуются графиком, а не только таблицей", () => {
     const page = source("app/admin/marketing/page.tsx");
     expect(page).toContain("<VerticalBarChart");
-    expect(page).toContain("Показы, клики и визиты по дням");
+    // B697: подпись говорит «ЗА сутки», а не «по дням» — раньше в столбце лежал
+    // итог за 28 суток, и «по дням» было неправдой.
+    expect(page).toContain("Показы, клики и визиты ЗА сутки");
     // График читается слева направо по времени, таблица — сверху от свежего.
     expect(page).toContain("left.dayKey.localeCompare(right.dayKey)");
     // Средняя позиция на общей оси с показами читалась бы наоборот: у неё
@@ -144,11 +146,15 @@ describe("B652 — обязательность поля площадки", () =
     return "requirement" in field ? field.requirement : "required";
   };
 
-  it("адрес канала Дзена обязателен, а сессия и отметка ленты — нет", () => {
-    // Именно из-за них рабочий канал показывался как «не задано: 2».
+  it("адрес канала и браузерный сервис Дзена обязательны, признаки ленты — нет", () => {
+    // Именно из-за отметок ленты рабочий канал показывался как «не задано: 2».
+    // B698: слепок сессии заменён адресом сервиса и маркером — они обязательны,
+    // потому что без них выпускать нечем.
     expect(requirementOf("DZEN_CHANNEL_URL")).toBe("required");
-    expect(requirementOf("DZEN_BROWSER_STORAGE_STATE")).toBe("optional");
+    expect(requirementOf("DZEN_BROWSER_ENDPOINT")).toBe("required");
+    expect(requirementOf("DZEN_BROWSER_TOKEN")).toBe("required");
     expect(requirementOf("DZEN_FEED_CONFIRMED")).toBe("optional");
+    expect(requirementOf("DZEN_FEED_PUBLISHING_ENABLED")).toBe("optional");
   });
 
   it("токены, которые заполняет OAuth, не выдаются за недоделку владельца", () => {
