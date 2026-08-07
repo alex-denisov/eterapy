@@ -41,7 +41,7 @@ export default async function DzenBrowserSessionPage() {
         data-authorized={health.authorized ? "true" : "false"}
       >
         {health.authorized
-          ? "Сессия жива: площадка узнаёт аккаунт, выпуск пойдёт браузером."
+          ? `Сессия жива: Дзен узнаёт аккаунт ${health.account ?? "владельца"}, выпуск пойдёт браузером.`
           : `Сессия не готова: ${health.reason ?? "причина не названа"}.`}
       </div>
 

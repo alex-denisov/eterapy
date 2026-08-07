@@ -102,6 +102,48 @@ setInterval(() => {
 }, 30_000).unref();
 
 /**
+ * Адрес, куда сервису разрешено ходить.
+ *
+ * Адреса приходят от приложения: там они выводятся из настроек площадки и
+ * покрыты тестами (`marketing/dzen-studio.ts`). Сервис их только проверяет —
+ * иначе маркер к нему превратился бы в право сходить куда угодно чужими
+ * куками.
+ */
+function checkedUrl(value, allowedHosts, what) {
+  let parsed;
+  try {
+    parsed = new URL(String(value ?? ""));
+  } catch {
+    throw new Error(`Приложение не передало ${what}`);
+  }
+  const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+  if (!allowedHosts.includes(host)) {
+    throw new Error(`${what} ведёт на посторонний хост «${parsed.hostname}»`);
+  }
+  return parsed.toString();
+}
+
+const studioUrlOf = (value) => checkedUrl(value, ["dzen.ru"], "адрес студии");
+const loginUrlOf = (value) => checkedUrl(value, ["passport.yandex.ru", "dzen.ru"], "адрес формы входа");
+
+/**
+ * Кто вошёл в профиль.
+ *
+ * `yandex_login` пустой, а `Session_id` вида `noauth:<время>` — это аноним.
+ * Проверка живая и бесплатная: она не требует обращения к площадке вовсе, а
+ * значит аноним не создаёт нам следа «робот ходит по расписанию и никогда не
+ * публикует».
+ */
+async function signedInAccount(ctx) {
+  const cookies = await ctx.cookies().catch(() => []);
+  const login = cookies.find((cookie) => cookie.name === "yandex_login" && String(cookie.value ?? "").trim());
+  if (login) return String(login.value).trim();
+  const session = cookies.find((cookie) => cookie.name === "Session_id");
+  if (session && !/^noauth:/i.test(String(session.value ?? ""))) return "аккаунт без имени в куках";
+  return null;
+}
+
+/**
  * Авторизован ли профиль.
  *
  * ⚠ ПОЧЕМУ ЗДЕСЬ ИЩЕТСЯ ПРИЗНАК ВХОДА, А НЕ ОТСУТСТВИЕ ОТКАЗА. Первая версия
@@ -111,31 +153,50 @@ setInterval(() => {
  * кодом 200. Ни одного признака отказа — и экран админки бодро сообщал
  * «сессия жива, площадка узнаёт аккаунт», когда не входил ещё никто.
  *
- * Признаком входа считается ровно то, без чего выпуск невозможен: доступный
- * элемент создания публикации. Всё остальное — «не знаем», и говорить об этом
- * надо словами страницы, а не догадкой (тот же урок, что с адресатом Meta,
- * B685: «поля заполнены» и «площадка нас узнаёт» — разные утверждения).
+ * ⚠ И ВТОРОЙ УРОК, ТОГО ЖЕ ДНЯ. Признак входа искался на странице
+ * `/profile/editor`, которой у Дзена НЕТ: студия живёт по адресу
+ * `/profile/editor/<канал>`. Проверка честно докладывала «студия не
+ * открылась», и это была наша собственная ошибка, названная свойством
+ * площадки. Поэтому теперь: сначала бесплатный признак из кук (кто вошёл),
+ * потом дело (студия открылась, кнопка создания на месте), и в отказе — адрес,
+ * заголовок и видимые кнопки, чтобы следующий разбор не требовал пересборки
+ * образа.
  */
-async function dzenSessionState() {
+async function dzenSessionState(studioUrl) {
   const ctx = await ensureContext();
+  const account = await signedInAccount(ctx);
+  if (!account) {
+    return {
+      authorized: false,
+      account: null,
+      reason: "в браузере не вошёл никто — откройте окно входа и войдите в Яндекс ID",
+    };
+  }
+
   const page = await ctx.newPage();
   try {
-    await page.goto("https://dzen.ru/profile/editor", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(2_500);
     const url = page.url();
     if (/passport\.yandex|id\.yandex|\/auth(?:\/|$)|\/login/i.test(url)) {
-      return { authorized: false, reason: "нужен вход в Яндекс" };
+      return { authorized: false, account, reason: `сессия аккаунта ${account} истекла — нужен повторный вход` };
     }
     const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 4_000);
     if (/captcha|подтвердите, что вы не робот/i.test(body)) {
-      return { authorized: false, reason: "площадка показывает проверку — нужен вход владельца" };
+      return { authorized: false, account, reason: "площадка показывает проверку — нужен вход владельца" };
     }
     const create = await firstVisible(page, DZEN_CREATE_SELECTORS);
-    if (create) return { authorized: true, reason: null };
+    if (create) return { authorized: true, account, reason: null };
+
     const title = (await page.title().catch(() => "")).trim();
+    const buttons = await page.evaluate(() => Array.from(document.querySelectorAll('button,[role="button"]'))
+      .map((element) => (element.textContent ?? "").trim())
+      .filter(Boolean).slice(0, 8)).catch(() => []);
     return {
       authorized: false,
-      reason: `студия не открылась (страница «${title || "без заголовка"}») — нужен вход владельца`,
+      account,
+      reason: `студия не открылась под аккаунтом ${account}: адрес ${url}, страница «${title || "без заголовка"}»`
+        + (buttons.length > 0 ? `, кнопки: ${buttons.join(", ")}` : ", кнопок на странице нет"),
     };
   } finally {
     await page.close().catch(() => undefined);
@@ -187,13 +248,14 @@ function humanPause(page, base) {
   return page.waitForTimeout(base + Math.floor(Math.random() * base));
 }
 
-async function publishToDzen({ title, body, mediaUrl }) {
+async function publishToDzen({ title, body, mediaUrl, studioUrl }) {
   if (!title?.trim() || !body?.trim()) throw new Error("У материала нет заголовка или текста");
+  const studio = studioUrlOf(studioUrl);
   const media = await downloadMedia(mediaUrl ?? null);
   const ctx = await ensureContext();
   const page = await ctx.newPage();
   try {
-    await page.goto("https://dzen.ru/profile/editor", { waitUntil: "domcontentloaded", timeout: 40_000 });
+    await page.goto(studio, { waitUntil: "domcontentloaded", timeout: 40_000 });
     await assertNoChallenge(page);
     if (/passport\.yandex|id\.yandex|\/login/i.test(page.url())) {
       throw new Error("Сессия Дзена истекла: владельцу нужно снова пройти подключение");
@@ -314,12 +376,17 @@ const server = createServer((request, response) => {
         // ходит сюда раз в минуту; если бы она каждый раз открывала dzen.ru,
         // мы сами создали бы ровно тот признак робота, от которого уходим:
         // обращение секунда в секунду, круглые сутки, без единой публикации.
+        // Отказ пробы — это ответ, а не поломка сервиса: сервис жив и обязан
+        // сказать словами, что именно не так. Иначе экран покажет «сервис
+        // недоступен» там, где недоступна всего лишь сессия.
         const state = url.searchParams.get("probe") === "1"
-          ? await serial(() => dzenSessionState().catch((error) => ({
-            authorized: false,
-            reason: error instanceof Error ? error.message : String(error),
-          })))
-          : { authorized: null, reason: null };
+          ? await serial(() => dzenSessionState(studioUrlOf(url.searchParams.get("studio"))))
+            .catch((error) => ({
+              authorized: false,
+              account: null,
+              reason: error instanceof Error ? error.message : String(error),
+            }))
+          : { authorized: null, reason: null, account: null };
         send(response, 200, {
           ok: true,
           profileExists: existsSync(join(PROFILE_DIR, "Default")),
@@ -331,15 +398,21 @@ const server = createServer((request, response) => {
       }
 
       if (request.method === "POST" && url.pathname === "/session/open") {
+        const payload = await readJson(request);
+        // Окно наводится на ФОРМУ ВХОДА, а не на страницу площадки. Прежде оно
+        // открывалось на `/profile/editor` — адресе, которого у Дзена нет: на
+        // 404-странице площадки нет ни одной кнопки, и владелец не мог войти
+        // вовсе. Если сессия жива, паспорт сам вернёт его в студию по retpath.
+        const target = loginUrlOf(payload.loginUrl);
         await serial(async () => {
           const ctx = await ensureContext();
           if (!loginPage || loginPage.isClosed()) loginPage = await ctx.newPage();
           await loginPage.bringToFront().catch(() => undefined);
-          await loginPage.goto("https://dzen.ru/profile/editor", { waitUntil: "domcontentloaded", timeout: 40_000 })
+          await loginPage.goto(target, { waitUntil: "domcontentloaded", timeout: 40_000 })
             .catch(() => undefined);
           lastUsedAt = Date.now();
         });
-        log("browser.login_window_opened");
+        log("browser.login_window_opened", { target });
         send(response, 200, { ok: true, vncPort: VNC_PORT });
         return;
       }
