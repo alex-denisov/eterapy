@@ -404,7 +404,13 @@ jobs:
           DZEN_BROWSER_TOKEN: ${{ secrets.MARKETING_BROWSER_TOKEN }}
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          # INC-099 (продолжение): выкатка на eterapy-2 срывалась дважды подряд в
+          # одном месте — `docker pull` внутри SSH молчит, пока тянет большой
+          # слой, и канал рвётся ровно на пятой минуте тишины («client_loop:
+          # send disconnect: Broken pipe»). Дело не в диске и не в скорости: за
+          # 4 м 25 с не было НИ ОДНОЙ строки вывода, и соединение сочли мёртвым.
+          # Keepalive держит канал на молчащей команде до полутора часов.
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=180 $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p /opt/eterapy && sudo mv /tmp/$COMPOSE_FILE_NAME /opt/eterapy/$COMPOSE_FILE_NAME"
           # B542: the LiveKit overlay travels with every deploy so nodes whose
@@ -707,6 +713,15 @@ jobs:
             fi
           fi
           if [ "$SHIPPED" != yes ]; then
+            # Запасной путь работает, только если образ ЕСТЬ на раннере. Когда
+            # его нет, `docker save` пишет ошибку в stderr, отдаёт пустой поток,
+            # и `docker load` на ноде отвечает «unrecognized image format» —
+            # сообщение, которое уводит разбор к повреждённому архиву вместо
+            # настоящей причины «мы его и не передавали». Говорим прямо.
+            if ! docker image inspect "eterapy-web:${GITHUB_SHA::8}" >/dev/null 2>&1; then
+              echo "::error::Реестр не сработал, а образа eterapy-web:${GITHUB_SHA::8} нет на раннере — передавать нечем. Запасной путь по SSH здесь бессилен."
+              exit 1
+            fi
             docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           fi
           # B541/B537: stamp the node's identity and role into its .env.
