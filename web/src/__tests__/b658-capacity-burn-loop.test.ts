@@ -48,15 +48,31 @@ describe("B658 · остывание после отказа по ёмкости
     await expect(marketingCapacityCooldownActive(NOW)).resolves.toBe(false);
   });
 
-  it("окно остывания спрашивается у базы, а не подразумевается", async () => {
+  it("остывание спрашивается у базы по открытому сигналу", async () => {
     mockFindFirst.mockResolvedValue(null);
     await marketingCapacityCooldownActive(NOW);
     const where = mockFindFirst.mock.calls[0][0].where;
     expect(where.key).toBe("agent:capacity");
     expect(where.status).toBe("OPEN");
-    // Именно свежий сигнал: стухший не должен держать генерацию вечно.
-    expect(where.lastSeenAt.gte.getTime())
-      .toBe(NOW.getTime() - MARKETING_CAPACITY_COOLDOWN_MS);
+    /**
+     * B700 фаза 3 — отсечки по свежести здесь БОЛЬШЕ НЕТ, и это осознанно.
+     *
+     * Срок ожидания теперь называет провайдер (`cooldownUntil`, B699), и он
+     * бывает длиннее плоских 30 минут: Groq на исчерпанном суточном потолке
+     * говорит «через 59 минут». Отсечка `lastSeenAt >= now − 30 мин` обнуляла
+     * бы паузу раньше её собственного конца, и линия шла бы ломиться в тот же
+     * мёртвый ключ дважды за час.
+     *
+     * То, что отсечка защищала, держится ниже двумя проверками: стухший сигнал
+     * без срока не держит линию, и чужая дата не усыпляет её дольше суток.
+     */
+    expect(where.lastSeenAt).toBeUndefined();
+  });
+
+  it("стухший сигнал без срока провайдера не держит генерацию", async () => {
+    // Час молчания при плоском окне в полчаса: пауза истекла сама.
+    mockFindFirst.mockResolvedValue({ lastSeenAt: new Date(NOW.getTime() - 60 * 60_000) });
+    await expect(marketingCapacityCooldownActive(NOW)).resolves.toBe(false);
   });
 
   it("сбой чтения сигнала не останавливает контур", async () => {

@@ -398,6 +398,25 @@ export async function listProvidersWithActiveCredentials(input?: { now?: Date })
   return rows.map((row) => row.provider);
 }
 
+/**
+ * B700 фаза 3 — ближайший срок, когда в пуле снова появится живой ключ.
+ *
+ * Тот же вопрос, что `providerCooldownUntil`, но по всему пулу сразу: линия
+ * останавливается не из-за одного провайдера, а из-за того, что не осталось ни
+ * одного. `null` — сроков нет ни у кого, то есть ждать нечего и решает общее
+ * правило.
+ */
+export async function poolCooldownResumeAt(input?: { now?: Date }): Promise<Date | null> {
+  const now = input?.now ?? new Date();
+  if (!isAICredentialEncryptionConfigured()) return null;
+  const row = await db.aIProviderCredential.findFirst({
+    where: { enabled: true, cooldownUntil: { gt: now } },
+    orderBy: { cooldownUntil: "asc" },
+    select: { cooldownUntil: true },
+  });
+  return row?.cooldownUntil ?? null;
+}
+
 export async function providerCooldownUntil(input: { provider: AIProvider; now?: Date }): Promise<Date | null> {
   const now = input.now ?? new Date();
   if (!isAICredentialEncryptionConfigured()) return null;

@@ -32,6 +32,13 @@ jest.mock("@/lib/marketing/pool-capacity", () => ({
     providers: ["GROQ", "GEMINI"],
     canSeparateRoles: true,
   }),
+  marketingHourlyCapacity: async () => ({
+    perHour: 2,
+    materialsLeftToday: 2,
+    providers: ["GROQ", "GEMINI"],
+    canSeparateRoles: true,
+  }),
+  marketingPoolResumeAt: async () => null,
 }));
 
 jest.mock("@/lib/ai", () => ({
@@ -243,25 +250,63 @@ describe("B700 · труд автора переживает отказ реда
  * дефиците ёмкости очередь редактора не разбиралась никогда.
  */
 describe("B700 · написанное разбирается раньше ненаписанного", () => {
-  it("очередь планового цикла ставит написанное впереди", async () => {
+  /**
+   * Фаза 2 усилила это правило: вместо одной очереди с сортировкой
+   * «написанное вперёд» линия разбирает ДВЕ разные очереди с разными бюджетами.
+   *
+   * Сортировка внутри общего бюджета помогала только при бюджете больше нуля.
+   * А такт даёт ноль ровно тогда, когда буфер полон, квоты выжжены или склад
+   * переполнен, — и в этот момент обнулялась и очередь редактора, то есть линия
+   * переставала ДОДЕЛЫВАТЬ уже оплаченное. Разделение делает границу
+   * структурной: барабан ограничен только паузой линии, автор — тактом.
+   */
+  it("очередь редактора и очередь автора — две разные выборки", async () => {
     const db = (await import("@/lib/db")).default as unknown as {
       externalPublication: { findMany: jest.Mock; count: jest.Mock };
       platformSetting: { findUnique: jest.Mock };
     };
     db.platformSetting.findUnique.mockResolvedValue({ value: "true" });
     db.externalPublication.findMany.mockResolvedValue([]);
-    db.externalPublication.count.mockResolvedValue(0);
+    // Порядок счётчиков прохода: написано-за-час, отложено, ждёт-редактора,
+    // СПРОС, готово-впереди. Без спроса автору нечего писать, и второй выборки
+    // не было бы вовсе.
+    db.externalPublication.count
+      .mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(4).mockResolvedValue(0);
 
     const { runMarketingAgentCycle } = await import("@/lib/marketing/agent");
     await runMarketingAgentCycle({ now: new Date("2026-08-09T12:00:00.000Z") });
 
-    const orderings = db.externalPublication.findMany.mock.calls
-      .map((call) => (call[0] as { orderBy?: unknown }).orderBy)
-      .filter(Boolean);
-    expect(orderings).toContainEqual([
-      { agentWrittenAt: { sort: "asc", nulls: "last" } },
-      { scheduledFor: "asc" },
-      { createdAt: "asc" },
-    ]);
+    const wheres = db.externalPublication.findMany.mock.calls
+      .map((call) => JSON.stringify((call[0] as { where?: unknown }).where ?? {}));
+
+    // Барабан: написанное, но не проверенное.
+    expect(wheres.some((where) =>
+      where.includes("\"agentWrittenAt\":{\"not\":null}")
+      && where.includes("\"agentReviewedAt\":null"))).toBe(true);
+
+    // Автор: только НЕнаписанное — переписывать склад заново он не должен.
+    expect(wheres.some((where) => where.includes("\"agentWrittenAt\":null"))).toBe(true);
+  });
+
+  it("барабан разбирается, даже когда автору такт не дал ничего", async () => {
+    const db = (await import("@/lib/db")).default as unknown as {
+      externalPublication: { findMany: jest.Mock; count: jest.Mock };
+      platformSetting: { findUnique: jest.Mock };
+    };
+    db.platformSetting.findUnique.mockResolvedValue({ value: "true" });
+    db.externalPublication.count.mockResolvedValue(0);
+    // Склад полон: очередь редактора отдаёт материал, автору места нет.
+    db.externalPublication.findMany.mockImplementation(async (args: {
+      where?: unknown;
+    }) => (JSON.stringify(args.where ?? {}).includes("\"agentWrittenAt\":{\"not\":null}")
+      ? [{ id: "carried" }]
+      : []));
+
+    const { runMarketingAgentCycle } = await import("@/lib/marketing/agent");
+    const result = await runMarketingAgentCycle({ now: new Date("2026-08-09T12:00:00.000Z") });
+
+    expect(result.reviewQueue).toBe(1);
+    expect(result.processed).toBe(1);
   });
 });

@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { AIGatewayRoutingError } from "@/lib/ai-gateway/routing";
 import db from "@/lib/db";
-import { approvedStatusForPlatform } from "@/lib/marketing/manual-platforms";
+import { approvedStatusForPlatform, MARKETING_MANUAL_STATUS } from "@/lib/marketing/manual-platforms";
 import { log, serializeError } from "@/lib/logger";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
@@ -28,7 +28,18 @@ import {
   marketingProviderFromLabel,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
-import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
+import {
+  marketingHourlyCapacity,
+  marketingPoolAvailability,
+  marketingPoolResumeAt,
+} from "@/lib/marketing/pool-capacity";
+import {
+  conveyorTact,
+  marketingLinePauseUntil,
+  MARKETING_MAX_AWAITING_REVIEW,
+  type ConveyorBottleneck,
+} from "@/lib/marketing/conveyor-tact";
+import { contentPlanFor } from "@/lib/marketing/content-plan";
 import { dzenFeedNeedsTopUp } from "@/lib/marketing/dzen-feed";
 import {
   draftLimitViolations,
@@ -1366,19 +1377,18 @@ export function marketingGenerationHorizon(now: Date) {
 }
 
 /**
- * B629 — сколько плановых материалов агент имеет право написать за час.
+ * B629 → B700 фаза 2: константы «плановых материалов в час» БОЛЬШЕ НЕТ.
  *
- * Окно опережения в 30 часов (B625) не мешает написать всю суточную норму за
- * один проход в полночь: замер прода показал 78 запросов подряд за 2,5 часа.
- * Суточный потолок при этом формально не нарушен, но ёмкость выгорает пачкой, и
- * дальше сутки идут без единой генерации. Часовой шаг превращает потолок в
- * норму расхода: плану достаточно двух материалов в час, чтобы к слоту всё было
- * готово, а ответам людям остаётся и ёмкость, и очередь.
+ * Она решала настоящую задачу — окно опережения B625 ограничило, ЧТО берётся в
+ * работу, но не ограничило, как быстро, и замер прода 2026-07-30 показал 78
+ * генераций подряд за 2,5 часа. Ошибка была не в существовании шага, а в том,
+ * что «два в час» не выведено ни из плана (6–7 материалов в сутки против 48 при
+ * такой норме), ни из остатка квот.
+ *
+ * Теперь норму часа считает `conveyorTact` из спроса, запаса и ёмкости, а
+ * переменная окружения `MARKETING_PLANNED_DRAFTS_PER_HOUR` ни на что не влияет
+ * и в выкатке не задана. Потолок прохода остаётся `LOOP_LIMIT`.
  */
-export const MARKETING_PLANNED_DRAFTS_PER_HOUR = Math.max(
-  1,
-  Number(process.env.MARKETING_PLANNED_DRAFTS_PER_HOUR || 2),
-);
 
 /**
  * B658 — сколько агент не трогает плановую генерацию после отказа по ёмкости.
@@ -1401,27 +1411,135 @@ export const MARKETING_CAPACITY_COOLDOWN_MS = Number(
  * весь контур.
  */
 export async function marketingCapacityCooldownActive(now: Date): Promise<boolean> {
+  return Boolean(await marketingCapacityPausedUntil(now));
+}
+
+/**
+ * B700 фаза 3 — до какого момента линия не запускает плановую генерацию.
+ *
+ * Отличие от прежнего плоского срока в том, ЧЬЁ это решение. Раньше линия
+ * ждала свои 30 минут независимо от причины; теперь срок называет тот, кто
+ * отказал: `cooldownUntil` ключа собран из тела ответа провайдера (B699).
+ * Groq на исчерпанном суточном потолке говорит «через 59 минут» — возвращаться
+ * через полчаса значит потратить проход впустую и снова записать отказ.
+ *
+ * Сигнал больше не фильтруется по свежести: срок ожидания теперь может быть
+ * длиннее плоских 30 минут, и отсечка по `lastSeenAt` обнуляла бы паузу раньше
+ * её собственного конца. От вечного сна защищают две вещи: суточный потолок
+ * внутри `marketingLinePauseUntil` и `sweepStaleMarketingSignals`, который
+ * закрывает сигнал, переставший повторяться.
+ *
+ * Чтение остаётся вспомогательным: сбой запроса не блокирует генерацию.
+ */
+export async function marketingCapacityPausedUntil(now: Date): Promise<Date | null> {
   try {
     const signal = await db.marketingAutomationSignal.findFirst({
-      where: {
-        key: "agent:capacity",
-        status: "OPEN",
-        lastSeenAt: { gte: new Date(now.getTime() - MARKETING_CAPACITY_COOLDOWN_MS) },
-      },
+      where: { key: "agent:capacity", status: "OPEN" },
+      orderBy: { lastSeenAt: "desc" },
       select: { lastSeenAt: true },
     });
-    return Boolean(signal);
+    if (!signal) return null;
+
+    const poolResumeAt = await marketingPoolResumeAt(now).catch(() => null);
+    return marketingLinePauseUntil({
+      now,
+      signalLastSeenAt: signal.lastSeenAt,
+      poolResumeAt,
+      flatCooldownMs: MARKETING_CAPACITY_COOLDOWN_MS,
+    });
   } catch {
-    return false;
+    return null;
   }
 }
 
 /** Разговорные материалы идут вне часового шага: ответ нельзя отложить. */
 const CONVERSATIONAL_LOOP_LIMIT = 3;
 
-export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
+/** Состояния, в которых материал считается готовым к выпуску. */
+const MARKETING_APPROVED_STATUSES = ["SCHEDULED", MARKETING_MANUAL_STATUS] as const;
+
+/**
+ * B700 фаза 2 — целевой запас утверждённого впереди, в материалах.
+ *
+ * Двое суток выпуска, и не круглым числом, а по самому плану: сколько слотов
+ * контент-план ставит на ближайшие двое суток, столько и держим готовыми.
+ * Почему именно двое — это окно, за которое линия успевает восстановиться после
+ * суточного выгорания квот: бесплатные потолки провайдеров суточные, и запас
+ * меньше суток означает пропущенные окна на следующий же день после отказа.
+ *
+ * Запас БОЛЬШЕ двух суток — сожжённая квота: материал успеет устареть, а тема
+ * потерять актуальность раньше, чем дойдёт до своего окна.
+ */
+export function marketingBufferTarget(now: Date): number {
+  const until = new Date(now.getTime() + 2 * 24 * 3_600_000);
+  try {
+    return contentPlanFor(now).filter((slot) => {
+      const at = new Date(slot.scheduledAt).getTime();
+      return at >= now.getTime() && at <= until.getTime();
+    }).length;
+  } catch {
+    return 6;
+  }
+}
+
+/**
+ * Итог прохода линии.
+ *
+ * Форма ОДНА на все ветки, включая выключенный контур. Разные формы у ветвей
+ * означали бы, что сводка и журнал вынуждены каждый раз проверять, какое поле
+ * сегодня существует, — а `bottleneck` и `tact` нужны именно тогда, когда
+ * что-то пошло не так.
+ */
+export interface MarketingAgentCycleResult {
+  enabled: boolean;
+  processed: number;
+  conversational: number;
+  planned: number;
+  reviewQueue: number;
+  deferred: number;
+  paced: number;
+  capacityStop: boolean;
+  capacityCooldown: boolean;
+  bottleneck: ConveyorBottleneck;
+  tact: {
+    demand: number;
+    ready: number;
+    awaitingReview: number;
+    writtenThisHour: number;
+    perHour: number;
+    writerBudget: number;
+    capacityPerHour: number;
+  };
+  pausedUntil?: string;
+}
+
+const IDLE_TACT = {
+  demand: 0,
+  ready: 0,
+  awaitingReview: 0,
+  writtenThisHour: 0,
+  perHour: 0,
+  writerBudget: 0,
+  capacityPerHour: 0,
+} as const;
+
+export async function runMarketingAgentCycle(
+  input: { now?: Date } = {},
+): Promise<MarketingAgentCycleResult> {
   if (!await marketingAgentEnabled()) {
-    return { enabled: false, processed: 0, deferred: 0, conversational: 0, planned: 0, paced: 0 };
+    return {
+      enabled: false,
+      processed: 0,
+      deferred: 0,
+      conversational: 0,
+      planned: 0,
+      reviewQueue: 0,
+      paced: 0,
+      capacityStop: false,
+      capacityCooldown: false,
+      bottleneck: "buffer",
+      tact: { ...IDLE_TACT },
+    };
   }
   const now = input.now ?? new Date();
   // B677: снимаем с доски то, чего больше не происходит. Первым действием
@@ -1456,39 +1574,85 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
     select: { id: true },
   });
 
+  /** Написано, но ещё не проверено — это и есть очередь барабана. */
+  const awaitingReviewFilter = {
+    agentWrittenAt: { not: null },
+    agentReviewedAt: null,
+  };
+  /** Спрос окна: плановое, ещё не доведённое до утверждения. */
+  const demandFilter = { AND: [readyForWork, dueNow, plannedFilter] };
+
   const hourAgo = new Date(now.getTime() - 60 * 60_000);
-  const [plannedThisHour, deferred] = await Promise.all([
+  const [writtenThisHour, deferred, awaitingReview, demand, ready] = await Promise.all([
+    /**
+     * B700 фаза 2 — норма часа считается по СДЕЛАННОМУ, а не по дошедшему до конца.
+     *
+     * Раньше здесь стоял `agentReviewedAt`, а эта отметка появляется только на
+     * успешно прошедшем материале. Когда редактор падал на исчерпанном потолке,
+     * отметки не было — норма часа выглядела нетронутой, и следующий тик воркера
+     * брал ту же строку заново (B658, замер прода 2026-08-04). Фаза 1 дала
+     * честный счётчик авторского труда: `agentWrittenAt` ставится в момент,
+     * когда текст лёг на склад, независимо от того, что случилось дальше.
+     */
     db.externalPublication.count({
-      where: { AND: [plannedFilter, { agentReviewedAt: { gte: hourAgo } }] },
+      where: { AND: [plannedFilter, { agentWrittenAt: { gte: hourAgo } }] },
     }),
     db.externalPublication.count({
       where: { AND: [readyForWork, { scheduledFor: { gt: horizon } }] },
     }),
+    db.externalPublication.count({
+      where: { AND: [readyForWork, plannedFilter, awaitingReviewFilter] },
+    }),
+    db.externalPublication.count({ where: demandFilter }),
+    db.externalPublication.count({
+      where: {
+        AND: [
+          plannedFilter,
+          { status: { in: [...MARKETING_APPROVED_STATUSES] } },
+          { scheduledFor: { gte: now, lte: horizon } },
+        ],
+      },
+    }),
   ]);
-  /**
-   * B658 — часовой шаг считал ПОПЫТКИ, дошедшие до конца, а не сделанные.
-   *
-   * `plannedThisHour` берётся по `agentReviewedAt`, а эта отметка ставится
-   * только на успешно прошедшем материале. Когда reviewer падает на исчерпанном
-   * суточном потолке, отметки нет — счётчик остаётся нулём, норма часа выглядит
-   * нетронутой, и следующий тик воркера (примерно раз в 70 секунд) берёт ТУ ЖЕ
-   * строку заново. Замер прода 2026-08-04: одна публикация
-   * `cms5beiwo001b0vwk569i1p8u` крутилась в этом цикле часами, writer при этом
-   * КАЖДЫЙ раз отрабатывал успешно и списывал токены с того самого потолка, об
-   * который спотыкался reviewer. Норма — 2 материала в час, фактически шло
-   * около пятидесяти.
-   *
-   * Сигнал `agent:capacity` уже пишется при каждом таком отказе, и у него есть
-   * `lastSeenAt`. Его и берём за остывание: пока он свежий, плановая генерация
-   * не запускается вовсе. Разговорные материалы остывания не знают — ответ
-   * человеку откладывать нельзя, а ёмкость у него отдельная.
-   */
-  const capacityCooldown = await marketingCapacityCooldownActive(now);
 
-  const plannedBudget = capacityCooldown ? 0 : Math.max(0, Math.min(
-    LOOP_LIMIT,
-    MARKETING_PLANNED_DRAFTS_PER_HOUR - plannedThisHour,
-  ));
+  /**
+   * B700 фаза 3 — линия ждёт срок, названный провайдером, а не свои 30 минут.
+   *
+   * Разговорные материалы паузы не знают: ответ человеку откладывать нельзя, а
+   * ёмкость у него отдельная (`marketing-reply-*`).
+   */
+  const pausedUntil = await marketingCapacityPausedUntil(now);
+  const capacityCooldown = Boolean(pausedUntil);
+
+  /**
+   * B700 фаза 2 — такт вместо константы «2 в час».
+   *
+   * Спрос, запас и ёмкость собраны выше живыми числами; арифметика и барабан
+   * живут в `conveyor-tact.ts`, где их держит прогон, а не живая база.
+   */
+  const capacity = capacityCooldown
+    ? { perHour: 0, materialsLeftToday: 0 }
+    : await marketingHourlyCapacity(now).catch(() => ({ perHour: 2, materialsLeftToday: 2 }));
+  const tact = conveyorTact({
+    demand,
+    buffer: marketingBufferTarget(now),
+    ready,
+    /**
+     * Знаменатель такта — само окно опережения, а не срок ближайшего слота.
+     *
+     * Такт отвечает на вопрос «с какой скоростью производить», а не «что взять
+     * первым». Срочность — это ПОРЯДОК очереди, и ей место в отдельной правке
+     * (фаза 8, «срочное вперёд»): если считать темп от ближайшего слота, один
+     * горящий материал разгонял бы всю линию и выжигал квоту на остальных.
+     */
+    hoursToHorizon: Math.ceil(MARKETING_GENERATION_LEAD_MS / 3_600_000),
+    capacityPerHour: capacity.perHour,
+    awaitingReview,
+    maxAwaitingReview: MARKETING_MAX_AWAITING_REVIEW,
+    writtenThisHour,
+  });
+
+  const plannedBudget = capacityCooldown ? 0 : Math.min(LOOP_LIMIT, tact.writerBudget);
   /**
    * B632 — исключение с условием окончания.
    *
@@ -1507,40 +1671,69 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
    * Проверка делается только тогда, когда норма часа не исчерпана: иначе это
    * лишний запрос в базу на каждом тике воркера.
    */
-  const plannedDue = plannedBudget > 0 && await dzenFeedNeedsTopUp()
+  /**
+   * B700 фаза 2 — БАРАБАН разбирается первым и своим бюджетом.
+   *
+   * Фаза 1 ставила написанное впереди ненаписанного внутри одного общего
+   * бюджета. Этого мало: когда такт даёт ноль (буфер полон, ёмкость выжжена,
+   * очередь редактора переполнена), обнулялась и очередь редактора — то есть
+   * линия переставала ДОДЕЛЫВАТЬ уже оплаченное. Незавершённое производство
+   * копилось ровно там, где его меньше всего можно себе позволить.
+   *
+   * Теперь это две разные операции с разной экономикой. Материал со склада стоит
+   * один вызов редактора и сразу превращается в готовое — его разбор ограничен
+   * только паузой линии. Свежий черновик стоит два вызова и увеличивает склад —
+   * его разрешает такт.
+   */
+  const reviewQueue = capacityCooldown
+    ? []
+    : await db.externalPublication.findMany({
+      where: { AND: [readyForWork, plannedFilter, awaitingReviewFilter] },
+      orderBy: [{ scheduledFor: "asc" }, { agentWrittenAt: "asc" }],
+      take: LOOP_LIMIT,
+      select: { id: true },
+    });
+
+  // Автору достаётся то, что осталось от прохода после барабана.
+  const writerRoom = Math.max(0, Math.min(plannedBudget, LOOP_LIMIT - reviewQueue.length));
+  /**
+   * B632 — исключение с условием окончания.
+   *
+   * Окно опережения в 30 часов даёт примерно по одному материалу Дзена в сутки,
+   * и лента набиралась бы до нашей планки полторы недели. Пока лента недобрана,
+   * черновики Дзена берутся вне окна — но внутри того же такта, поэтому это не
+   * возврат к пачке.
+   *
+   * ⚠ B698 — ПОЧЕМУ ДОБАВИЛОСЬ ВТОРОЕ УСЛОВИЕ. Исключение обещало сняться «само
+   * на десятом материале». Обещание держалось на том, что лента растёт. Выпуск
+   * переведён на браузерную сессию, и лента не растёт вовсе: исключение стало
+   * бессрочным, а черновики Дзена — вечно досрочными, то есть их расписание
+   * перестало что-либо значить. Ускорение имеет смысл ровно тогда, когда
+   * работает то, что оно ускоряет.
+   *
+   * Проверка делается только тогда, когда такт разрешил автору писать: иначе
+   * это лишний запрос в базу на каждом тике воркера.
+   */
+  const plannedDue = writerRoom > 0 && await dzenFeedNeedsTopUp()
     ? { OR: [dueNow, { platform: "dzen" }] }
     : dueNow;
-  const planned = plannedBudget > 0
+  const freshFilter = {
+    AND: [readyForWork, plannedDue, plannedFilter, { agentWrittenAt: null }],
+  };
+  const fresh = writerRoom > 0
     ? await db.externalPublication.findMany({
-      where: { AND: [readyForWork, plannedDue, plannedFilter] },
-      /**
-       * B700 — незавершённое производство доделывается ПЕРВЫМ.
-       *
-       * Правило конвейера, а не вкусовое предпочтение: материал, который уже
-       * написан и ждёт только редактора, стоит один вызов и сразу превращается
-       * в готовое. Свежий черновик стоит два и увеличивает склад. Пока порядок
-       * определялся плановой датой, дешёвая операция стояла в очереди за
-       * дорогой — и в дефиците ёмкости очередь редактора не разбиралась
-       * никогда.
-       *
-       * `nulls: "last"` и есть эта граница: написанное впереди ненаписанного.
-       */
-      orderBy: [
-        { agentWrittenAt: { sort: "asc", nulls: "last" } },
-        { scheduledFor: "asc" },
-        { createdAt: "asc" },
-      ],
-      take: plannedBudget,
+      where: freshFilter,
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: writerRoom,
       select: { id: true },
     })
     : [];
-  // «Отложено часовым шагом» — отдельное число: иначе пустая очередь и
-  // сработавший пейсинг снаружи выглядят одинаково.
-  const paced = plannedBudget > 0
+  const planned = [...reviewQueue, ...fresh];
+  // «Отложено тактом» — отдельное число: иначе пустая очередь и сработавший
+  // пейсинг снаружи выглядят одинаково.
+  const paced = writerRoom > 0
     ? 0
-    : await db.externalPublication.count({
-      where: { AND: [readyForWork, plannedDue, plannedFilter] },
-    });
+    : await db.externalPublication.count({ where: freshFilter });
 
   // B658: проход останавливается на первой же нехватке ёмкости. Раньше он
   // честно дорабатывал список — и каждый следующий материал повторял ровно тот
@@ -1565,6 +1758,26 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
     paced,
     capacityStop,
     capacityCooldown,
+    /**
+     * B700 фаза 2/3 — такт в журнале.
+     *
+     * Одна строка прохода должна отвечать на вопрос «почему линия молчит», не
+     * заставляя лезть в базу. Без этих чисел «processed: 0» одинаково выглядит
+     * и при полном буфере, и при выжженных квотах, и при переполненном складе, —
+     * а меры это требует совершенно разные.
+     */
+    reviewQueue: reviewQueue.length,
+    bottleneck: tact.bottleneck,
+    tact: {
+      demand,
+      ready,
+      awaitingReview,
+      writtenThisHour,
+      perHour: tact.perHour,
+      writerBudget: tact.writerBudget,
+      capacityPerHour: capacity.perHour,
+    },
+    ...(pausedUntil ? { pausedUntil: pausedUntil.toISOString() } : {}),
   };
 }
 
