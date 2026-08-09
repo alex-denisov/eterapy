@@ -8,6 +8,9 @@
  * возвращая `{ data: null, error }`. Наша обёртка считала резолв успехом.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 const send = jest.fn();
 
 jest.mock("resend", () => ({
@@ -81,8 +84,6 @@ describe("B669 — правда об отправке письма", () => {
   });
 
   it("отправка идёт через одну точку — ни один файл не зовёт SDK напрямую", () => {
-    const fs = require("node:fs") as typeof import("node:fs");
-    const path = require("node:path") as typeof import("node:path");
     const root = path.join(__dirname, "..");
     const offenders: string[] = [];
     const walk = (dir: string) => {

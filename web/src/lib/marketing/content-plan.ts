@@ -201,7 +201,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     order += 1;
   };
 
-  dates.forEach((date, dayIndex) => {
+  dates.forEach((date) => {
     TELEGRAM_FORMATS.forEach(([format, editorialAngle], sequence) => {
       push({
         channel: "telegram",
@@ -256,7 +256,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   });
 
   const dzenDays = [1, 3, 5, 8, 10, 12] as const;
-  dzenDays.forEach((dayIndex, sequence) => {
+  dzenDays.forEach((dayIndex) => {
     push({
       channel: "dzen",
       date: dates[dayIndex],
@@ -268,7 +268,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     });
   });
 
-  [4, 11].forEach((dayIndex, sequence) => {
+  [4, 11].forEach((dayIndex) => {
     push({
       channel: "reddit",
       date: dates[dayIndex],

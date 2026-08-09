@@ -10,6 +10,9 @@
  * запросам называет причину, а причин у неё две и они разные.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 import {
   EMPTY_SEARCH_CONSOLE_TOTALS,
   explainEmptyQueries,
@@ -72,8 +75,6 @@ describe("B650 · пустая разбивка по запросам назыв
 });
 
 describe("B650 · панель", () => {
-  const fs = require("fs") as typeof import("fs");
-  const path = require("path") as typeof import("path");
   const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
   it("Google — пятый источник в списке состояния", () => {
@@ -103,8 +104,6 @@ describe("B650 · панель", () => {
 
 describe("B650 · секреты не утекают в интерфейс", () => {
   it("модуль не отдаёт наружу тело ответа токен-эндпоинта", () => {
-    const fs = require("fs") as typeof import("fs");
-    const path = require("path") as typeof import("path");
     const lib = fs.readFileSync(path.join(process.cwd(), "src/lib/search-console.ts"), "utf8");
     // В теле отказа лежит эхо запроса вместе с client_secret.
     expect(lib).toContain("HTTP ${response.status}");
