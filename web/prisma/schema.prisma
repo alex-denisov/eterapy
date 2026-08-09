@@ -1333,6 +1333,12 @@ model ExternalPublication {
   agentReviewerModel String?                   @map("agent_reviewer_model")
   agentReview         Json?                    @map("agent_review")
   agentReviewedAt     DateTime?                @map("agent_reviewed_at")
+  /// B700: незавершённая стадия автора. Автор и редактор — две операции
+  /// конвейера, а не одна: готовый текст автора ложится сюда ДО вызова
+  /// редактора. Отказ редактора по 429 стоит одного вызова редактора, а не
+  /// повторной оплаты уже написанного материала.
+  agentWriterDraft    Json?                    @map("agent_writer_draft")
+  agentWrittenAt      DateTime?                @map("agent_written_at")
   moderationDecisionBy String?                 @map("moderation_decision_by")
   moderationDecisionAt DateTime?               @map("moderation_decision_at")
   /// B618: строка — ответ на конкретное входящее. Уникальность в базе, а не в
