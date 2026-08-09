@@ -40,6 +40,24 @@ async function ensureEnabled(platform: MarketingPlatform) {
   }
 }
 
+/**
+ * Адрес конкретного ответа в личных сообщениях VK.
+ *
+ * ⚠ АДРЕС ДИАЛОГА НЕ ЕСТЬ АДРЕС ОТВЕТА. `…?sel=<peer>` открывает переписку с
+ * человеком и одинаков для КАЖДОГО ответа ему. У `public_url` в реестре
+ * уникальность, поэтому второй ответ одному собеседнику падал с
+ * `Unique constraint failed on the fields: (public_url)` — уже ПОСЛЕ того, как
+ * VK сообщение принял. Идентификатор сообщения делает адрес своим у каждого
+ * ответа, диалог при этом открывается тот же.
+ */
+export function vkDirectReplyUrl(input: {
+  communityId: string;
+  peerId: string;
+  messageId: string;
+}): string {
+  return `https://vk.com/gim${input.communityId}?sel=${encodeURIComponent(input.peerId)}#msg${input.messageId}`;
+}
+
 async function replyOnVk(input: { body: string; target: InboundReplyTarget }): Promise<PublishedPost> {
   await ensureEnabled("VK");
   const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
@@ -67,9 +85,20 @@ async function replyOnVk(input: { body: string; target: InboundReplyTarget }): P
     if (!response.ok || typeof payload?.response !== "number") {
       throw new Error(`VK messages.send failed: ${payload?.error?.error_msg ?? `HTTP ${response.status}`}`);
     }
+    /**
+     * ⚠ АДРЕС ДИАЛОГА НЕ ЕСТЬ АДРЕС ОТВЕТА. `…?sel=<peer>` — это адрес переписки
+     * с человеком, один и тот же для КАЖДОГО ответа ему. У `public_url` в
+     * реестре уникальность, поэтому второй ответ одному и тому же собеседнику
+     * падал с `Unique constraint failed on the fields: (public_url)` — уже ПОСЛЕ
+     * того, как VK сообщение принял. Наблюдение владельца 2026-08-08: «ответ
+     * даже успешно ушёл, а в админке застряло как требует ответа».
+     *
+     * Добавляем идентификатор сообщения: адрес по-прежнему открывает нужный
+     * диалог, но у каждого ответа он свой.
+     */
     return {
       externalPostId: String(payload.response),
-      publicUrl: `https://vk.com/gim${communityId}?sel=${encodeURIComponent(peerId)}`,
+      publicUrl: vkDirectReplyUrl({ communityId, peerId, messageId: String(payload.response) }),
     };
   }
 

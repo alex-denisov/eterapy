@@ -893,22 +893,55 @@ export async function publishScheduledMarketing(input: {
         engagementTargetUrl: publication.engagementTargetUrl,
         inbound: publication.inboundReplyTo ?? null,
       });
-      await db.externalPublication.update({
-        where: { id: publication.id },
-        data: {
-          status: "PUBLISHED",
-          externalPostId: published.externalPostId,
+      /**
+       * ⚠ ОТПРАВКА УЖЕ СОСТОЯЛАСЬ — ОТМЕНИТЬ ЕЁ НЕЛЬЗЯ. Всё, что падает ниже,
+       * это учёт, и он не имеет права превратить доставленное в «неудачу».
+       *
+       * Живой случай 2026-08-08: второй ответ одному и тому же человеку в VK
+       * ушёл, а запись упала на `Unique constraint failed on the fields:
+       * (public_url)` — адрес диалога у всех ответов один. Материал ушёл в
+       * архив, входящее осталось «требует ответа», а человек ответ УЖЕ получил.
+       * Тот же класс, что B694: побочное действие не должно решать судьбу
+       * основной операции.
+       */
+      const publishedData = {
+        status: "PUBLISHED" as const,
+        externalPostId: published.externalPostId,
+        publishedAt: now,
+        nextReviewAt: new Date(now.getTime() + 7 * DAY_MS),
+        lastError: null,
+        // `undefined` в Prisma означает «не трогать поле»: заметка
+        // дописывается к существующей, а не затирает её.
+        notes: published.note
+          ? [publication.notes, published.note].filter(Boolean).join("\n")
+          : undefined,
+      };
+      try {
+        await db.externalPublication.update({
+          where: { id: publication.id },
+          data: { ...publishedData, publicUrl: published.publicUrl },
+        });
+      } catch (error) {
+        const collision = typeof error === "object" && error !== null
+          && (error as { code?: string }).code === "P2002";
+        if (!collision) throw error;
+        // Адрес занят другой строкой — записываем выпуск без него. Потерять
+        // адрес не страшно, потерять факт доставки — страшно.
+        log.warn("marketing.publish_url_collision", {
+          publicationId: publication.id,
+          platform: publication.platform,
           publicUrl: published.publicUrl,
-          publishedAt: now,
-          nextReviewAt: new Date(now.getTime() + 7 * DAY_MS),
-          lastError: null,
-          // `undefined` в Prisma означает «не трогать поле»: заметка
-          // дописывается к существующей, а не затирает её.
-          notes: published.note
-            ? [publication.notes, published.note].filter(Boolean).join("\n")
-            : undefined,
-        },
-      });
+        });
+        await db.externalPublication.update({
+          where: { id: publication.id },
+          data: {
+            ...publishedData,
+            publicUrl: null,
+            notes: [publishedData.notes ?? publication.notes, `Адрес ${published.publicUrl} уже занят другой строкой реестра`]
+              .filter(Boolean).join("\n"),
+          },
+        });
+      }
       // B653: владелец узнаёт о выпуске в тот же момент, что и площадка.
       //
       // ⚠ Место выбрано не случайно: сюда попадает ровно один воркер и ровно
