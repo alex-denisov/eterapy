@@ -133,9 +133,12 @@ describe("B469 AI search readiness", () => {
       account_created: false,
       state_stored: false,
     }));
-    expect(source("src/app/robots.txt/route.ts")).toContain(
-      '"User-agent: *",\n    "Content-Signal: ai-train=no, search=yes, ai-input=no",',
-    );
+    // B701: сигнал прав живёт в блоке `User-agent: *` и разрешает цитирование.
+    // Обучение по-прежнему запрещено — это две разные вещи, и раньше строка
+    // запрещала обе, отменяя нашу же цель попасть в ответы ИИ.
+    const robots = source("src/app/robots.txt/route.ts");
+    expect(robots).toContain('"User-agent: *"');
+    expect(robots).toContain('"Content-Signal: ai-train=no, search=yes, ai-input=yes"');
     expect(nextConfig).toContain('rel="api-catalog"');
     expect(source("src/app/mcp/route.ts")).toContain('"https://staging.eterapy.com"');
     expect(webMcp).toContain("navigator.modelContext.registerTool");

@@ -1,4 +1,7 @@
-import type { AIProvider, Prisma } from "@prisma/client";
+import type { AIProvider } from "@prisma/client";
+// B700: `Prisma` нужен значением, а не только типом — `Prisma.DbNull` очищает
+// колонку `Json?`, и обычный `null` для неё означает «не менять».
+import { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { AIGatewayRoutingError } from "@/lib/ai-gateway/routing";
 import db from "@/lib/db";
@@ -799,6 +802,75 @@ async function recordSignal(input: {
   });
 }
 
+/** Кто именно отработал роль. Провайдер и модель — всё, что нужно снаружи. */
+interface RoleStamp {
+  provider: string;
+  model: string;
+}
+
+interface EditorialIteration {
+  round: number;
+  writer: RoleStamp;
+  candidate: WriterOutput;
+  /** B623: что дописала система за автора — видно и редактору, и в кокпите. */
+  repairs: DraftRepair[];
+  reviewer: RoleStamp;
+  review: ReviewerOutput;
+}
+
+/**
+ * B700 — незавершённое производство на строке реестра.
+ *
+ * Автор и редактор это две операции конвейера, и между ними материал обязан
+ * лежать на складе, а не в памяти процесса. Раньше готовый текст автора жил в
+ * локальной переменной: отказ редактора по 429 уносил его вместе с исключением,
+ * и следующий проход платил за ту же работу заново. Замер прода 2026-08-09 — 88
+ * успешных генераций автора за сутки при нуле публикаций.
+ *
+ * Здесь лежит ровно то, что нужно, чтобы продолжить с места остановки:
+ * написанное, история раундов и уже собранная справка. Справка переносится не
+ * ради экономии — ради воспроизводимости: редактор должен смотреть тот же
+ * материал, который писал автор.
+ */
+interface CarriedWriterStage {
+  /** Раунд, с которого продолжает следующий проход. */
+  round: number;
+  research: unknown;
+  iterationHistory: EditorialIteration[];
+  previousDraft: WriterOutput | null;
+  previousReview: ReviewerOutput | null;
+  /**
+   * Написанное и ждущее редактора. `null` означает, что раунд закончился
+   * доработкой (перебор по длине площадки) и смотреть пока нечего.
+   */
+  pending: { draft: WriterOutput; repairs: DraftRepair[]; writer: RoleStamp } | null;
+}
+
+/**
+ * Разбор склада. Мусор в колонке не должен ронять материал: непонятная стадия
+ * означает «начинаем сначала», а не «строка мертва». Цена ошибки несимметрична
+ * — лишняя генерация против навсегда застрявшей строки.
+ */
+export function carriedWriterStage(value: unknown): CarriedWriterStage | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const round = typeof raw.round === "number" && raw.round >= 1 ? raw.round : null;
+  if (!round || !Array.isArray(raw.iterationHistory)) return null;
+  const pending = raw.pending && typeof raw.pending === "object"
+    ? raw.pending as CarriedWriterStage["pending"]
+    : null;
+  // Ни написанного, ни истории правки — продолжать нечего.
+  if (!pending?.draft?.text && !raw.previousDraft) return null;
+  return {
+    round,
+    research: raw.research ?? null,
+    iterationHistory: raw.iterationHistory as EditorialIteration[],
+    previousDraft: (raw.previousDraft as WriterOutput | null) ?? null,
+    previousReview: (raw.previousReview as ReviewerOutput | null) ?? null,
+    pending,
+  };
+}
+
 export async function processMarketingDraft(publicationId: string) {
   const publication = await db.externalPublication.findUnique({
     where: { id: publicationId },
@@ -905,23 +977,55 @@ export async function processMarketingDraft(publicationId: string) {
     // B680: счётчик обращений к моделям на весь материал — общий для обеих
     // ролей и всех раундов правки.
     const attempts = { used: 0 };
-    const research = await buildMarketingResearchBrief(publication);
-    const iterationHistory: Array<{
-      round: number;
-      writer: { provider: string; model: string };
-      candidate: WriterOutput;
-      /** B623: что дописала система за автора — видно и редактору, и в кокпите. */
-      repairs: DraftRepair[];
-      reviewer: { provider: string; model: string };
-      review: ReviewerOutput;
-    }> = [];
+    // B700: проход продолжает со склада, а не с чистого листа. Справка тоже
+    // берётся оттуда — редактор обязан смотреть тот материал, который писал
+    // автор, а не свежесобранный по тем же исходным данным.
+    const carried = carriedWriterStage(publication.agentWriterDraft);
+    const research = carried?.research ?? await buildMarketingResearchBrief(publication);
+    const iterationHistory: EditorialIteration[] = carried ? [...carried.iterationHistory] : [];
     let approvedDraft: WriterOutput | null = null;
-    let lastWriter: Awaited<ReturnType<typeof aiComplete>> | null = null;
-    let lastReviewer: Awaited<ReturnType<typeof aiComplete>> | null = null;
-    let previousDraft: WriterOutput | null = null;
-    let previousReview: ReviewerOutput | null = null;
+    let lastWriter: RoleStamp | null = carried?.pending?.writer
+      ?? carried?.iterationHistory.at(-1)?.writer
+      ?? null;
+    let lastReviewer: RoleStamp | null = null;
+    let previousDraft: WriterOutput | null = carried?.previousDraft ?? null;
+    let previousReview: ReviewerOutput | null = carried?.previousReview ?? null;
+    /** Написанное со склада: первый раунд прохода отдаёт его редактору как есть. */
+    let pending = carried?.pending ?? null;
 
-    for (let round = 1; round <= EDITORIAL_ROUND_LIMIT; round += 1) {
+    /**
+     * B700 — склад пишется ДО вызова редактора, а не после утверждения.
+     *
+     * Отдельной функцией, потому что вызывается из двух мест цикла и обязана
+     * быть безобидной: сбой записи склада не должен убивать материал, который
+     * уже написан. В худшем случае мы теряем экономию, а не работу.
+     */
+    const carry = async (stage: CarriedWriterStage) => {
+      await db.externalPublication.update({
+        where: { id: publication.id },
+        data: {
+          agentWriterDraft: stage as unknown as Prisma.InputJsonValue,
+          agentWrittenAt: new Date(),
+        },
+      }).catch((error) => {
+        log.warn("marketing.writer_stage_not_carried", {
+          publicationId: publication.id,
+          error: serializeError(error),
+        });
+      });
+    };
+
+    for (let round = carried?.round ?? 1; round <= EDITORIAL_ROUND_LIMIT; round += 1) {
+      let writer: RoleStamp;
+      let repaired: ReturnType<typeof repairPublishableDraft>;
+      if (pending) {
+        // B700: материал написан и оплачен прошлым проходом — он идёт прямо к
+        // редактору. Требования площадки он тогда прошёл, иначе не попал бы на
+        // склад: повторная проверка ничего не добавит.
+        writer = pending.writer;
+        repaired = { draft: pending.draft, repairs: pending.repairs, violations: [] };
+        pending = null;
+      } else {
       const pinnedWriterProvider: AIProvider | null = lastWriter
         ? marketingProviderFromLabel(lastWriter.provider)
         : null;
@@ -953,8 +1057,9 @@ export async function processMarketingDraft(publicationId: string) {
         ],
         parse: (raw) => writerObject(raw, publication.title),
       });
-      const writer: AICompletion = writerResult.response;
-      const { draft, repairs, violations } = repairPublishableDraft({
+      const completion: AICompletion = writerResult.response;
+      writer = { provider: completion.provider, model: completion.model };
+      repaired = repairPublishableDraft({
         draft: writerResult.value,
         isConversational,
         destinationUrl: publication.destinationUrl,
@@ -962,6 +1067,8 @@ export async function processMarketingDraft(publicationId: string) {
         topic: publication.cluster ?? publication.targetQuery,
         finalRound: round === EDITORIAL_ROUND_LIMIT,
       });
+      }
+      const { draft, repairs, violations } = repaired;
 
       // B640: перебор по длине и пустой mediaBrief — исполнимое замечание, а не
       // приговор. Раньше здесь материал выбрасывался (`throw` → FAILED), и
@@ -994,8 +1101,31 @@ export async function processMarketingDraft(publicationId: string) {
         lastWriter = writer;
         previousDraft = draft;
         previousReview = limitReview;
+        // B700: раунд ушёл на доработку — на склад ложится история, а не текст.
+        // Иначе перезапуск воркера посреди правки вернул бы материал к первому
+        // раунду и потерял бы уже названные замечания.
+        await carry({
+          round: round + 1,
+          research,
+          iterationHistory,
+          previousDraft,
+          previousReview,
+          pending: null,
+        });
         continue;
       }
+
+      // B700: написанное ложится на склад ДО вызова редактора. Это и есть
+      // граница двух операций конвейера: дальше отказ редактора стоит одного
+      // вызова редактора, а не повторной оплаты автора.
+      await carry({
+        round,
+        research,
+        iterationHistory,
+        previousDraft,
+        previousReview,
+        pending: { draft, repairs, writer },
+      });
 
       // B623: редактор предпочитает другого провайдера, но окончательный
       // критерий — другая МОДЕЛЬ. Провайдер автора остаётся в конце очереди как
@@ -1029,7 +1159,10 @@ export async function processMarketingDraft(publicationId: string) {
         ],
         parse: (raw) => reviewerObject(raw, scoreKeys),
       });
-      const reviewer = reviewerResult.response;
+      const reviewer: RoleStamp = {
+        provider: reviewerResult.response.provider,
+        model: reviewerResult.response.model,
+      };
       if (writer.model === reviewer.model) {
         throw new MarketingModelSeparationError(
           `writer and reviewer resolved to the same model ${writer.model}`,
@@ -1077,6 +1210,10 @@ export async function processMarketingDraft(publicationId: string) {
           agentReviewerModel: lastReviewer?.model,
           agentReview: { research, iterations: iterationHistory } as unknown as Prisma.InputJsonValue,
           agentReviewedAt: new Date(),
+          // B700: исход терминальный — склад закрывается. Оставленная стадия
+          // означала бы «этот текст ещё ждёт редактора», а его уже отклонили.
+          agentWriterDraft: Prisma.DbNull,
+          agentWrittenAt: null,
         },
       });
       return { status: "rejected" as const };
@@ -1107,6 +1244,10 @@ export async function processMarketingDraft(publicationId: string) {
         agentReviewerModel: lastReviewer.model,
         agentReview: { research, iterations: iterationHistory } as unknown as Prisma.InputJsonValue,
         agentReviewedAt: new Date(),
+        // B700: материал прошёл обе операции — незавершённого производства на
+        // строке не остаётся.
+        agentWriterDraft: Prisma.DbNull,
+        agentWrittenAt: null,
       },
     });
     if (isConversational) await requestMarketingModeration(updated.id);
@@ -1127,8 +1268,18 @@ export async function processMarketingDraft(publicationId: string) {
     await db.externalPublication.update({
       where: { id: publication.id },
       data: deferrable
+        // B700: отложенный отказ склад НЕ трогает — в нём лежит написанное, ради
+        // сохранности которого склад и заведён. Признанный брак материала склад
+        // закрывает: иначе возврат из `FAILED` (registry-recovery) поднял бы к
+        // редактору ровно тот текст, который только что забраковали.
         ? { lastError: message }
-        : { status: "FAILED", lastError: message, attemptCount: { increment: 1 } },
+        : {
+          status: "FAILED",
+          lastError: message,
+          attemptCount: { increment: 1 },
+          agentWriterDraft: Prisma.DbNull,
+          agentWrittenAt: null,
+        },
     }).catch(() => undefined);
     await recordSignal(deferrable
       ? {
@@ -1362,7 +1513,23 @@ export async function runMarketingAgentCycle(input: { now?: Date } = {}) {
   const planned = plannedBudget > 0
     ? await db.externalPublication.findMany({
       where: { AND: [readyForWork, plannedDue, plannedFilter] },
-      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      /**
+       * B700 — незавершённое производство доделывается ПЕРВЫМ.
+       *
+       * Правило конвейера, а не вкусовое предпочтение: материал, который уже
+       * написан и ждёт только редактора, стоит один вызов и сразу превращается
+       * в готовое. Свежий черновик стоит два и увеличивает склад. Пока порядок
+       * определялся плановой датой, дешёвая операция стояла в очереди за
+       * дорогой — и в дефиците ёмкости очередь редактора не разбиралась
+       * никогда.
+       *
+       * `nulls: "last"` и есть эта граница: написанное впереди ненаписанного.
+       */
+      orderBy: [
+        { agentWrittenAt: { sort: "asc", nulls: "last" } },
+        { scheduledFor: "asc" },
+        { createdAt: "asc" },
+      ],
       take: plannedBudget,
       select: { id: true },
     })

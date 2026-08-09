@@ -51,7 +51,13 @@ export function GET(request: Request) {
   return textResponse([
     ...AI_CRAWLERS.flatMap(crawlerRules),
     "User-agent: *",
-    "Content-Signal: ai-train=no, search=yes, ai-input=no",
+    // B701 — решение владельца 2026-08-09: цитирование разрешено, обучение нет.
+    //
+    // `ai-input=no` стоял здесь вместе с целью «попасть в ответы ИИ», и это
+    // противоречие: обучение и цитирование — разные вещи, а сигнал запрещал и
+    // второе. Ассистент, соблюдающий сигнал, не имел права опереться на наш
+    // текст в ответе — то есть GEO/AEO мы отменяли сами, своей же строкой.
+    "Content-Signal: ai-train=no, search=yes, ai-input=yes",
     "Allow: /",
     ...PRIVATE_PATHS.flatMap((path) => [`Disallow: ${path}`, `Disallow: ${path}/`]),
     "",
