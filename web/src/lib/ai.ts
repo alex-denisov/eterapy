@@ -29,6 +29,7 @@ import {
   providerCooldownUntil,
   type DecryptedAICredential,
 } from "@/lib/ai-gateway/credentials";
+import { classifyCredentialFailure } from "@/lib/ai-gateway/cooldown";
 import {
   applyAIPromptOverride,
   serializeAIMessagesForAdmin,
@@ -116,25 +117,6 @@ function adaptersForCredentials(
   }));
 }
 
-interface FailureClassification {
-  cooldownMs: number;
-  regionBlocked: boolean;
-}
-
-function classifyCredentialFailure(code: string | undefined): FailureClassification {
-  if (!code) return { cooldownMs: 60_000, regionBlocked: false };
-  // B694: у региональной блокировки есть срок. Раньше `cooldownMs: 0` вместе с
-  // жёстким `regionBlocked: false` в выборке означал вечное выбывание — снять
-  // флаг было нечем, кроме правки в базе, и один разовый 403 навсегда уводил
-  // провайдера из пула. Сутки — это «сегодня не ходим», а не «никогда».
-  if (code === "HTTP_403") return { cooldownMs: 24 * 60 * 60_000, regionBlocked: true };
-  if (code === "HTTP_401") return { cooldownMs: 30 * 60_000, regionBlocked: false };
-  if (code === "HTTP_402") return { cooldownMs: 60 * 60_000, regionBlocked: false };
-  if (code === "HTTP_429") return { cooldownMs: 5 * 60_000, regionBlocked: false };
-  if (code === "TIMEOUT" || /^HTTP_5\d\d$/.test(code)) return { cooldownMs: 60_000, regionBlocked: false };
-  if (code === "MISSING_CONFIG") return { cooldownMs: 0, regionBlocked: false };
-  return { cooldownMs: 60_000, regionBlocked: false };
-}
 
 async function loadProviderConfigs(): Promise<AIRoutingProviderConfig[]> {
   const rows = await db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] });
@@ -407,7 +389,9 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           return [markCredentialSuccess({ credentialId: attempt.credentialId })];
         }
         if (attempt.status === "failed") {
-          const classification = classifyCredentialFailure(attempt.code);
+          const classification = classifyCredentialFailure(attempt.code, {
+            providerMessage: attempt.providerMessage,
+          });
           return [markCredentialFailure({
             credentialId: attempt.credentialId,
             code: attempt.code ?? "PROVIDER_ERROR",
@@ -499,7 +483,9 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       })),
       ...failedAttempts.flatMap((attempt) => {
         if (!attempt.credentialId || attempt.status !== "failed") return [];
-        const classification = classifyCredentialFailure(attempt.code);
+        const classification = classifyCredentialFailure(attempt.code, {
+          providerMessage: attempt.providerMessage,
+        });
         return [markCredentialFailure({
           credentialId: attempt.credentialId,
           code: attempt.code ?? "PROVIDER_ERROR",

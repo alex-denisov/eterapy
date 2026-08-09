@@ -377,6 +377,27 @@ export function activeCredentialWhere(provider: AIProvider, now: Date) {
  * Отвечает на вопрос «список пуст — это надолго?». `null` означает «ключей нет
  * вовсе», дата — «все ключи остывают, вот ближайший срок».
  */
+/**
+ * B699 — какие провайдеры прямо сейчас готовы отвечать.
+ *
+ * Один запрос вместо шести: спрашивается перед тем, как тратить автора, и
+ * ответ нужен целиком, а не по одному провайдеру. Ключ, ушедший в остывание,
+ * доступным не считается — в этом весь смысл вопроса.
+ */
+export async function listProvidersWithActiveCredentials(input?: { now?: Date }): Promise<AIProvider[]> {
+  const now = input?.now ?? new Date();
+  if (!isAICredentialEncryptionConfigured()) return [];
+  const rows = await db.aIProviderCredential.findMany({
+    where: {
+      enabled: true,
+      OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }],
+    },
+    distinct: ["provider"],
+    select: { provider: true },
+  });
+  return rows.map((row) => row.provider);
+}
+
 export async function providerCooldownUntil(input: { provider: AIProvider; now?: Date }): Promise<Date | null> {
   const now = input.now ?? new Date();
   if (!isAICredentialEncryptionConfigured()) return null;

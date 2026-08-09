@@ -25,6 +25,7 @@ import {
   marketingProviderFromLabel,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
+import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import { dzenFeedNeedsTopUp } from "@/lib/marketing/dzen-feed";
 import {
   draftLimitViolations,
@@ -878,6 +879,28 @@ export async function processMarketingDraft(publicationId: string) {
   };
 
   try {
+    /**
+     * B699 — вопрос «есть ли кому проверить» решается ДО вызова автора.
+     *
+     * Редактору нужна модель, отличная от модели автора. Когда в пуле остаётся
+     * одна доступная модель, второй нет по построению — но раньше это
+     * выяснялось уже после того, как автор отработал и списал токены. Замер
+     * прода 2026-08-09: 88 успешных генераций автора за сутки, ноль
+     * публикаций, и списывались они с того самого потолка, из-за которого
+     * второй модели и не было. Нехватка кормила сама себя.
+     *
+     * Отказ здесь ёмкостный: строка остаётся черновиком и вернётся следующим
+     * проходом, когда ключи остынут.
+     */
+    const availability = await marketingPoolAvailability();
+    if (!availability.canSeparateRoles) {
+      throw new MarketingCapacityError(
+        availability.providers.length === 0
+          ? "Не осталось свободной ёмкости провайдеров: все ключи остывают"
+          : `В пуле не осталось второй независимой модели (доступны: ${availability.providers.join(", ")})`,
+      );
+    }
+
     const cycleSeed = `${publication.id}:${publication.attemptCount + 1}`;
     // B680: счётчик обращений к моделям на весь материал — общий для обеих
     // ролей и всех раундов правки.

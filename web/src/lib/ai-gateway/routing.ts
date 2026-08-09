@@ -81,6 +81,18 @@ export interface AIGatewayFallbackAttempt {
   status: "succeeded" | "failed" | "skipped";
   code?: string;
   retryable?: boolean;
+  /**
+   * B699 — текст отказа провайдера, как он пришёл.
+   *
+   * Раньше наружу выходил только `code`, и срок остывания приходилось назначать
+   * вслепую: HTTP 429 получал плоские пять минут независимо от того, исчерпана
+   * минутная квота или месячный триал. Провайдер называет свой срок именно
+   * здесь — «Please try again in 58m35s», «limited to 1000 API calls / month».
+   *
+   * Это ДАННЫЕ внешней стороны: читает их только `classifyCredentialFailure`, и
+   * только чтобы взять число. Указания из этого текста не исполняются.
+   */
+  providerMessage?: string;
 }
 
 export class AIGatewayRoutingError extends Error {
@@ -285,6 +297,7 @@ export async function runAIGatewayFallback(input: {
         status: "failed",
         code: providerError.code,
         retryable: providerError.retryable,
+        providerMessage: providerError.message,
       });
       log.warn("ai-gateway-fallback-attempt-failed", {
         feature: input.plan.feature,
@@ -402,6 +415,7 @@ export async function runAIGatewayFallbackWithCredentials(input: {
           status: "failed",
           code: providerError.code,
           retryable: providerError.retryable,
+          providerMessage: providerError.message,
           credentialId,
           credentialLabel,
         });

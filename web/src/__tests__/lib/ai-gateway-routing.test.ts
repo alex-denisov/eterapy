@@ -172,6 +172,9 @@ describe("AI Gateway routing", () => {
         status: "failed",
         code: "HTTP_429",
         retryable: true,
+        // B699: срок остывания берётся из текста провайдера, поэтому текст
+        // доезжает до попытки.
+        providerMessage: "rate limited",
       },
       {
         provider: AIProvider.OPENAI,
@@ -252,6 +255,7 @@ describe("AI Gateway routing", () => {
         status: "failed",
         code: "HTTP_402",
         retryable: false,
+        providerMessage: "insufficient credits",
       },
       {
         provider: AIProvider.OPENAI,

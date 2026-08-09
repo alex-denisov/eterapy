@@ -43,6 +43,17 @@ const aiComplete = jest.fn();
 const findUnique = jest.fn();
 const update = jest.fn();
 
+jest.mock("@/lib/marketing/pool-capacity", () => ({
+  __esModule: true,
+  // B699: пул с двумя независимыми моделями — предусловие этих тестов, а не их
+  // предмет. Проверка «есть ли вторая модель» разбирается в
+  // b699-last-surviving-provider-must-be-usable.
+  marketingPoolAvailability: async () => ({
+    providers: ["GROQ", "GEMINI"],
+    canSeparateRoles: true,
+  }),
+}));
+
 jest.mock("@/lib/ai", () => ({
   __esModule: true,
   aiComplete: (...args: unknown[]) => aiComplete(...args),
