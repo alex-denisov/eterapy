@@ -201,10 +201,31 @@ function stableSeed(value: string) {
  * Rotate the first-choice provider per material. Fallbacks retain the whole
  * pool, while `excluded` guarantees that reviewer never uses writer's
  * provider.
+ *
+ * B699 — `availableNow` убирает из обхода ключи, про которые в базе УЖЕ
+ * записано, что они остывают.
+ *
+ * Замер прода 2026-08-09 15:27: один проход редактора стучался в groq, cohere,
+ * openrouter, gemini и cerebras — все пять с `ALL_PROVIDERS_FAILED` — и лишь
+ * шестым доходил до живого Mistral. Каждый стук считался обращением, бюджет
+ * материала в 12 обращений (B680) выгорал за два раунда правки, и материал
+ * умирал от расхода, а не от собственного качества.
+ *
+ * Пустой список означает «состояние ключей прочитать не удалось», а не
+ * «живых нет»: чтение вспомогательное, и его отказ не должен молча
+ * останавливать контур. Тогда обход идёт по всему пулу, как раньше.
  */
-export function marketingProviderOrder(seed: string, excluded: AIProvider[] = []): AIProvider[] {
+export function marketingProviderOrder(
+  seed: string,
+  excluded: AIProvider[] = [],
+  availableNow: readonly AIProvider[] = [],
+): AIProvider[] {
   const excludedSet = new Set(excluded);
-  const available = MARKETING_ACTIVE_PROVIDERS.filter((provider) => !excludedSet.has(provider));
+  const availableSet = new Set(availableNow);
+  const available = MARKETING_ACTIVE_PROVIDERS.filter((provider) => {
+    if (excludedSet.has(provider)) return false;
+    return availableSet.size === 0 || availableSet.has(provider);
+  });
   if (available.length < 1) return [];
   const offset = stableSeed(seed) % available.length;
   return [...available.slice(offset), ...available.slice(0, offset)];

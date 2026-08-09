@@ -941,7 +941,8 @@ export async function processMarketingDraft(publicationId: string) {
         feature: isConversational ? MARKETING_REPLY_WRITER_FEATURE : "marketing-agent-writer",
         providerOrder: pinnedWriterProvider
           ? [pinnedWriterProvider]
-          : marketingProviderOrder(`writer:${cycleSeed}`),
+          // B699: обход только по ключам, которые сейчас не остывают.
+          : marketingProviderOrder(`writer:${cycleSeed}`, [], availability.providers),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
         attempts,
@@ -1000,7 +1001,7 @@ export async function processMarketingDraft(publicationId: string) {
       // критерий — другая МОДЕЛЬ. Провайдер автора остаётся в конце очереди как
       // последний вариант: он допустим, если отдаст не ту же модель.
       const writerProvider = marketingProviderFromLabel(writer.provider);
-      const rotated = marketingProviderOrder(`reviewer:${cycleSeed}`);
+      const rotated = marketingProviderOrder(`reviewer:${cycleSeed}`, [], availability.providers);
       const reviewerProviderOrder = [
         ...rotated.filter((provider) => provider !== writerProvider),
         ...rotated.filter((provider) => provider === writerProvider),
