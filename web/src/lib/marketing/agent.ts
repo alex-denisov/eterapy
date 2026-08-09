@@ -1574,9 +1574,19 @@ export async function runMarketingAgentCycle(
     select: { id: true },
   });
 
-  /** Написано, но ещё не проверено — это и есть очередь барабана. */
+  /**
+   * Написано, но ещё не проверено — это и есть очередь барабана.
+   *
+   * Спрашивается СКЛАД (`agentWriterDraft`), а не отметка времени. Две причины,
+   * и обе существенные. По смыслу: очередь редактора — это «есть написанное,
+   * ждущее проверки», и хранит написанное именно склад. По исполнению:
+   * частичный индекс фазы 1 построен ровно по этой паре условий
+   * (`WHERE agent_writer_draft IS NOT NULL AND agent_reviewed_at IS NULL`), а из
+   * `agent_written_at IS NOT NULL` наличие склада не следует — планировщик такой
+   * индекс использовать не может.
+   */
   const awaitingReviewFilter = {
-    agentWrittenAt: { not: null },
+    agentWriterDraft: { not: Prisma.DbNull },
     agentReviewedAt: null,
   };
   /** Спрос окна: плановое, ещё не доведённое до утверждения. */
@@ -1587,15 +1597,31 @@ export async function runMarketingAgentCycle(
     /**
      * B700 фаза 2 — норма часа считается по СДЕЛАННОМУ, а не по дошедшему до конца.
      *
-     * Раньше здесь стоял `agentReviewedAt`, а эта отметка появляется только на
-     * успешно прошедшем материале. Когда редактор падал на исчерпанном потолке,
-     * отметки не было — норма часа выглядела нетронутой, и следующий тик воркера
-     * брал ту же строку заново (B658, замер прода 2026-08-04). Фаза 1 дала
-     * честный счётчик авторского труда: `agentWrittenAt` ставится в момент,
-     * когда текст лёг на склад, независимо от того, что случилось дальше.
+     * Раньше здесь стоял только `agentReviewedAt`, а эта отметка появляется
+     * лишь на материале, дошедшем до терминального исхода. Когда редактор падал
+     * на исчерпанном потолке, отметки не было — норма часа выглядела нетронутой,
+     * и следующий тик воркера брал ту же строку заново (B658, замер прода
+     * 2026-08-04).
+     *
+     * Одного `agentWrittenAt` тоже мало: терминальный исход его обнуляет, и
+     * материал, успевший пройти обе операции внутри часа, из счётчика исчезал.
+     * Норма протекала ровно в хорошем случае — чем быстрее линия доводит
+     * материал, тем больше сверх нормы она вправе начать.
+     *
+     * Поэтому «или» из двух непересекающихся множеств: незавершённое (склад ещё
+     * открыт) и завершённое за этот час. Пересечься они не могут по построению.
+     * Завершённое захватит и материалы, чей автор отработал в прошлом часу, —
+     * это ошибка в консервативную сторону, и она безопаснее протечки.
      */
     db.externalPublication.count({
-      where: { AND: [plannedFilter, { agentWrittenAt: { gte: hourAgo } }] },
+      where: {
+        AND: [plannedFilter, {
+          OR: [
+            { agentWrittenAt: { gte: hourAgo }, agentReviewedAt: null },
+            { agentReviewedAt: { gte: hourAgo } },
+          ],
+        }],
+      },
     }),
     db.externalPublication.count({
       where: { AND: [readyForWork, { scheduledFor: { gt: horizon } }] },
@@ -1717,8 +1743,10 @@ export async function runMarketingAgentCycle(
   const plannedDue = writerRoom > 0 && await dzenFeedNeedsTopUp()
     ? { OR: [dueNow, { platform: "dzen" }] }
     : dueNow;
+  // Автор берёт то, у чего склад ПУСТ. Симметрично очереди редактора: границу
+  // между операциями проводит склад, а не отметка времени.
   const freshFilter = {
-    AND: [readyForWork, plannedDue, plannedFilter, { agentWrittenAt: null }],
+    AND: [readyForWork, plannedDue, plannedFilter, { agentWriterDraft: { equals: Prisma.DbNull } }],
   };
   const fresh = writerRoom > 0
     ? await db.externalPublication.findMany({

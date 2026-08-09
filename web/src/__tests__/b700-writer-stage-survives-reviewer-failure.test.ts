@@ -280,13 +280,14 @@ describe("B700 · написанное разбирается раньше не�
     const wheres = db.externalPublication.findMany.mock.calls
       .map((call) => JSON.stringify((call[0] as { where?: unknown }).where ?? {}));
 
-    // Барабан: написанное, но не проверенное.
+    // Барабан: склад ОТКРЫТ, редактор ещё не отработал.
     expect(wheres.some((where) =>
-      where.includes("\"agentWrittenAt\":{\"not\":null}")
+      where.includes("\"agentWriterDraft\":{\"not\"")
       && where.includes("\"agentReviewedAt\":null"))).toBe(true);
 
-    // Автор: только НЕнаписанное — переписывать склад заново он не должен.
-    expect(wheres.some((where) => where.includes("\"agentWrittenAt\":null"))).toBe(true);
+    // Автор: склад ПУСТ — переписывать написанное он не должен.
+    expect(wheres.some((where) =>
+      where.includes("\"agentWriterDraft\":{\"equals\""))).toBe(true);
   });
 
   it("барабан разбирается, даже когда автору такт не дал ничего", async () => {
@@ -299,7 +300,7 @@ describe("B700 · написанное разбирается раньше не�
     // Склад полон: очередь редактора отдаёт материал, автору места нет.
     db.externalPublication.findMany.mockImplementation(async (args: {
       where?: unknown;
-    }) => (JSON.stringify(args.where ?? {}).includes("\"agentWrittenAt\":{\"not\":null}")
+    }) => (JSON.stringify(args.where ?? {}).includes("\"agentWriterDraft\":{\"not\"")
       ? [{ id: "carried" }]
       : []));
 
