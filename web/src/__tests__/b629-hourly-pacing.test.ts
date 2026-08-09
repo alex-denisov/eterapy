@@ -74,7 +74,7 @@ describe("B629 · плановая генерация идёт нормой в �
     expect(result.tact.writerBudget).toBe(0);
     const wheres = findMany.mock.calls
       .map((call) => JSON.stringify(call[0].where ?? {}));
-    expect(wheres.some((where) => where.includes('"agentWrittenAt":null'))).toBe(false);
+    expect(wheres.some((where) => where.includes('"agentWriterDraft":{"equals"'))).toBe(false);
   });
 
   it("исчерпанный шаг автора не останавливает очередь редактора", async () => {
@@ -86,7 +86,7 @@ describe("B629 · плановая генерация идёт нормой в �
     const wheres = findMany.mock.calls
       .map((call) => JSON.stringify(call[0].where ?? {}));
     expect(wheres.some((where) =>
-      where.includes('"agentWrittenAt":{"not":null}'))).toBe(true);
+      where.includes('"agentWriterDraft":{"not"'))).toBe(true);
   });
 
   it("исчерпанный шаг виден числом, а не пустой очередью", async () => {
@@ -109,8 +109,8 @@ describe("B629 · плановая генерация идёт нормой в �
     expect(plannedCall.where.AND).toContainEqual({
       NOT: { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } },
     });
-    // Автор берёт только ненаписанное: склад — забота редактора.
-    expect(plannedCall.where.AND).toContainEqual({ agentWrittenAt: null });
+    // Автор берёт только материал с ПУСТЫМ складом: написанное — забота редактора.
+    expect(JSON.stringify(plannedCall.where)).toContain('"agentWriterDraft":{"equals"');
   });
 
   it("ответы не подчиняются часовому шагу: их берут при исчерпанной норме", async () => {
