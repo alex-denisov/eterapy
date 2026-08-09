@@ -100,7 +100,7 @@ export async function marketingHourlyCapacity(now = new Date()): Promise<Marketi
     const weekAgo = new Date(now.getTime() - 7 * 24 * 3_600_000);
 
     const perRole = await Promise.all(CONVEYOR_ROLE_FEATURES.map(async (feature) => {
-      const [spent, sample] = await Promise.all([
+      const [spent, sample, override] = await Promise.all([
         db.aIBudgetLedger.findUnique({
           where: { scopeType_scopeKey_period: { scopeType: "feature", scopeKey: feature, period } },
           select: { tokens: true },
@@ -109,9 +109,17 @@ export async function marketingHourlyCapacity(now = new Date()): Promise<Marketi
           where: { feature, status: "SUCCEEDED", createdAt: { gte: weekAgo } },
           _avg: { totalTokens: true },
         }),
+        // Потолок спрашивается там же, где его правит владелец. Взять только
+        // умолчание значило бы, что правка в админке молча ни на что не влияет.
+        db.aIRoutingPolicy.findUnique({
+          where: { feature },
+          select: { dailyTokenBudget: true },
+        }),
       ]);
 
-      const budget = getDefaultAIRoutingPolicy(feature)?.dailyTokenBudget ?? null;
+      const budget = override?.dailyTokenBudget
+        ?? getDefaultAIRoutingPolicy(feature)?.dailyTokenBudget
+        ?? null;
       const remaining = budget ? Math.max(0, budget - Number(spent?.tokens ?? 0)) : Number.MAX_SAFE_INTEGER;
       const perCall = Math.max(1, Math.round(sample._avg.totalTokens || FALLBACK_TOKENS_PER_CALL));
       return Math.floor(remaining / (perCall * ROUNDS_PER_MATERIAL));
