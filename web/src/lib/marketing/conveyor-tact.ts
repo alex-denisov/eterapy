@@ -1,0 +1,176 @@
+/**
+ * B700 фаза 2 — такт конвейера: три величины вместо четырёх констант.
+ *
+ * До этой правки темп линии задавали числа, не выведенные ни из спроса, ни из
+ * ёмкости: «2 материала в час» (48 в сутки при плане в 6–7), горизонт в 30
+ * часов, плоские 30 минут остывания, целевая очередь длиной во весь план.
+ * Линия не спрашивала ни сколько готового уже лежит впереди, ни сколько токенов
+ * осталось до потолка, — и в дефиците ёмкости доедала квоту, обходя её же
+ * нехватку (замер прода 2026-08-09: 88 генераций автора, ноль публикаций).
+ *
+ * Здесь живёт ЧИСТАЯ арифметика такта. Ни базы, ни дат, ни провайдеров: всё
+ * измеримое приходит аргументами. Это сделано ради проверяемости — правило
+ * конвейера должно держаться прогоном, а не живой базой
+ * (`feedback_migration_check_schema` про ровно эту ошибку).
+ *
+ * Три величины требования владельца:
+ *
+ *   спрос   D — сколько материалов окна ещё не утверждено;
+ *   запас   B — целевой буфер утверждённого впереди;
+ *   ёмкость C — сколько материалов пул способен произвести в этот час.
+ *
+ * Такт: perHour = clamp(ceil((D + B − готово) / часов до конца окна), 0, C).
+ *
+ * Барабан (drum–buffer–rope) у этой линии — РЕДАКТОР: ему нужна модель,
+ * отличная от модели автора, и он падает первым, когда пул сужается. Поэтому
+ * разрешение автору писать выдаётся от свободной ёмкости редактора, а не от
+ * собственного темпа автора. Иначе автор производит впрок то, что никто не
+ * примет, — это и есть гора незавершённого производства, которую видел замер.
+ */
+
+/**
+ * Потолок очереди редактора.
+ *
+ * Шесть — это примерно суточный план выпуска (6–7 материалов). Смысл границы:
+ * склад незавершённого производства не должен превышать то, что линия способна
+ * выпустить за сутки. Всё сверх — оплаченный текст, который успеет устареть
+ * раньше, чем дойдёт до окна.
+ */
+export const MARKETING_MAX_AWAITING_REVIEW = Math.max(
+  1,
+  Number(process.env.MARKETING_MAX_AWAITING_REVIEW || 6),
+);
+
+/**
+ * B700 фаза 3 — насколько долго чужая дата вправе усыпить линию.
+ *
+ * `cooldownUntil` приходит из тела отказа провайдера, то есть это ДАННЫЕ
+ * внешней стороны. Сутки — тот же предел, что у остывания одного ключа
+ * (`MAX_CREDENTIAL_COOLDOWN_MS`): «сегодня не ходим», а не «никогда». Раз в
+ * сутки линия возвращается на пробу, и если квота всё ещё пуста — уходит спать
+ * снова. Одна проба в сутки не стоит ничего, а бессрочный сон нечем отменить,
+ * кроме правки в базе — ровно ошибка, которую разбирал B694.
+ */
+export const MARKETING_MAX_LINE_PAUSE_MS = 24 * 60 * 60_000;
+
+/** Ниже этого линия не просыпается: иначе пауза не отличается от её отсутствия. */
+const MIN_LINE_PAUSE_MS = 60_000;
+
+export interface LinePauseInput {
+  now: Date;
+  /** Когда линия последний раз упёрлась в ёмкость. `null` — не упиралась. */
+  signalLastSeenAt: Date | null;
+  /** Ближайший срок, когда в пуле снова появится живой ключ. */
+  poolResumeAt: Date | null;
+  /** Плоский срок на случай, когда провайдер ничего не сказал. */
+  flatCooldownMs: number;
+}
+
+/**
+ * B700 фаза 3 — до какого момента плановая генерация не запускается.
+ *
+ * `null` означает «идти можно». Дата — «раньше неё вызовов не будет».
+ *
+ * Порядок решений умышленно такой: сначала «а был ли отказ вообще», и только
+ * потом «надолго ли». Пауза без отказа — это остановка линии на ровном месте,
+ * и она стоила бы дороже любого лишнего вызова.
+ */
+export function marketingLinePauseUntil(input: LinePauseInput): Date | null {
+  const { signalLastSeenAt } = input;
+  if (!signalLastSeenAt) return null;
+
+  const nowMs = input.now.getTime();
+  const flatUntilMs = signalLastSeenAt.getTime()
+    + Math.max(MIN_LINE_PAUSE_MS, input.flatCooldownMs);
+  const ceilingMs = signalLastSeenAt.getTime() + MARKETING_MAX_LINE_PAUSE_MS;
+
+  // Провайдер назвал срок — он и есть ответ: и когда дольше плоского (суточный
+  // потолок Groq), и когда короче (минутная квота Gemini). Плоские полчаса не
+  // знают ни того, ни другого случая.
+  const untilMs = input.poolResumeAt
+    ? Math.min(input.poolResumeAt.getTime(), ceilingMs)
+    : flatUntilMs;
+
+  return untilMs > nowMs ? new Date(untilMs) : null;
+}
+
+/** Что именно ограничивает линию прямо сейчас. Попадает в журнал и в сводку. */
+export type ConveyorBottleneck = "buffer" | "capacity" | "drum" | "demand";
+
+export interface ConveyorTactInput {
+  /** D — материалы окна, ещё не доведённые до утверждения. */
+  demand: number;
+  /** B — целевой запас утверждённого впереди, в материалах. */
+  buffer: number;
+  /** Сколько утверждённого уже лежит впереди. */
+  ready: number;
+  /** Часов до конца окна опережения. */
+  hoursToHorizon: number;
+  /** C — сколько материалов пул способен произвести в этот час. */
+  capacityPerHour: number;
+  /** Сколько написанного уже ждёт редактора (незавершённое производство). */
+  awaitingReview: number;
+  /** Потолок очереди редактора. */
+  maxAwaitingReview: number;
+  /** Сколько материалов автор уже написал в текущем часе. */
+  writtenThisHour?: number;
+}
+
+export interface ConveyorTact {
+  /** Норма часа: сколько материалов линия имеет право произвести. */
+  perHour: number;
+  /** Сколько из них разрешено автору прямо сейчас, с учётом барабана. */
+  writerBudget: number;
+  bottleneck: ConveyorBottleneck;
+}
+
+/** Отрицательное и дробное приходит снаружи — счётчики базы бывают любыми. */
+function whole(value: number, fallback = 0): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.floor(value));
+}
+
+export function conveyorTact(input: ConveyorTactInput): ConveyorTact {
+  const demand = whole(input.demand);
+  const buffer = whole(input.buffer);
+  const ready = whole(input.ready);
+  const capacityPerHour = whole(input.capacityPerHour);
+  const awaitingReview = whole(input.awaitingReview);
+  const maxAwaitingReview = Math.max(1, whole(input.maxAwaitingReview, MARKETING_MAX_AWAITING_REVIEW));
+  const writtenThisHour = whole(input.writtenThisHour ?? 0);
+  // Ноль часов до конца окна — это «всё нужно сейчас», а не деление на ноль.
+  const hours = Math.max(1, whole(input.hoursToHorizon, 1));
+
+  /**
+   * Сколько материалов линия хочет получить, и сколько из этого достижимо.
+   *
+   * `demand + buffer − ready` — это ХОТЕНИЕ: запас считается по слотам двух
+   * суток, а спрос виден только внутри окна опережения в 30 часов, поэтому
+   * дальняя часть запаса физически не представлена строками, которые можно
+   * взять в работу (они лежат в `deferred`). Верхняя граница — сам спрос: писать
+   * больше, чем есть в окне, не значит ничего, а норму часа завышало бы.
+   */
+  const need = Math.min(demand, Math.max(0, demand + buffer - ready));
+  const wanted = Math.ceil(need / hours);
+  const perHour = Math.min(wanted, capacityPerHour);
+
+  // Свободные места барабана — жёсткая граница для автора. Ниже неё писать
+  // некуда: очередь редактора уже полна, и написанное просто ляжет на склад.
+  const drumRoom = Math.max(0, maxAwaitingReview - awaitingReview);
+  const hourRoom = Math.max(0, perHour - writtenThisHour);
+  const writerBudget = Math.min(hourRoom, drumRoom);
+
+  // Называется то, что связывает АВТОРА, а не то, что связывает норму часа.
+  // Барабан проверяется раньше ёмкости: когда очередь редактора полна, свободные
+  // токены роли не значат ничего — писать некуда, и «нет ёмкости» в сводке
+  // отправило бы владельца чинить квоты вместо узкого места.
+  const bottleneck: ConveyorBottleneck = need === 0
+    ? "buffer"
+    : drumRoom < hourRoom
+      ? "drum"
+      : capacityPerHour < wanted
+        ? "capacity"
+        : "demand";
+
+  return { perHour, writerBudget, bottleneck };
+}

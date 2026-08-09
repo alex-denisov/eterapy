@@ -5,16 +5,36 @@
  * быстро: замер прода показал 78 генераций подряд за 2,5 часа, после чего сутки
  * шли без единой. Здесь проверяется, что плановая генерация идёт нормой в час, а
  * разговорная не подчиняется этому шагу вовсе.
+ *
+ * B700 фаза 2 — норму часа больше не задаёт константа: её считает
+ * `conveyorTact` из спроса, запаса и ёмкости. Граница, которую держит этот
+ * тест, от этого не изменилась: плановое пейсится, разговорное — нет. Изменился
+ * второй адресат нормы — теперь она ограничивает ТОЛЬКО автора. Очередь
+ * редактора (барабан) разбирается всегда, потому что доделать оплаченное
+ * дешевле, чем начать новое.
  */
 
-import {
-  MARKETING_PLANNED_DRAFTS_PER_HOUR,
-  runMarketingAgentCycle,
-} from "@/lib/marketing/agent";
+import { runMarketingAgentCycle } from "@/lib/marketing/agent";
 import { CONVERSATIONAL_CONTENT_TYPES } from "@/lib/marketing/perimeter";
 
 const findMany = jest.fn();
 const count = jest.fn();
+
+// Ёмкость пула здесь не предмет проверки: тест о такте, а не о ключах.
+jest.mock("@/lib/marketing/pool-capacity", () => ({
+  __esModule: true,
+  marketingPoolAvailability: async () => ({
+    providers: ["GROQ", "GEMINI"],
+    canSeparateRoles: true,
+  }),
+  marketingHourlyCapacity: async () => ({
+    perHour: 2,
+    materialsLeftToday: 2,
+    providers: ["GROQ", "GEMINI"],
+    canSeparateRoles: true,
+  }),
+  marketingPoolResumeAt: async () => null,
+}));
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -46,30 +66,51 @@ describe("B629 · плановая генерация идёт нормой в �
     expect(first).toContainEqual({ contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } });
   });
 
-  it("исчерпанный часовой шаг останавливает плановую генерацию", async () => {
-    // Норма часа уже израсходована — плановых запросов быть не должно.
-    count.mockResolvedValue(MARKETING_PLANNED_DRAFTS_PER_HOUR);
+  it("исчерпанный часовой шаг останавливает АВТОРА", async () => {
+    // Норма часа уже израсходована: свежие черновики в работу не берутся.
+    count.mockResolvedValue(8);
     const result = await runMarketingAgentCycle({ now });
 
-    expect(result.planned).toBe(0);
-    // Единственная выборка — разговорная: плановую мы даже не запрашиваем.
-    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(result.tact.writerBudget).toBe(0);
+    const wheres = findMany.mock.calls
+      .map((call) => JSON.stringify(call[0].where ?? {}));
+    expect(wheres.some((where) => where.includes('"agentWrittenAt":null'))).toBe(false);
+  });
+
+  it("исчерпанный шаг автора не останавливает очередь редактора", async () => {
+    // Барабан разбирается своим бюджетом: доделать написанное стоит один вызов
+    // и сразу превращает склад в готовое.
+    count.mockResolvedValue(8);
+    await runMarketingAgentCycle({ now });
+
+    const wheres = findMany.mock.calls
+      .map((call) => JSON.stringify(call[0].where ?? {}));
+    expect(wheres.some((where) =>
+      where.includes('"agentWrittenAt":{"not":null}'))).toBe(true);
   });
 
   it("исчерпанный шаг виден числом, а не пустой очередью", async () => {
-    count.mockResolvedValue(MARKETING_PLANNED_DRAFTS_PER_HOUR);
+    count.mockResolvedValue(8);
     const result = await runMarketingAgentCycle({ now });
     expect(result.paced).toBeGreaterThan(0);
   });
 
-  it("свободный шаг открывает плановую выборку с остатком нормы", async () => {
-    count.mockResolvedValue(0);
-    await runMarketingAgentCycle({ now });
+  it("свободный такт открывает выборку автора ровно на его бюджет", async () => {
+    // Порядок счётчиков прохода: написано-за-час, отложено, ждёт-редактора,
+    // СПРОС, готово-впереди. Спрос — единственное, что здесь не ноль: без него
+    // писать нечего, и такт честно ответил бы нулём.
+    count.mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(4).mockResolvedValue(0);
+    const result = await runMarketingAgentCycle({ now });
     const plannedCall = findMany.mock.calls.at(-1)?.[0];
-    expect(plannedCall.take).toBe(MARKETING_PLANNED_DRAFTS_PER_HOUR);
+
+    expect(result.tact.writerBudget).toBeGreaterThan(0);
+    expect(plannedCall.take).toBe(result.tact.writerBudget);
     expect(plannedCall.where.AND).toContainEqual({
       NOT: { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } },
     });
+    // Автор берёт только ненаписанное: склад — забота редактора.
+    expect(plannedCall.where.AND).toContainEqual({ agentWrittenAt: null });
   });
 
   it("ответы не подчиняются часовому шагу: их берут при исчерпанной норме", async () => {

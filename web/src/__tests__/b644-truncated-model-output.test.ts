@@ -33,6 +33,13 @@ jest.mock("@/lib/marketing/pool-capacity", () => ({
     providers: ["GROQ", "GEMINI"],
     canSeparateRoles: true,
   }),
+  marketingHourlyCapacity: async () => ({
+    perHour: 2,
+    materialsLeftToday: 2,
+    providers: ["GROQ", "GEMINI"],
+    canSeparateRoles: true,
+  }),
+  marketingPoolResumeAt: async () => null,
 }));
 
 jest.mock("@/lib/ai", () => ({

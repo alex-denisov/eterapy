@@ -269,7 +269,9 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
   try {
     const health = await adapter.healthcheck(credential.modelOverride ?? providerConfig?.defaultModel ?? undefined);
     if (health.status === "ok") {
-      await markCredentialSuccess({ credentialId: row.id });
+      // B700 фаза 3: это ПРОБА. Она подтверждает, что ключ отвечает, и не
+      // отменяет срок остывания, назначенный самим провайдером.
+      await markCredentialSuccess({ credentialId: row.id, probe: true });
     } else {
       const failureCode = health.status === "missing_config"
         ? "MISSING_CONFIG"
@@ -398,6 +400,25 @@ export async function listProvidersWithActiveCredentials(input?: { now?: Date })
   return rows.map((row) => row.provider);
 }
 
+/**
+ * B700 фаза 3 — ближайший срок, когда в пуле снова появится живой ключ.
+ *
+ * Тот же вопрос, что `providerCooldownUntil`, но по всему пулу сразу: линия
+ * останавливается не из-за одного провайдера, а из-за того, что не осталось ни
+ * одного. `null` — сроков нет ни у кого, то есть ждать нечего и решает общее
+ * правило.
+ */
+export async function poolCooldownResumeAt(input?: { now?: Date }): Promise<Date | null> {
+  const now = input?.now ?? new Date();
+  if (!isAICredentialEncryptionConfigured()) return null;
+  const row = await db.aIProviderCredential.findFirst({
+    where: { enabled: true, cooldownUntil: { gt: now } },
+    orderBy: { cooldownUntil: "asc" },
+    select: { cooldownUntil: true },
+  });
+  return row?.cooldownUntil ?? null;
+}
+
 export async function providerCooldownUntil(input: { provider: AIProvider; now?: Date }): Promise<Date | null> {
   const now = input.now ?? new Date();
   if (!isAICredentialEncryptionConfigured()) return null;
@@ -474,6 +495,14 @@ function yandexEnvCredential(): DecryptedAICredential | null {
 interface MarkSuccessInput {
   credentialId: string;
   now?: Date;
+  /**
+   * Успех получен пробой здоровья, а не работой.
+   *
+   * Разница не косметическая: проба вправе сказать «ключ жив», но не вправе
+   * сказать «квота вернулась» — и потому не снимает остывание. См. развёрнутый
+   * разбор у поля `cooldownUntil` ниже.
+   */
+  probe?: boolean;
 }
 
 export async function markCredentialSuccess(input: MarkSuccessInput): Promise<void> {
@@ -486,10 +515,28 @@ export async function markCredentialSuccess(input: MarkSuccessInput): Promise<vo
         lastUsedAt: now,
         lastSuccessAt: now,
         consecutiveFailures: 0,
-        cooldownUntil: null,
         lastErrorCode: null,
         lastErrorMessage: null,
-        regionBlocked: false,
+        /**
+         * B700 фаза 3 — ПРОБА НЕ ОТМЕНЯЕТ ОСТЫВАНИЕ.
+         *
+         * Раньше `cooldownUntil: null` стоял здесь безусловно, и это обесценивало
+         * весь механизм B699. Рабочий трафик остывающий ключ не видит вовсе
+         * (`activeCredentialWhere` исключает его по сроку) — значит, единственное,
+         * что вообще могло обратиться к такому ключу и «успеть», это сторож
+         * здоровья. Он и обнулял срок.
+         *
+         * Замер прода: 20:57 Groq забрал квоту на 59 минут, 21:04 проба в 20
+         * токенов прошла, 21:06 `cooldown_until` у GROQ уже NULL. Каждые пять
+         * минут ключ возвращался в пул, автор писал материал, получал 429 — и
+         * ключ снова уходил остывать.
+         *
+         * Проба доказывает, что ключ ОТВЕЧАЕТ. Что суточная квота восстановилась,
+         * она не доказывает: ответ в 20 токенов пролезает и в остаток в пять.
+         * Поэтому срок снимает только настоящая работа, а у пробы остаётся право
+         * лишь подтвердить, что ключ жив.
+         */
+        ...(input.probe ? {} : { cooldownUntil: null, regionBlocked: false }),
       },
     });
   } catch (err) {
