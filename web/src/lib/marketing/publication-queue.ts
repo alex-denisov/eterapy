@@ -339,6 +339,13 @@ export async function generateMarketingDrafts(input: {
             format: slot.format,
             editorialAngle: slot.editorialAngle,
             timezone: "Europe/Moscow",
+            // B700 фаза 4: класс материала и ширина ЕГО окна. Держатся в
+            // строке, а не вычисляются при выпуске: слот мог быть создан
+            // прежней таблицей окон, и менять правила выпуска задним числом
+            // у материала, уже прошедшего редактора, нельзя.
+            contentClass: slot.contentClass,
+            daypart: slot.daypart,
+            toleranceMs: slot.toleranceMs,
           }),
           source: "CRON_B589",
           autoPublish: false,

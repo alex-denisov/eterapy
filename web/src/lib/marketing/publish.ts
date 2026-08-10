@@ -28,7 +28,7 @@ import {
 } from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
 import { notifyPublished } from "@/lib/marketing/publish-notification";
-import { deferPublicationToNextSlot, isSlotWindowOpen } from "@/lib/marketing/slot-window";
+import { deferPublicationToNextSlot, isSlotWindowOpen, slotToleranceMs } from "@/lib/marketing/slot-window";
 import {
   browserFallbackConfigured,
   publishToDzenBrowser,
@@ -795,7 +795,12 @@ export async function publishScheduledMarketing(input: {
     // Если переносить некуда или право на перенос исчерпано, материал всё
     // равно выходит: правило B636 «поздно честнее, чем никогда» сильнее
     // аккуратности расписания.
-    if (publication.planSlot && !isSlotWindowOpen({ scheduledFor: publication.scheduledFor, now })) {
+    if (publication.planSlot && !isSlotWindowOpen({
+      scheduledFor: publication.scheduledFor,
+      now,
+      // B700 фаза 4: ширину окна назначил класс материала, а не общая константа.
+      toleranceMs: slotToleranceMs(publication.notes),
+    })) {
       const deferral = await deferPublicationToNextSlot({
         publication,
         now,
