@@ -62,6 +62,42 @@ const RETRY_HINT = /(?:try again|retry)\s+in\s+(-?[\d.]+h)?\s*(-?[\d.]+m)?\s*(-?
  */
 const LONG_HORIZON_EXHAUSTION = /(\bper month\b|\/\s*month\b|\bmonthly\b|\bper day\b|\/\s*day\b|\bTPD\b|\bdaily (?:limit|quota)\b)/i;
 
+/**
+ * «on tokens per minute (TPM): Limit 8000, Requested 8234».
+ *
+ * Пара чисел, по которой отличается структурное несовпадение от временного
+ * перебора. Порядок в ответе провайдера именно такой; искать их по отдельности
+ * нельзя — «Limit» встречается в тексте отказа и в других ролях.
+ */
+const SIZE_LIMIT_PAIR = /\blimit\b\D{0,20}?(\d[\d_,]*)\D{1,40}?\brequested\b\D{0,20}?(\d[\d_,]*)/i;
+
+function parseCount(raw: string): number {
+  return Number.parseInt(raw.replace(/[_,]/g, ""), 10);
+}
+
+/**
+ * Перебор ли это РАЗМЕРОМ одного запроса, а не занятостью минуты.
+ *
+ * `null` означает «доказательства нет»: либо провайдер не назвал чисел, либо
+ * наш запрос в потолок укладывается и ждать действительно имеет смысл.
+ * Возвращается пара чисел, а не «да/нет», чтобы вызывающая сторона могла
+ * сказать вслух, насколько мы промахнулись.
+ */
+export function oversizedRequestFromProviderMessage(
+  message: string | undefined | null,
+): { limit: number; requested: number } | null {
+  if (!message) return null;
+  const pair = message.match(SIZE_LIMIT_PAIR);
+  if (!pair) return null;
+  const limit = parseCount(pair[1]);
+  const requested = parseCount(pair[2]);
+  if (!Number.isFinite(limit) || !Number.isFinite(requested)) return null;
+  // Запрос уложился в потолок — минуту выбрали соседние запросы, и это
+  // обычное ожидание, а не свойство запроса.
+  if (requested <= limit) return null;
+  return { limit, requested };
+}
+
 function parseUnit(raw: string | undefined, multiplier: number): number {
   if (!raw) return 0;
   const value = Number.parseFloat(raw);
@@ -120,6 +156,31 @@ export function classifyCredentialFailure(
   if (code === "HTTP_429") {
     return {
       cooldownMs: retryDelayFromProviderMessage(detail?.providerMessage) ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS,
+      regionBlocked: false,
+    };
+  }
+  /**
+   * B700 — 413 «запрос больше потолка модели».
+   *
+   * Два разных события приходят под одним кодом, и лечатся они противоположно.
+   *
+   * Минуту выбрали соседние запросы — обычное ожидание: провайдер называет свой
+   * срок, и он же исполняется. Наш ОДИН запрос больше всего минутного потолка —
+   * ожидание не помогает никогда, потому что размер запроса от времени не
+   * зависит. Замер прода 2026-08-10: 713 отказов за 13 часов, ровно по одному в
+   * минуту, потому что этот код попадал в общее правило «минута остывания», а
+   * вежливое «try again in 1.755s» в теле того же ответа предлагало вернуться
+   * ещё раньше.
+   *
+   * Час — размен между «перестать жечь бюджет материала впустую» и «не потерять
+   * ключ насовсем». Потолки моделей меняются сменой тарифа и правкой нашего
+   * `maxTokens`, поэтому ключ обязан вернуться сам и в тот же день.
+   */
+  if (code === "HTTP_413") {
+    return {
+      cooldownMs: oversizedRequestFromProviderMessage(detail?.providerMessage)
+        ? HOUR
+        : retryDelayFromProviderMessage(detail?.providerMessage) ?? MINUTE,
       regionBlocked: false,
     };
   }
