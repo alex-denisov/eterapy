@@ -5,7 +5,18 @@
  * an exact Moscow publication time and an existing first-party destination.
  * The writer may adapt the angle after fresh research, but cannot invent a
  * destination or silently duplicate a slot.
+ *
+ * B700 фаза 4 — час выпуска больше НЕ живёт здесь литералом. Слот объявляет
+ * класс материала, а час и ширину окна отдаёт `publish-windows.ts` из класса,
+ * характера площадки и дня недели. Правило: сначала есть материал, и уже под
+ * него ищется час, когда его аудитория к нему готова, — а не наоборот.
  */
+
+import {
+  publishWindow,
+  type ContentClass,
+  type Daypart,
+} from "@/lib/marketing/publish-windows";
 
 export type PlanChannel = "vk" | "telegram" | "threads" | "instagram" | "dzen" | "reddit";
 
@@ -19,6 +30,12 @@ export interface ContentPlanSlot {
   scheduledAt: string;
   format: string;
   editorialAngle: string;
+  /** B700 фаза 4: ЧТО это за материал — из него выводится окно. */
+  contentClass: ContentClass;
+  /** B700 фаза 4: какое время суток досталось классу на этой площадке. */
+  daypart: Daypart;
+  /** B700 фаза 4: сколько окно слота остаётся открытым (B645 — на класс). */
+  toleranceMs: number;
 }
 
 type Topic = Pick<ContentPlanSlot, "cluster" | "articleSlug" | "targetQuery">;
@@ -123,23 +140,38 @@ const DATES = [
   "2026-08-11",
 ] as const;
 
-const TELEGRAM_FORMATS = [
-  ["утренняя символическая карточка", "мягкий символ дня без предсказания"],
-  ["дневная мини-практика", "один наблюдаемый жизненный вопрос и действие на 2 минуты"],
-  ["вечерняя мистическая история", "короткая история с открытым вопросом, а не готовой моралью"],
-] as const;
-const THREADS_FORMATS = [
-  ["короткое наблюдение", "узнаваемая бытовая сцена с сухой самоиронией"],
-  ["вопрос для разговора", "неоднозначный, но безопасный тезис, на который хочется ответить"],
-] as const;
-const INSTAGRAM_FORMATS = [
-  ["визуальная карточка", "одна сильная мысль, сохраняемый вывод и предметный caption"],
-  ["мини-разбор", "сцена, объяснение и один применимый шаг без псевдонаучных обещаний"],
-] as const;
-const VK_FORMATS = [
-  ["полезный пост", "понятное объяснение и один применимый шаг"],
-  ["пост-обсуждение", "узнаваемая ситуация и конкретный вопрос аудитории"],
-] as const;
+/**
+ * B700 фаза 4 — у формата появился КЛАСС, и он третьим полем, а не заголовком.
+ *
+ * Названия форматов не тронуты намеренно: они лежат в `notes` уже созданных
+ * строк реестра, и по ним `nextSlotCandidates` (B645) подбирает слот при
+ * переносе. Переименовать формат значило бы разорвать перенос у всего, что уже
+ * в работе.
+ *
+ * Слово «утренняя»/«дневная»/«вечерняя» внутри названия осталось от прежней
+ * привязки к литеральному часу. Теперь время суток определяет класс, и на
+ * выходных «утренняя карточка» выйдет в 10:00, а не в 08:30 — название говорит
+ * о характере материала, а не о минуте на часах.
+ */
+type FormatSpec = readonly [format: string, editorialAngle: string, contentClass: ContentClass];
+
+const TELEGRAM_FORMATS: readonly FormatSpec[] = [
+  ["утренняя символическая карточка", "мягкий символ дня без предсказания", "card"],
+  ["дневная мини-практика", "один наблюдаемый жизненный вопрос и действие на 2 минуты", "practice"],
+  ["вечерняя мистическая история", "короткая история с открытым вопросом, а не готовой моралью", "story"],
+];
+const THREADS_FORMATS: readonly FormatSpec[] = [
+  ["короткое наблюдение", "узнаваемая бытовая сцена с сухой самоиронией", "card"],
+  ["вопрос для разговора", "неоднозначный, но безопасный тезис, на который хочется ответить", "discussion"],
+];
+const INSTAGRAM_FORMATS: readonly FormatSpec[] = [
+  ["визуальная карточка", "одна сильная мысль, сохраняемый вывод и предметный caption", "card"],
+  ["мини-разбор", "сцена, объяснение и один применимый шаг без псевдонаучных обещаний", "explainer"],
+];
+const VK_FORMATS: readonly FormatSpec[] = [
+  ["полезный пост", "понятное объяснение и один применимый шаг", "explainer"],
+  ["пост-обсуждение", "узнаваемая ситуация и конкретный вопрос аудитории", "discussion"],
+];
 
 function scheduledAt(date: string, timeMoscow: string) {
   return `${date}T${timeMoscow}:00+03:00`;
@@ -170,6 +202,17 @@ function dayNumber(date: string): number {
   return Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
 }
 
+/**
+ * День недели московских суток.
+ *
+ * Полдень, а не полночь: `${date}T00:00:00+03:00` — это 21:00 UTC ПРЕДЫДУЩЕГО
+ * дня, и `getUTCDay()` вернул бы вчерашний день недели. Ошибка на день здесь
+ * молча превратила бы пятницу в выходной для всего плана.
+ */
+function moscowWeekday(date: string): number {
+  return new Date(`${date}T12:00:00+03:00`).getUTCDay();
+}
+
 function slot(input: {
   channel: PlanChannel;
   date: string;
@@ -178,6 +221,9 @@ function slot(input: {
   sequence: number;
   format: string;
   editorialAngle: string;
+  contentClass: ContentClass;
+  daypart: Daypart;
+  toleranceMs: number;
   order: number;
 }): ContentPlanSlot {
   return {
@@ -190,68 +236,99 @@ function slot(input: {
     scheduledAt: scheduledAt(input.date, input.time),
     format: input.format,
     editorialAngle: input.editorialAngle,
+    contentClass: input.contentClass,
+    daypart: input.daypart,
+    toleranceMs: input.toleranceMs,
   };
 }
 
 function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   const result: ContentPlanSlot[] = [];
   let order = 1;
-  const push = (input: Omit<Parameters<typeof slot>[0], "order">) => {
-    result.push(slot({ ...input, order }));
+
+  /**
+   * Занятые времена суток по паре «площадка + день». Считается по ходу
+   * сборки, а не заранее: второй материал одного класса в один день должен
+   * увидеть, что первый уже занял своё время суток, и уйти в следующее.
+   */
+  const takenDayparts = new Map<string, Daypart[]>();
+
+  const push = (input: Omit<Parameters<typeof slot>[0], "order" | "time" | "daypart" | "toleranceMs">) => {
+    const takenKey = `${input.channel}:${input.date}`;
+    const taken = takenDayparts.get(takenKey) ?? [];
+    const window = publishWindow({
+      platform: input.channel,
+      contentClass: input.contentClass,
+      weekday: moscowWeekday(input.date),
+      taken,
+    });
+    // У площадки не осталось свободного времени суток. Молчаливый второй пост
+    // в тот же час читается как сбой, поэтому слот не создаётся вовсе — и это
+    // видно в числе слотов плана. Для нынешних таблиц случай недостижим, что
+    // держит отдельная проверка в тестах.
+    if (!window) return;
+    takenDayparts.set(takenKey, [...taken, window.daypart]);
+    result.push(slot({
+      ...input,
+      order,
+      time: window.time,
+      daypart: window.daypart,
+      toleranceMs: window.toleranceMs,
+    }));
     order += 1;
   };
 
   dates.forEach((date) => {
-    TELEGRAM_FORMATS.forEach(([format, editorialAngle], sequence) => {
+    TELEGRAM_FORMATS.forEach(([format, editorialAngle, contentClass], sequence) => {
       push({
         channel: "telegram",
         date,
-        time: ["08:30", "13:00", "20:30"][sequence],
         topic: topicAt(dayNumber(date) * 3 + sequence),
         sequence: sequence + 1,
         format,
         editorialAngle,
+        contentClass,
       });
     });
 
-    THREADS_FORMATS.forEach(([format, editorialAngle], sequence) => {
+    THREADS_FORMATS.forEach(([format, editorialAngle, contentClass], sequence) => {
       push({
         channel: "threads",
         date,
-        time: ["10:45", "18:45"][sequence],
         topic: topicAt(dayNumber(date) * 2 + sequence, 5),
         sequence: sequence + 1,
         format,
         editorialAngle,
+        contentClass,
       });
     });
   });
 
   const instagramDays = [0, 2, 4, 6, 7, 9, 11, 13] as const;
   instagramDays.forEach((dayIndex, sequence) => {
-    const [format, editorialAngle] = INSTAGRAM_FORMATS[sequence % INSTAGRAM_FORMATS.length];
+    const [format, editorialAngle, contentClass] = INSTAGRAM_FORMATS[sequence % INSTAGRAM_FORMATS.length];
     push({
       channel: "instagram",
       date: dates[dayIndex],
-      time: "12:15",
       topic: topicAt(dayNumber(dates[dayIndex]), 8),
       sequence: 1,
       format,
       editorialAngle,
+      contentClass,
     });
   });
 
   const vkDays = [0, 1, 3, 4, 6, 7, 8, 10, 11, 13] as const;
   vkDays.forEach((dayIndex, sequence) => {
-    const [format, editorialAngle] = VK_FORMATS[sequence % VK_FORMATS.length];
+    const [format, editorialAngle, contentClass] = VK_FORMATS[sequence % VK_FORMATS.length];
     push({
       channel: "vk",
       date: dates[dayIndex],
-      time: sequence % 2 === 0 ? "11:30" : "19:15",
       topic: topicAt(dayNumber(dates[dayIndex]), 2),
       sequence: 1,
       format,
       editorialAngle,
+      contentClass,
     });
   });
 
@@ -260,11 +337,11 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     push({
       channel: "dzen",
       date: dates[dayIndex],
-      time: "09:30",
       topic: topicAt(dayNumber(dates[dayIndex]), 4),
       sequence: 1,
       format: "структурированная статья",
       editorialAngle: "ответ читателю, объяснение, примеры, практический шаг и честный мягкий CTA",
+      contentClass: "article",
     });
   });
 
@@ -272,11 +349,11 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     push({
       channel: "reddit",
       date: dates[dayIndex],
-      time: "17:00",
       topic: topicAt(dayNumber(dates[dayIndex]), 6),
       sequence: 1,
       format: "community discussion",
       editorialAngle: "полезная самостоятельная дискуссия без рекламного лида; ссылка только после полной пользы и с раскрытием аффилированности",
+      contentClass: "discussion",
     });
   });
 

@@ -46,8 +46,33 @@ export const MAX_SLOT_DEFERRALS = 3;
 /** Ближе этого к слоту переносить некуда: строка не успеет дойти до выпуска. */
 export const DEFERRAL_MIN_LEAD_MS = 5 * 60_000;
 
-export function slotWindowEndsAt(scheduledFor: Date): Date {
-  return new Date(scheduledFor.getTime() + SLOT_WINDOW_MS);
+export function slotWindowEndsAt(scheduledFor: Date, toleranceMs?: number | null): Date {
+  return new Date(scheduledFor.getTime() + (toleranceMs ?? SLOT_WINDOW_MS));
+}
+
+/**
+ * B700 фаза 4 — ширина окна лежит в строке, а не в общей константе.
+ *
+ * Два часа — правда про карточку дня и ложь про статью: статья не портится
+ * оттого, что вышла в 12:00 вместо 09:30, зато на прежней общей ширине она
+ * переносилась в следующие сутки и теряла слот целиком. Ширину назначает класс
+ * материала (`publish-windows.ts`), генератор кладёт её в `notes`.
+ *
+ * Строка без `toleranceMs` — созданная до этой правки; ей остаются прежние два
+ * часа. Молчаливо расширить окно у материала, который писался под другое
+ * правило, значило бы поменять смысл его слота задним числом.
+ */
+export function slotToleranceMs(notes: string | null | undefined): number | null {
+  if (!notes) return null;
+  try {
+    const parsed = JSON.parse(notes) as { toleranceMs?: unknown };
+    return typeof parsed.toleranceMs === "number" && Number.isFinite(parsed.toleranceMs)
+      && parsed.toleranceMs > 0
+      ? parsed.toleranceMs
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -57,9 +82,11 @@ export function slotWindowEndsAt(scheduledFor: Date): Date {
 export function isSlotWindowOpen(input: {
   scheduledFor: Date | null | undefined;
   now: Date;
+  /** Ширина окна из `notes` строки; пусто — прежние `SLOT_WINDOW_MS`. */
+  toleranceMs?: number | null;
 }): boolean {
   if (!input.scheduledFor) return true;
-  return input.now.getTime() <= slotWindowEndsAt(input.scheduledFor).getTime();
+  return input.now.getTime() <= slotWindowEndsAt(input.scheduledFor, input.toleranceMs).getTime();
 }
 
 /** Формат слота лежит в `notes` строки — его записал генератор плана. */
