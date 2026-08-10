@@ -273,6 +273,25 @@ export const MARKETING_REVIEWER_SYSTEM_PROMPT = `
 - REJECT: угол неуместен/опасен/спамный или требует выдуманных данных; объясни.
 - После третьей редакторской итерации не смягчай критерии.
 
+## Раунд правки: сначала проверь себя
+
+Если в задании есть previousIssues и previousRevisionBrief — это ТВОИ замечания
+прошлого раунда, и порядок проверки такой:
+
+1. Пройди по ним по пунктам и скажи в summary, какие устранены, а какие нет.
+2. Неустранённое — законный REVISE: повтори его теми же словами, а не новыми.
+3. Новое замечание поднимай, только если оно БЛОКИРУЕТ выпуск: безопасность,
+   жёсткое требование площадки, отсутствие ссылки, CTA или mediaBrief,
+   фактическая ошибка, нарушение закона или политики.
+4. Стилистическая придирка, которой не было в прошлом раунде, дефектом НЕ
+   является. Материал, где все твои прежние замечания сняты и блокирующего
+   ничего нет, получает APPROVE — даже если ты видишь, как написать лучше.
+
+Причина правила измерена: раунды, в которых каждый круг приносил новый список
+замечаний, не сходились никогда, и материал выбрасывался целиком после трёх
+кругов. Твоя задача — довести материал до выпуска, а не найти в нём предел
+совершенства.
+
 Верни СТРОГО JSON без Markdown:
 {"decision":"APPROVE|REVISE|REJECT",
 "scores":{"relevance":0,"value":0,"authenticity":0,"safety":0,
@@ -285,3 +304,78 @@ export const MARKETING_REVIEWER_SYSTEM_PROMPT = `
 
 Каждая оценка 0..5. revisedText всегда пуст: правки выполняет writer.
 `.trim();
+
+/**
+ * B700 фаза 6 — ПРАВКА ВМЕСТО ПЕРЕПИСЫВАНИЯ.
+ *
+ * Требование владельца 2026-08-09 дословно: «на основании комментариев
+ * редактора будет дописывать контент статьи и редактировать его… Вообще
+ * переделывать полностью контент — не имеет смысла, это означает что
+ * планирование было очень плохо выполнено».
+ *
+ * До этой правки инструкция раунда говорила обратное — «верни полностью готовую
+ * новую версию», — и замер прода 2026-08-10 показал цену: десять материалов за
+ * 13 часов, у каждого три раунда `REVISE` подряд с полностью РАЗНЫМИ
+ * замечаниями. Автор снимал названное вместе с уцелевшим текстом и приносил
+ * новые дефекты, редактор находил их — и так до исчерпания раундов.
+ *
+ * Сборка задания вынесена сюда отдельной чистой функцией намеренно: правило
+ * «правим, а не переписываем» — предмет проверки тестом, а не строка внутри
+ * цикла, которую видно только в проде.
+ */
+export function marketingWriterPrompt(input: {
+  task: unknown;
+  research: unknown;
+  round: number;
+  previousDraft: unknown | null;
+  previousReview: { issues: string[]; revisionBrief: string[] } | null;
+}): Record<string, unknown> {
+  const base = { task: input.task, research: input.research, editorialRound: input.round };
+  if (!input.previousDraft || !input.previousReview) return base;
+  return {
+    ...base,
+    previousCandidate: input.previousDraft,
+    editorIssues: input.previousReview.issues,
+    revisionBrief: input.previousReview.revisionBrief,
+    instruction: "Внеси перечисленные исправления в previousCandidate и верни его "
+      + "целиком с внесёнными правками в обязательном JSON-формате. Не переписывай "
+      + "материал: всё, к чему у редактора нет замечаний, обязано остаться дословно "
+      + "— тот же угол, те же примеры, те же формулировки. Полная переработка "
+      + "заново допустима, только если сам редактор назвал её в revisionBrief.",
+  };
+}
+
+/**
+ * B700 фаза 6 — РЕДАКТОР ПОМНИТ, ЧТО ПРОСИЛ САМ.
+ *
+ * Прежде в запрос редактора уходили только `task`, `research`, `candidate` и
+ * `systemRepairs`: собственных замечаний прошлого раунда он не видел и потому
+ * проверял материал с чистого листа. На проде это давало три раунда подряд с
+ * разными придирками вместо проверки, устранено ли названное.
+ *
+ * Прошлые замечания — не подсказка «одобряй», а предмет проверки: сошлись
+ * ли раунды. Правило, по которому новая придирка не равна блокирующему
+ * дефекту, живёт в системном промте редактора.
+ */
+export function marketingReviewerPrompt(input: {
+  task: unknown;
+  research: unknown;
+  round: number;
+  candidate: unknown;
+  systemRepairs: unknown;
+  previousReview: { issues: string[]; revisionBrief: string[] } | null;
+}): Record<string, unknown> {
+  const base = {
+    task: input.task,
+    research: input.research,
+    editorialRound: input.round,
+    candidate: input.candidate,
+    systemRepairs: input.systemRepairs,
+  };
+  if (!input.previousReview) return base;
+  return {
+    ...base,
+    previousIssues: input.previousReview.issues,
+    previousRevisionBrief: input.previousReview.revisionBrief,
+  };
+}

@@ -10,6 +10,8 @@ import { log, serializeError } from "@/lib/logger";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
+  marketingReviewerPrompt,
+  marketingWriterPrompt,
 } from "@/lib/marketing/agent-prompt";
 import {
   ENGAGEMENT_TONE_HARD_LIMITS,
@@ -1040,17 +1042,15 @@ export async function processMarketingDraft(publicationId: string) {
       const pinnedWriterProvider: AIProvider | null = lastWriter
         ? marketingProviderFromLabel(lastWriter.provider)
         : null;
-      const writerPrompt: Record<string, unknown> = previousDraft && previousReview
-        ? {
-          task,
-          research,
-          editorialRound: round,
-          previousCandidate: previousDraft,
-          editorIssues: previousReview.issues,
-          revisionBrief: previousReview.revisionBrief,
-          instruction: "Исправь все замечания редактора и верни полностью готовую новую версию в обязательном JSON-формате.",
-        }
-        : { task, research, editorialRound: round };
+      // B700 фаза 6: раунд правки — это правка, а не новая версия. Правило
+      // живёт в `marketingWriterPrompt` и проверяется тестом.
+      const writerPrompt: Record<string, unknown> = marketingWriterPrompt({
+        task,
+        research,
+        round,
+        previousDraft,
+        previousReview,
+      });
       const writerResult: StructuredCompletion<WriterOutput> = await completeWithValidStructure({
         // B628: разговорный материал списывается с отдельной суточной ёмкости.
         feature: isConversational ? MARKETING_REPLY_WRITER_FEATURE : "marketing-agent-writer",
@@ -1159,13 +1159,16 @@ export async function processMarketingDraft(publicationId: string) {
           { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
           {
             role: "user",
-            content: JSON.stringify({
+            // B700 фаза 6: редактор видит собственные замечания прошлого раунда
+            // и проверяет сходимость, а не ищет свежие придирки.
+            content: JSON.stringify(marketingReviewerPrompt({
               task,
               research,
-              editorialRound: round,
+              round,
               candidate: draft,
               systemRepairs: repairs,
-            }),
+              previousReview,
+            })),
           },
         ],
         parse: (raw) => reviewerObject(raw, scoreKeys),
