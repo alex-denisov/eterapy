@@ -40,7 +40,16 @@ describe("B623 · ссылка и CTA подставляются, а не бра
     expect(result.repairs.map((repair) => repair.field)).toContain("destinationUrl");
   });
 
-  it("пустой CTA заполняется по целевой ссылке", () => {
+  /**
+   * B700 фаза 6 — ПРАВИЛО ПЕРЕВЁРНУТО, и это решение владельца (2026-08-09).
+   *
+   * B623 заполнял пустой CTA строкой «Открыть по ссылке в тексте: <url>», и
+   * проверка «CTA есть» после этого проходила всегда. Замер прода 2026-08-09
+   * показал цену: шесть материалов из семи заканчивались голой ссылкой, потому
+   * что призыв за автора писала система, а не автор. Теперь пустой призыв —
+   * это ЗАМЕЧАНИЕ, и система пишет его сама только на последнем раунде.
+   */
+  it("пустой CTA больше не заполняется молча: это замечание редактора", () => {
     const result = repairPublishableDraft({
       draft,
       isConversational: false,
@@ -48,8 +57,26 @@ describe("B623 · ссылка и CTA подставляются, а не бра
       platform: "vk",
     });
 
-    expect(result.draft.cta).toContain("https://eterapy.com/products/chat");
+    expect(result.repairs.map((repair) => repair.field)).not.toContain("cta");
+    expect(result.violations.map((violation) => violation.kind)).toContain("cta");
+  });
+
+  it("последний раунд: призыв пишет система СЛОВАМИ, а не адресом", () => {
+    const result = repairPublishableDraft({
+      draft,
+      isConversational: false,
+      destinationUrl: "https://eterapy.com/products/chat",
+      platform: "vk",
+      topic: "как пережить расставание",
+      finalRound: true,
+    });
+
     expect(result.repairs.map((repair) => repair.field)).toContain("cta");
+    expect(result.draft.cta).toContain("Разобрать свою ситуацию");
+    // Хвост материала перестал быть голым адресом — ровно то, что владелец
+    // назвал браком выпуска.
+    expect(result.draft.text.trimEnd()).not.toMatch(/\n\s*https?:\/\/\S+$/u);
+    expect(result.violations).toHaveLength(0);
   });
 
   it("правки видны редактору списком, а не молча", () => {
@@ -59,7 +86,7 @@ describe("B623 · ссылка и CTA подставляются, а не бра
       destinationUrl: "https://eterapy.com/products/chat",
       platform: "vk",
     });
-    expect(result.repairs).toHaveLength(2);
+    expect(result.repairs).toHaveLength(1);
     expect(result.repairs.every((repair) => repair.note.length > 0)).toBe(true);
   });
 
@@ -98,7 +125,7 @@ describe("B623 · ссылка и CTA подставляются, а не бра
       destinationUrl: "https://eterapy.com/products/chat",
       platform: "threads",
     });
-    expect(result.violations.map((violation) => violation.kind)).toEqual(["length"]);
+    expect(result.violations.map((violation) => violation.kind)).toContain("length");
   });
 
   it("разговорному материалу ссылка не обязательна", () => {
