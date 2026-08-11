@@ -99,4 +99,16 @@ describe("v5 SEO routing policy", () => {
       }));
     }
   });
+
+  it("gives every Product schema a real Offer instead of inventing reviews", () => {
+    for (const route of publicSeoRoutes) {
+      if (publicPageSeo[route].schemaKind !== "Product") continue;
+      const jsonLd = jsonLdForPublicPage(route) as { offers?: { price?: string; priceCurrency?: string; availability?: string }; review?: unknown; aggregateRating?: unknown };
+      expect(Number(jsonLd.offers?.price)).toBeGreaterThan(0);
+      expect(jsonLd.offers?.priceCurrency).toBe("RUB");
+      expect(jsonLd.offers?.availability).toBe("https://schema.org/InStock");
+      expect(jsonLd.review).toBeUndefined();
+      expect(jsonLd.aggregateRating).toBeUndefined();
+    }
+  });
 });

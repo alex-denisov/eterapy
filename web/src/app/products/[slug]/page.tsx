@@ -20,6 +20,7 @@ import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page
 import { getV5Product, v5Products, type V5Product, type V5ProductSlug } from "@/lib/v5-products";
 import { serviceGuideLibraryHref } from "@/lib/service-guides";
 import { getSetting } from "@/lib/platform-settings";
+import { getProductPriceKopecks } from "@/lib/product-prices";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -159,10 +160,14 @@ export default async function ProductPage({
     ...(Number.isInteger(configuredRubles) && configuredRubles > 0 ? { price: `${configuredRubles.toLocaleString("ru-RU")} ₽` } : {}),
     ...(Number.isInteger(configuredCredits) && configuredCredits > 0 ? { creditCost: configuredCredits, creditPrice: `или −${configuredCredits} балла` } : {}),
   };
+  const defaultPriceKopecks = getProductPriceKopecks(baseProduct.productKey ?? baseProduct.slug);
+  const offerPriceRubles = Number.isInteger(configuredRubles) && configuredRubles > 0
+    ? configuredRubles
+    : defaultPriceKopecks === null ? undefined : defaultPriceKopecks / 100;
 
   return (
     <main className="soft-clarity-page soft-product-detail-page" data-testid={`product-page-${product.slug}`}>
-      <PublicJsonLd route={product.route as PublicSeoRoute} />
+      <PublicJsonLd route={product.route as PublicSeoRoute} offerPriceRubles={offerPriceRubles} />
       {COMPACT_HERO_SLUGS.has(product.slug) ? (
         <ProductHero
           product={product}
