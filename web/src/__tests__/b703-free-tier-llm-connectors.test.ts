@@ -33,7 +33,7 @@ import {
   marketingProvidersWithSingleModel,
 } from "@/lib/marketing/model-pool";
 import { getReferenceModelPricing } from "@/lib/ai-gateway/model-pricing-reference";
-import { EDGE_RELAY_UPSTREAMS } from "@/lib/integrations/edge-relay";
+import { EDGE_RELAY_UPSTREAMS, edgeRelayHeaders } from "@/lib/integrations/edge-relay";
 import { maxStructuredAttemptsPerMaterial } from "@/lib/marketing/agent";
 
 const RELAY_ORIGIN = "https://107.172.153.202.sslip.io";
@@ -232,5 +232,27 @@ describe("B703 · бюджет обращений вырос вместе с п�
   it("бюджет всегда больше полного перебора активного пула", () => {
     expect(maxStructuredAttemptsPerMaterial())
       .toBeGreaterThan(MARKETING_ACTIVE_PROVIDERS.length);
+  });
+});
+
+describe("B703 · дефекты, найденные живыми ключами на проде", () => {
+  it("шлюз не пересылает провайдеру заголовки нашего перехода", () => {
+    // CDN Hugging Face маршрутизирует ПО `x-forwarded-host`: с ним
+    // `router.huggingface.co` отдаёт сайт huggingface.co вместо API, и ответ
+    // при этом `200`. Разбор уходит искать ошибку в адресе или в ключе.
+    const source = new Headers({
+      "authorization": "Bearer secret",
+      "content-type": "application/json",
+      "x-forwarded-host": "107.172.153.202.sslip.io",
+      "x-forwarded-for": "10.77.0.1",
+      "x-real-ip": "10.77.0.1",
+      "cookie": "session=nope",
+    });
+    const forwarded = edgeRelayHeaders(source);
+    expect(forwarded.get("authorization")).toBe("Bearer secret");
+    expect(forwarded.get("content-type")).toBe("application/json");
+    for (const leaked of ["x-forwarded-host", "x-forwarded-for", "x-real-ip", "cookie"]) {
+      expect(forwarded.get(leaked)).toBeNull();
+    }
   });
 });

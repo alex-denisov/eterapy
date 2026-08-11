@@ -198,7 +198,13 @@ export function createOpenAICompatibleAdapter(options: OpenAICompatibleAdapterOp
             { role: "user", content: "ping" },
           ],
           model,
-          maxTokens: 128,
+          // B703 — 128 токенов хватало, пока модели отвечали сразу. Рассуждающие
+          // тратят бюджет на размышление ПЕРЕД ответом: `kimi-k3-free` при 16
+          // токенах отдаёт `finish_reason: length` и пустой `content`, при 512 —
+          // «Готов». Пустой ответ классифицируется как `EMPTY_RESPONSE`, то есть
+          // исправный провайдер объявляется мёртвым нашим же лимитом. Проба
+          // здоровья не должна экономить на том, что она измеряет.
+          maxTokens: 512,
           temperature: 0,
           timeoutMs,
         });

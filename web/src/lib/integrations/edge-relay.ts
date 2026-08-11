@@ -78,6 +78,23 @@ const STRIPPED_HEADERS = new Set([
   "connection",
   "cookie",
   EDGE_RELAY_SECRET_HEADER,
+  // B703 — заголовки НАШЕГО перехода не должны доезжать до провайдера.
+  //
+  // Их проставляет nginx перед Next, и до появления Hugging Face они выглядели
+  // безобидным шумом. Оказалось — нет: CDN провайдера маршрутизирует ПО
+  // `x-forwarded-host`, и с ним `router.huggingface.co` отдаёт сайт
+  // huggingface.co вместо API. Ответ при этом `200`, и разбор уходит искать
+  // ошибку в адресе или в ключе. Воспроизведено голым curl: тот же запрос с
+  // одним лишним заголовком возвращает HTML, без него — JSON каталога.
+  //
+  // `x-forwarded-for` и `x-real-ip` снимаются и по второй причине: это адрес
+  // нашего же узла, и отдавать его третьей стороне незачем.
+  "x-forwarded-host",
+  "x-forwarded-proto",
+  "x-forwarded-for",
+  "x-forwarded-port",
+  "x-forwarded-server",
+  "x-real-ip",
 ]);
 
 export function isEdgeRelayUpstream(value: string): value is EdgeRelayUpstream {
