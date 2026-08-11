@@ -14,9 +14,16 @@
  */
 
 import { discoverCandidates } from "@/lib/marketing/discovery";
+import { telegramChannelTrends } from "@/lib/marketing/trend-telegram";
+import { serpTrends } from "@/lib/marketing/trend-serp";
+import { wordstatDynamicsTrends } from "@/lib/marketing/trend-wordstat";
 
 /** Откуда пришёл тренд. */
-export type TrendSourceId = "discovery" | "wordstatDynamics" | "searchSuggestions";
+export type TrendSourceId =
+  | "discovery"
+  | "telegramChannels"
+  | "wordstatDynamics"
+  | "searchSuggestions";
 
 export interface TrendCandidate {
   /** Человекочитаемая тема для поста. */
@@ -65,29 +72,39 @@ async function discoverySource(): Promise<TrendCandidate[]> {
 }
 
 /**
- * Динамика wordstat (рост частотности за недели).
+ * Открытые Telegram-каналы (публичная веб-версия ленты).
  *
- * У Яндекс Wordstat API v2 есть метод динамики; он ещё не подключён в
- * `search-marketing-data.ts` (там только topRequests). Источник объявлен здесь,
- * чтобы сканер и планировщик не менялись, когда вызов появится.
+ * Разбор и правило отбора — в `trend-telegram.ts`. Здесь источник только
+ * объявлен: пустая настройка каналов означает пустой список, а не отказ.
  */
-async function wordstatDynamicsSource(): Promise<TrendCandidate[]> {
-  return [];
+async function telegramChannelsSource(): Promise<TrendCandidate[]> {
+  return telegramChannelTrends();
 }
 
 /**
- * Поисковые подсказки (suggest) — автодополнение набираемого запроса.
+ * Динамика wordstat: рост частотности за недели.
  *
- * Эндпоинт suggest у Яндекса не имеет официального API-ключа и потому
- * не подключён. Место зарезервировано по той же причине, что и dynamics:
- * интерфейс источника фиксирован заранее.
+ * Разбор и порог роста — в `trend-wordstat.ts`. Нет ключа — источник молчит,
+ * как и любой другой ненастроенный.
+ */
+async function wordstatDynamicsSource(): Promise<TrendCandidate[]> {
+  return wordstatDynamicsTrends();
+}
+
+/**
+ * Поисковая выдача: формулировки, которых ещё нет в ядре.
+ *
+ * Место в контракте было зарезервировано под подсказки (suggest); у того
+ * эндпоинта нет официального ключа, зато есть Яндекс SearchAPI — тот же вход
+ * «что сейчас в поиске», только законным путём. Разбор — в `trend-serp.ts`.
  */
 async function searchSuggestionsSource(): Promise<TrendCandidate[]> {
-  return [];
+  return serpTrends();
 }
 
 const TREND_SOURCES: readonly TrendSource[] = [
   discoverySource,
+  telegramChannelsSource,
   wordstatDynamicsSource,
   searchSuggestionsSource,
 ];

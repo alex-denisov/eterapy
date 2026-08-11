@@ -59,6 +59,11 @@ export const MARKETING_PLATFORM_FIELDS = [
   { platform: "Dzen", key: "DZEN_FEED_CONFIRMED", label: "Лента подключена в Дзене (true / пусто)", secret: false, multiline: false, requirement: "optional" },
   { platform: "Dzen", key: "DZEN_FEED_PUBLISHING_ENABLED", label: "Выпускать ЧЕРЕЗ ленту RSS (true / пусто) — включать с 10 подписчиков", secret: false, multiline: false, requirement: "optional" },
   { platform: "Research", key: "MARKETING_COMPETITOR_URLS", label: "Публичные страницы конкурентов, по одной URL в строке", secret: false, multiline: true, requirement: "optional" },
+  // B702 фаза 6: живые темы читаются с ПУБЛИЧНОЙ веб-версии канала
+  // (`t.me/s/<канал>`) — той самой страницы, которую видит любой человек без
+  // входа. Бот сюда не годится: чужой канал он читать не может, а просить
+  // администраторов чужих каналов не о чем.
+  { platform: "Research", key: "MARKETING_TREND_TELEGRAM_CHANNELS", label: "Открытые Telegram-каналы для поиска тем: имена через запятую или с новой строки", secret: false, multiline: true, requirement: "optional" },
 ] as const;
 
 export type MarketingPlatform = typeof MARKETING_PLATFORM_FIELDS[number]["platform"];
