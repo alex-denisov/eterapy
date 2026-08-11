@@ -220,6 +220,17 @@ jobs:
             --build-arg NEXT_PUBLIC_YANDEX_METRIKA_ID="108502034" \
             -t "eterapy-web:${GITHUB_SHA::8}" .
 
+      # B667 — размер образа виден в прогоне, а не только на ноде, где он уже
+      # занял диск (у eterapy-1 дефицит диска хронический, INC-095). Планка
+      # 800 МБ — критерий готовности тикета; превышение СООБЩАЕТСЯ, но прогон не
+      # валит: раздувшийся образ не ломает продукт, а блокирующий гейт на нём
+      # остановил бы выкатку правок, которые нужны людям.
+      - name: Report image size
+        run: |
+          SIZE_MB=$(docker image inspect "eterapy-web:${GITHUB_SHA::8}" --format '{{.Size}}' | awk '{printf "%d", $1/1024/1024}')
+          echo "▶ образ: ${SIZE_MB} МБ (планка B667 — 800 МБ)"
+          [ "$SIZE_MB" -le 800 ] || echo "::warning::образ ${SIZE_MB} МБ — выше планки B667 в 800 МБ"
+
       - name: Push release image to registry
         id: registry
         continue-on-error: true

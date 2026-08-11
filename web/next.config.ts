@@ -5,6 +5,12 @@ import { baseSecurityHeaders } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
+  // B667: релизный образ несёт не установленные node_modules, а трассированное
+  // дерево. `node_modules` занимал 1.1 ГБ из 2.0 ГБ образа, и платили за это
+  // четыре ноды при каждой выкатке. Сборку дособирает
+  // `scripts/build-standalone.mjs`: статика, public, бандлы воркеров и проверки
+  // целостности дерева (см. тикет B667).
+  output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   // B431: the legal pages render from this Markdown pack at request time; make sure
   // it is always traced/included alongside the route.

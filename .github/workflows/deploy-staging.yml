@@ -98,6 +98,16 @@ jobs:
             --build-arg NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="eterapy_staging_bot" \
             -t "eterapy-web-staging:${GITHUB_SHA::8}" .
 
+      # B667 — размер образа виден в прогоне, а не только на ноде, где он уже
+      # занял диск. Планка 800 МБ — критерий готовности тикета; превышение
+      # СООБЩАЕТСЯ, но прогон не валит: раздувшийся образ не ломает продукт, а
+      # блокирующий гейт на нём остановил бы выкатку правок, которые нужны людям.
+      - name: Report image size
+        run: |
+          SIZE_MB=$(docker image inspect "eterapy-web-staging:${GITHUB_SHA::8}" --format '{{.Size}}' | awk '{printf "%d", $1/1024/1024}')
+          echo "▶ образ: ${SIZE_MB} МБ (планка B667 — 800 МБ)"
+          [ "$SIZE_MB" -le 800 ] || echo "::warning::образ ${SIZE_MB} МБ — выше планки B667 в 800 МБ"
+
       # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
       #
       # Замер 2026-08-04 на eterapy-1 в одну и ту же минуту: поток

@@ -3,6 +3,10 @@ const config = {
   rootDir: __dirname,
   setupFilesAfterEnv: ["./jest.setup.js"],
   testEnvironment: "jest-environment-jsdom",
+  // B667: в `.next/standalone` лежит собранный рантайм со своим package.json —
+  // для jest это второй модуль с именем «web» и предупреждение о коллизии на
+  // каждом прогоне. Сканировать собранное дерево незачем ни при каких условиях.
+  modulePathIgnorePatterns: ["<rootDir>/.next/"],
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/.next/",

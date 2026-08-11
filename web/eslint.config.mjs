@@ -20,6 +20,13 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // B667: точка входа релизного образа лежит рядом с `server.js` из
+  // standalone-сборки, а он CommonJS. `require` здесь — не стиль, а формат
+  // модуля; тест на разбор аргументов подключает тот же файл.
+  {
+    files: ["**/*.cjs", "src/__tests__/b667-standalone-start-args.test.ts"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
