@@ -12,6 +12,9 @@
  * ниже: он ловит возврат квадратичной сборки, а не микросекунды.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { demandFromCore, mergeDemandSignals } from "@/lib/marketing/content-relevance";
 import { planTopicsForSlots } from "@/lib/marketing/planner";
 import { CONTENT_PLAN } from "@/lib/marketing/content-plan";
@@ -36,5 +39,19 @@ describe("B702 — планировщик на живом ядре и живой
 
     expect(planned.size).toBe(slots.length);
     expect(elapsed).toBeLessThan(PLANNER_BUDGET_MS);
+  });
+});
+
+describe("B702 — гейт планировщика приезжает выкаткой", () => {
+  it("стенд включает планировщик оверлеем, а не рукой на хосте", () => {
+    // Владелец 2026-07-22: «я не буду ничего руками на проде делать, это всё
+    // должно делаться только через выкатку». Значение, которое надо вписать в
+    // `/opt/eterapy-staging/.env` руками, до контура не доезжает — механизм с
+    // ручным шагом считается невыполненным. Оверлей едет scp каждой выкаткой.
+    const overlay = fs.readFileSync(
+      path.join(path.resolve(process.cwd(), ".."), "deploy/compose/docker-compose.staging.yml"),
+      "utf8",
+    );
+    expect(overlay).toContain('MARKETING_PLANNER_ENABLED: "true"');
   });
 });
