@@ -217,9 +217,20 @@ jobs:
           fi
           # B667 — размер меряется НА ХОСТЕ: там диск, который реально занят.
           # Планка 800 МБ — предупреждение, а не гейт.
-          HOST_SIZE_MB=$($SSH "sudo docker image inspect eterapy-web-staging:${GITHUB_SHA::8} --format '{{.Size}}'" | awk '{printf "%d", $1/1024/1024}')
+          # `docker image inspect .Size` на нодах даёт СЖАТЫЙ размер (хранилище
+          # containerd): 193 МБ там, где `docker images` показывает 799 МБ. Диск
+          # занимает вторая цифра — её и берём, разбирая единицы измерения.
+          size_mb() {
+            awk -v s="$1" 'BEGIN {
+              n = s; sub(/[A-Za-z]+$/, "", n);
+              u = s; sub(/^[0-9.]+/, "", u);
+              m = (u == "GB") ? 1024 : (u == "MB") ? 1 : (u == "kB" || u == "KB") ? 1/1024 : 1/1048576;
+              printf "%d", n * m
+            }'
+          }
+          HOST_SIZE_MB=$(size_mb "$($SSH "sudo docker image ls --filter reference=eterapy-web-staging:${GITHUB_SHA::8} --format '{{.Size}}'" | head -1)")
           echo "▶ образ на хосте: ${HOST_SIZE_MB} МБ (планка B667 — 800 МБ)"
-          [ "$HOST_SIZE_MB" -le 800 ] || echo "::warning::образ ${HOST_SIZE_MB} МБ — выше планки B667 в 800 МБ"
+          [ "${HOST_SIZE_MB:-0}" -le 800 ] || echo "::warning::образ ${HOST_SIZE_MB} МБ — выше планки B667 в 800 МБ"
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
           # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
           # секрета репозитория, а не правится на хосте руками — ровно поэтому он
