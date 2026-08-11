@@ -40,6 +40,29 @@ describe("B702 — планировщик на живом ядре и живой
     expect(planned.size).toBe(slots.length);
     expect(elapsed).toBeLessThan(PLANNER_BUDGET_MS);
   });
+
+  it("ранжирует статьи, а не раздаёт их по алфавиту", () => {
+    // Замер в контейнере стенда 2026-08-11: у всех восьми слотов балл был один
+    // и тот же (1682.7), потому что scorer мерил КЛАСТЕР, а не статью. Выбор
+    // при равных баллах решает тай-брейк по слагу — планировщик выглядел
+    // работающим и выдавал алфавит. Подпись вырожденного ранжирования — именно
+    // РАВЕНСТВО баллов, поэтому прогон смотрит на разброс обоснований.
+    const signals = mergeDemandSignals([demandFromCore()]);
+    const planned = planTopicsForSlots({
+      slots: CONTENT_PLAN.slice(0, 8),
+      signals,
+      trends: [],
+      usedByPlatform: new Map(),
+    });
+
+    const rationales = [...planned.values()].map((topic) => topic.rationale);
+    expect(rationales.every((line) => line.startsWith("Тема из спроса"))).toBe(true);
+    // Баллы зашиты в обоснование — если ранжирование живое, они различаются.
+    expect(new Set(rationales).size).toBeGreaterThan(1);
+
+    const slugs = [...planned.values()].map((topic) => topic.articleSlug);
+    expect([...slugs].sort((left, right) => left.localeCompare(right))).not.toEqual(slugs);
+  });
 });
 
 describe("B702 — гейт планировщика приезжает выкаткой", () => {

@@ -11,7 +11,7 @@
  * валить планировщик — недоступный источник просто отдаёт пустой список.
  */
 
-import { buildQueryFamilyMatcher } from "@/lib/search-marketing-parsers";
+
 import type { SearchQueryMetric, WordstatMetric } from "@/lib/search-marketing-parsers";
 import { SEMANTIC_CORE } from "@/lib/seo/semantic-core-index";
 
@@ -97,48 +97,107 @@ export function mergeDemandSignals(
 const EMPTY_SCORE: TopicDemandScore = { score: 0, matched: [], sources: [] };
 
 /**
- * Готовый scorer по снимку спроса.
+ * Какая доля слов фразы спроса должна найтись в тексте темы, чтобы фраза
+ * зачлась.
  *
- * Матчер `buildQueryFamilyMatcher` стеммит ВЕСЬ снимок в момент сборки — это и
- * есть смысл его «build»-формы: собрать один раз, звать много. Планировщик
- * оценивает сотни строк-кандидатов по одному и тому же снимку, поэтому сборка
- * живёт здесь, а не внутри каждого вызова. Замер 2026-08-11: 174 статьи
- * библиотеки против 1750 фраз ядра — 16 секунд на проход при пересборке против
- * долей секунды при одной.
+ * Не 1.0 намеренно: «к чему снится вода в доме» обслуживается статьёй «к чему
+ * снится вода», и терять этот спрос из-за двух лишних слов неправильно. Не
+ * ниже 0.6 — иначе одно общее слово («отношения») притянет чужой кластер, а
+ * ровно это и сломало первый замер.
+ */
+const DEMAND_COVERAGE_MIN = 0.6;
+
+const TOKEN_SPLIT = /[^\p{L}\p{N}]+/u;
+
+/** Тот же стем, что у `search-marketing-parsers`: слово от пяти букв теряет последнюю. */
+function stems(value: string): string[] {
+  return value
+    .toLocaleLowerCase("ru-RU")
+    .split(TOKEN_SPLIT)
+    .filter(Boolean)
+    .map((token) => (token.length >= 5 ? token.slice(0, -1) : token));
+}
+
+/**
+ * Совпадение стемов с допуском на словоформу — правило `search-marketing-parsers`:
+ * короткий токен приставкой не считаем, иначе «дом» подтянет «домашний».
+ */
+function stemsMatch(left: string, right: string): boolean {
+  if (left === right) return true;
+  const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
+  if (shorter.length < 4) return false;
+  return longer.startsWith(shorter) && longer.length - shorter.length <= 2;
+}
+
+/** Ключ корзины индекса. Совпадающие по `stemsMatch` стемы делят первые 4 буквы. */
+function bucketKey(stem: string): string {
+  return stem.slice(0, 4);
+}
+
+/**
+ * Готовый scorer по снимку спроса: «сколько спроса покрывает эта тема».
  *
- * Соответствие «псевдо-запрос → строка спроса» держится по ссылке на объект:
- * фразы в снимке повторяются (одна и та же фраза приходит из ядра и из
- * wordstat), и сравнение по тексту склеило бы разные источники в один.
+ * НАПРАВЛЕНИЕ СРАВНЕНИЯ. Первая реализация звала `buildQueryFamilyMatcher` и
+ * спрашивала обратное: «содержится ли текст темы во фразе спроса». Для семьи
+ * запросов (короткое зерно → его длинные варианты) это верно, для темы статьи —
+ * нет, и замер на стенде 2026-08-11 показал цену ошибки:
+ *
+ * - человеческий вопрос статьи («Мне очень одиноко, хотя вокруг люди») не
+ *   совпадал НИ С ЧЕМ: фразы спроса короче вопроса, значит «все слова вопроса
+ *   есть во фразе» невыполнимо;
+ * - зато название кластера («Отношения») совпадало со 183 фразами сразу.
+ *
+ * В итоге балл считался на уровне КЛАСТЕРА: у всех восьми слотов он был
+ * одинаковым (1682.7), и выбор темы сваливался в алфавит слага. Планировщик
+ * выглядел работающим и не ранжировал ничего.
+ *
+ * Теперь тема — это текст, а фраза спроса — искомое: фраза засчитывается, если
+ * в тексте темы нашлось не меньше `DEMAND_COVERAGE_MIN` её слов. Балл —
+ * взвешенная лог-нормализованная сумма спроса засчитанных фраз.
  */
 export function createDemandScorer(
   signals: DemandSignals,
 ): (topic: { targetQuery?: string | null; cluster?: string | null }) => TopicDemandScore {
   if (signals.items.length === 0) return () => EMPTY_SCORE;
 
-  // Псевдо-запросы: матчеру нужен `SearchQueryMetric`, но важны только фраза и
-  // её вес. Показы храним в `impressions` — туда же, где живут реальные показы
-  // Вебмастера.
-  const pseudoQueries: SearchQueryMetric[] = signals.items.map((item) => ({
-    query: item.phrase,
-    impressions: item.demand,
-    clicks: 0,
-    ctr: 0,
-    averagePosition: null,
-    opportunity: "Удерживать",
-  }));
-  const itemByQuery = new Map<SearchQueryMetric, DemandSignalItem>(
-    pseudoQueries.map((query, index) => [query, signals.items[index]]),
-  );
-  const match = buildQueryFamilyMatcher(pseudoQueries);
+  // Снимок раскладывается ОДИН раз: 1750 фраз против сотен тем — пересборка на
+  // каждую тему стоила 16 секунд прохода (замер 2026-08-11).
+  const phraseStems = signals.items.map((item) => stems(item.phrase));
+  // Обратный индекс «первые 4 буквы стема → номера фраз». Без него на каждую
+  // тему пришлось бы сверять её слова со всеми 1750 фразами.
+  const buckets = new Map<string, number[]>();
+  phraseStems.forEach((tokens, index) => {
+    for (const token of new Set(tokens)) {
+      const key = bucketKey(token);
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(index);
+      else buckets.set(key, [index]);
+    }
+  });
 
   return (topic) => {
-    const query = (topic.targetQuery ?? "").trim().toLocaleLowerCase("ru-RU");
-    if (!query) return EMPTY_SCORE;
+    const topicStems = stems(topic.targetQuery ?? "");
+    if (topicStems.length === 0) return EMPTY_SCORE;
 
-    const matched = match(query).flatMap((entry) => {
-      const item = itemByQuery.get(entry);
-      return item ? [item] : [];
-    });
+    // Сколько РАЗНЫХ слов фразы нашлось в тексте темы.
+    const hits = new Map<number, Set<string>>();
+    for (const token of new Set(topicStems)) {
+      for (const index of buckets.get(bucketKey(token)) ?? []) {
+        for (const phraseToken of phraseStems[index]) {
+          if (!stemsMatch(phraseToken, token)) continue;
+          const found = hits.get(index);
+          if (found) found.add(phraseToken);
+          else hits.set(index, new Set([phraseToken]));
+        }
+      }
+    }
+
+    const matched: DemandSignalItem[] = [];
+    for (const [index, found] of hits) {
+      const total = new Set(phraseStems[index]).size;
+      if (total === 0 || found.size / total < DEMAND_COVERAGE_MIN) continue;
+      matched.push(signals.items[index]);
+    }
     if (matched.length === 0) return EMPTY_SCORE;
 
     const score = matched.reduce(

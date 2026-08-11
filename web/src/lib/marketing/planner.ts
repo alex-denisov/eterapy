@@ -85,9 +85,10 @@ function buildCandidates(signals: DemandSignals, trends: TrendCandidate[]): Topi
       .map((value) => value.trim())
       .filter(Boolean);
     if (queries.length === 0) continue;
-    const demandScore = Math.max(
-      ...queries.map((query) => scoreDemand({ targetQuery: query }).score),
-    );
+    // Статья меряется ОДНИМ текстом, а не максимумом по трём строкам. Максимум
+    // выигрывал самой общей из них — названием кластера, — и все статьи темы
+    // получали один балл (замер 2026-08-11: 1682.7 у всех восьми слотов).
+    const demandScore = scoreDemand({ targetQuery: queries.join(" ") }).score;
     const matched = trendMatch(queries, trends);
     candidates.push({
       articleSlug: entry.slug,

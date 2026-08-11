@@ -41,7 +41,11 @@ describe("B702 фаза 1 — спрос как вход планировщик�
     const scored = scoreTopicDemand({ targetQuery: "таро" }, signals);
     expect(scored.score).toBe(0);
     expect(scored.matched).toHaveLength(0);
-    expect(scoreTopicDemand({ targetQuery: "таро" }, {
+    // Тема — это ТЕКСТ, а фраза спроса — искомое в нём (см. `createDemandScorer`).
+    // Прежняя редакция спрашивала обратное: тема «таро» против фразы «таро
+    // онлайн». Такое сравнение и сломало первый замер — одно общее слово
+    // притягивало весь кластер, поэтому здесь тема покрывает фразу целиком.
+    expect(scoreTopicDemand({ targetQuery: "таро онлайн: как разложить" }, {
       items: [{ phrase: "таро онлайн", demand: 5_000, source: "gsc" }],
     }).score).toBeGreaterThan(0);
   });
@@ -82,6 +86,37 @@ describe("B702 фаза 1 — спрос как вход планировщик�
       opportunity: "Усилить страницу",
     }];
     expect(demandFromWebmaster(webmaster)).toHaveLength(0);
+  });
+
+  it("длинный вопрос статьи меряется спросом, а не обнуляется", () => {
+    // Замер на стенде 2026-08-11: балл статьи считался ТОЛЬКО по названию
+    // кластера, потому что человеческий вопрос («Мне очень одиноко, хотя вокруг
+    // люди») не совпадал ни с одной фразой спроса — совпадение требовало, чтобы
+    // ВСЕ слова вопроса нашлись во фразе. Фразы короче вопросов, значит ноль
+    // был гарантирован.
+    const signals = mergeDemandSignals([
+      [{ phrase: "как пережить расставание", demand: 12_000, source: "wordstat" }],
+    ]);
+    const scored = scoreTopicDemand(
+      { targetQuery: "Как пережить расставание, если легче не становится" },
+      signals,
+    );
+    expect(scored.score).toBeGreaterThan(0);
+    expect(scored.matched).toHaveLength(1);
+  });
+
+  it("две статьи одного кластера получают разные баллы", () => {
+    // Тот же замер: у всех восьми слотов балл был ОДИН И ТОТ ЖЕ — 1682.7, и
+    // выбор сваливался в алфавит слага. Балл на уровне кластера ничего не
+    // ранжирует: планировщик обязан различать статьи внутри темы.
+    const signals = mergeDemandSignals([
+      [{ phrase: "таро", demand: 400_000, source: "wordstat" }],
+      [{ phrase: "расклад таро на отношения", demand: 9_000, source: "wordstat" }],
+    ]);
+    const onPoint = scoreTopicDemand({ targetQuery: "Расклад таро на отношения: что он значит" }, signals);
+    const sameCluster = scoreTopicDemand({ targetQuery: "Таро и работа: стоит ли увольняться" }, signals);
+    expect(onPoint.score).toBeGreaterThan(sameCluster.score);
+    expect(sameCluster.score).toBeGreaterThan(0);
   });
 
   it("снимок спроса стеммится один раз на планировщик, а не на каждую тему", () => {
