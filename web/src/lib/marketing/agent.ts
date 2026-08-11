@@ -352,6 +352,21 @@ type StructuredCompletion<T> = { response: AICompletion; value: T };
 
 const LOOP_LIMIT = 3;
 const EDITORIAL_ROUND_LIMIT = 3;
+
+/**
+ * B700 фаза 6 (страховка) — сколько кругов правки материал получает за всю
+ * жизнь, а не за один проход.
+ *
+ * Шесть — это два полных круга по три раунда. Смысл границы: сходящаяся правка
+ * укладывается в первые два-три раунда (замер 11.08 показал, что замечания
+ * повторяются, а не заменяются), поэтому второй круг — это запас на редкий
+ * случай, а не режим работы. Всё, что не сошлось за шесть раундов, сходиться
+ * уже не собирается, и дальше платить за него нельзя.
+ */
+const EDITORIAL_LIFETIME_ROUND_LIMIT = Math.max(
+  EDITORIAL_ROUND_LIMIT,
+  Number(process.env.MARKETING_EDITORIAL_LIFETIME_ROUNDS || 6),
+);
 const REVIEW_SCORE_KEYS = [
   "relevance",
   "value",
@@ -855,6 +870,15 @@ interface EditorialIteration {
 interface CarriedWriterStage {
   /** Раунд, с которого продолжает следующий проход. */
   round: number;
+  /**
+   * B700 фаза 6 (страховка) — сколько раундов материал прошёл ЗА ВСЮ ЖИЗНЬ.
+   *
+   * Отдельно от `round`, потому что `round` обнуляется, когда исчерпанный круг
+   * возвращается на склад вместо архива. Без пожизненного счётчика возврат
+   * означал бы вечный круг: редактор пишет «поправимо», материал уходит на
+   * доработку, и так до конца бюджета обращений.
+   */
+  lifetimeRounds: number;
   research: unknown;
   iterationHistory: EditorialIteration[];
   previousDraft: WriterOutput | null;
@@ -883,6 +907,12 @@ export function carriedWriterStage(value: unknown): CarriedWriterStage | null {
   if (!pending?.draft?.text && !raw.previousDraft) return null;
   return {
     round,
+    // Склад, записанный до появления счётчика, начинает счёт со своего раунда:
+    // это ошибка в консервативную сторону — материал получит не больше кругов,
+    // чем положено, а не меньше.
+    lifetimeRounds: typeof raw.lifetimeRounds === "number" && raw.lifetimeRounds >= round
+      ? raw.lifetimeRounds
+      : round,
     research: raw.research ?? null,
     iterationHistory: raw.iterationHistory as EditorialIteration[],
     previousDraft: (raw.previousDraft as WriterOutput | null) ?? null,
@@ -1012,6 +1042,9 @@ export async function processMarketingDraft(publicationId: string) {
     let previousReview: ReviewerOutput | null = carried?.previousReview ?? null;
     /** Написанное со склада: первый раунд прохода отдаёт его редактору как есть. */
     let pending = carried?.pending ?? null;
+    // B700 фаза 6 (страховка): счёт кругов за всю жизнь материала. Растёт вместе
+    // с раундами и переживает возврат исчерпанного круга на склад.
+    let lifetimeRounds = carried?.lifetimeRounds ?? (carried?.round ?? 1);
 
     /**
      * B700 — склад пишется ДО вызова редактора, а не после утверждения.
@@ -1124,12 +1157,14 @@ export async function processMarketingDraft(publicationId: string) {
         // раунду и потерял бы уже названные замечания.
         await carry({
           round: round + 1,
+          lifetimeRounds: lifetimeRounds + 1,
           research,
           iterationHistory,
           previousDraft,
           previousReview,
           pending: null,
         });
+        lifetimeRounds += 1;
         continue;
       }
 
@@ -1138,6 +1173,7 @@ export async function processMarketingDraft(publicationId: string) {
       // вызова редактора, а не повторной оплаты автора.
       await carry({
         round,
+        lifetimeRounds,
         research,
         iterationHistory,
         previousDraft,
@@ -1206,6 +1242,9 @@ export async function processMarketingDraft(publicationId: string) {
         break;
       }
       if (review.decision === "REJECT") break;
+      // Круг засчитан: автор написал, редактор ответил. Счёт пожизненный —
+      // он переживает возврат исчерпанного круга на склад, в отличие от `round`.
+      lifetimeRounds += 1;
       previousDraft = draft;
       previousReview = review.decision === "APPROVE"
         ? {
@@ -1219,6 +1258,55 @@ export async function processMarketingDraft(publicationId: string) {
 
     if (!approvedDraft || !lastWriter || !lastReviewer) {
       const lastReview = iterationHistory.at(-1)?.review;
+      /**
+       * B700 фаза 6 (страховка) — «поправимо» не значит «в брак».
+       *
+       * Замер прода 2026-08-10: 10 материалов ушли в архив, у ВСЕХ три `REVISE`
+       * подряд и ни одного `REJECT`. Редактор трижды говорил «правки минимальны
+       * и не затрагивают смысл» — после чего материал выбрасывался по
+       * исчерпанию кругов. Замер 11.08 после правки сходимости показал, что
+       * замечания теперь повторяются («Неустранённые дефекты из прошлого
+       * раунда … Новых блокирующих замечаний нет»), то есть круги СХОДЯТСЯ, а
+       * материал всё равно умирает: один из них — за девять лишних символов.
+       *
+       * Отсюда граница. `REJECT` — приговор редактора, и он исполняется сразу.
+       * `REVISE` — это «доделать», и материал возвращается на склад ещё на один
+       * круг, сохраняя историю замечаний. Круги считаются пожизненно
+       * (`lifetimeRounds`), иначе возврат превратился бы в вечную доработку.
+       *
+       * Слот при этом ничего не ждёт: закрывшееся окно уводит материал в
+       * перенос (B645), а исчерпанный бюджет обращений (B680) убивает его в
+       * любом случае. Страховка добавляет кругов, а не бессмертие.
+       */
+      const revisable = lastReview?.decision === "REVISE"
+        && lifetimeRounds < EDITORIAL_LIFETIME_ROUND_LIMIT
+        && Boolean(previousDraft ?? approvedDraft);
+      if (revisable) {
+        await db.externalPublication.update({
+          where: { id: publication.id },
+          data: {
+            attemptCount: { increment: 1 },
+            agentWriterProvider: lastWriter?.provider,
+            agentWriterModel: lastWriter?.model,
+            lastError: `Круг правки исчерпан, но редактор просил доработку, а не брак `
+              + `(${lifetimeRounds} из ${EDITORIAL_LIFETIME_ROUND_LIMIT} кругов за жизнь материала). `
+              + `Материал остаётся в работе: ${lastReview?.summary ?? "замечания в истории раундов"}`,
+            // Склад остаётся открытым и несёт замечания последнего раунда —
+            // следующий проход продолжит правку, а не начнёт материал заново.
+            agentWriterDraft: {
+              round: 1,
+              lifetimeRounds,
+              research,
+              iterationHistory,
+              previousDraft: previousDraft ?? approvedDraft,
+              previousReview: lastReview,
+              pending: null,
+            } as unknown as Prisma.InputJsonValue,
+            agentWrittenAt: new Date(),
+          },
+        });
+        return { status: "revising" as const };
+      }
       await db.externalPublication.update({
         where: { id: publication.id },
         data: {
