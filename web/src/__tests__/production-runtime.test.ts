@@ -41,6 +41,19 @@ describe("production runtime", () => {
     expect(workflow).toContain('if [ "$WORKER_STATUS" != "running" ]; then');
   });
 
+  it("keeps SSH alive on both contours, not just production", () => {
+    // B698 научил боевую выкатку переживать молчащий `docker pull`: без
+    // keepalive клиент ждёт мёртвую сессию вечно. Стейджевый файл эту правку не
+    // получил, и 2026-08-11 прогон 31492859955 провисел 20+ минут на шаге
+    // «Ship image + converge stack» — на хосте при этом НЕ шло ничего.
+    // Расхождение двух контуров молчаливое: чинится один файл, ломается другой.
+    for (const workflow of [".github/workflows/deploy.yml", ".github/workflows/deploy-staging.yml"]) {
+      const text = source(workflow);
+      expect(text).toContain("ServerAliveInterval=30");
+      expect(text).toContain("ServerAliveCountMax=180");
+    }
+  });
+
   it("shows the complete eight-character operational SHA in deploy notifications", () => {
     const workflow = source(".github/workflows/deploy.yml");
 

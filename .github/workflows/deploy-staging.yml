@@ -151,7 +151,13 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes $VM_USER@$VM_HOST"
+          # B698 → 2026-08-11: keepalive обязателен на ОБОИХ контурах. Без него
+          # клиент ждёт мёртвую сессию вечно: прогон 31492859955 провисел 20+
+          # минут на `docker pull`, пока на хосте не шло ничего и ни один
+          # процесс не работал. Боевой deploy.yml эту правку получил ещё в B698,
+          # стейджевый — нет; расхождение молчаливое, поэтому его сторожит
+          # прогон `production-runtime`.
+          SSH="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=180 $VM_USER@$VM_HOST"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             "deploy/compose/$COMPOSE_FILE_NAME" "$VM_USER@$VM_HOST:/tmp/$COMPOSE_FILE_NAME"
           $SSH "sudo mkdir -p $STAGING_DIR && sudo mv /tmp/$COMPOSE_FILE_NAME $STAGING_DIR/$COMPOSE_FILE_NAME"
