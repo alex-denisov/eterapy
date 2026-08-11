@@ -23,6 +23,7 @@ import {
   isConversationalContentType,
 } from "@/lib/marketing/perimeter";
 import {
+  MARKETING_ACTIVE_PROVIDERS,
   MARKETING_REPLY_REVIEWER_FEATURE,
   MARKETING_REPLY_WRITER_FEATURE,
   marketingModelFreshness,
@@ -149,14 +150,34 @@ export class MarketingAttemptBudgetError extends Error {
 }
 
 /**
+ * Полезные обращения: три полных раунда «автор + редактор». Больше уже не даёт
+ * материала — в замере прода материалы с сотней попыток не выходили ни разу.
+ */
+const USEFUL_ATTEMPTS_PER_MATERIAL = 6;
+
+/**
  * Сколько обращений к моделям тратится на ОДИН материал за проход — обе роли,
  * все раунды правки, все ступени бюджета вывода вместе.
  *
- * 12 — это три полных раунда «автор + редактор» плюс двойной запас на перебор
- * провайдера. Больше уже не даёт материала: в замере прода материалы с сотней
- * попыток не выходили ни разу.
+ * B703 — величина перестала быть константой, и вот почему. Прежние 12 читались
+ * как «6 полезных плюс двойной запас», но вторая половина на деле была запасом
+ * НА ОДИН ПОЛНЫЙ ПЕРЕБОР ПУЛА: провайдеров было ровно шесть. Как только пул
+ * вырос до двенадцати, один неудачный перебор стал съедать весь бюджет
+ * целиком — и материал снова умирал бы от расхода, а не от собственного
+ * качества. Ровно тот дефект, который разбирал B699; он вернулся бы молча и
+ * ровно в день, когда ёмкости стало БОЛЬШЕ.
+ *
+ * Поэтому запас считается от размера пула, а не от числа. При шести
+ * провайдерах формула даёт прежние 12 — для старого пула не меняется ничего.
  */
-export const MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL = 12;
+export function maxStructuredAttemptsPerMaterial(
+  poolSize: number = MARKETING_ACTIVE_PROVIDERS.length,
+): number {
+  return USEFUL_ATTEMPTS_PER_MATERIAL + Math.max(poolSize, 1);
+}
+
+/** @deprecated читайте `maxStructuredAttemptsPerMaterial()` — бюджет зависит от пула. */
+export const MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL = maxStructuredAttemptsPerMaterial();
 
 /**
  * B644 — признак обрыва по лимиту вывода. Площадки называют его по-разному:
@@ -715,10 +736,11 @@ async function completeWithValidStructure<T>(input: {
     const provider = queue[0];
     let retrySameProvider = false;
     if (input.attempts) {
-      if (input.attempts.used >= MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL) {
+      const attemptLimit = maxStructuredAttemptsPerMaterial();
+      if (input.attempts.used >= attemptLimit) {
         throw new MarketingAttemptBudgetError(
           `Материал израсходовал ${input.attempts.used} обращений к моделям за проход `
-          + `(предел ${MAX_STRUCTURED_ATTEMPTS_PER_MATERIAL}) и остаётся черновиком. `
+          + `(предел ${attemptLimit}) и остаётся черновиком. `
           + `Последние отказы: ${failures.slice(-3).join("; ") || "нет"}`,
         );
       }

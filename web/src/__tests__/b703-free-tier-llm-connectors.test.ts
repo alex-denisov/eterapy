@@ -34,6 +34,7 @@ import {
 } from "@/lib/marketing/model-pool";
 import { getReferenceModelPricing } from "@/lib/ai-gateway/model-pricing-reference";
 import { EDGE_RELAY_UPSTREAMS } from "@/lib/integrations/edge-relay";
+import { maxStructuredAttemptsPerMaterial } from "@/lib/marketing/agent";
 
 const RELAY_ORIGIN = "https://107.172.153.202.sslip.io";
 
@@ -214,5 +215,22 @@ describe("B703 · цена", () => {
     expect(pricing).not.toBeNull();
     expect(pricing!.input).toBe(0);
     expect(pricing!.output).toBe(0);
+  });
+});
+
+describe("B703 · бюджет обращений вырос вместе с пулом", () => {
+  it("запас равен ОДНОМУ полному перебору пула, а не числу 6", () => {
+    // Прежние 12 читались как «6 полезных + двойной запас», но вторая половина
+    // на деле была перебором пула из шести провайдеров. При пуле в двенадцать
+    // один неудачный перебор съедал бы бюджет целиком — и материал снова умирал
+    // бы от расхода, а не от качества (дефект B699), ровно в день, когда
+    // ёмкости стало БОЛЬШЕ.
+    expect(maxStructuredAttemptsPerMaterial(6)).toBe(12);
+    expect(maxStructuredAttemptsPerMaterial(12)).toBe(18);
+  });
+
+  it("бюджет всегда больше полного перебора активного пула", () => {
+    expect(maxStructuredAttemptsPerMaterial())
+      .toBeGreaterThan(MARKETING_ACTIVE_PROVIDERS.length);
   });
 });
