@@ -35,6 +35,16 @@ describe("B702 фаза 2 — сканер живых трендов", () => {
     expect(result).toHaveLength(3);
   });
 
+  it("молчащий источник не держит проход конвейера", async () => {
+    // `discoverReddit` ходит в сеть последовательно и БЕЗ AbortSignal: без
+    // собственного срока сканер повесил бы крон-проход генерации целиком.
+    const silent: TrendSource = () => new Promise(() => {});
+    const healthy: TrendSource = async () => [candidate("живая тема")];
+    const result = await scanTrends({ sources: [silent, healthy], timeoutMs: 30 });
+    expect(result).toHaveLength(1);
+    expect(result[0].topic).toBe("живая тема");
+  });
+
   it("не отдаёт пустые темы", async () => {
     const source: TrendSource = async () => [candidate("")];
     const result = await scanTrends({ sources: [source] });

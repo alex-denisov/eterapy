@@ -17,7 +17,7 @@
  */
 
 import { approvedLibraryEntries } from "@/data/anonymous-library";
-import { scoreTopicDemand, type DemandSignals } from "@/lib/marketing/content-relevance";
+import { createDemandScorer, type DemandSignals } from "@/lib/marketing/content-relevance";
 import type { TrendCandidate } from "@/lib/marketing/trend-scan";
 import type { ContentPlanSlot } from "@/lib/marketing/content-plan";
 
@@ -75,6 +75,10 @@ function trendMatch(queries: string[], trends: TrendCandidate[]): { bonus: numbe
 }
 
 function buildCandidates(signals: DemandSignals, trends: TrendCandidate[]): TopicCandidate[] {
+  // Снимок спроса стеммится один раз на весь проход: кандидатов сотни, и
+  // сборка матчера внутри каждого вызова стоила 16 секунд прохода (см.
+  // `b702-planner-cost`).
+  const scoreDemand = createDemandScorer(signals);
   const candidates: TopicCandidate[] = [];
   for (const entry of approvedLibraryEntries()) {
     const queries = [entry.question, entry.seo?.metaTitle ?? "", entry.topic ?? ""]
@@ -82,7 +86,7 @@ function buildCandidates(signals: DemandSignals, trends: TrendCandidate[]): Topi
       .filter(Boolean);
     if (queries.length === 0) continue;
     const demandScore = Math.max(
-      ...queries.map((query) => scoreTopicDemand({ targetQuery: query }, signals).score),
+      ...queries.map((query) => scoreDemand({ targetQuery: query }).score),
     );
     const matched = trendMatch(queries, trends);
     candidates.push({

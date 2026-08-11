@@ -94,8 +94,63 @@ export function mergeDemandSignals(
   return { items: groups.flat(), window };
 }
 
+const EMPTY_SCORE: TopicDemandScore = { score: 0, matched: [], sources: [] };
+
 /**
- * Насколько тема релевантна спросу.
+ * Готовый scorer по снимку спроса.
+ *
+ * Матчер `buildQueryFamilyMatcher` стеммит ВЕСЬ снимок в момент сборки — это и
+ * есть смысл его «build»-формы: собрать один раз, звать много. Планировщик
+ * оценивает сотни строк-кандидатов по одному и тому же снимку, поэтому сборка
+ * живёт здесь, а не внутри каждого вызова. Замер 2026-08-11: 174 статьи
+ * библиотеки против 1750 фраз ядра — 16 секунд на проход при пересборке против
+ * долей секунды при одной.
+ *
+ * Соответствие «псевдо-запрос → строка спроса» держится по ссылке на объект:
+ * фразы в снимке повторяются (одна и та же фраза приходит из ядра и из
+ * wordstat), и сравнение по тексту склеило бы разные источники в один.
+ */
+export function createDemandScorer(
+  signals: DemandSignals,
+): (topic: { targetQuery?: string | null; cluster?: string | null }) => TopicDemandScore {
+  if (signals.items.length === 0) return () => EMPTY_SCORE;
+
+  // Псевдо-запросы: матчеру нужен `SearchQueryMetric`, но важны только фраза и
+  // её вес. Показы храним в `impressions` — туда же, где живут реальные показы
+  // Вебмастера.
+  const pseudoQueries: SearchQueryMetric[] = signals.items.map((item) => ({
+    query: item.phrase,
+    impressions: item.demand,
+    clicks: 0,
+    ctr: 0,
+    averagePosition: null,
+    opportunity: "Удерживать",
+  }));
+  const itemByQuery = new Map<SearchQueryMetric, DemandSignalItem>(
+    pseudoQueries.map((query, index) => [query, signals.items[index]]),
+  );
+  const match = buildQueryFamilyMatcher(pseudoQueries);
+
+  return (topic) => {
+    const query = (topic.targetQuery ?? "").trim().toLocaleLowerCase("ru-RU");
+    if (!query) return EMPTY_SCORE;
+
+    const matched = match(query).flatMap((entry) => {
+      const item = itemByQuery.get(entry);
+      return item ? [item] : [];
+    });
+    if (matched.length === 0) return EMPTY_SCORE;
+
+    const score = matched.reduce(
+      (sum, item) => sum + DEMAND_SOURCE_WEIGHT[item.source] * Math.log1p(item.demand),
+      0,
+    );
+    return { score, matched, sources: [...new Set(matched.map((item) => item.source))] };
+  };
+}
+
+/**
+ * Насколько тема релевантна спросу — разовый вызов.
  *
  * Тема совпадает с фразой спроса, когда каждый токен целевого запроса темы
  * встречается во фразе по стеммингу `search-marketing-parsers`. Такое
@@ -107,43 +162,13 @@ export function mergeDemandSignals(
  *
  * Балл — взвешенная лог-нормализованная сумма спроса совпавших фраз: живой
  * сигнал важнее разового замера, а гигантский показ не забивает всё остальное.
+ *
+ * Для нескольких тем по одному снимку берите `createDemandScorer`: здесь снимок
+ * стеммится заново на каждый вызов.
  */
 export function scoreTopicDemand(
   topic: { targetQuery?: string | null; cluster?: string | null },
   signals: DemandSignals,
 ): TopicDemandScore {
-  const query = (topic.targetQuery ?? "").trim().toLocaleLowerCase("ru-RU");
-  if (!query || signals.items.length === 0) {
-    return { score: 0, matched: [], sources: [] };
-  }
-
-  // Строим псевдо-запросы: scorer'у parsers нужен `SearchQueryMetric`, но нам
-  // важна только фраза и её вес. Показы храним в `impressions` — туда же, где
-  // живут реальные показы Вебмастера.
-  const pseudoQueries: SearchQueryMetric[] = signals.items.map((item) => ({
-    query: item.phrase,
-    impressions: item.demand,
-    clicks: 0,
-    ctr: 0,
-    averagePosition: null,
-    opportunity: "Удерживать",
-  }));
-
-  const match = buildQueryFamilyMatcher(pseudoQueries)(query);
-  if (match.length === 0) {
-    return { score: 0, matched: [], sources: [] };
-  }
-
-  const matched = signals.items.filter((item) =>
-    match.some((entry) => entry.query === item.phrase),
-  );
-  const score = matched.reduce(
-    (sum, item) => sum + DEMAND_SOURCE_WEIGHT[item.source] * Math.log1p(item.demand),
-    0,
-  );
-  return {
-    score,
-    matched,
-    sources: [...new Set(matched.map((item) => item.source))],
-  };
+  return createDemandScorer(signals)(topic);
 }

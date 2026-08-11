@@ -36,6 +36,15 @@ export type TrendSource = () => Promise<TrendCandidate[]>;
 export const TREND_SOURCE_CANDIDATE_LIMIT = 10;
 /** Сколько кандидатов максимум отдаёт сканер целиком. */
 export const TREND_SCAN_LIMIT = 15;
+/**
+ * Сколько сканер ждёт один источник.
+ *
+ * Не любезность, а граница ответственности: `discoverReddit` ходит в сеть
+ * последовательно по десяти подредактам и БЕЗ `AbortSignal`, а сканер зовётся
+ * внутри крон-прохода генерации. Молчащая сеть у источника трендов не имеет
+ * права держать конвейер — тренд это подсказка, а не условие выпуска.
+ */
+export const TREND_SOURCE_TIMEOUT_MS = 20_000;
 
 /**
  * Живые публичные обсуждения (Reddit/VK/Threads).
@@ -84,6 +93,28 @@ const TREND_SOURCES: readonly TrendSource[] = [
 ];
 
 /**
+ * Источник со сроком. Просрочка отдаётся как отказ — `allSettled` в сканере
+ * обходится с ней ровно как с любым другим сбоем источника. Таймер снимается в
+ * `finally`, иначе он держал бы процесс живым после ответа источника.
+ */
+async function withDeadline(source: TrendSource, timeoutMs: number): Promise<TrendCandidate[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      source(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Источник трендов не ответил за ${timeoutMs} мс`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
  * Собрать живые кандидаты-темы из всех доступных источников.
  *
  * Каждый источник вызывается через allSettled: сбой одного (сеть, отменённое
@@ -93,11 +124,12 @@ const TREND_SOURCES: readonly TrendSource[] = [
  * фиксированный список `TREND_SOURCES`.
  */
 export async function scanTrends(
-  input: { limit?: number; sources?: readonly TrendSource[] } = {},
+  input: { limit?: number; sources?: readonly TrendSource[]; timeoutMs?: number } = {},
 ): Promise<TrendCandidate[]> {
   const limit = input.limit ?? TREND_SCAN_LIMIT;
   const sources = input.sources ?? TREND_SOURCES;
-  const groups = await Promise.allSettled(sources.map((source) => source()));
+  const timeoutMs = input.timeoutMs ?? TREND_SOURCE_TIMEOUT_MS;
+  const groups = await Promise.allSettled(sources.map((source) => withDeadline(source, timeoutMs)));
   const seen = new Set<string>();
   const candidates: TrendCandidate[] = [];
   for (const group of groups) {
