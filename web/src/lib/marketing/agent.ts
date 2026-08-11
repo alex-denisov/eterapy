@@ -19,7 +19,6 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import {
-  CONVERSATIONAL_CONTENT_TYPES,
   INBOUND_REPLY_CONTENT_TYPE,
   isConversationalContentType,
 } from "@/lib/marketing/perimeter";
@@ -38,9 +37,17 @@ import {
 import {
   conveyorTact,
   marketingLinePauseUntil,
+  orderByUrgency,
   MARKETING_MAX_AWAITING_REVIEW,
   type ConveyorBottleneck,
 } from "@/lib/marketing/conveyor-tact";
+import {
+  awaitingReviewFilter,
+  conversationalFilter,
+  dueNowFilter,
+  plannedFilter,
+  readyForWorkFilter,
+} from "@/lib/marketing/conveyor-queues";
 import { contentPlanFor } from "@/lib/marketing/content-plan";
 import { dzenFeedNeedsTopUp } from "@/lib/marketing/dzen-feed";
 import {
@@ -1550,23 +1557,11 @@ export async function runMarketingAgentCycle(
   // честной, и владелец увидит сегодняшнюю причину, а не позавчерашнюю.
   await sweepStaleMarketingSignals(now).catch(() => undefined);
   const horizon = marketingGenerationHorizon(now);
-  // Материал без плановой даты — это ответ на входящее или ручной черновик:
-  // ждать нечего, он идёт в этот же проход.
-  const dueNow = {
-    OR: [{ scheduledFor: null }, { scheduledFor: { lte: horizon } }],
-  };
-  const readyForWork = {
-    OR: [
-      { status: "DRAFT", agentReviewedAt: null },
-      {
-        status: "REVIEW",
-        contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] },
-        lastError: "REVISION_REQUESTED",
-      },
-    ],
-  };
-  const conversationalFilter = { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } };
-  const plannedFilter = { NOT: conversationalFilter };
+  // B700 фаза 5: условия очередей — общие с панелью сводки. Второе определение
+  // тех же выборок означало бы, что панель рано или поздно покажет не то узкое
+  // место, которое на самом деле связывает линию.
+  const dueNow = dueNowFilter(horizon);
+  const readyForWork = readyForWorkFilter;
 
   // Разговорное — первым и всегда: у него отдельная ёмкость и отдельный смысл
   // срочности. Плановое берётся тем, что осталось от часового шага.
@@ -1577,21 +1572,6 @@ export async function runMarketingAgentCycle(
     select: { id: true },
   });
 
-  /**
-   * Написано, но ещё не проверено — это и есть очередь барабана.
-   *
-   * Спрашивается СКЛАД (`agentWriterDraft`), а не отметка времени. Две причины,
-   * и обе существенные. По смыслу: очередь редактора — это «есть написанное,
-   * ждущее проверки», и хранит написанное именно склад. По исполнению:
-   * частичный индекс фазы 1 построен ровно по этой паре условий
-   * (`WHERE agent_writer_draft IS NOT NULL AND agent_reviewed_at IS NULL`), а из
-   * `agent_written_at IS NOT NULL` наличие склада не следует — планировщик такой
-   * индекс использовать не может.
-   */
-  const awaitingReviewFilter = {
-    agentWriterDraft: { not: Prisma.DbNull },
-    agentReviewedAt: null,
-  };
   /** Спрос окна: плановое, ещё не доведённое до утверждения. */
   const demandFilter = { AND: [readyForWork, dueNow, plannedFilter] };
 
@@ -1720,11 +1700,20 @@ export async function runMarketingAgentCycle(
       where: { AND: [readyForWork, plannedFilter, awaitingReviewFilter] },
       orderBy: [{ scheduledFor: "asc" }, { agentWrittenAt: "asc" }],
       take: LOOP_LIMIT,
-      select: { id: true },
+      select: { id: true, scheduledFor: true },
     });
 
-  // Автору достаётся то, что осталось от прохода после барабана.
-  const writerRoom = Math.max(0, Math.min(plannedBudget, LOOP_LIMIT - reviewQueue.length));
+  /**
+   * B700 фаза 8 — место в проходе автору больше не выдаётся «по остатку».
+   *
+   * Было `LOOP_LIMIT - reviewQueue.length`: три несрочных написанных материала
+   * занимали проход целиком, и материал с сегодняшним окном не начинали вовсе.
+   * Теперь оба множества сливаются в одну очередь по сроку выпуска
+   * (`orderByUrgency`) и обрезаются по `LOOP_LIMIT` уже ПОСЛЕ слияния —
+   * поэтому автору достаётся столько, сколько разрешил такт, а кто именно
+   * попадёт в проход, решает срок, а не факт написания.
+   */
+  const writerRoom = Math.max(0, Math.min(plannedBudget, LOOP_LIMIT));
   /**
    * B632 — исключение с условием окончания.
    *
@@ -1756,10 +1745,21 @@ export async function runMarketingAgentCycle(
       where: freshFilter,
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
       take: writerRoom,
-      select: { id: true },
+      select: { id: true, scheduledFor: true },
     })
     : [];
-  const planned = [...reviewQueue, ...fresh];
+  /**
+   * B700 фаза 8 — одна очередь по сроку вместо двух по дешевизне.
+   *
+   * Слияние, а не склейка: при равном сроке вперёд идёт написанное (его
+   * остаток стоит одного вызова редактора против двух вызовов полного цикла),
+   * но горящее окно обгоняет склад. Правило живёт в `conveyor-tact.ts`, где его
+   * держит прогон, а не живая база.
+   */
+  const planned = orderByUrgency([
+    ...reviewQueue.map((row) => ({ ...row, written: true })),
+    ...fresh.map((row) => ({ ...row, written: false })),
+  ]).slice(0, LOOP_LIMIT);
   // «Отложено тактом» — отдельное число: иначе пустая очередь и сработавший
   // пейсинг снаружи выглядят одинаково.
   const paced = writerRoom > 0
@@ -1797,7 +1797,10 @@ export async function runMarketingAgentCycle(
      * и при полном буфере, и при выжженных квотах, и при переполненном складе, —
      * а меры это требует совершенно разные.
      */
-    reviewQueue: reviewQueue.length,
+    // B700 фаза 8: сколько мест прохода досталось складу ПОСЛЕ слияния по
+    // сроку, а не сколько склад предъявил. Иначе журнал обещал бы разбор
+    // написанного, которое горящее окно вытеснило из этого прохода.
+    reviewQueue: planned.filter((row) => row.written).length,
     bottleneck: tact.bottleneck,
     tact: {
       demand,
