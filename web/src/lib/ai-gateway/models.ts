@@ -183,6 +183,16 @@ async function fetchFireworksModels(credential: DecryptedAICredential): Promise<
     }));
 }
 
+/**
+ * B703 — цена входа из каталога провайдера. Отсутствие цены — это «каталог
+ * молчит», а не «бесплатно»: молчание не должно попадать в сводку как факт.
+ */
+function catalogRowIsFree(prompt: string | number | undefined): boolean {
+  if (prompt === undefined || prompt === null) return false;
+  const parsed = typeof prompt === "number" ? prompt : Number(prompt);
+  return Number.isFinite(parsed) && parsed === 0;
+}
+
 async function fetchOpenAICompatibleModels(input: {
   provider: AIProvider;
   credential: DecryptedAICredential;
@@ -197,13 +207,28 @@ async function fetchOpenAICompatibleModels(input: {
       ...cloudflareGatewayAuthHeaders(baseUrl),
     },
   });
-  const list = (data as { data?: Array<{ id?: string; name?: string; owned_by?: string; context_length?: number; context_window?: number; max_context_length?: number }> }).data ?? [];
+  const list = (data as {
+    data?: Array<{
+      id?: string;
+      name?: string;
+      owned_by?: string;
+      context_length?: number;
+      context_window?: number;
+      max_context_length?: number;
+      pricing?: { prompt?: string | number };
+    }>;
+  }).data ?? [];
   return list
     .filter((row) => typeof row.id === "string" && row.id.length > 0)
     .map((row) => ({
       modelId: row.id as string,
       displayName: row.name ?? null,
-      isFree: false,
+      // B703 — «бесплатна» говорит КАТАЛОГ провайдера, а не наша таблица цен.
+      // У новых коннекторов цена по умолчанию нулевая (аккаунт без баланса
+      // ходит только в бесплатный тариф), и вывести признак из неё значило бы
+      // объявить бесплатными все 352 модели Kilo, включая те, что отвечают
+      // `402 «Add credits»`. Каталоги OpenRouter-формы отдают цену строкой.
+      isFree: catalogRowIsFree(row.pricing?.prompt),
       contextWindow: row.context_length ?? row.context_window ?? row.max_context_length ?? null,
       ...knownModelPricing(input.provider, row.id as string),
       metadata: row,
@@ -343,6 +368,20 @@ export async function fetchModelsFromProvider(input: {
     case AIProvider.YANDEX:
       if (!credential) throw new AIModelFetchError("Yandex model list requires a credential");
       return YANDEX_TEXT_MODELS;
+    // B703 — у всех семи каталог лежит по `GET /models` в форме OpenAI:
+    // проверено живым вызовом каждого. Kilo отдаёт `data[]` без обёртки
+    // `object: "list"`, и разборщик это переживает — он смотрит только на `data`.
+    case AIProvider.KILOCODE:
+    case AIProvider.NVIDIA:
+    case AIProvider.OPENCODE_ZEN:
+    case AIProvider.TOKENROUTER:
+    case AIProvider.SAMBANOVA:
+    case AIProvider.POLLINATIONS:
+    case AIProvider.HUGGINGFACE:
+      if (!credential) {
+        throw new AIModelFetchError(`${input.provider} model list requires a credential`);
+      }
+      return fetchOpenAICompatibleModels({ provider: input.provider, credential });
     default: {
       const _exhaustive: never = input.provider;
       throw new AIModelFetchError(`Unknown provider: ${_exhaustive as string}`);

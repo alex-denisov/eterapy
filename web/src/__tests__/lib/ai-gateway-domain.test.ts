@@ -20,6 +20,14 @@ describe("AI Gateway domain", () => {
       AIProvider.CEREBRAS,
       AIProvider.COHERE,
       AIProvider.YANDEX,
+      // B703 — коннекторы на бесплатных тарифах.
+      AIProvider.KILOCODE,
+      AIProvider.NVIDIA,
+      AIProvider.OPENCODE_ZEN,
+      AIProvider.TOKENROUTER,
+      AIProvider.SAMBANOVA,
+      AIProvider.POLLINATIONS,
+      AIProvider.HUGGINGFACE,
     ]);
     expect(AI_PROVIDER_LABELS[AIProvider.GEMINI]).toBe("Google Gemini");
     expect(AI_PROVIDER_LABELS[AIProvider.FIREWORKS]).toBe("Fireworks AI");

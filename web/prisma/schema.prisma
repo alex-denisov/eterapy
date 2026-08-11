@@ -2077,6 +2077,16 @@ enum AIProvider {
   CEREBRAS
   COHERE
   YANDEX
+  // B703 — коннекторы на бесплатных тарифах. Все семь OpenAI-совместимы,
+  // все зарубежные, у всех аккаунтов нулевой баланс: модель по умолчанию у
+  // каждого — та, что отвечает без денег на счету.
+  KILOCODE
+  NVIDIA
+  OPENCODE_ZEN
+  TOKENROUTER
+  SAMBANOVA
+  POLLINATIONS
+  HUGGINGFACE
 }
 
 enum AIRequestStatus {

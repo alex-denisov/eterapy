@@ -13,6 +13,17 @@ export const MARKETING_FREE_PROVIDERS = [
   AIProvider.MISTRAL,
   AIProvider.COHERE,
   AIProvider.OPENAI,
+  // B703 — семь коннекторов на бесплатных тарифах. Список важен не только
+  // как «что видно в суперадминке»: трансграничный гейт пускает публичный
+  // SMM-контур ровно по нему (`cross-border-gate.ts`), и провайдер вне списка
+  // получит отказ политики, а не отказ модели.
+  AIProvider.KILOCODE,
+  AIProvider.NVIDIA,
+  AIProvider.OPENCODE_ZEN,
+  AIProvider.TOKENROUTER,
+  AIProvider.SAMBANOVA,
+  AIProvider.HUGGINGFACE,
+  AIProvider.POLLINATIONS,
 ] as const;
 
 /**
@@ -29,6 +40,17 @@ export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.GROQ,
   AIProvider.MISTRAL,
   AIProvider.COHERE,
+  // B703 — шесть из семи новых коннекторов. Pollinations в активный список НЕ
+  // входит: на его бесплатном тарифе одна модель, gpt-oss-20b от 2025-08-05,
+  // то есть старше рубежа свежести на полгода. Придумать ему свежее имя
+  // модели значило бы получить 404 в бою — ровно та ошибка, от которой
+  // предостерегает комментарий у предпочтений редактора ниже.
+  AIProvider.KILOCODE,
+  AIProvider.NVIDIA,
+  AIProvider.OPENCODE_ZEN,
+  AIProvider.TOKENROUTER,
+  AIProvider.SAMBANOVA,
+  AIProvider.HUGGINGFACE,
 ] as const;
 
 export const MARKETING_MODEL_RELEASE_CUTOFF = "2026-02-28";
@@ -40,6 +62,16 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
   [AIProvider.MISTRAL]: "mistral-small-2603",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
+  // B703 — модели, ответившие боевым ключом при НУЛЕВОМ балансе (проба
+  // 2026-08-11). У SambaNova и TokenRouter бесплатная модель одна на обе роли:
+  // вторая отвечает 402/403. Их одиночество объявляет
+  // `marketingProvidersWithSingleModel()`, а не молчание.
+  [AIProvider.KILOCODE]: "nvidia/nemotron-3.5-lightning:free",
+  [AIProvider.NVIDIA]: "nvidia/nemotron-3-super-120b-a12b",
+  [AIProvider.OPENCODE_ZEN]: "deepseek-v4-flash-free",
+  [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
+  [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
+  [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-AWQ-4bit",
 };
 
 /**
@@ -62,6 +94,16 @@ export const MARKETING_REVIEWER_MODEL_PREFERENCES: Partial<Record<AIProvider, st
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
   [AIProvider.MISTRAL]: "mistral-medium-2604",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
+  // B703. У Hugging Face бесплатны ровно две модели — обе `Ternary-Bonsai-27B`
+  // с ценой входа $0, разной сборки; на них и разводятся роли. Признака
+  // `is_free` у HF нет ни у одной из 129 моделей, поэтому фильтр по флагу
+  // объявил бы провайдера негодным — отбирали по ЦЕНЕ.
+  [AIProvider.KILOCODE]: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  [AIProvider.NVIDIA]: "nvidia/nemotron-3.5-lightning-30b-a3b",
+  [AIProvider.OPENCODE_ZEN]: "nemotron-3-ultra-free",
+  [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
+  [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
+  [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-gguf",
 };
 
 const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {
@@ -74,6 +116,21 @@ const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {
   "mistral-small-2603": "2026-03-16",
   "mistral-medium-2604": "2026-04-21",
   "command-a-plus-05-2026": "2026-05-20",
+  // B703 — даты не выдуманы: они сняты из полей `created` тех каталогов,
+  // которые их отдают (Kilo и Hugging Face — оба OpenRouter-совместимы), и
+  // сверены между каталогами для одних и тех же весов. Там, где каталог даты
+  // не отдаёт (NVIDIA NIM, SambaNova, OpenCode Zen ставят `created` временем
+  // ответа), взята дата тех же весов из каталога, который её отдаёт.
+  "nvidia/nemotron-3.5-lightning:free": "2026-08-11",
+  "nvidia/nemotron-3-ultra-550b-a55b:free": "2026-06-04",
+  "nvidia/nemotron-3-super-120b-a12b": "2026-03-11",
+  "nvidia/nemotron-3.5-lightning-30b-a3b": "2026-08-11",
+  "deepseek-v4-flash-free": "2026-07-31",
+  "nemotron-3-ultra-free": "2026-06-04",
+  "moonshotai/kimi-k3-free": "2026-06-13",
+  "gemma-4-31B-it": "2026-04-03",
+  "prism-ml/Ternary-Bonsai-27B-AWQ-4bit": "2026-07-11",
+  "prism-ml/Ternary-Bonsai-27B-gguf": "2026-07-04",
 };
 
 /**

@@ -44,6 +44,17 @@ const RELAY_UPSTREAM_BY_PROVIDER: Partial<Record<AIProvider, EdgeRelayUpstream>>
   [AIProvider.COHERE]: "cohere",
   [AIProvider.ANTHROPIC]: "anthropic",
   [AIProvider.GEMINI]: "gemini",
+  // B703. У этих семи провайдеров у Cloudflare соответствия нет вовсе, то есть
+  // наш шлюз для них — единственный контролируемый путь. Пропуск строки здесь
+  // означал бы не «пойдёт напрямую», а `resolvedProviderBaseUrl` с исключением
+  // «No controlled AI gateway is configured» — коннектор мёртв на первом вызове.
+  [AIProvider.KILOCODE]: "kilocode",
+  [AIProvider.NVIDIA]: "nvidia",
+  [AIProvider.OPENCODE_ZEN]: "opencode-zen",
+  [AIProvider.TOKENROUTER]: "tokenrouter",
+  [AIProvider.SAMBANOVA]: "sambanova",
+  [AIProvider.POLLINATIONS]: "pollinations",
+  [AIProvider.HUGGINGFACE]: "huggingface",
 };
 
 export type AIGatewayKind = "eterapy-edge" | "cloudflare" | "none";

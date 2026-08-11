@@ -31,16 +31,14 @@
  */
 
 import { AIProvider } from "@prisma/client";
-import { marketingProviderOrder } from "@/lib/marketing/model-pool";
+import { MARKETING_ACTIVE_PROVIDERS, marketingProviderOrder } from "@/lib/marketing/model-pool";
 
-const ALL = [
-  AIProvider.OPENROUTER,
-  AIProvider.GEMINI,
-  AIProvider.CEREBRAS,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.COHERE,
-];
+/**
+ * Утверждение здесь — «очередь равна ВСЕМУ активному пулу», а не «в очереди
+ * шесть имён». B703 добавил в пул шесть коннекторов, и вторая формулировка
+ * упала бы, не обнаружив ни одного дефекта. Список берётся из источника.
+ */
+const ALL = MARKETING_ACTIVE_PROVIDERS;
 
 describe("B699 · очередь обхода не стучится в остывающие ключи", () => {
   it("остывшие провайдеры в очередь не попадают", () => {

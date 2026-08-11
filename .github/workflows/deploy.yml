@@ -398,6 +398,19 @@ jobs:
           REDDIT_POST_SUBREDDIT: ${{ secrets.REDDIT_POST_SUBREDDIT }}
           META_GRAPH_PROXY_BASE: ${{ secrets.META_GRAPH_PROXY_BASE }}
           META_GRAPH_PROXY_SECRET: ${{ secrets.META_GRAPH_PROXY_SECRET }}
+          # B703: ключи семи коннекторов LLM на бесплатных тарифах. Имена — те
+          # же, что в `infra-credentials.env` владельца: расхождение читалось бы
+          # как «ключа нет». Бутстрап маркетингового воркера заводит по ним
+          # строки провайдера и ключа при старте, поэтому вставлять их руками в
+          # `/admin/ai` не требуется. Секрет пуст → ключ не доставляется и
+          # коннектор просто не поднимается — выкатка при этом не падает.
+          KILO_CODE_AI_API_KEY: ${{ secrets.KILO_CODE_AI_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          OPENCODE_ZEN_AI_API_KEY: ${{ secrets.OPENCODE_ZEN_AI_API_KEY }}
+          TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+          SAMBANOVA_CLOUD_API_KEY: ${{ secrets.SAMBANOVA_CLOUD_API_KEY }}
+          POLLINATIONS_AI_API_KEY: ${{ secrets.POLLINATIONS_AI_API_KEY }}
+          HUGGINGFACE_HUB_API_KEY: ${{ secrets.HUGGINGFACE_HUB_API_KEY }}
           # B698: один маркер обслуживает обе стороны — браузерный сервис им
           # представляется, приложение им ходит. Разъехаться они не могут.
           MARKETING_BROWSER_TOKEN: ${{ secrets.MARKETING_BROWSER_TOKEN }}
@@ -800,7 +813,11 @@ jobs:
                      YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID \
                      GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
                      GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY \
-                     MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN; do
+                     MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN \
+                     KILO_CODE_AI_API_KEY NVIDIA_NIM_API_KEY \
+                     OPENCODE_ZEN_AI_API_KEY TOKENROUTER_API_KEY \
+                     SAMBANOVA_CLOUD_API_KEY POLLINATIONS_AI_API_KEY \
+                     HUGGINGFACE_HUB_API_KEY; do
             eval "value=\${$key:-}"
             [ -n "$value" ] || continue
             printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' /opt/eterapy/.env \

@@ -7,6 +7,7 @@ import {
   isCloudflareAIGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
 import { createCohereAdapter } from "@/lib/ai-gateway/cohere-adapter";
+import { AI_PROVIDER_LABELS } from "@/lib/ai-gateway/domain";
 import {
   preferredGatewayForProvider,
   type AIGatewayKind,
@@ -37,7 +38,46 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
   // незаметным ровно до тех пор, пока Cohere ходил только через Cloudflare.
   [AIProvider.COHERE]: "https://api.cohere.com",
   [AIProvider.YANDEX]: YANDEX_FOUNDATION_MODELS_BASE_URL,
+  // B703 — адреса сняты живой пробой боевых ключей 2026-08-11, а не выведены
+  // из имени переменной окружения. Два из семи оказались другими:
+  //  • `kilocode.ai` отвечает 308 и переносит на `kilo.ai/api/openrouter`.
+  //    Держать здесь адрес с редиректом означало бы редирект на каждый вызов
+  //    модели, а `POST` через редирект теряет тело у части клиентов;
+  //  • `api.tokenrouter.io` живой, но ждёт ключ формата `tr_…` и на наш `sk-…`
+  //    отвечает `401`. Это выглядит как «ключ протух», хотя ключ верный —
+  //    просто адрес чужой. Рабочий хост — `api.tokenrouter.com`.
+  [AIProvider.KILOCODE]: "https://kilo.ai/api/openrouter",
+  [AIProvider.NVIDIA]: "https://integrate.api.nvidia.com/v1",
+  [AIProvider.OPENCODE_ZEN]: "https://opencode.ai/zen/v1",
+  [AIProvider.TOKENROUTER]: "https://api.tokenrouter.com/v1",
+  [AIProvider.SAMBANOVA]: "https://api.sambanova.ai/v1",
+  [AIProvider.POLLINATIONS]: "https://text.pollinations.ai/openai",
+  [AIProvider.HUGGINGFACE]: "https://router.huggingface.co/v1",
 };
+
+/**
+ * B703 — коннекторы, у которых аккаунт без баланса.
+ *
+ * Список существует, чтобы «бесплатный тариф» был свойством кода, а не устной
+ * договорённостью. Модель по умолчанию у каждого — та, которая ОТВЕТИЛА при
+ * нулевом балансе: у Kilo платная модель даёт `402 «Add credits»`, у
+ * TokenRouter `403 «insufficient user quota, $0.00»`, у SambaNova `402`.
+ * Подставить сюда сильную платную модель значило бы завести коннектор, который
+ * в бою не отвечает никогда.
+ */
+export const FREE_TIER_LLM_PROVIDERS = [
+  AIProvider.KILOCODE,
+  AIProvider.NVIDIA,
+  AIProvider.OPENCODE_ZEN,
+  AIProvider.TOKENROUTER,
+  AIProvider.SAMBANOVA,
+  AIProvider.POLLINATIONS,
+  AIProvider.HUGGINGFACE,
+] as const;
+
+export function isFreeTierLLMProvider(provider: AIProvider): boolean {
+  return (FREE_TIER_LLM_PROVIDERS as readonly AIProvider[]).includes(provider);
+}
 
 export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
   [AIProvider.OPENAI]: "gpt-5.6-luna",
@@ -50,6 +90,14 @@ export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
   [AIProvider.CEREBRAS]: "gpt-oss-120b",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
   [AIProvider.YANDEX]: DEFAULT_YANDEX_MODEL,
+  // B703 — каждая проверена вызовом `POST /chat/completions` боевым ключом.
+  [AIProvider.KILOCODE]: "nvidia/nemotron-3.5-lightning:free",
+  [AIProvider.NVIDIA]: "nvidia/nemotron-3-super-120b-a12b",
+  [AIProvider.OPENCODE_ZEN]: "deepseek-v4-flash-free",
+  [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
+  [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
+  [AIProvider.POLLINATIONS]: "openai-fast",
+  [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-AWQ-4bit",
 };
 
 export function cloudflareGatewayEnabled(metadata: unknown) {
@@ -244,18 +292,62 @@ export function buildAdapterForCredential(
         baseURL: opts.baseURL ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE]!,
         defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[AIProvider.COHERE],
       });
+    // B703 — все семь бесплатных коннекторов отвечают в форме OpenAI: у
+    // каждого проверен живой `POST /chat/completions`. Отдельных веток они не
+    // получают намеренно — различие между ними исчерпывается адресом и
+    // моделью, а обе величины уже лежат в таблицах выше. Семь копий одной
+    // ветки означали бы семь мест, где однажды поправят шесть.
+    case AIProvider.KILOCODE:
+    case AIProvider.NVIDIA:
+    case AIProvider.OPENCODE_ZEN:
+    case AIProvider.TOKENROUTER:
+    case AIProvider.SAMBANOVA:
+    case AIProvider.POLLINATIONS:
+    case AIProvider.HUGGINGFACE: {
+      const label = AI_PROVIDER_LABELS[credential.provider];
+      return createOpenAICompatibleAdapter({
+        ...opts,
+        provider: credential.provider,
+        providerSlug: label,
+        missingConfigMessage: `${label} API key is not configured`,
+        baseURL: opts.baseURL ?? DIRECT_PROVIDER_BASE_URLS[credential.provider]!,
+        defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[credential.provider],
+      });
+    }
   }
 }
 
-export function providerLabel(provider: AIProvider): "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere" | "yandex" {
-  if (provider === AIProvider.OPENROUTER) return "openrouter";
-  if (provider === AIProvider.OPENAI) return "openai";
-  if (provider === AIProvider.ANTHROPIC) return "anthropic";
-  if (provider === AIProvider.GEMINI) return "gemini";
-  if (provider === AIProvider.GROQ) return "groq";
-  if (provider === AIProvider.MISTRAL) return "mistral";
-  if (provider === AIProvider.CEREBRAS) return "cerebras";
-  if (provider === AIProvider.COHERE) return "cohere";
-  if (provider === AIProvider.YANDEX) return "yandex";
-  return "fireworks";
+/**
+ * Машинное имя провайдера в ответе шлюза.
+ *
+ * B703 — раньше здесь была цепочка `if` с хвостом `return "fireworks"`, и
+ * любой провайдер, забытый в цепочке, представлялся Fireworks. Семь новых
+ * коннекторов молча превратились бы в него же — а по этому полю судят, кто
+ * именно написал материал. Таблица не даёт забыть: `Record<AIProvider, …>`
+ * без нового значения не собирается.
+ */
+export const AI_PROVIDER_MACHINE_LABELS = {
+  [AIProvider.OPENROUTER]: "openrouter",
+  [AIProvider.OPENAI]: "openai",
+  [AIProvider.ANTHROPIC]: "anthropic",
+  [AIProvider.FIREWORKS]: "fireworks",
+  [AIProvider.GEMINI]: "gemini",
+  [AIProvider.GROQ]: "groq",
+  [AIProvider.MISTRAL]: "mistral",
+  [AIProvider.CEREBRAS]: "cerebras",
+  [AIProvider.COHERE]: "cohere",
+  [AIProvider.YANDEX]: "yandex",
+  [AIProvider.KILOCODE]: "kilocode",
+  [AIProvider.NVIDIA]: "nvidia",
+  [AIProvider.OPENCODE_ZEN]: "opencode-zen",
+  [AIProvider.TOKENROUTER]: "tokenrouter",
+  [AIProvider.SAMBANOVA]: "sambanova",
+  [AIProvider.POLLINATIONS]: "pollinations",
+  [AIProvider.HUGGINGFACE]: "huggingface",
+} as const satisfies Record<AIProvider, string>;
+
+export type AIProviderMachineLabel = typeof AI_PROVIDER_MACHINE_LABELS[AIProvider];
+
+export function providerLabel(provider: AIProvider): AIProviderMachineLabel {
+  return AI_PROVIDER_MACHINE_LABELS[provider];
 }

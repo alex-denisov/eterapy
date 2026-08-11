@@ -11,6 +11,15 @@ export const AI_GATEWAY_PROVIDERS = [
   AIProvider.CEREBRAS,
   AIProvider.COHERE,
   AIProvider.YANDEX,
+  // B703 — бесплатные тарифы. Порядок в списке задаёт порядок в суперадминке,
+  // поэтому новые идут после проверенных, а не вперемешку.
+  AIProvider.KILOCODE,
+  AIProvider.NVIDIA,
+  AIProvider.OPENCODE_ZEN,
+  AIProvider.TOKENROUTER,
+  AIProvider.SAMBANOVA,
+  AIProvider.POLLINATIONS,
+  AIProvider.HUGGINGFACE,
 ] as const;
 
 export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -24,6 +33,13 @@ export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
   [AIProvider.CEREBRAS]: "Cerebras",
   [AIProvider.COHERE]: "Cohere",
   [AIProvider.YANDEX]: "Yandex AI Studio",
+  [AIProvider.KILOCODE]: "Kilo Code",
+  [AIProvider.NVIDIA]: "NVIDIA NIM",
+  [AIProvider.OPENCODE_ZEN]: "OpenCode Zen",
+  [AIProvider.TOKENROUTER]: "TokenRouter",
+  [AIProvider.SAMBANOVA]: "SambaNova Cloud",
+  [AIProvider.POLLINATIONS]: "Pollinations",
+  [AIProvider.HUGGINGFACE]: "Hugging Face Inference",
 };
 
 export type AIGatewayContentBlock =

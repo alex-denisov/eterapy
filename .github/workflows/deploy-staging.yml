@@ -145,6 +145,16 @@ jobs:
           # Необязательный. Секрет — не потому что тайна (это @username'ы), а
           # потому что это единственный путь доставить значение на хост выкаткой.
           MINIAPP_TELEGRAM_ALLOWLIST: ${{ secrets.MINIAPP_TELEGRAM_ALLOWLIST }}
+          # B703: ключи бесплатных коннекторов LLM. Стенд получает их наравне с
+          # продом — иначе замер на стенде проверял бы не тот контур, что едет
+          # в бой. Тарифы бесплатные, чужих денег эти ключи не тратят.
+          KILO_CODE_AI_API_KEY: ${{ secrets.KILO_CODE_AI_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          OPENCODE_ZEN_AI_API_KEY: ${{ secrets.OPENCODE_ZEN_AI_API_KEY }}
+          TOKENROUTER_API_KEY: ${{ secrets.TOKENROUTER_API_KEY }}
+          SAMBANOVA_CLOUD_API_KEY: ${{ secrets.SAMBANOVA_CLOUD_API_KEY }}
+          POLLINATIONS_AI_API_KEY: ${{ secrets.POLLINATIONS_AI_API_KEY }}
+          HUGGINGFACE_HUB_API_KEY: ${{ secrets.HUGGINGFACE_HUB_API_KEY }}
           # B659: пусто, если пуш в реестр не удался — тогда доставка идёт
           # прежним путём. Токен прогона, а не долгоживущий ключ на нодах.
           REGISTRY_REF: ${{ steps.registry.outputs.ref }}
@@ -212,6 +222,21 @@ jobs:
           else
             echo "▶ MINIAPP_TELEGRAM_ALLOWLIST не задан — вход через Telegram на стенде закрыт (B566)"
           fi
+          # B703: ключи коннекторов на бесплатных тарифах — тем же приёмом, что
+          # на проде. Значение идёт через stdin: в ключах бывают символы, о
+          # которые спотыкаются shell и sed. Секрет пуст → ключ не трогаем, и
+          # коннектор просто не поднимается: выкатка от этого не падает.
+          for key in KILO_CODE_AI_API_KEY NVIDIA_NIM_API_KEY \
+                     OPENCODE_ZEN_AI_API_KEY TOKENROUTER_API_KEY \
+                     SAMBANOVA_CLOUD_API_KEY POLLINATIONS_AI_API_KEY \
+                     HUGGINGFACE_HUB_API_KEY; do
+            eval "value=\${$key:-}"
+            [ -n "$value" ] || continue
+            printf '%s\n' "$value" | $SSH "sudo sed -i '/^$key=/d' $STAGING_DIR/.env \
+              && read -r v \
+              && printf '$key=%s\n' \"\$v\" | sudo tee -a $STAGING_DIR/.env >/dev/null"
+            echo "▶ $key доставлен на стенд"
+          done
           $SSH "sudo sed -i 's#^ETERAPY_IMAGE=.*#ETERAPY_IMAGE=eterapy-web-staging:${GITHUB_SHA::8}#' $STAGING_DIR/.env \
             && cd $STAGING_DIR && { sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans || { echo 'compose up race — retry'; sleep 5; sudo docker compose -f $COMPOSE_FILE_NAME up -d --remove-orphans; }; } \
             && sudo docker image prune -f >/dev/null \

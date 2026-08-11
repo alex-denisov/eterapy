@@ -8,7 +8,17 @@ export type AIProviderName =
   | "MISTRAL"
   | "CEREBRAS"
   | "COHERE"
-  | "YANDEX";
+  | "YANDEX"
+  // B703. Имена перечислены строками, а не выведены из `AIProvider`, намеренно:
+  // файл не импортирует `@prisma/client`, потому что его читают и клиентские
+  // компоненты, а серверный импорт в клиентском дереве валит `next build`.
+  | "KILOCODE"
+  | "NVIDIA"
+  | "OPENCODE_ZEN"
+  | "TOKENROUTER"
+  | "SAMBANOVA"
+  | "POLLINATIONS"
+  | "HUGGINGFACE";
 
 export type ModelPricingReference = {
   input: number;
@@ -106,6 +116,35 @@ export const MODEL_PRICING_REFERENCE_USD_PER_MILLION: Partial<Record<AIProviderN
     "yandex-vision-ocr": { input: 1.0827867, output: 0, source: "reference/yandex-vision-ocr-unit" },
     "speechkit-stt-async": { input: 1.2418035, output: 0, source: "reference/yandex-speechkit-unit" },
   },
+  // B703 — модели, в которые коннектор ходит по бесплатному тарифу. Названы
+  // поимённо, а не покрыты одной оценкой провайдера: ноль здесь — про КОНКРЕТНУЮ
+  // модель, которая ответила при нулевом балансе, а не про весь каталог. У Kilo
+  // в каталоге 352 модели, и 339 из них платные.
+  KILOCODE: {
+    "nvidia/nemotron-3.5-lightning:free": { input: 0, output: 0, source: "reference/free-tier" },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  NVIDIA: {
+    "nvidia/nemotron-3-super-120b-a12b": { input: 0, output: 0, source: "reference/free-tier" },
+    "nvidia/nemotron-3.5-lightning-30b-a3b": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  OPENCODE_ZEN: {
+    "deepseek-v4-flash-free": { input: 0, output: 0, source: "reference/free-tier" },
+    "nemotron-3-ultra-free": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  TOKENROUTER: {
+    "moonshotai/kimi-k3-free": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  SAMBANOVA: {
+    "gemma-4-31B-it": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  POLLINATIONS: {
+    "openai-fast": { input: 0, output: 0, source: "reference/free-tier" },
+  },
+  HUGGINGFACE: {
+    "prism-ml/Ternary-Bonsai-27B-AWQ-4bit": { input: 0, output: 0, source: "reference/free-tier" },
+    "prism-ml/Ternary-Bonsai-27B-gguf": { input: 0, output: 0, source: "reference/free-tier" },
+  },
 };
 
 /**
@@ -125,6 +164,18 @@ export const PROVIDER_FALLBACK_PRICING_USD_PER_MILLION: Partial<Record<AIProvide
   FIREWORKS: { input: 0.9, output: 0.9, source: "reference/provider-estimate" },
   OPENROUTER: { input: 0, output: 0, source: "reference/free" },
   YANDEX: { input: 1.639344, output: 1.639344, source: "reference/yandex-ai-studio" },
+  // B703 — у этих семи аккаунтов нулевой баланс, и коннектор ходит только в
+  // модели бесплатного тарифа. Ноль здесь — не «цена неизвестна», а факт:
+  // платная модель у Kilo отвечает 402, у TokenRouter 403, у SambaNova 402.
+  // Проставить им «типичную оценку» значило бы нарисовать в сводке расход,
+  // которого нет, и спрятать настоящий предел — rate limit, а не деньги.
+  KILOCODE: { input: 0, output: 0, source: "reference/free-tier" },
+  NVIDIA: { input: 0, output: 0, source: "reference/free-tier" },
+  OPENCODE_ZEN: { input: 0, output: 0, source: "reference/free-tier" },
+  TOKENROUTER: { input: 0, output: 0, source: "reference/free-tier" },
+  SAMBANOVA: { input: 0, output: 0, source: "reference/free-tier" },
+  POLLINATIONS: { input: 0, output: 0, source: "reference/free-tier" },
+  HUGGINGFACE: { input: 0, output: 0, source: "reference/free-tier" },
 };
 
 function normalizeModelId(value: string) {

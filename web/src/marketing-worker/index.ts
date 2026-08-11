@@ -6,6 +6,7 @@ import {
   resolveMarketingSignal,
   upsertMarketingSignal,
 } from "@/lib/marketing/agent";
+import { bootstrapFreeTierLLMProviders } from "@/lib/ai-gateway/free-tier-bootstrap";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
 import {
   auditInboundSla,
@@ -69,6 +70,12 @@ async function guarded(name: string, run: () => Promise<unknown>) {
 
 async function main() {
   log.info("marketing-worker.started", { pollMs });
+  // B703 — коннекторы на бесплатных тарифах поднимаются из оверлея `.env` до
+  // первого прохода агента, а не рукой в панели. Заход стоит семь upsert'ов и
+  // делается ОДИН раз при старте: ключи меняются выкаткой, а выкатка
+  // перезапускает воркер. Ставить это в цикл значило бы каждую минуту
+  // переписывать секреты ради события, которое случается раз в месяц.
+  await guarded("free-tier-llm-bootstrap", bootstrapFreeTierLLMProviders);
   while (!stopping) {
     if (await marketingAgentEnabled()) {
       const now = Date.now();

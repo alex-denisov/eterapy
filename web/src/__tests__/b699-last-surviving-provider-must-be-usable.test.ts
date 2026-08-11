@@ -64,10 +64,14 @@ describe("B699 · выживший в одиночку Mistral снова год
    * появится вторая пригодная модель, список сократится осознанно, а не молча.
    */
   it("одномодельные провайдеры перечислены явно", () => {
+    // B703 — список пополнили SambaNova и TokenRouter: у обоих на бесплатном
+    // тарифе ОДНА модель, вторая отвечает 402/403 при нулевом балансе.
     expect(marketingProvidersWithSingleModel()).toEqual([
       AIProvider.CEREBRAS,
       AIProvider.GROQ,
       AIProvider.COHERE,
+      AIProvider.TOKENROUTER,
+      AIProvider.SAMBANOVA,
     ]);
   });
 });

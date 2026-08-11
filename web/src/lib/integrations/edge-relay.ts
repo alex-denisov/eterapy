@@ -49,6 +49,16 @@ export const EDGE_RELAY_UPSTREAMS = {
   cohere: "https://api.cohere.com",
   anthropic: "https://api.anthropic.com",
   gemini: "https://generativelanguage.googleapis.com",
+  // Бесплатные тарифы (B703). Адреса — те, что реально отвечают боевым
+  // ключам: `kilo.ai` (а не `kilocode.ai`, который переносит редиректом) и
+  // `api.tokenrouter.com` (а не `.io`, который ждёт ключ другого формата).
+  kilocode: "https://kilo.ai",
+  nvidia: "https://integrate.api.nvidia.com",
+  "opencode-zen": "https://opencode.ai",
+  tokenrouter: "https://api.tokenrouter.com",
+  sambanova: "https://api.sambanova.ai",
+  pollinations: "https://text.pollinations.ai",
+  huggingface: "https://router.huggingface.co",
 } as const;
 
 export type EdgeRelayUpstream = keyof typeof EDGE_RELAY_UPSTREAMS;

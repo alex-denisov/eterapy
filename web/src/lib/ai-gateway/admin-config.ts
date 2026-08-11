@@ -18,6 +18,7 @@ import { mergeAITaskPolicies } from "@/lib/ai-gateway/task-policy";
 import {
   DEFAULT_PROVIDER_MODELS,
   DIRECT_PROVIDER_BASE_URLS,
+  FREE_TIER_LLM_PROVIDERS,
   cloudflareGatewayEnabled,
 } from "@/lib/ai-gateway/provider-runtime";
 import { assertForeignProviderAdminChangeAllowed } from "@/lib/ai-gateway/cross-border-gate";
@@ -57,6 +58,21 @@ const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
   { provider: AIProvider.OPENAI, enabled: false, priority: 75, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: 400, outputTokenCostMicros: 1600 },
   { provider: AIProvider.ANTHROPIC, enabled: false, priority: 80, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: 800, outputTokenCostMicros: 4000 },
   { provider: AIProvider.FIREWORKS, enabled: false, priority: 85, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: 900, outputTokenCostMicros: 900 },
+  // B703 — коннекторы на бесплатных тарифах. Стоимость нулевая: у аккаунтов
+  // нет баланса, и модель по умолчанию у каждого — та, что отвечает без денег.
+  // Строка здесь обязательна не ради красоты списка: суперадминка показывает
+  // ИМЕННО этот перечень, и провайдер без строки не виден вовсе — ни включить,
+  // ни ключ завести.
+  ...FREE_TIER_LLM_PROVIDERS.map((provider, index): AIProviderConfigInput => ({
+    provider,
+    enabled: false,
+    priority: 90 + index,
+    baseUrl: DIRECT_PROVIDER_BASE_URLS[provider],
+    defaultModel: DEFAULT_PROVIDER_MODELS[provider],
+    timeoutMs: 60_000,
+    inputTokenCostMicros: 0,
+    outputTokenCostMicros: 0,
+  })),
 ];
 
 export async function getAIControlCenterData(

@@ -122,7 +122,10 @@ describe("admin AI control API", () => {
 
     expect(response.status).toBe(200);
     expect(body.requestId).toBe("admin-ai-control-123");
-    expect(body.providers).toHaveLength(10);
+    // B703 — десять прежних плюс семь коннекторов на бесплатных тарифах.
+    // Суперадминка показывает ИМЕННО этот перечень: провайдер, выпавший
+    // отсюда, не виден в панели вовсе.
+    expect(body.providers).toHaveLength(17);
     expect(body.providers[0]).toEqual(expect.objectContaining({
       provider: AIProvider.YANDEX,
       enabled: true,

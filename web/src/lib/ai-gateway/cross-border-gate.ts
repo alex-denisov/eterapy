@@ -26,6 +26,16 @@ export const FOREIGN_AI_PROVIDERS = [
   AIProvider.MISTRAL,
   AIProvider.CEREBRAS,
   AIProvider.COHERE,
+  // B703 — все семь бесплатных коннекторов зарубежные. Пропуск строки здесь
+  // означал бы, что провайдер обходит трансграничный контроль молча: гейт
+  // проверяет только то, что перечислено.
+  AIProvider.KILOCODE,
+  AIProvider.NVIDIA,
+  AIProvider.OPENCODE_ZEN,
+  AIProvider.TOKENROUTER,
+  AIProvider.SAMBANOVA,
+  AIProvider.POLLINATIONS,
+  AIProvider.HUGGINGFACE,
 ] as const;
 
 export type CrossBorderPolicyErrorCode =

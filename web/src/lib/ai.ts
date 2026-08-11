@@ -39,6 +39,7 @@ import {
   buildAdapterForCredential,
   providerConfigToRouting,
   providerLabel,
+  type AIProviderMachineLabel,
 } from "@/lib/ai-gateway/provider-runtime";
 import {
   AIRoutingPolicyViolationError,
@@ -89,7 +90,7 @@ interface AIRequestOptions {
 interface AIResponse {
   text: string;
   model: string;
-  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere" | "yandex";
+  provider: AIProviderMachineLabel;
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;
