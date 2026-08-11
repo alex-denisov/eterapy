@@ -39,12 +39,13 @@ const postSchema = z.object({
   userInput: z.string().max(4000).optional(),
   tarotSpread: z.enum(["one", "three", "celtic"]).optional(),
   tarotTheme: z.string().max(80).optional(),
+  tarotDrawId: z.string().uuid().optional(),
 });
 
 // B450: натальная карта переведена на платный-только флоу (нет бесплатного
 // фрагмента), с автосейвом результата в Дневник и обязательным LLM-результатом.
 // Наборы расширяются по мере миграции остальных символических услуг на паттерн Таро.
-const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
+const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana", "tarot"]);
 const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
 const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-origin", "family-questions", "horoscope", "arcana"]);
 
@@ -228,6 +229,7 @@ export async function POST(request: NextRequest) {
     requestId: context.requestId,
     tarotSpread: parsed.data.tarotSpread,
     tarotTheme: parsed.data.tarotTheme,
+    tarotDrawId: parsed.data.tarotDrawId,
     clientContextNote,
   });
   const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });

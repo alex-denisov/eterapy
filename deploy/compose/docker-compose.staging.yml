@@ -34,6 +34,13 @@ services:
     environment:
       ETERAPY_CONTOUR: staging
       MARKETING_FOREIGN_LLM_ENABLED: "false"
+      # B702: планировщик тем (спрос + тренды вместо ротации константы TOPICS)
+      # включён ТОЛЬКО на стенде — сначала замер, потом прод. Значение живёт в
+      # оверлее, а не в `/opt/eterapy-staging/.env`: файл на хосте правится
+      # руками, а оверлей едет scp каждой выкаткой и забыть его нельзя.
+      # Проход генерации на стенде запускается из админки
+      # (`/api/admin/marketing/agent/run`) — сам агент здесь выключен.
+      MARKETING_PLANNER_ENABLED: "true"
     # Loopback bind: staging must never be reachable except through the
     # Basic-Auth nginx vhosts. 3201 ≠ 3200 (prod web on the same host).
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3201}", "--hostname", "127.0.0.1"]
@@ -72,6 +79,9 @@ services:
       ETERAPY_CONTOUR: staging
       MARKETING_AGENT_ENABLED: "false"
       MARKETING_FOREIGN_LLM_ENABLED: "false"
+      # Тот же гейт, что у web: контейнеры не должны расходиться в поведении,
+      # если агент на стенде когда-нибудь включат.
+      MARKETING_PLANNER_ENABLED: "true"
     command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:

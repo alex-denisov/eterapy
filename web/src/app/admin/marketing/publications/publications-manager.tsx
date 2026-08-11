@@ -295,6 +295,18 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
         : row.reviewDue
           ? "Снять метрики"
           : "По плану";
+    // B702 фаза 5: источник темы, назначенной планировщиком (спрос/тренд),
+    // живёт в notes строки и показывается в колонке материала. Старый материал
+    // без пометки — тема остовного плана, это норма.
+    let topicOrigin: string | null = null;
+    if (row.notes) {
+      try {
+        const parsed = JSON.parse(row.notes) as { topicOrigin?: string };
+        topicOrigin = parsed.topicOrigin ?? null;
+      } catch {
+        topicOrigin = null;
+      }
+    }
     return {
       id: row.id,
       cells: {
@@ -304,9 +316,9 @@ export function PublicationsManager({ registry }: { registry: ExternalPublicatio
         },
         material: {
           value: row.title,
-          subvalue: `${contentLabels[row.contentType] ?? row.contentType} · ${row.channelName ?? row.planSlot ?? "без канала"}`,
+          subvalue: `${contentLabels[row.contentType] ?? row.contentType} · ${row.channelName ?? row.planSlot ?? "без канала"}${topicOrigin === "trend" ? " · тема из тренда" : topicOrigin === "core" ? " · тема из спроса" : ""}`,
           sortValue: row.title,
-          filterValue: `${row.title} ${row.key} ${row.cluster ?? ""}`,
+          filterValue: `${row.title} ${row.key} ${row.cluster ?? ""} ${topicOrigin ?? ""}`,
         },
         platform: {
           value: platformLabels[row.platform.toUpperCase()] ?? row.platform,

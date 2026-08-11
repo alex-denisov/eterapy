@@ -868,6 +868,9 @@ export async function generateSymbolicProductResult(input: {
   requestId?: string;
   tarotSpread?: TarotSpreadKey;
   tarotTheme?: string;
+  /** B701: keeps the paid interpretation bound to the exact cards drawn in the
+      free calculated preview. It is an opaque client nonce, not an entitlement. */
+  tarotDrawId?: string;
   /** B512 R1-11: компактная история тем клиента (его собственные прошлые
       разборы/вопросы) — добавляется в системный промт как runtime-контекст. */
   clientContextNote?: string;
@@ -878,7 +881,7 @@ export async function generateSymbolicProductResult(input: {
   const tarotSpread = input.productKey === "tarot" ? resolveTarotSpread(input.tarotSpread) : null;
   const tarotTheme = input.productKey === "tarot" ? normalizeInput(input.tarotTheme ?? "").slice(0, 80) : "";
   const cards = input.productKey === "tarot"
-    ? drawTarotSpread(`${input.userId}:${tarotSpread?.key}:${tarotTheme}:${normalizeInput(input.userInput)}`, tarotSpread?.positions)
+    ? drawTarotSpread(`${input.tarotDrawId ?? input.userId}:${tarotSpread?.key}:${tarotTheme}:${normalizeInput(input.userInput)}`, tarotSpread?.positions)
     : null;
   // B388: натальная карта получает детерминированное структурное колесо в metadata,
   // чтобы страница услуги и PDF рендерили визуал, совпадающий с интерпретацией.

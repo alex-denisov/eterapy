@@ -333,6 +333,17 @@ const getCachedWordstatWatchlist = unstable_cache(
   { revalidate: 86_400, tags: ["marketing-wordstat"] },
 );
 
+/**
+ * B702 фаза 4 — публичный доступ к кэшированному спросу wordstat.
+ *
+ * Планировщик тем (конвейер) читает готовый кэш на 24 часа, а не ходит в API
+ * на каждый заход. Недоступный источник отдаёт пусто — план на ядре, как и
+ * требует фаза 1.
+ */
+export function cachedWordstatWatchlist(): Promise<WordstatMetric[]> {
+  return getCachedWordstatWatchlist();
+}
+
 async function getWordstat(): Promise<ExternalResult<WordstatMetric[]>> {
   if (!process.env.YANDEX_WORDSTAT_API_KEY || !process.env.YANDEX_CLOUD_FOLDER_ID) {
     return {

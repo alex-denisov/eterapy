@@ -152,7 +152,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
   ];
 }
 
-type Candidate = {
+export type Candidate = {
   platform: EngagementPlatform;
   targetId: string;
   targetUrl: string;
@@ -160,6 +160,21 @@ type Candidate = {
   excerpt: string;
   topic: string;
 };
+
+/**
+ * B702 фаза 2 — плоские кандидаты публичных обсуждений без записи в реестр.
+ *
+ * `runEngagementDiscovery` инджестит кандидатов в БД и планирует слоты ответа —
+ * тяжёлый путь с побочными эффектами. Сканеру трендов нужны только сами
+ * обсуждения: какие живые темы в подредактах/лентах есть прямо сейчас. Сбой
+ * одной площадки не должен рвать сбор — allSettled.
+ */
+export async function discoverCandidates(): Promise<Candidate[]> {
+  const groups = await Promise.allSettled(
+    Object.values(DISCOVERERS).map((discover) => discover()),
+  );
+  return groups.flatMap((group) => (group.status === "fulfilled" ? group.value : []));
+}
 
 /**
  * Discovery vocabulary. Wider than the content plan on purpose: a person
