@@ -55,21 +55,23 @@ function stems(value: string): string[] {
 /**
  * Насколько тренды относятся к кандидату.
  *
- * Бонус — число пересечений: каждый живой тренд, чей токен встречается в
- * строках кандидата, добавляет единицу. Темы трендов копятся, чтобы обоснование
- * ссылалось на конкретный живой сигнал, а не на «какой-то тренд».
+ * Тренд засчитывается, только когда в тексте кандидата нашлись ВСЕ его слова.
+ * Одного общего слова мало: живые источники отдают обрывки вроде «личного
+ * бренда» и «основе старших» (замер на проде 2026-08-11), и по одному
+ * совпадению такой обрывок поднял бы случайную статью на верхний ярус, обойдя
+ * спрос. Темы трендов копятся, чтобы обоснование ссылалось на конкретный живой
+ * сигнал, а не на «какой-то тренд».
  */
 function trendMatch(queries: string[], trends: TrendCandidate[]): { bonus: number; topics: string[] } {
-  const queryTokens = queries.map(stems);
+  const candidateTokens = new Set(queries.flatMap(stems));
   const topics: string[] = [];
   let bonus = 0;
   for (const trend of trends) {
-    const trendTokens = stems(`${trend.topic} ${trend.keywords.join(" ")}`);
-    const hit = queryTokens.some((tokens) => trendTokens.some((token) => tokens.includes(token)));
-    if (hit) {
-      bonus += 1;
-      topics.push(trend.topic);
-    }
+    const trendTokens = [...new Set(stems(trend.topic))];
+    if (trendTokens.length === 0) continue;
+    if (!trendTokens.every((token) => candidateTokens.has(token))) continue;
+    bonus += 1;
+    topics.push(trend.topic);
   }
   return { bonus, topics };
 }

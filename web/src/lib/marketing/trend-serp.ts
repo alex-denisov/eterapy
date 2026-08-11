@@ -14,6 +14,7 @@
  * отдаёт `{ rawData: <XML в base64> }`, а не готовый JSON со списком.
  */
 
+import { log, serializeError } from "@/lib/logger";
 import { SEMANTIC_CORE } from "@/lib/seo/semantic-core-index";
 import type { TrendCandidate } from "@/lib/marketing/trend-scan";
 
@@ -51,10 +52,31 @@ const STOP_WORDS = new Set([
   "цена", "купить", "заказать", "лучший", "топ", "фото", "видео", "года",
 ]);
 
-/** Тексты результатов: заголовки и врезки, разметка подсветки снята. */
+/**
+ * Домены, чья выдача — товар, а не тема.
+ *
+ * Живой прогон на проде 2026-08-11 по запросу «таро» вернул «бесплатная
+ * доставка», «интернет магазине», «магазине wildberries», «низкой цене»:
+ * маркетплейсы продают колоды, и лексика витрины повторяется в каждом
+ * результате, то есть проходит любой порог частоты. Отсекать надо ИСТОЧНИК, а
+ * не слова: список слов бесконечен, список витрин — нет.
+ */
+const SHOP_DOMAIN = /wildberries|ozon\.|market\.yandex|avito|aliexpress|lamoda|sbermegamarket|dns-shop|citilink|megamarket|shop\.|\.shop|magazin|labirint|chitai-gorod/i;
+
+/** Результаты, пришедшие с витрин: их тексты в разбор не идут. */
+function withoutShops(xml: string): string {
+  const docs = [...xml.matchAll(/<doc\b[\s\S]*?<\/doc>/g)].map((match) => match[0]);
+  if (docs.length === 0) return xml;
+  return docs.filter((doc) => {
+    const domain = /<domain>([\s\S]*?)<\/domain>/.exec(doc)?.[1] ?? "";
+    return !SHOP_DOMAIN.test(domain);
+  }).join("");
+}
+
+/** Тексты результатов: заголовки и врезки, разметка подсветки снята, витрины выброшены. */
 export function parseSerpTexts(xml: string): string[] {
   const texts: string[] = [];
-  for (const match of xml.matchAll(/<(title|passage)>([\s\S]*?)<\/\1>/g)) {
+  for (const match of withoutShops(xml).matchAll(/<(title|passage)>([\s\S]*?)<\/\1>/g)) {
     const text = match[2]
       .replace(/<[^>]+>/g, "")
       .replace(/&quot;/g, '"')
@@ -169,7 +191,10 @@ export async function serpTrends(input: {
 
   const candidates: TrendCandidate[] = [];
   for (const answer of answers) {
-    if (answer.status !== "fulfilled") continue;
+    if (answer.status !== "fulfilled") {
+      log.warn("marketing.trend_serp_failed", { error: serializeError(answer.reason) });
+      continue;
+    }
     for (const found of freshTopics(answer.value.texts, corePhrases)) {
       candidates.push({
         topic: found.topic,

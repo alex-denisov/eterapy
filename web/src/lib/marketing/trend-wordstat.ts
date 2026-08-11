@@ -12,6 +12,7 @@
  * приходит СТРОКОЙ. Каждое из трёх мест давало 400 или тихий ноль.
  */
 
+import { log, serializeError } from "@/lib/logger";
 import { SEMANTIC_CORE } from "@/lib/seo/semantic-core-index";
 import type { TrendCandidate } from "@/lib/marketing/trend-scan";
 
@@ -35,6 +36,8 @@ export const WORDSTAT_TREND_RECENT_WEEKS = 3;
 export const WORDSTAT_TREND_WINDOW_WEEKS = 10;
 /** Сколько фраз проверяем за заход: один вызов API на фразу. */
 export const WORDSTAT_TREND_PHRASE_LIMIT = 13;
+/** Сколько вызовов API идёт одновременно: больше — и площадка отвечает 429. */
+export const WORDSTAT_TREND_CONCURRENCY = 2;
 /** Сколько держим ответ, чтобы проход конвейера не превращался в очередь к API. */
 export const WORDSTAT_TREND_CACHE_MS = 6 * 60 * 60 * 1_000;
 
@@ -64,12 +67,19 @@ export function growthOf(series: number[], recentWeeks = WORDSTAT_TREND_RECENT_W
   return mean(recent) / base - 1;
 }
 
-/** Границы окна: `toDate` для недельного периода обязан быть воскресеньем. */
+/**
+ * Границы окна: **с понедельника по воскресенье**.
+ *
+ * Оба конца строгие, и оба проверены отказом живьём (прод, 2026-08-11):
+ * «The from field value should be Monday». Воскресенье минус целое число
+ * недель — снова воскресенье, поэтому к началу прибавляется сутки. Время суток
+ * обнуляется: с ним формат тоже отвергался.
+ */
 function weeklyWindow(now: Date): { fromDate: string; toDate: string } {
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   end.setUTCDate(end.getUTCDate() - end.getUTCDay());
   const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - WORDSTAT_TREND_WINDOW_WEEKS * 7);
+  start.setUTCDate(start.getUTCDate() - WORDSTAT_TREND_WINDOW_WEEKS * 7 + 1);
   return { fromDate: start.toISOString(), toDate: end.toISOString() };
 }
 
@@ -103,27 +113,39 @@ export async function wordstatDynamicsTrends(input: {
   const call = input.fetchImpl ?? fetch;
   const window = weeklyWindow(now);
 
-  const answers = await Promise.allSettled(phrases.map(async (phrase) => {
-    const response = await call(DYNAMICS_URL, {
-      method: "POST",
-      headers: { Authorization: `Api-Key ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phrase,
-        period: "PERIOD_WEEKLY",
-        fromDate: window.fromDate,
-        toDate: window.toDate,
-        regions: ["225"],
-        folderId,
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!response.ok) throw new Error(`Wordstat dynamics ${phrase}: HTTP ${response.status}`);
-    return { phrase, series: parseWordstatDynamics(await response.json()) };
-  }));
+  // По две фразы за раз: 13 параллельных вызовов дали 429 на живом прогоне
+  // (прод, 2026-08-11), и живой wordstat в `search-marketing-data` ходит парами
+  // ровно по этой причине.
+  const answers: PromiseSettledResult<{ phrase: string; series: number[] }>[] = [];
+  for (let index = 0; index < phrases.length; index += WORDSTAT_TREND_CONCURRENCY) {
+    const batch = phrases.slice(index, index + WORDSTAT_TREND_CONCURRENCY);
+    answers.push(...await Promise.allSettled(batch.map(async (phrase) => {
+      const response = await call(DYNAMICS_URL, {
+        method: "POST",
+        headers: { Authorization: `Api-Key ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phrase,
+          period: "PERIOD_WEEKLY",
+          fromDate: window.fromDate,
+          toDate: window.toDate,
+          regions: ["225"],
+          folderId,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) throw new Error(`Wordstat dynamics ${phrase}: HTTP ${response.status}`);
+      return { phrase, series: parseWordstatDynamics(await response.json()) };
+    })));
+  }
 
   const candidates: TrendCandidate[] = [];
   for (const answer of answers) {
-    if (answer.status !== "fulfilled") continue;
+    if (answer.status !== "fulfilled") {
+      // Молчаливый отказ уже стоил замера: 13 вызовов вернули 400, а источник
+      // выглядел как «трендов нет». Причина обязана попадать в журнал.
+      log.warn("marketing.trend_wordstat_failed", { error: serializeError(answer.reason) });
+      continue;
+    }
     const growth = growthOf(answer.value.series);
     if (growth === null || growth < WORDSTAT_TREND_MIN_GROWTH) continue;
     candidates.push({

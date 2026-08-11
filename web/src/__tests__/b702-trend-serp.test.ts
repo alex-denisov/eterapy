@@ -18,9 +18,14 @@ import {
 
 function xml(...titles: string[]): string {
   const body = titles
-    .map((title) => `<doc><title>${title}</title><passages><passage>Подробный разбор темы.</passage></passages></doc>`)
+    .map((title, index) => `<doc><domain>site${index}.ru</domain><title>${title}</title><passages><passage>Подробный разбор темы.</passage></passages></doc>`)
     .join("");
   return `<?xml version="1.0" encoding="utf-8"?><yandexsearch><response><results><grouping>${body}</grouping></results></response></yandexsearch>`;
+}
+
+/** Результат магазина: домен маркетплейса. */
+function shopDoc(title: string): string {
+  return `<doc><domain>www.wildberries.ru</domain><title>${title}</title><passages><passage>Бесплатная доставка по низкой цене.</passage></passages></doc>`;
 }
 
 function respond(rawXml: string) {
@@ -97,6 +102,30 @@ describe("B702 фаза 6 — темы из поисковой выдачи", ()
     });
 
     expect(trends.some((item) => item.topic.includes("уникальная"))).toBe(false);
+  });
+
+  it("выдача магазинов темой не становится", async () => {
+    // Живой прогон на проде 2026-08-11 по запросу «таро» дал «бесплатная
+    // доставка», «интернет магазине», «магазине wildberries», «низкой цене»:
+    // маркетплейсы продают колоды, и их лексика повторяется в каждом
+    // результате. Товарная выдача — не тема для материала.
+    const rawXml = `<?xml version="1.0"?><yandexsearch><response><results><grouping>${[
+      shopDoc("Таро купить в интернет магазине"),
+      shopDoc("Карты таро по низкой цене"),
+      shopDoc("Таро с бесплатной доставкой"),
+    ].join("")}</grouping></results></response></yandexsearch>`;
+    const fetchImpl = jest.fn(async () => respond(rawXml));
+
+    const trends = await serpTrends({
+      fetchImpl: fetchImpl as never,
+      phrases: ["таро"],
+      apiKey: "ключ",
+      folderId: "папка",
+      corePhrases: [],
+      useCache: false,
+    });
+
+    expect(trends).toEqual([]);
   });
 
   it("без ключа в сеть не ходит", async () => {
