@@ -10,6 +10,7 @@ import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
+import { conveyorSnapshot } from "@/lib/marketing/conveyor-snapshot";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
 import {
   DZEN_FEED_TARGET_ITEMS,
@@ -64,6 +65,7 @@ export default async function MarketingAgentPage() {
     inboundRecent,
     dzenFeed,
     metaBrandAudit,
+    conveyor,
   ] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { status: "REVIEW" } }),
@@ -133,6 +135,9 @@ export default async function MarketingAgentPage() {
     // Отдельно от `connectors`: там состояние считается по заполненности
     // полей, а заполнены они могут быть верно по форме и неверно по сути.
     auditMetaBrandAccounts().catch(() => []),
+    // B700 фаза 5: состояние конвейера на момент запроса. Сбой чтения не должен
+    // ронять кокпит целиком — панель просто не покажется.
+    conveyorSnapshot().catch(() => null),
   ]);
   // B617: у Reddit больше нет отдельного режима комментирования, который надо
   // было доуточнять состоянием OAuth — остались только свои посты и входящее.
@@ -566,6 +571,59 @@ export default async function MarketingAgentPage() {
         <MetricCard label="Открытые сигналы" value={signals.length.toLocaleString("ru-RU")} hint="SEO, адаптеры и сбои" tone={signals.length ? "warn" : "ok"} icon={<SearchCheck className="size-4" />} />
         <MetricCard label="Готовые коннекторы" value={`${effectiveConnectors.filter((row) => row.ownedPublishing || row.inboundReplies).length}/${effectiveConnectors.length}`} hint="секреты не показываются" icon={<Cable className="size-4" />} />
       </MetricGrid>
+
+      {/*
+        B700 фаза 5 — сводка конвейера.
+
+        Порядок карточек повторяет порядок операций линии: спрос → автор →
+        склад → редактор → готовое. Причина простоя стоит ПЕРВОЙ строкой и
+        всегда одна: список причин заставил бы выбирать, какую чинить, — а на
+        конвейере имеет смысл чинить только узкое место.
+      */}
+      {conveyor ? (
+        <AnalyticsSection title="Конвейер контента">
+          <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
+            <strong>{conveyor.idleReason}</strong>{" "}
+            Норма часа считается от спроса, запаса и ёмкости, а разрешение автору — от
+            свободных мест в очереди редактора: он и есть узкое место линии.
+          </p>
+          <MetricGrid>
+            <MetricCard
+              label="Спрос окна"
+              value={conveyor.demand.toLocaleString("ru-RU")}
+              hint={`отложено за окно: ${conveyor.deferred.toLocaleString("ru-RU")}`}
+              icon={<Bot className="size-4" />}
+            />
+            <MetricCard
+              label="Готово впереди"
+              value={`${conveyor.ready.toLocaleString("ru-RU")} из ${conveyor.buffer.toLocaleString("ru-RU")}`}
+              hint="запас — двое суток выпуска по плану"
+              tone={conveyor.ready >= conveyor.buffer ? "ok" : "warn"}
+            />
+            <MetricCard
+              label="Ждёт редактора"
+              value={`${conveyor.awaitingReview.toLocaleString("ru-RU")} из ${conveyor.maxAwaitingReview.toLocaleString("ru-RU")}`}
+              hint="незавершённое производство: написано, но не проверено"
+              tone={conveyor.awaitingReview >= conveyor.maxAwaitingReview ? "warn" : "ok"}
+              icon={<ShieldCheck className="size-4" />}
+            />
+            <MetricCard
+              label="Норма часа"
+              value={`${conveyor.perHour.toLocaleString("ru-RU")} · автору ${conveyor.writerBudget.toLocaleString("ru-RU")}`}
+              hint={`начато за час: ${conveyor.writtenThisHour.toLocaleString("ru-RU")}`}
+            />
+            <MetricCard
+              label="Ёмкость пула"
+              value={conveyor.capacityPerHour.toLocaleString("ru-RU")}
+              hint={conveyor.canSeparateRoles
+                ? `материалов до конца суток: ${conveyor.materialsLeftToday.toLocaleString("ru-RU")}`
+                : "нет второй независимой модели для редактора"}
+              tone={conveyor.canSeparateRoles && conveyor.capacityPerHour > 0 ? "ok" : "warn"}
+              icon={<SearchCheck className="size-4" />}
+            />
+          </MetricGrid>
+        </AnalyticsSection>
+      ) : null}
 
       <AnalyticsSection title="Площадки и возможности">
         <AdminCompactDataTable columns={connectorColumns} rows={connectorRows} pageSize={10} minWidth="1050px" empty="Коннекторы не объявлены" />
