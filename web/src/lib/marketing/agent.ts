@@ -52,7 +52,10 @@ import { contentPlanFor } from "@/lib/marketing/content-plan";
 import { dzenFeedNeedsTopUp } from "@/lib/marketing/dzen-feed";
 import {
   draftLimitViolations,
+  ctaWordsOf,
+  fallbackCta,
   fallbackMediaBrief,
+  CTA_MIN_WORDS,
   platformLimitsForPrompt,
   platformPublishLimits,
   trimToLimit,
@@ -550,25 +553,77 @@ export function repairPublishableDraft(input: {
 
   const repairs: DraftRepair[] = [];
   let repairedText = text;
+  let cta = input.draft.cta?.trim() ?? "";
+
+  /**
+   * B700 фаза 6 — система больше НЕ выдумывает призыв за автора.
+   *
+   * Было: пустой `cta` заполнялся строкой «Открыть по ссылке в тексте: <url>»,
+   * а в конец текста приклеивался голый адрес. Проверка «CTA есть» после этого
+   * проходила всегда — то есть система создавала видимость призыва там, где его
+   * не написал никто. Замер прода 2026-08-09: шесть материалов из семи
+   * заканчивались голой ссылкой.
+   *
+   * Теперь пустой призыв — это ЗАМЕЧАНИЕ редактора (`kind: "cta"`), которое
+   * автор обязан устранить словами. Система вмешивается только на последнем
+   * раунде и пишет призыв фразой, а не адресом: выпустить материал без призыва
+   * хуже, чем выпустить его с типовым, но осмысленным.
+   */
   if (!repairedText.includes(input.destinationUrl)) {
-    repairedText = `${repairedText}\n\n${input.destinationUrl}`;
+    // Ссылка приезжает вместе с призывом, а не отдельной голой строкой: хвост
+    // «…текст.\n\nhttps://…» и был тем, что владелец назвал браком выпуска.
+    const invitation = ctaWordsOf(cta) >= CTA_MIN_WORDS
+      ? cta.replace(input.destinationUrl, "").trim().replace(/[:\s]+$/u, "")
+      : "";
+    repairedText = invitation
+      ? `${repairedText}\n\n${invitation}: ${input.destinationUrl}`
+      : `${repairedText}\n\n${input.destinationUrl}`;
     repairs.push({
       field: "destinationUrl",
-      note: `Ссылку из плана дописала система: ${input.destinationUrl}`,
+      note: invitation
+        ? `Ссылку из плана дописала система вместе с призывом автора: ${input.destinationUrl}`
+        : `Ссылку из плана дописала система: ${input.destinationUrl}`,
     });
-  }
-  let cta = input.draft.cta?.trim() ?? "";
-  if (!cta) {
-    cta = `Открыть по ссылке в тексте: ${input.destinationUrl}`;
-    repairs.push({ field: "cta", note: "CTA заполнила система по целевой ссылке плана" });
   }
 
   let mediaBrief = input.draft.mediaBrief?.trim() ?? "";
-  const violations = draftLimitViolations({
-    platform: input.platform,
-    text: repairedText,
-    mediaBrief,
-  });
+
+  /**
+   * B700 фаза 6 — призыв словами это часть контракта материала, а не лимит
+   * площадки, поэтому проверка живёт здесь, а не в `draftLimitViolations`.
+   * Требование одинаково для всех площадок и приходит от продукта, а не от API.
+   */
+  const ctaViolations: LimitViolation[] = ctaWordsOf(cta) >= CTA_MIN_WORDS ? [] : [{
+    kind: "cta",
+    issue: ctaWordsOf(cta) === 0
+      ? "В материале нет призыва словами: поле cta пустое или содержит только ссылку."
+      : "Призыв — это не подпись к ссылке: в поле cta одно слово рядом с адресом, и читатель не понимает, что он получит.",
+    brief: "Напиши CTA словами: что конкретно человек получит, перейдя по ссылке, — одно предложение без обещаний результата и без давления.",
+  }];
+
+  /**
+   * Призыв чинится ПЕРВЫМ и только на последнем раунде: он добавляет текст, и
+   * усечение по лимиту площадки обязано считать длину уже вместе с ним. Иначе
+   * материал уезжает за предел ровно тем, чем его чинили.
+   */
+  if (ctaViolations.length > 0 && input.finalRound) {
+    cta = fallbackCta(input.topic ?? input.draft.title ?? null);
+    repairedText = repairedText.replace(`\n\n${input.destinationUrl}`, "").trimEnd();
+    repairedText = `${repairedText}\n\n${cta}: ${input.destinationUrl}`;
+    repairs.push({
+      field: "cta",
+      note: "Призыв написала система: автор не назвал действие словами и после доработок.",
+    });
+  }
+
+  const violations = [
+    ...(input.finalRound ? [] : ctaViolations),
+    ...draftLimitViolations({
+      platform: input.platform,
+      text: repairedText,
+      mediaBrief,
+    }),
+  ];
 
   if (violations.length === 0 || !input.finalRound) {
     return {
