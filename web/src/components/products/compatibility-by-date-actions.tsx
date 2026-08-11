@@ -13,10 +13,12 @@ import { useInputDraft } from "@/lib/use-input-draft";
 import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 import { maskLeadingDateInput } from "@/lib/date-input-mask";
+import { requestCalculatedPreview, type SynastryCalculatedPreview } from "@/lib/calculated-product-preview";
 
 // B451: «Совместимость по дате» — самодостаточная парная услуга по паттерну
 // Таро/reframe (свой роут /api/products/compatibility-by-date, двое участников). Колесо пары
-// считается детерминированно; нет бесплатного фрагмента; автосейв; сессии по ?reading=.
+// считается детерминированно. B701: карта пары видна бесплатно, а платный шаг
+// открывает её связную интерпретацию; автосейв; сессии по ?reading=.
 
 export type SynastryResult = SymbolicResult;
 
@@ -71,9 +73,7 @@ function extractSynastryWheel(result: SymbolicResult | null): SynastryWheelData 
   return raw as SynastryWheelData;
 }
 
-function SynastryVisual({ result }: { result: SymbolicResult }) {
-  const wheel = extractSynastryWheel(result);
-  if (!wheel) return null;
+function SynastryWheelPanel({ wheel }: { wheel: SynastryWheelData }) {
   return (
     <div>
       <SynastryWheel wheel={wheel} />
@@ -91,6 +91,11 @@ function SynastryVisual({ result }: { result: SymbolicResult }) {
   );
 }
 
+function SynastryVisual({ result }: { result: SymbolicResult }) {
+  const wheel = extractSynastryWheel(result);
+  return wheel ? <SynastryWheelPanel wheel={wheel} /> : null;
+}
+
 function SynastryTeaser() {
   return (
     <div className="rounded-[16px] border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-center" data-testid="synastry-teaser" aria-hidden="true">
@@ -99,7 +104,7 @@ function SynastryTeaser() {
         <circle cx="126" cy="60" r="42" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="3 5" />
         <text x="100" y="60" textAnchor="middle" dominantBaseline="central" fontSize="22" fill="var(--soft-ink-faint)">?</text>
       </svg>
-      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">карта пары появится здесь после оплаты</p>
+      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">введите обе даты, чтобы бесплатно рассчитать карту пары</p>
     </div>
   );
 }
@@ -150,6 +155,8 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
   const [partnerBirth, setPartnerBirth] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
   const [relationshipLayer, setRelationshipLayer] = useState("personal");
+  const [previewWheel, setPreviewWheel] = useState<SynastryWheelData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const placeholderKey = `${relationshipLayer}:${topic ?? "all"}`;
@@ -261,12 +268,35 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
     }
   }
 
+  async function calculatePreview() {
+    if (userBirth.trim().length < 4 || partnerBirth.trim().length < 4) {
+      setMessage("Заполните данные рождения обоих участников: дата, примерное время и город.");
+      return;
+    }
+    setPreviewLoading(true);
+    setMessage(null);
+    try {
+      const preview = await requestCalculatedPreview<SynastryCalculatedPreview>({
+        productKey: "compatibility-by-date",
+        userBirthData: userBirth,
+        partnerBirthData: partnerBirth,
+      });
+      setPreviewWheel(preview.wheel);
+    } catch (error) {
+      setPreviewWheel(null);
+      setMessage(error instanceof Error ? error.message : "Не удалось рассчитать карту пары");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   function startNew() {
     setResult(null);
     setUserBirth("");
     setPartnerBirth("");
     setTopic(null);
     setRelationshipLayer("personal");
+    setPreviewWheel(null);
     setMessage(null);
     setStatus("idle");
     clearDraft();
@@ -322,7 +352,10 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
               id="synastry-user-birth"
               value={userBirth}
               // B554 п.23: составное поле — маска только на ведущую дату.
-              onChange={(e) => setUserBirth(maskLeadingDateInput(e.target.value.slice(0, 400), userBirth))}
+              onChange={(e) => {
+                setUserBirth(maskLeadingDateInput(e.target.value.slice(0, 400), userBirth));
+                setPreviewWheel(null);
+              }}
               placeholder={userBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
@@ -334,7 +367,10 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
             <input
               id="synastry-partner-birth"
               value={partnerBirth}
-              onChange={(e) => setPartnerBirth(maskLeadingDateInput(e.target.value.slice(0, 400), partnerBirth))}
+              onChange={(e) => {
+                setPartnerBirth(maskLeadingDateInput(e.target.value.slice(0, 400), partnerBirth));
+                setPreviewWheel(null);
+              }}
               placeholder={partnerBirthPlaceholder}
               className="soft-question-input product-question-input product-line-input"
               disabled={status === "loading"}
@@ -344,19 +380,30 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
         </div>
 
         <div className="mt-1">
-          <SynastryTeaser />
+          {previewWheel ? <SynastryWheelPanel wheel={previewWheel} /> : <SynastryTeaser />}
         </div>
 
         <div className="product-action-row">
-          {hasEntitlement ? (
+          {!previewWheel ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void calculatePreview()}
+              disabled={previewLoading || status === "loading"}
+              data-testid="synastry-preview-start"
+            >
+              {previewLoading ? "Рассчитываем карту пары…" : "Рассчитать карту пары бесплатно"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          ) : hasEntitlement ? (
             <Button onClick={generate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="synastry-start">
-              {status === "loading" ? "Собираем карту пары…" : "Открыть совместимость"}
+              {status === "loading" ? "Собираем интерпретацию…" : "Получить интерпретацию"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (
             <ProductPurchaseControls
               productKey="compatibility-by-date"
-              label="Открыть совместимость"
+              label="Получить интерпретацию"
               checkoutSource="synastry-direct"
               creditCost={creditCost}
               onUnlocked={() => {
@@ -370,6 +417,11 @@ export function SynastryActions({ creditCost }: { creditCost: number }) {
             />
           )}
         </div>
+        {previewWheel && (
+          <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]" data-testid="synastry-preview-note">
+            Карта пары уже рассчитана бесплатно. Оплата открывает персональную интерпретацию связей, ресурсов и напряжений.
+          </p>
+        )}
       </div>
     </div>
   );
