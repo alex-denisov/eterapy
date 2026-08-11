@@ -77,4 +77,18 @@ describe("B702 — гейт планировщика приезжает выка
     );
     expect(overlay).toContain('MARKETING_PLANNER_ENABLED: "true"');
   });
+
+  it("прод включает планировщик в ОБОИХ контейнерах, а не в одном", () => {
+    // Проход «запустить сейчас» из админки исполняет web, фоновый —
+    // marketing-agent. Гейт в одном из них означал бы, что ручной прогон и
+    // фоновый строят план разными механизмами, а замер сравнивает разное.
+    const overlay = fs.readFileSync(
+      path.join(path.resolve(process.cwd(), ".."), "deploy/compose/docker-compose.prod.yml"),
+      "utf8",
+    );
+    const web = overlay.slice(overlay.indexOf("\n  web:"), overlay.indexOf("\n  worker:"));
+    const agent = overlay.slice(overlay.indexOf("\n  marketing-agent:"));
+    expect(web).toContain('MARKETING_PLANNER_ENABLED: "true"');
+    expect(agent).toContain('MARKETING_PLANNER_ENABLED: "true"');
+  });
 });

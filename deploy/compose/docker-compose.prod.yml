@@ -29,6 +29,11 @@ services:
       # Allows the authenticated "run now" endpoint to execute the same
       # narrowly allow-listed public-social writer/reviewer route.
       MARKETING_FOREIGN_LLM_ENABLED: "true"
+      # B702: тот же гейт, что у marketing-agent. Проход из админки
+      # («запустить сейчас») исполняет web-контейнер, и разойтись в поведении
+      # они не должны: иначе ручной прогон строил бы план не тем механизмом,
+      # что фоновый, и замер сравнивал бы разное.
+      MARKETING_PLANNER_ENABLED: "true"
     # Bound to loopback — only the host nginx talks to it.
     command: ["npm", "start", "--", "--port", "${ETERAPY_APP_PORT:-3200}", "--hostname", "127.0.0.1"]
     volumes:
@@ -80,6 +85,14 @@ services:
       # Reddit is executed by the installation-scoped Devvit companion. Until
       # its shared secret and installation exist, Reddit stays fail-closed.
       REDDIT_DEVVIT_ENABLED: "true"
+      # B702: тему слота выбирает планировщик — спрос семантического ядра плюс
+      # живые тренды, а не позиция в ротации константы TOPICS. Включается после
+      # того, как оба живых источника трендов доказаны боевыми ключами на самом
+      # проде 2026-08-11 (динамика Wordstat и поисковая выдача; первый прогон
+      # дал ноль кандидатов и вскрыл три дефекта, которых мок не ловил).
+      # Остов плана — площадка, день, время, формат, класс — остаётся
+      # детерминированным: не-детерминирован только выбор темы.
+      MARKETING_PLANNER_ENABLED: "true"
     command: ["npm", "run", "worker:marketing"]
     depends_on:
       migrate:
