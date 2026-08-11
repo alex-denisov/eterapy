@@ -78,6 +78,45 @@ export function metaRequestHeaders(extra: Record<string, string> = {}): Record<s
 export const META_WEBHOOK_HOST = "https://hooks.eterapy.com";
 
 export function metaWebhookCallbackUrl(platform: "threads" | "instagram"): string {
-  const host = process.env.META_WEBHOOK_HOST?.trim().replace(/\/+$/, "") || META_WEBHOOK_HOST;
-  return `${host}/api/integrations/meta/${platform}/webhook`;
+  return `${metaWebhookHost()}/api/integrations/meta/${platform}/webhook`;
+}
+
+function metaWebhookHost(): string {
+  return process.env.META_WEBHOOK_HOST?.trim().replace(/\/+$/, "") || META_WEBHOOK_HOST;
+}
+
+/** Наш маршрут обложек. По этому признаку адрес и опознаётся как свой. */
+const MEDIA_PATH_PREFIX = "/api/marketing/media/";
+
+/**
+ * B704 — адрес обложки, по которому за ней придёт САМА площадка.
+ *
+ * `image_url` в контейнере публикации скачивает не наш процесс, а Meta. До
+ * российского адреса её скачиватель не доходит — проба 2026-08-12:
+ *
+ * | Адрес                                   | Ответ                          |
+ * |-----------------------------------------|--------------------------------|
+ * | `eterapy.com/api/marketing/media/…` PNG | `2207052` не удалось скачать   |
+ * | `eterapy.com/tarot/major-19.jpg` JPEG   | `2207052` не удалось скачать   |
+ * | `picsum.photos/1080/1080.jpg`           | контейнер создан               |
+ * | чужой PNG на чужом имени                | `36003` неподходящие пропорции |
+ *
+ * Чужой PNG дошёл до проверки ПРОПОРЦИЙ — значит формат ни при чём, и общее у
+ * двух наших проб ровно одно: имя `eterapy.com`. Поэтому площадке называется
+ * то же имя, что и в вебхуках, — единственная запись зоны за Cloudflare.
+ *
+ * Признак «свой адрес» — путь, а не имя хоста: чужую ссылку (площадка,
+ * хранилище, чей-то CDN) переписывать нельзя ни при каком совпадении имён, а
+ * этот путь по определению обслуживаем мы. Всё, что не он, возвращается как
+ * есть — включая нечитаемую строку: разбирать её здесь не наше дело.
+ */
+export function metaFetchableMediaUrl(mediaUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(mediaUrl);
+  } catch {
+    return mediaUrl;
+  }
+  if (!parsed.pathname.startsWith(MEDIA_PATH_PREFIX)) return mediaUrl;
+  return `${metaWebhookHost()}${parsed.pathname}${parsed.search}`;
 }
