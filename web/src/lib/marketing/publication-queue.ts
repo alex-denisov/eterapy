@@ -21,7 +21,11 @@ import {
   dzenFeedPublishingEnabled,
 } from "@/lib/marketing/dzen-feed";
 import { generatePost } from "@/lib/marketing/post-generator";
+import { demandFromCore, demandFromWordstat, mergeDemandSignals } from "@/lib/marketing/content-relevance";
+import { marketingPlannerEnabled, planTopicsForSlots, type PlannedTopic } from "@/lib/marketing/planner";
+import { scanTrends } from "@/lib/marketing/trend-scan";
 import { isRecoverablePublicationError } from "@/lib/marketing/registry-recovery";
+import { cachedWordstatWatchlist } from "@/lib/search-marketing-data";
 
 /** Сколько черновиков держим наготове. Больше — не читает никто. */
 export const DRAFT_QUEUE_TARGET = CONTENT_PLAN.length;
@@ -169,6 +173,12 @@ export interface GenerateDraftsResult {
   duplicateTopics: string[];
   /** B620/B695: статьи пополнения ленты, возвращённые из архива этим проходом. */
   feedTopUpRestored: number;
+  /**
+   * B702 фаза 5: темы, назначенные планировщиком из спроса/трендов, и сколько
+   * из них пришло из каждого источника. Пишется в журнал прохода, чтобы
+   * решение планировщика было видно и проверяемо задним числом.
+   */
+  plannedTopics: { total: number; byCore: number; byTrend: number };
   planExhausted: boolean;
 }
 
@@ -257,6 +267,8 @@ export async function generateMarketingDrafts(input: {
   const exhaustedSlots: string[] = [];
   const duplicateTopics: string[] = [];
   let created = 0;
+  let plannedByCore = 0;
+  let plannedByTrend = 0;
 
   /**
    * B686 — площадки, где две статьи на одну тему это дубль, а не два взгляда.
@@ -289,14 +301,44 @@ export async function generateMarketingDrafts(input: {
     );
   }
 
+  // B702 фаза 4 — тема свободного слота решается планировщиком спроса/трендов,
+  // а не ротацией константы `TOPICS`. Снимок спроса (ядро + кэшированный wordstat
+  // за 24 часа) и живые тренды discovery собираются ДО цикла, чтобы планировщик
+  // видел все свободные слоты прохода и не раздал одну статью двум из них.
+  //
+  // Гейт `marketingPlannerEnabled` — env-флаг: включение дёшево и не тратит
+  // суточную ёмкость (LLM не зовётся вовсе). Оба источника могут молчать —
+  // тогда план остаётся на остовных темах `TOPICS` (фолбэк ниже), канал без
+  // материала планировщик не оставляет.
+  const plannedTopics = new Map<string, PlannedTopic>();
+  if (marketingPlannerEnabled() && slots.length > 0) {
+    const wordstat = await cachedWordstatWatchlist().catch(() => []);
+    const signals = mergeDemandSignals([demandFromCore(), demandFromWordstat(wordstat)]);
+    const trends = await scanTrends().catch(() => []);
+    for (const [key, topic] of planTopicsForSlots({ slots, signals, trends, usedByPlatform: usedTopicsByPlatform })) {
+      plannedTopics.set(key, topic);
+    }
+  }
+
   for (const rawSlot of slots) {
     const used = usedTopicsByPlatform.get(rawSlot.channel);
-    const slot = used ? withUnusedTopic(rawSlot, used) : rawSlot;
+    // Тема планировщика сильнее остовной, но не может занять уже занятую на
+    // площадке статью — планировщик её и так исключил, проверка дешёвая подушка.
+    const planned = plannedTopics.get(rawSlot.key);
+    const slot = planned && !used?.has(planned.articleSlug)
+      ? { ...rawSlot, cluster: planned.cluster, articleSlug: planned.articleSlug, targetQuery: planned.targetQuery }
+      : used
+        ? withUnusedTopic(rawSlot, used)
+        : rawSlot;
     if (!slot) {
       // Свободных тем не осталось. Пропуск виден снаружи, дубль — нет.
       duplicateTopics.push(rawSlot.key);
       log.warn("marketing.plan_slot_topic_exhausted", { slot: rawSlot.key, platform: rawSlot.channel });
       continue;
+    }
+    if (planned && planned.articleSlug === slot.articleSlug) {
+      if (planned.origin === "trend") plannedByTrend += 1;
+      else plannedByCore += 1;
     }
     used?.add(slot.articleSlug);
     const generation = Array.from({ length: MAX_SLOT_GENERATIONS }, (_, index) => index + 1)
@@ -346,6 +388,11 @@ export async function generateMarketingDrafts(input: {
             contentClass: slot.contentClass,
             daypart: slot.daypart,
             toleranceMs: slot.toleranceMs,
+            // B702 фаза 4: откуда тема — спрос/ядро или живой тренд. Пишется в
+            // строку для сводки конвейера и журнала выпуска, чтобы решение
+            // планировщика можно было проверить задним числом.
+            topicOrigin: planned?.origin,
+            topicRationale: planned?.rationale,
           }),
           source: "CRON_B589",
           autoPublish: false,
@@ -372,6 +419,11 @@ export async function generateMarketingDrafts(input: {
     // «слот исчерпал перевыпуски»: причины разные и чинятся по-разному.
     duplicateTopics,
     feedTopUpRestored,
+    // B702 фаза 5: счётчики планировщика в сводке прохода — журнал
+    // (`cron-marketing-generate-completed`) и панель видят, сколько тем
+    // пришло из спроса, а сколько из живых трендов. Пока планировщик
+    // выключен — оба нули, поведение прежнего конвейера не меняется.
+    plannedTopics: { total: plannedByCore + plannedByTrend, byCore: plannedByCore, byTrend: plannedByTrend },
     planExhausted: taken.length + created >= activePlan.length,
   };
 }
