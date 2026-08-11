@@ -12,11 +12,12 @@ import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import { useRotatingPlaceholder } from "@/lib/use-rotating-placeholder";
 import { maskLeadingDateInput } from "@/lib/date-input-mask";
+import { requestCalculatedPreview, type NatalCalculatedPreview } from "@/lib/calculated-product-preview";
 
 // B450: «Натальная карта» — самодостаточная услуга по паттерну Таро/reframe.
-// Контекст (данные рождения + сфера) собирается ВНУТРИ услуги; бесплатного
-// предпросмотра нет — один платный шаг даёт колесо + многоглавный разбор; автосейв в
-// Дневник; сессии по ?reading=. Общая логика — в useSymbolicService + SymbolicResultScaffold.
+// Контекст (данные рождения + сфера) собирается ВНУТРИ услуги. B701: точное
+// колесо считается бесплатно, платный шаг даёт его многоглавное толкование;
+// автосейв в Дневник; сессии по ?reading=.
 
 export type NatalResult = SymbolicResult;
 
@@ -59,7 +60,8 @@ function parseNatalInput(userInput?: string | null): { birth: string; topic: str
   return { birth, topic };
 }
 
-// Тизер-силуэт колеса до оплаты (как рубашки карт у Таро).
+// Пустое состояние до бесплатного расчёта. После него здесь появляется реальное
+// колесо, а не силуэт будущего результата.
 function NatalWheelTeaser() {
   return (
     <div
@@ -72,14 +74,12 @@ function NatalWheelTeaser() {
         <circle cx="80" cy="80" r="50" fill="none" stroke="var(--soft-paper-edge)" strokeWidth={1.2} strokeDasharray="3 5" />
         <text x="80" y="80" textAnchor="middle" dominantBaseline="central" fontSize="30" fill="var(--soft-ink-faint)">?</text>
       </svg>
-      <p className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">карта неба появится здесь после оплаты</p>
+      <p className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">введите данные, чтобы бесплатно рассчитать колесо</p>
     </div>
   );
 }
 
-function NatalVisual({ result }: { result: SymbolicResult }) {
-  const wheel = extractNatalWheel(result);
-  if (!wheel) return null;
+function NatalWheelPanel({ wheel }: { wheel: NatalWheel }) {
   return (
     <div>
       <ZodiacWheel wheel={wheel} />
@@ -99,6 +99,11 @@ function NatalVisual({ result }: { result: SymbolicResult }) {
       </div>
     </div>
   );
+}
+
+function NatalVisual({ result }: { result: SymbolicResult }) {
+  const wheel = extractNatalWheel(result);
+  return wheel ? <NatalWheelPanel wheel={wheel} /> : null;
 }
 
 // Результирующий экран (презентационный — переиспользуется для скриншотов).
@@ -139,6 +144,8 @@ export function NatalResultView({
 export function NatalChartActions({ creditCost }: { creditCost: number }) {
   const [birth, setBirth] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+  const [previewWheel, setPreviewWheel] = useState<NatalWheel | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const birthPlaceholder = useRotatingPlaceholder(NATAL_BIRTH_EXAMPLES, topic ?? "all");
 
   const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
@@ -174,11 +181,34 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
     void generate(composeUserInput(birth, topic));
   }
 
+  async function calculatePreview() {
+    const warning = missingInput();
+    if (warning) {
+      setMessage(warning);
+      return;
+    }
+    setPreviewLoading(true);
+    setMessage(null);
+    try {
+      const preview = await requestCalculatedPreview<NatalCalculatedPreview>({
+        productKey: "natal-chart",
+        birthData: birth,
+      });
+      setPreviewWheel(preview.wheel);
+    } catch (error) {
+      setPreviewWheel(null);
+      setMessage(error instanceof Error ? error.message : "Не удалось построить карту");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   function startNew() {
     reset();
     clearDraft();
     setBirth("");
     setTopic(null);
+    setPreviewWheel(null);
   }
 
   if (result?.resultText) {
@@ -217,7 +247,10 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
           // B554 п.23: поле составное («12.04.1992, 14:35, Москва»), поэтому
           // автоформат применяется только к ведущей дате — время и город маска
           // не трогает.
-          onChange={(e) => setBirth(maskLeadingDateInput(e.target.value.slice(0, 400), birth))}
+          onChange={(e) => {
+            setBirth(maskLeadingDateInput(e.target.value.slice(0, 400), birth));
+            setPreviewWheel(null);
+          }}
           placeholder={birthPlaceholder}
           className="soft-question-input product-question-input product-line-input"
           disabled={status === "loading"}
@@ -225,19 +258,30 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
         />
 
         <div className="mt-1">
-          <NatalWheelTeaser />
+          {previewWheel ? <NatalWheelPanel wheel={previewWheel} /> : <NatalWheelTeaser />}
         </div>
 
         <div className="product-action-row">
-          {hasEntitlement ? (
+          {!previewWheel ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void calculatePreview()}
+              disabled={previewLoading || status === "loading"}
+              data-testid="natal-preview-start"
+            >
+              {previewLoading ? "Рассчитываем колесо…" : "Рассчитать колесо бесплатно"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          ) : hasEntitlement ? (
             <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="natal-start">
-              {status === "loading" ? "Строим карту…" : "Открыть натальную карту"}
+              {status === "loading" ? "Собираем толкование…" : "Получить толкование"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (
             <ProductPurchaseControls
               productKey="natal-chart"
-              label="Открыть натальную карту"
+              label="Получить толкование"
               checkoutSource="natal-chart-direct"
               creditCost={creditCost}
               beforePay={missingInput}
@@ -248,6 +292,11 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
             />
           )}
         </div>
+        {previewWheel && (
+          <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]" data-testid="natal-preview-note">
+            Колесо уже рассчитано бесплатно. Оплата открывает связное персональное толкование положений и аспектов.
+          </p>
+        )}
       </div>
     </div>
   );

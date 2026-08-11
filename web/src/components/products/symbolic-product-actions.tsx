@@ -19,6 +19,7 @@ import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
 import { loginUrl } from "@/lib/subdomain";
 import { miniAppLoginPath } from "@/lib/miniapp/navigation";
+import { requestCalculatedPreview, type TarotCalculatedPreview } from "@/lib/calculated-product-preview";
 
 type SymbolicResult = {
   id: string;
@@ -276,6 +277,9 @@ export function SymbolicProductActions({
   const [userInput, setUserInput] = useState("");
   const [tarotTheme, setTarotTheme] = useState<(typeof TAROT_THEMES)[number]["label"]>(TAROT_THEMES[0].label);
   const [tarotSpread, setTarotSpread] = useState<TarotSpreadKey>("three");
+  const [tarotDrawId, setTarotDrawId] = useState("");
+  const [previewTarotCards, setPreviewTarotCards] = useState<TarotCardView[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [exampleIdx, setExampleIdx] = useState(0);
@@ -365,12 +369,13 @@ export function SymbolicProductActions({
   // чтобы готовый результат не перезаписывал черновик.
   const { clear: clearDraft } = useInputDraft(
     draftKey,
-    productKey === "tarot" ? { userInput, tarotTheme, tarotSpread } : { userInput },
+    productKey === "tarot" ? { userInput, tarotTheme, tarotSpread, tarotDrawId } : { userInput },
     (draft) => {
       if (typeof draft.userInput === "string") setUserInput(draft.userInput);
       if (productKey === "tarot") {
         if (isTarotThemeLabel(draft.tarotTheme)) setTarotTheme(draft.tarotTheme);
         if (isTarotSpreadKey(draft.tarotSpread)) setTarotSpread(draft.tarotSpread);
+        if (typeof draft.tarotDrawId === "string") setTarotDrawId(draft.tarotDrawId);
       }
     },
     { active: !result },
@@ -407,6 +412,7 @@ export function SymbolicProductActions({
           productKey,
           userInput,
           ...(productKey === "tarot" ? { tarotSpread: selectedSpread.key, tarotTheme } : {}),
+          ...(productKey === "tarot" && tarotDrawId ? { tarotDrawId } : {}),
         }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
@@ -466,6 +472,8 @@ export function SymbolicProductActions({
     setMessage(null);
     setStatus("idle");
     setUserInput("");
+    setTarotDrawId("");
+    setPreviewTarotCards(null);
     clearDraft();
     if (productKey === "tarot" && typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -474,13 +482,14 @@ export function SymbolicProductActions({
     }
   }
 
-  const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
+  const paidTarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
+  const tarotCards = paidTarotCards ?? previewTarotCards;
   const tarotMeta = productKey === "tarot" ? extractTarotMeta(result) : null;
   const natalWheel = productKey === "natal-chart" ? extractNatalWheel(result) : null;
   const selectedTarotSpread = TAROT_SPREAD_OPTIONS.find((option) => option.key === tarotSpread) ?? TAROT_SPREAD_OPTIONS[1];
 
   if (productKey === "tarot") {
-    const hasReading = Boolean(result?.resultText && tarotCards);
+    const hasReading = Boolean(result?.resultText && paidTarotCards);
     // #5: подсказка зависит от выбранной темы; сменяется по таймеру.
     const themeExamples = tarotExamplesForTheme(tarotTheme);
     const tarotPlaceholder = themeExamples[exampleIdx % themeExamples.length];
@@ -489,6 +498,37 @@ export function SymbolicProductActions({
       : "";
     const tarotSections = splitSections(normalizeResultSectionHeadings("tarot", tarotResultText))
       .map((section) => ({ ...section, title: presentSymbolicSectionTitle("tarot", section.title) }));
+
+    function invalidatePreview() {
+      setPreviewTarotCards(null);
+      setTarotDrawId("");
+    }
+
+    async function calculateTarotPreview() {
+      if (!userInput.trim()) {
+        setMessage("Добавьте вопрос или ситуацию, чтобы расклад был персональным.");
+        return;
+      }
+      const drawId = tarotDrawId || crypto.randomUUID();
+      setTarotDrawId(drawId);
+      setPreviewLoading(true);
+      setMessage(null);
+      try {
+        const preview = await requestCalculatedPreview<TarotCalculatedPreview>({
+          productKey: "tarot",
+          userInput,
+          tarotSpread: selectedTarotSpread.key,
+          tarotTheme,
+          tarotDrawId: drawId,
+        });
+        setPreviewTarotCards(preview.cards);
+      } catch (error) {
+        setPreviewTarotCards(null);
+        setMessage(error instanceof Error ? error.message : "Не удалось вытянуть карты");
+      } finally {
+        setPreviewLoading(false);
+      }
+    }
 
     // #2/#4: два основных CTA в блоке «что дальше» (как у /checkin): повторить
     // расклад (одно слово на кнопке) + продолжить разговор в чате. Рекомендуемый
@@ -529,7 +569,7 @@ export function SymbolicProductActions({
               key={theme.key}
               type="button"
               className={theme.label === tarotTheme ? "product-option-choice product-option-choice-active" : "product-option-choice"}
-              onClick={() => { setTarotTheme(theme.label); setExampleIdx(0); }}
+              onClick={() => { setTarotTheme(theme.label); setExampleIdx(0); invalidatePreview(); }}
               aria-pressed={theme.label === tarotTheme}
               disabled={status === "loading"}
             >
@@ -544,7 +584,7 @@ export function SymbolicProductActions({
               key={option.key}
               type="button"
               className={option.key === tarotSpread ? "tarot-spread-choice product-option-choice-active" : "tarot-spread-choice"}
-              onClick={() => setTarotSpread(option.key)}
+              onClick={() => { setTarotSpread(option.key); invalidatePreview(); }}
               aria-pressed={option.key === tarotSpread}
               title={option.helper}
               disabled={status === "loading"}
@@ -558,7 +598,7 @@ export function SymbolicProductActions({
         <textarea
           id="symbolic-input-tarot"
           value={userInput}
-          onChange={(event) => setUserInput(event.target.value)}
+          onChange={(event) => { setUserInput(event.target.value); invalidatePreview(); }}
           placeholder={tarotPlaceholder}
           rows={2}
           className="soft-question-input product-question-input product-compact-input"
@@ -566,7 +606,18 @@ export function SymbolicProductActions({
         />
 
         <div className="product-action-row">
-          {hasEntitlement ? (
+          {!previewTarotCards ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void calculateTarotPreview()}
+              disabled={previewLoading || status === "loading"}
+              data-testid="tarot-preview-start"
+            >
+              {previewLoading ? "Тянем карты…" : "Вытянуть карты бесплатно"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          ) : hasEntitlement ? (
             <Button
               type="button"
               onClick={generateResult}
@@ -574,21 +625,21 @@ export function SymbolicProductActions({
               className="soft-button soft-button-primary"
             >
               <LockKeyhole className="size-4" aria-hidden="true" />
-              {status === "loading" ? "Тянем карты" : "Получить полный расклад"}
+              {status === "loading" ? "Собираем разбор" : "Получить персональный разбор"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (
             <ProductPurchaseControls
               productKey={productKey}
-              label="Открыть расклад"
+              label="Получить персональный разбор"
               checkoutSource="tarot-direct"
               creditCost={creditCost}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                if (userInput.trim()) {
+                if (previewTarotCards) {
                   void generateResult();
                 } else {
-                  setMessage("Доступ открыт. Добавьте вопрос, и карты появятся здесь же.");
+                  setMessage("Доступ открыт. Сначала вытяните карты, которые нужно разобрать.");
                 }
               }}
             />
@@ -683,14 +734,10 @@ export function SymbolicProductActions({
                   />
                 </div>
               </>
-            ) : result?.previewText ? (
+            ) : previewTarotCards ? (
               <>
-                <SoftMarkdown
-                  content={result.previewText}
-                  className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
-                />
-                <p className="tarot-preview-note">
-                  Полный расклад откроет все карты, общий смысл и сохранение в Дневник.
+                <p className="tarot-preview-note" data-testid="tarot-preview-note">
+                  Карты уже выпали бесплатно. Оплата открывает связный персональный разбор именно этого расклада и сохранение в Дневник.
                 </p>
               </>
             ) : (

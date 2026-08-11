@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { canonicalUrl, publicSeoRoutes, seoOrigins } from "@/lib/seo";
 import { HOME_CONTENT_REVIEWED_AT } from "@/lib/home-authority-content";
+import { getProductPriceKopecks } from "@/lib/product-prices";
 
 export type PublicSeoRoute = typeof publicSeoRoutes[number];
 
-type SchemaKind = "WebPage" | "Article" | "FAQPage" | "Product" | "Service";
+type SchemaKind = "WebPage" | "CollectionPage" | "Article" | "FAQPage" | "Product" | "Service";
 
 type PublicPageSeo = {
   title: string;
@@ -51,12 +52,12 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   "/pricing": {
     title: "Цены и тарифы ETerapy",
     description: "Прозрачные цены: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней и клиентские подписки.",
-    schemaKind: "Product",
+    schemaKind: "WebPage",
   },
   "/pricing/compare": {
     title: "Сравнение тарифов ETerapy",
     description: "Подробное сравнение Free, Plus и Premium: баллы, карта, цифровые продукты, маршруты, ограничения и что не входит в подписки.",
-    schemaKind: "Product",
+    schemaKind: "WebPage",
   },
   "/products/pair": {
     title: "Тест для двоих: отвечают оба, сравнение взглядов | ETerapy",
@@ -76,7 +77,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   "/products": {
     title: "Услуги — ETerapy",
     description: "Цифровые углубления, совместные форматы, эзотерические разборы и встречи со специалистами. Начните с бесплатного первичного ответа или откройте нужную услугу сразу.",
-    schemaKind: "Product",
+    schemaKind: "CollectionPage",
   },
   "/products/reframe": {
     title: "Как отпустить ситуацию: разобрать и сделать первый шаг | ETerapy",
@@ -146,7 +147,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   "/checkin": {
     title: "Разбор — ETerapy",
     description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
-    schemaKind: "Product",
+    schemaKind: "Service",
   },
   "/practitioners": {
     title: "Специалист как следующий шаг — ETerapy",
@@ -224,7 +225,24 @@ export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
   };
 }
 
-export function jsonLdForPublicPage(route: PublicSeoRoute) {
+const PRODUCT_KEY_BY_ROUTE: Partial<Record<PublicSeoRoute, string>> = {
+  "/products/reframe": "reframe",
+  "/products/deep-report": "deep-report",
+  "/products/chat-analysis": "chat-analysis",
+  "/products/chat": "chat-session",
+  "/products/pair": "pair",
+  "/products/tarot": "tarot",
+  "/products/natal-chart": "natal-chart",
+  "/products/compatibility-by-date": "compatibility-by-date",
+  "/products/numerology": "numerology",
+  "/products/horoscope": "horoscope",
+  "/products/arcana": "arcana",
+  "/products/family-questions": "family-questions",
+  "/products/human-design": "human-design",
+  "/products/surname-origin": "surname-origin",
+};
+
+export function jsonLdForPublicPage(route: PublicSeoRoute, options?: { offerPriceRubles?: number }) {
   const seo = publicPageSeo[route];
   const url = canonicalUrl(route);
   const base = {
@@ -257,10 +275,24 @@ export function jsonLdForPublicPage(route: PublicSeoRoute) {
   };
 
   if (seo.schemaKind === "Product") {
+    const productKey = PRODUCT_KEY_BY_ROUTE[route];
+    const defaultKopecks = productKey ? getProductPriceKopecks(productKey) : null;
+    const offerPriceRubles = options?.offerPriceRubles
+      ?? (defaultKopecks === null ? null : defaultKopecks / 100);
     return {
       ...base,
       brand: { "@type": "Brand", name: "ETerapy" },
       category: "Self-care digital service",
+      ...(offerPriceRubles !== null ? {
+        offers: {
+          "@type": "Offer",
+          url,
+          price: offerPriceRubles.toFixed(2),
+          priceCurrency: "RUB",
+          availability: "https://schema.org/InStock",
+          seller: base.publisher,
+        },
+      } : {}),
     };
   }
 
