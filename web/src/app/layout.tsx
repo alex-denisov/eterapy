@@ -1,6 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+// B667: шрифты лежат в репозитории (`public/fonts` + `fonts.css`), а не
+// забираются у Google на каждой сборке. `next/font/google` ходил в сеть при
+// каждом `next build`, и когда Google отдавал CSS со ссылками, дающими 404,
+// падала вся выкатка. Файлы и таблица @font-face — те же самые, байт в байт;
+// обновляются `node scripts/vendor-google-fonts.mjs`.
+import fontPreloads from "./font-preloads.json";
+import "./fonts.css";
 import "./globals.css";
 import "./v4-soft.css";
 import { Header } from "@/components/header";
@@ -19,20 +25,6 @@ import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 const homeMetadata = createPublicPageMetadata("/");
-
-const headingFont = Cormorant_Garamond({
-  subsets: ["cyrillic", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-heading-v4",
-  display: "swap",
-});
-
-const bodyFont = Manrope({
-  subsets: ["cyrillic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-body-v4",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   ...homeMetadata,
@@ -82,11 +74,25 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${bodyFont.variable} ${headingFont.variable} h-full`}
+      className="h-full"
       // B381: the pre-paint detect script sets data-miniapp on <html> before
       // hydration; suppress the expected attribute mismatch on this element only.
       suppressHydrationWarning
     >
+      <head>
+        {/* B667: те же файлы, что предзагружал `next/font` (кириллица и латиница
+            обоих семейств) — подмена шрифта не должна ждать разбора CSS. */}
+        {fontPreloads.map((file) => (
+          <link
+            key={file}
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            href={`/fonts/${file}`}
+            crossOrigin="anonymous"
+          />
+        ))}
+      </head>
       <body className="min-h-full flex flex-col">
         {/* B381: set data-miniapp before hydration so the lean mini-app layout
             (CSS hides site header/footer) has no flash-of-chrome. B604 adds

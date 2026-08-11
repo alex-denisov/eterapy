@@ -74,6 +74,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // B667: шрифты отдаются навсегда — имя файла несёт отпечаток
+        // содержимого (`scripts/vendor-google-fonts.mjs`), поэтому обновление
+        // шрифта меняет адрес и доезжает само. `next/font` кешировал так же,
+        // и терять это, забрав шрифты в репозиторий, было бы регрессом.
+        source: "/fonts/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         // B523: base hardening-заголовки — на КАЖДЫЙ путь (HSTS/анти-clickjacking
         // и для api/_next/static). CSP-заголовок документа выставляет proxy.ts,
         // где есть host/path контекст и per-request nonce, — так на HTML нет

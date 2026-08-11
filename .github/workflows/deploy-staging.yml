@@ -98,15 +98,13 @@ jobs:
             --build-arg NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="eterapy_staging_bot" \
             -t "eterapy-web-staging:${GITHUB_SHA::8}" .
 
-      # B667 — размер образа виден в прогоне, а не только на ноде, где он уже
-      # занял диск. Планка 800 МБ — критерий готовности тикета; превышение
-      # СООБЩАЕТСЯ, но прогон не валит: раздувшийся образ не ломает продукт, а
-      # блокирующий гейт на нём остановил бы выкатку правок, которые нужны людям.
-      - name: Report image size
+      # B667 — размер образа виден в прогоне, а не только на хосте, где он уже
+      # занял диск. Это цифра РАННЕРА, и она меньше той, что показывает хост:
+      # учёт слоёв разный. Сверка с планкой 800 МБ — ниже, после доставки.
+      - name: Report image size (runner accounting)
         run: |
           SIZE_MB=$(docker image inspect "eterapy-web-staging:${GITHUB_SHA::8}" --format '{{.Size}}' | awk '{printf "%d", $1/1024/1024}')
-          echo "▶ образ: ${SIZE_MB} МБ (планка B667 — 800 МБ)"
-          [ "$SIZE_MB" -le 800 ] || echo "::warning::образ ${SIZE_MB} МБ — выше планки B667 в 800 МБ"
+          echo "▶ образ на раннере: ${SIZE_MB} МБ (цифру для планки B667 даёт хост)"
 
       # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
       #
@@ -217,6 +215,11 @@ jobs:
           if [ "$SHIPPED" != yes ]; then
             docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           fi
+          # B667 — размер меряется НА ХОСТЕ: там диск, который реально занят.
+          # Планка 800 МБ — предупреждение, а не гейт.
+          HOST_SIZE_MB=$($SSH "sudo docker image inspect eterapy-web-staging:${GITHUB_SHA::8} --format '{{.Size}}'" | awk '{printf "%d", $1/1024/1024}')
+          echo "▶ образ на хосте: ${HOST_SIZE_MB} МБ (планка B667 — 800 МБ)"
+          [ "$HOST_SIZE_MB" -le 800 ] || echo "::warning::образ ${HOST_SIZE_MB} МБ — выше планки B667 в 800 МБ"
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
           # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
           # секрета репозитория, а не правится на хосте руками — ровно поэтому он

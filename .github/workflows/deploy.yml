@@ -221,15 +221,16 @@ jobs:
             -t "eterapy-web:${GITHUB_SHA::8}" .
 
       # B667 — размер образа виден в прогоне, а не только на ноде, где он уже
-      # занял диск (у eterapy-1 дефицит диска хронический, INC-095). Планка
-      # 800 МБ — критерий готовности тикета; превышение СООБЩАЕТСЯ, но прогон не
-      # валит: раздувшийся образ не ломает продукт, а блокирующий гейт на нём
-      # остановил бы выкатку правок, которые нужны людям.
-      - name: Report image size
+      # занял диск (у eterapy-1 дефицит диска хронический, INC-095).
+      #
+      # Это цифра РАННЕРА, и она меньше той, что показывает нода: учёт слоёв
+      # разный (579 МБ здесь против 878 МБ там на одном и том же образе).
+      # Сверка с планкой 800 МБ живёт в задаче ноды — там мерится диск, который
+      # реально занят.
+      - name: Report image size (runner accounting)
         run: |
           SIZE_MB=$(docker image inspect "eterapy-web:${GITHUB_SHA::8}" --format '{{.Size}}' | awk '{printf "%d", $1/1024/1024}')
-          echo "▶ образ: ${SIZE_MB} МБ (планка B667 — 800 МБ)"
-          [ "$SIZE_MB" -le 800 ] || echo "::warning::образ ${SIZE_MB} МБ — выше планки B667 в 800 МБ"
+          echo "▶ образ на раннере: ${SIZE_MB} МБ (цифру для планки B667 даёт нода)"
 
       - name: Push release image to registry
         id: registry
@@ -748,6 +749,16 @@ jobs:
             fi
             docker save "eterapy-web:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           fi
+          # B667 — размер меряется НА НОДЕ, а не на раннере. Раньше шаг
+          # `Report image size` считал образ по `docker image inspect` у
+          # раннера и показывал 579 МБ, тогда как `docker images` на нодах
+          # показывал 878 МБ: учёт слоёв разный, и занимает диск именно вторая
+          # цифра. Планка 800 МБ из B667 — предупреждение, а не гейт:
+          # раздувшийся образ не ломает продукт, и останавливать им выкатку
+          # правки, которая нужна людям, нельзя.
+          NODE_SIZE_MB=$($SSH "sudo docker image inspect eterapy-web:${GITHUB_SHA::8} --format '{{.Size}}'" | awk '{printf "%d", $1/1024/1024}')
+          echo "▶ $NODE_SLUG: образ ${NODE_SIZE_MB} МБ (планка B667 — 800 МБ)"
+          [ "$NODE_SIZE_MB" -le 800 ] || echo "::warning::$NODE_SLUG: образ ${NODE_SIZE_MB} МБ — выше планки B667 в 800 МБ"
           # B541/B537: stamp the node's identity and role into its .env.
           # Values come from env (NODE_SLUG/NODE_STANDBY), never interpolated
           # into the shell. NB: grep must run under sudo — /opt/eterapy/.env is
