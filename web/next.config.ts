@@ -5,6 +5,12 @@ import { baseSecurityHeaders } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
+  // B667: релизный образ несёт не установленные node_modules, а трассированное
+  // дерево. `node_modules` занимал 1.1 ГБ из 2.0 ГБ образа, и платили за это
+  // четыре ноды при каждой выкатке. Сборку дособирает
+  // `scripts/build-standalone.mjs`: статика, public, бандлы воркеров и проверки
+  // целостности дерева (см. тикет B667).
+  output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   // B431: the legal pages render from this Markdown pack at request time; make sure
   // it is always traced/included alongside the route.
@@ -66,6 +72,14 @@ const nextConfig: NextConfig = {
             value: '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json", </.well-known/agent-skills/index.json>; rel="describedby"; type="application/json", </.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", </llms.txt>; rel="describedby"; type="text/plain"',
           },
         ],
+      },
+      {
+        // B667: шрифты отдаются навсегда — имя файла несёт отпечаток
+        // содержимого (`scripts/vendor-google-fonts.mjs`), поэтому обновление
+        // шрифта меняет адрес и доезжает само. `next/font` кешировал так же,
+        // и терять это, забрав шрифты в репозиторий, было бы регрессом.
+        source: "/fonts/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
         // B523: base hardening-заголовки — на КАЖДЫЙ путь (HSTS/анти-clickjacking

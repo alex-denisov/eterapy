@@ -98,6 +98,14 @@ jobs:
             --build-arg NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="eterapy_staging_bot" \
             -t "eterapy-web-staging:${GITHUB_SHA::8}" .
 
+      # B667 — размер образа виден в прогоне, а не только на хосте, где он уже
+      # занял диск. Это цифра РАННЕРА, и она меньше той, что показывает хост:
+      # учёт слоёв разный. Сверка с планкой 800 МБ — ниже, после доставки.
+      - name: Report image size (runner accounting)
+        run: |
+          SIZE_MB=$(docker image inspect "eterapy-web-staging:${GITHUB_SHA::8}" --format '{{.Size}}' | awk '{printf "%d", $1/1024/1024}')
+          echo "▶ образ на раннере: ${SIZE_MB} МБ (цифру для планки B667 даёт хост)"
+
       # B659 / INC-099 — образ раздаётся реестром, а не потоком по SSH.
       #
       # Замер 2026-08-04 на eterapy-1 в одну и ту же минуту: поток
@@ -207,6 +215,22 @@ jobs:
           if [ "$SHIPPED" != yes ]; then
             docker save "eterapy-web-staging:${GITHUB_SHA::8}" | gzip -1 | $SSH 'gunzip | sudo docker load'
           fi
+          # B667 — размер меряется НА ХОСТЕ: там диск, который реально занят.
+          # Планка 800 МБ — предупреждение, а не гейт.
+          # `docker image inspect .Size` на нодах даёт СЖАТЫЙ размер (хранилище
+          # containerd): 193 МБ там, где `docker images` показывает 799 МБ. Диск
+          # занимает вторая цифра — её и берём, разбирая единицы измерения.
+          size_mb() {
+            awk -v s="$1" 'BEGIN {
+              n = s; sub(/[A-Za-z]+$/, "", n);
+              u = s; sub(/^[0-9.]+/, "", u);
+              m = (u == "GB") ? 1024 : (u == "MB") ? 1 : (u == "kB" || u == "KB") ? 1/1024 : 1/1048576;
+              printf "%d", n * m
+            }'
+          }
+          HOST_SIZE_MB=$(size_mb "$($SSH "sudo docker image ls --filter reference=eterapy-web-staging:${GITHUB_SHA::8} --format '{{.Size}}'" | head -1)")
+          echo "▶ образ на хосте: ${HOST_SIZE_MB} МБ (планка B667 — 800 МБ)"
+          [ "${HOST_SIZE_MB:-0}" -le 800 ] || echo "::warning::образ ${HOST_SIZE_MB} МБ — выше планки B667 в 800 МБ"
           $SSH "sudo test -f $STAGING_DIR/.env || { echo 'staging .env missing — bootstrap it first (see deploy/compose/docker-compose.staging.yml)'; exit 1; }"
           # B566: список допущенных в стейджевый мини-апп приезжает выкаткой из
           # секрета репозитория, а не правится на хосте руками — ровно поэтому он

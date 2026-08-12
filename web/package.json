@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "prebuild": "node scripts/ensure-native-optional-deps.mjs",
-    "build": "node scripts/run-next-build.mjs",
+    "build": "node scripts/run-next-build.mjs && node scripts/build-standalone.mjs",
     "start": "next start",
     "worker": "tsx src/worker/index.ts",
     "worker:marketing": "tsx src/marketing-worker/index.ts",
@@ -68,7 +68,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/testing-library__jest-dom": "^5.14.9",
+    "@vercel/nft": "^1.10.2",
     "babel-jest": "^30.3.0",
+    "esbuild": "^0.27.7",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "jest": "^30.3.0",
