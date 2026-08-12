@@ -152,7 +152,20 @@ export function classifyCredentialFailure(
   // получил бы 403.
   if (code === "HTTP_403") return { cooldownMs: MAX_CREDENTIAL_COOLDOWN_MS, regionBlocked: true };
   if (code === "HTTP_401") return { cooldownMs: 30 * MINUTE, regionBlocked: false };
-  if (code === "HTTP_402") return { cooldownMs: HOUR, regionBlocked: false };
+  /**
+   * B705 — 402 снимается человеком, а не временем.
+   *
+   * Час здесь стоял по аналогии с квотой провайдера, и замер прода 2026-08-12
+   * показал цену: CEREBRAS отдал 31 отказ за двое суток и ни одной генерации.
+   * 402 означает исчерпанный СЧЁТ (`reference_cerebras_402_account_quota`), а
+   * счёт пополняет владелец: до этого момента каждая проба — это гарантированный
+   * отказ, занявший место в переборе провайдеров.
+   *
+   * Двенадцать часов — то же рассуждение, что и у суточного потолка: «сегодня
+   * ходим дважды» вместо «никогда». Ключ возвращается сам в тот же день, если
+   * счёт пополнили, и не жжёт перебор, если нет.
+   */
+  if (code === "HTTP_402") return { cooldownMs: 12 * HOUR, regionBlocked: false };
   if (code === "HTTP_429") {
     return {
       cooldownMs: retryDelayFromProviderMessage(detail?.providerMessage) ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS,

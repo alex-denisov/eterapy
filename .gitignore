@@ -84,6 +84,9 @@ docs/**/*.xlsx
 .qwen/
 .remember/
 .opencode/
+.antigravity/
+.serena/
+.zcode/
 .playwright-mcp/
 .jest-cache/
 *.png
@@ -119,6 +122,7 @@ AGENTS.md
 CLAUDE.md
 GEMINI.md
 QWEN.md
+ZCODE.md
 PRODUCT.md
 DESIGN.md
 DESIGN.json

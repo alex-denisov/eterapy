@@ -11,7 +11,9 @@
     "security:audit": "node scripts/security-audit-summary.mjs",
     "security:audit:gate": "node scripts/security-audit-summary.mjs --fail-on=high",
     "security:zap": "bash scripts/security-zap-baseline.sh",
-    "security:baseline": "npm run security:secrets && npm run security:sast && npm run security:audit"
+    "security:baseline": "npm run security:secrets && npm run security:sast && npm run security:audit",
+    "check:agents": "node scripts/check-agent-contract.mjs",
+    "security:history": "gitleaks detect --no-banner --redact -c .gitleaks.toml -s ."
   },
   "dependencies": {
     "@prisma/client": "^7.7.0",

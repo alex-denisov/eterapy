@@ -38,15 +38,20 @@ describe("B640 — лимиты площадок как данные, а не к
       maxCharacters: 480,
       mediaBriefRequired: false,
     });
+    // B705: числа переехали в `platform-playbook.ts` и изменились намеренно.
+    // Telegram больше НЕ требует медиа: текстовый пост читается быстрее и не
+    // режется пределом подписи (1024 против 4096 у поста без картинки).
     expect(platformLimitsForPrompt("telegram")).toMatchObject({
-      maxCharacters: 1_000,
-      mediaBriefRequired: true,
+      maxCharacters: 900,
+      mediaBriefRequired: false,
     });
   });
 
-  it("у Дзена предела по длине нет, но визуальная идея обязательна", () => {
+  it("у Дзена длинный предел и обязательная визуальная идея", () => {
+    // B705: предел появился. Дзен вознаграждает ДОЧИТЫВАНИЕ, и материал
+    // длиннее 8000 знаков его роняет — «предела нет» было ошибкой.
     expect(platformPublishLimits("dzen")).toMatchObject({
-      textLimit: null,
+      textLimit: 6_000,
       mediaBriefRequired: true,
     });
   });
@@ -80,30 +85,38 @@ describe("B640 — нарушение возвращается на дорабо
   const url = "https://eterapy.com/products/chat";
 
   it("не последний раунд: материал цел, замечание вынесено наружу", () => {
+    // B705: площадка сменена на VK — у Telegram визуальная идея перестала быть
+    // обязательной, и вид `media-brief` там больше не возникает. Смысл теста
+    // (оба вида замечаний наружу, текст не тронут) сохранён.
     const result = repairPublishableDraft({
-      draft: { ...draft, text: "я".repeat(1_200), mediaBrief: "" },
+      draft: { ...draft, text: "я".repeat(1_600), mediaBrief: "" },
       isConversational: false,
       destinationUrl: url,
-      platform: "telegram",
+      platform: "vk",
       finalRound: false,
     });
-    expect(result.violations.map((violation) => violation.kind).sort())
+    // Фильтр по двум видам намеренный: с B705 рядом приезжают ещё и замечания
+    // вида `contract`, и их состав — предмет отдельного теста, а не этого.
+    expect(result.violations
+      .map((violation) => violation.kind)
+      .filter((kind) => kind === "length" || kind === "media-brief")
+      .sort())
       .toEqual(["length", "media-brief"]);
     // текст НЕ усечён: у автора ещё есть раунд, чтобы сократить осмысленно
-    expect(result.draft.text.length).toBeGreaterThan(1_000);
+    expect(result.draft.text.length).toBeGreaterThan(1_400);
   });
 
   it("последний раунд: система чинит сама и помечает, что это её правка", () => {
     const result = repairPublishableDraft({
-      draft: { ...draft, text: "я".repeat(1_200), mediaBrief: "" },
+      draft: { ...draft, text: "я".repeat(1_600), mediaBrief: "" },
       isConversational: false,
       destinationUrl: url,
-      platform: "telegram",
+      platform: "vk",
       topic: "выбор работы",
       finalRound: true,
     });
     expect(result.violations).toEqual([]);
-    expect(result.draft.text.length).toBeLessThanOrEqual(1_000);
+    expect(result.draft.text.length).toBeLessThanOrEqual(1_400);
     expect(result.draft.text).toContain(url);
     expect(result.draft.mediaBrief).toContain("выбор работы");
     const fields = result.repairs.map((repair) => repair.field);

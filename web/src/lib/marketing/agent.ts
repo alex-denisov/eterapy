@@ -8,10 +8,10 @@ import db from "@/lib/db";
 import { approvedStatusForPlatform, MARKETING_MANUAL_STATUS } from "@/lib/marketing/manual-platforms";
 import { log, serializeError } from "@/lib/logger";
 import {
-  MARKETING_AGENT_SYSTEM_PROMPT,
-  MARKETING_REVIEWER_SYSTEM_PROMPT,
   marketingReviewerPrompt,
+  marketingReviewerSystemPrompt,
   marketingWriterPrompt,
+  marketingWriterSystemPrompt,
 } from "@/lib/marketing/agent-prompt";
 import {
   ENGAGEMENT_TONE_HARD_LIMITS,
@@ -62,6 +62,8 @@ import {
   trimToLimit,
   type LimitViolation,
 } from "@/lib/marketing/platform-limits";
+import { inspectDraft } from "@/lib/marketing/draft-inspection";
+import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
@@ -532,7 +534,7 @@ function assertFreshMarketingModel(model: string) {
  * отсутствие адреса в плане и превышение лимита площадки уже ПОСЛЕ подстановки.
  */
 export interface DraftRepair {
-  field: "destinationUrl" | "cta" | "length" | "mediaBrief";
+  field: "destinationUrl" | "cta" | "length" | "mediaBrief" | "emDash";
   note: string;
 }
 
@@ -560,13 +562,37 @@ export function repairPublishableDraft(input: {
    * детерминированно здесь и сейчас, а не возвращаются наружу.
    */
   finalRound?: boolean;
-}): { draft: WriterOutput; repairs: DraftRepair[]; violations: LimitViolation[] } {
+  /**
+   * B706 ступень 1 — контракт площадки с наложенными переопределениями из
+   * `platform_settings`. Не передан — берётся значение из кода.
+   */
+  contract?: PlatformContract;
+}): {
+  draft: WriterOutput;
+  repairs: DraftRepair[];
+  violations: LimitViolation[];
+  /**
+   * B705 — замечания контракта, НЕ отменяющие вызов редактора.
+   *
+   * Разведены с `violations` намеренно, и цена смешения измерена тестом B700:
+   * любое `violation` отменяет раунд редактора и возвращает материал автору.
+   * Для длины и пустого mediaBrief это верно — оценивать нечего, пока текст
+   * физически не влезает в площадку. Для «нет конкретного якоря» или лишнего
+   * эмодзи — нет: материал оценим, и второй прогон автора за такое стоит
+   * дороже, чем дефект.
+   *
+   * Поэтому они едут ВМЕСТЕ с материалом к редактору как уже найденное
+   * машиной, а не вместо него. Редактор не тратит на них внимание и не
+   * выдаёт их своими словами третий раз подряд.
+   */
+  contractDefects: LimitViolation[];
+} {
   const text = input.draft.text?.trim() ?? "";
   if (!text || (input.draft.safetyFlags?.length ?? 0) > 0) {
     throw new Error(`writer safety block: ${(input.draft.safetyFlags ?? []).join(", ") || "empty text"}`);
   }
   if (input.isConversational) {
-    return { draft: { ...input.draft, text }, repairs: [], violations: [] };
+    return { draft: { ...input.draft, text }, repairs: [], violations: [], contractDefects: [] };
   }
   if (!input.destinationUrl) {
     throw new Error("owned publication has no destination URL in the plan");
@@ -637,6 +663,27 @@ export function repairPublishableDraft(input: {
     });
   }
 
+  /*
+   * B705 — весь остальной контракт площадки, посчитанный без вызова модели.
+   *
+   * Три правила исключены намеренно: длину и визуальную идею уже считает
+   * `draftLimitViolations`, а призыв — `ctaViolations` выше, и у обоих есть
+   * готовая починка на последнем раунде. Дублировать их значило бы выдать
+   * автору одно и то же замечание дважды разными словами — ровно то, из-за
+   * чего раунды правки переставали сходиться (B700).
+   */
+  const inspectionExcluded = new Set(["length-over", "length-under", "media-brief-missing", "cta-missing"]);
+  const contractViolations: LimitViolation[] = inspectDraft({
+    platform: input.platform,
+    title: input.draft.title ?? "",
+    text: repairedText,
+    cta,
+    mediaBrief,
+    destinationUrl: input.destinationUrl,
+  }, input.contract)
+    .filter((defect) => !inspectionExcluded.has(defect.rule))
+    .map((defect) => ({ kind: "contract" as const, rule: defect.rule, issue: defect.issue, brief: defect.brief }));
+
   const violations = [
     ...(input.finalRound ? [] : ctaViolations),
     ...draftLimitViolations({
@@ -651,6 +698,7 @@ export function repairPublishableDraft(input: {
       draft: { ...input.draft, text: repairedText, cta, mediaBrief },
       repairs,
       violations,
+      contractDefects: contractViolations,
     };
   }
 
@@ -677,7 +725,35 @@ export function repairPublishableDraft(input: {
     }
   }
 
-  return { draft: { ...input.draft, text: repairedText, cta, mediaBrief }, repairs, violations: [] };
+  /*
+   * B705 — тире чинится детерминированно, остальной контракт не чинится вовсе.
+   *
+   * Из всех контрактных замечаний машинно исправимо ровно одно: заменить «—»,
+   * «–» и «--» на обычный дефис. Это подстановка символа, она не может ни
+   * изменить смысл, ни сломать предложение, и она снимает самый заметный
+   * признак машинного текста — тот, из-за которого правило и заведено
+   * (поправка владельца 2026-08-12: символа «—» нет на клавиатуре).
+   *
+   * Штампы, симметрию абзацев и отсутствие конкретного якоря система чинить не
+   * пытается: переписывать текст за автора на последнем раунде — это то самое
+   * «полная переработка вместо правки», которое B700 уже измерил и запретил.
+   * Такой материал выходит как есть, а замечание остаётся в карточке.
+   */
+  const contract = input.contract ?? platformContract(input.platform);
+  if (!contract.emDashAllowed && /[—–]|(?<=\s)--(?=\s)/u.test(repairedText)) {
+    repairedText = repairedText.replace(/\s*[—–]\s*|\s+--\s+/gu, " - ");
+    repairs.push({
+      field: "emDash",
+      note: "Длинные тире заменила система на обычный дефис: на клавиатуре символа «—» нет, и он выдаёт машинный текст.",
+    });
+  }
+
+  return {
+    draft: { ...input.draft, text: repairedText, cta, mediaBrief },
+    repairs,
+    violations: [],
+    contractDefects: [],
+  };
 }
 
 function approvedByScorecard(
@@ -1153,7 +1229,7 @@ export async function processMarketingDraft(publicationId: string) {
         // редактору. Требования площадки он тогда прошёл, иначе не попал бы на
         // склад: повторная проверка ничего не добавит.
         writer = pending.writer;
-        repaired = { draft: pending.draft, repairs: pending.repairs, violations: [] };
+        repaired = { draft: pending.draft, repairs: pending.repairs, violations: [], contractDefects: [] };
         pending = null;
       } else {
       const pinnedWriterProvider: AIProvider | null = lastWriter
@@ -1180,7 +1256,8 @@ export async function processMarketingDraft(publicationId: string) {
         attempts,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
-          { role: "system", content: MARKETING_AGENT_SYSTEM_PROMPT },
+          // B705: автор получает контракт СВОЕЙ площадки и только его.
+          { role: "system", content: marketingWriterSystemPrompt(platform) },
           { role: "user", content: JSON.stringify(writerPrompt) },
         ],
         parse: (raw) => writerObject(raw, publication.title),
@@ -1196,7 +1273,7 @@ export async function processMarketingDraft(publicationId: string) {
         finalRound: round === EDITORIAL_ROUND_LIMIT,
       });
       }
-      const { draft, repairs, violations } = repaired;
+      const { draft, repairs, violations, contractDefects } = repaired;
 
       // B640: перебор по длине и пустой mediaBrief — исполнимое замечание, а не
       // приговор. Раньше здесь материал выбрасывался (`throw` → FAILED), и
@@ -1276,7 +1353,9 @@ export async function processMarketingDraft(publicationId: string) {
         attempts,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
-          { role: "system", content: MARKETING_REVIEWER_SYSTEM_PROMPT },
+          // B705: «нативность площадке» меряется по контракту той ленты, куда
+          // материал выходит, а не по усреднённым правилам шести.
+          { role: "system", content: marketingReviewerSystemPrompt(platform) },
           {
             role: "user",
             // B700 фаза 6: редактор видит собственные замечания прошлого раунда
@@ -1288,6 +1367,9 @@ export async function processMarketingDraft(publicationId: string) {
               candidate: draft,
               systemRepairs: repairs,
               previousReview,
+              // B705: то, что уже посчитала машина. Редактор не ищет это
+              // заново и не выдаёт своими словами третий круг подряд.
+              machineFindings: contractDefects,
             })),
           },
         ],

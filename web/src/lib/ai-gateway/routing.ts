@@ -5,6 +5,7 @@ import {
   type AIGatewayCompletionRequest,
   type AIGatewayCompletionResponse,
 } from "@/lib/ai-gateway/adapters";
+import { oversizedRequestFromProviderMessage } from "@/lib/ai-gateway/cooldown";
 import { defaultProviderOrder, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import {
   getYandexFallbackModels,
@@ -24,8 +25,28 @@ const DEFAULT_YANDEX_MODEL = "yandexgpt-lite/latest";
  */
 export type CredentialFailureDecision = "retryNextCredential" | "skipProvider" | "stop";
 
-export function decideFailureFallback(code: string | undefined): CredentialFailureDecision {
+export function decideFailureFallback(
+  code: string | undefined,
+  detail?: { providerMessage?: string },
+): CredentialFailureDecision {
   if (!code) return "retryNextCredential";
+  /**
+   * B705 — запрос БОЛЬШЕ потолка модели не примет ни один ключ этого провайдера.
+   *
+   * Замер прода 2026-08-12: из ~1200 обращений автора 594 ушли в GROQ и все
+   * до одного вернули HTTP 413 «Limit 6000, Requested 13000». Код попадал в
+   * общее правило «пробуй следующий ключ», и один и тот же слишком большой
+   * запрос обходил ВСЕ ключи провайдера подряд — каждый отвечал одинаково,
+   * потому что размер запроса от ключа не зависит.
+   *
+   * Различие проходит по числам в ответе провайдера: `requested > limit` —
+   * свойство нашего запроса, идём к следующему провайдеру; чисел нет или
+   * запрос в потолок укладывается — минуту заняли соседние запросы, и другой
+   * ключ той же площадки правда может ответить.
+   */
+  if (code === "HTTP_413" && oversizedRequestFromProviderMessage(detail?.providerMessage)) {
+    return "skipProvider";
+  }
   if (code === "HTTP_403") return "skipProvider"; // region/forbidden — no other key on this provider will help
   if (code === "MODEL_NOT_ALLOWED") return "skipProvider";
   if (code === "MISSING_CONFIG") return "skipProvider";
@@ -429,7 +450,9 @@ export async function runAIGatewayFallbackWithCredentials(input: {
           retryable: providerError.retryable,
         });
 
-        const decision = decideFailureFallback(providerError.code);
+        const decision = decideFailureFallback(providerError.code, {
+          providerMessage: providerError.message,
+        });
         if (decision === "stop") {
           throw providerError;
         }

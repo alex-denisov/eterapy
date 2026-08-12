@@ -21,6 +21,8 @@
  * вариантов: потрачены токены обеих ролей, а на площадку не вышло ничего.
  */
 
+import { platformContract, platformPlaybook } from "@/lib/marketing/platform-playbook";
+
 export interface PlatformPublishLimits {
   /** Предел длины готового текста ВМЕСТЕ со ссылкой; `null` — предела нет. */
   textLimit: number | null;
@@ -37,50 +39,27 @@ export interface PlatformPublishLimits {
  * изображению (`sendPhoto`), а у подписи предел 1024 — берём с запасом на
  * разметку. Дзен и Reddit — длинные форматы, предела по длине у них нет.
  */
-export const PLATFORM_PUBLISH_LIMITS: Record<string, PlatformPublishLimits> = {
-  telegram: {
-    textLimit: 1_000,
-    mediaBriefRequired: true,
-    note: "пост уходит подписью к изображению — длиннее подпись Telegram не примет",
-  },
-  threads: {
-    textLimit: 480,
-    mediaBriefRequired: false,
-    note: "предел площадки на одно сообщение",
-  },
-  instagram: {
-    textLimit: 2_200,
-    mediaBriefRequired: true,
-    note: "предел caption; публикация без изображения невозможна в принципе",
-  },
-  vk: {
-    textLimit: 4_000,
-    // B660: обложка у VK снова прикладывается (путь через диалоговое
-    // хранилище сообщества), поэтому визуальная идея стала обязательной — до
-    // этого лента сообщества состояла из одного сплошного текста.
-    mediaBriefRequired: true,
-    note: "предел поста сообщества; обложка прикладывается, визуальная идея обязательна",
-  },
-  dzen: {
-    textLimit: null,
-    mediaBriefRequired: true,
-    note: "статья, предела по длине нет, но нужна визуальная идея",
-  },
-  reddit: {
-    textLimit: 10_000,
-    mediaBriefRequired: false,
-    note: "предел тела поста",
-  },
-};
-
-const DEFAULT_LIMITS: PlatformPublishLimits = {
-  textLimit: null,
-  mediaBriefRequired: false,
-  note: "особых ограничений площадки не задано",
-};
-
+/**
+ * B705 — числа берутся из плейбука, а не из собственной таблицы.
+ *
+ * До этой правки здесь стояла ВТОРАЯ таблица пределов, и она уже разошлась с
+ * плейбуком: telegram 1000 против 900, vk 4000 против 1400, instagram 2200
+ * против 700, reddit 10 000 против 2500. Два источника правды про одно число —
+ * это гарантированное расхождение, и оно уже случилось: автору в промт уходила
+ * одна цифра, а валидатор проверял другую.
+ *
+ * Теперь у длины и обязательности медиа один владелец — `platform-playbook.ts`,
+ * а этот модуль остаётся тем, чем он полезен: усечением, запасными значениями
+ * и формулировкой замечаний.
+ */
 export function platformPublishLimits(platform: string): PlatformPublishLimits {
-  return PLATFORM_PUBLISH_LIMITS[platform.toLowerCase()] ?? DEFAULT_LIMITS;
+  const contract = platformContract(platform);
+  const playbook = platformPlaybook(platform);
+  return {
+    textLimit: contract.maxCharacters,
+    mediaBriefRequired: contract.mediaBriefRequired,
+    note: playbook.role,
+  };
 }
 
 /**
@@ -104,7 +83,18 @@ export function platformLimitsForPrompt(platform: string): {
 }
 
 export interface LimitViolation {
-  kind: "length" | "media-brief" | "cta";
+  /**
+   * B705 — `contract` это всё остальное, что проверяет `inspectDraft`:
+   * хэштеги, эмодзи, длинное тире, штампы, симметрия абзацев, позиция ссылки.
+   *
+   * Отдельным видом, а не четвёртым «почти length», потому что три прежних
+   * вида система умеет чинить сама на последнем раунде (усечь, подставить
+   * визуальную идею, написать призыв), а `contract` — почти нет. Смешать их
+   * значило бы либо чинить нечинимое, либо потерять готовые починки.
+   */
+  kind: "length" | "media-brief" | "cta" | "contract";
+  /** Ключ правила `inspectDraft`; у прежних трёх видов пусто. */
+  rule?: string;
   /** Замечание в том же виде, в каком их формулирует редактор. */
   issue: string;
   /** Что именно должен сделать автор в следующем раунде. */

@@ -34,7 +34,11 @@ import {
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
 import { dzenFeedGuid, dzenFeedPublishingEnabled } from "@/lib/marketing/dzen-feed";
-import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
+import {
+  metaEndpoint,
+  metaFetchableMediaUrl,
+  metaRequestHeaders,
+} from "@/lib/marketing/meta-endpoints";
 import { assertMetaBrandAccount } from "@/lib/marketing/meta-brand-account";
 import {
   marketingPlatformEnabled,
@@ -473,7 +477,9 @@ export async function publishToThreads(
       access_token: token,
       media_type: publication.mediaUrl ? "IMAGE" : "TEXT",
       text: publication.body,
-      ...(publication.mediaUrl ? { image_url: publication.mediaUrl } : {}),
+      // B704: за обложкой приходит сама площадка, а до российского адреса её
+      // скачиватель не доходит — называем имя за Cloudflare.
+      ...(publication.mediaUrl ? { image_url: metaFetchableMediaUrl(publication.mediaUrl) } : {}),
     }),
   });
   const created = await create.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -624,7 +630,10 @@ export async function publishToInstagram(
     headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
     body: new URLSearchParams({
       access_token: token,
-      image_url: publication.mediaUrl,
+      // B704: см. пояснение к `metaFetchableMediaUrl`. Для Instagram это не
+      // улучшение, а условие работы: без `image_url` площадка не публикуется
+      // вовсе, а российское имя её скачиватель не берёт.
+      image_url: metaFetchableMediaUrl(publication.mediaUrl),
       caption: publication.body,
       is_ai_generated: "true",
     }),

@@ -17,6 +17,7 @@ import {
   dzenFeedReadiness,
 } from "@/lib/marketing/dzen-feed";
 import { INBOUND_STALE_MS } from "@/lib/marketing/inbound";
+import { PLATFORM_PLAYBOOKS, platformBriefing } from "@/lib/marketing/platform-playbook";
 import {
   ENGAGEMENT_DAILY_MINIMUM,
   ENGAGEMENT_PLATFORMS,
@@ -738,16 +739,26 @@ export default async function MarketingAgentPage() {
       <AnalyticsSection title="Инструкция агента">
         <p className="mb-3 text-sm text-[var(--soft-ink-soft)]">
           Базовая инструкция версионируется вместе с кодом. Runtime-overrides для
-          writer и reviewer управляются в центре AI.
+          writer и reviewer управляются в центре AI. B705: к базовой части
+          приклеивается контракт ОДНОЙ площадки — той, для которой пишется
+          материал; чужих контрактов модель не видит.
         </p>
         <details className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт writer</summary>
+          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт writer (общая часть)</summary>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{MARKETING_AGENT_SYSTEM_PROMPT}</pre>
         </details>
         <details className="mt-3 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт reviewer</summary>
+          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт reviewer (общая часть)</summary>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{MARKETING_REVIEWER_SYSTEM_PROMPT}</pre>
         </details>
+        {Object.keys(PLATFORM_PLAYBOOKS).map((platform) => (
+          <details key={platform} className="mt-3 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
+            <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">
+              Контракт площадки: {platform}
+            </summary>
+            <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{platformBriefing(platform)}</pre>
+          </details>
+        ))}
       </AnalyticsSection>
     </main>
   );
