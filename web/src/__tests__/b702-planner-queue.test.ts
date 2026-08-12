@@ -40,16 +40,21 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
   marketingPlatformEnabled: jest.fn().mockResolvedValue(false),
 }));
 
+// B705: ключ слота больше не литерал. Горизонт и темп плана считаются от
+// календарных суток, и первый свободный слот прохода — не обязательно тот, что
+// был им вчера. Планировщик отвечает на ТОТ слот, который ему передали.
 jest.mock("@/lib/marketing/planner", () => ({
   __esModule: true,
   marketingPlannerEnabled: () => true,
-  planTopicsForSlots: () => new Map([["b610-2w-telegram-20260812-01", {
-    cluster: "расставание и возврат",
-    articleSlug: "kak-perezhit-rasstavanie-s-lyubimym",
-    targetQuery: "как пережить расставание",
-    origin: "trend",
-    rationale: "Тема из живого тренда (возврат после расставания).",
-  }]]),
+  planTopicsForSlots: (input: { slots: readonly { key: string }[] }) => new Map(
+    input.slots.slice(0, 1).map((slot) => [slot.key, {
+      cluster: "расставание и возврат",
+      articleSlug: "kak-perezhit-rasstavanie-s-lyubimym",
+      targetQuery: "как пережить расставание",
+      origin: "trend",
+      rationale: "Тема из живого тренда (возврат после расставания).",
+    }]),
+  ),
 }));
 
 jest.mock("@/lib/marketing/trend-scan", () => ({
@@ -63,7 +68,7 @@ jest.mock("@/lib/search-marketing-data", () => ({
 }));
 
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
-import { contentPlanFor } from "@/lib/marketing/content-plan";
+import { contentPlanFor, nextPlanSlots } from "@/lib/marketing/content-plan";
 
 const NOW = new Date("2026-08-11T10:00:00.000Z");
 
@@ -75,7 +80,8 @@ beforeEach(() => {
 
 describe("B702 фаза 4 — планировщик в генераторе черновиков", () => {
   it("тема свободного слота приходит от планировщика, а не из константы TOPICS", async () => {
-    const slot = contentPlanFor(NOW).find((entry) => entry.channel === "telegram")!;
+    // Слот, который проход возьмёт первым: резерв под реактив пропускается.
+    const slot = nextPlanSlots([], 1, contentPlanFor(NOW))[0];
     expect(slot).toBeDefined();
 
     const result = await generateMarketingDrafts({ now: NOW, target: 1 });
@@ -95,7 +101,8 @@ describe("B702 фаза 4 — планировщик в генераторе ч�
   });
 
   it("тема планировщика не занимает статью, уже занятую на площадке", async () => {
-    const slot = contentPlanFor(NOW).find((entry) => entry.channel === "telegram")!;
+    // Слот, который проход возьмёт первым: резерв под реактив пропускается.
+    const slot = nextPlanSlots([], 1, contentPlanFor(NOW))[0];
     expect(slot).toBeDefined();
 
     // Первый запрос — занятые слоты на площадках с уникальными темами (dzen).

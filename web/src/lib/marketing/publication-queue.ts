@@ -15,6 +15,7 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor, topicArticleSlug, withUnusedTopic } from "@/lib/marketing/content-plan";
+import { runQueueHygiene } from "@/lib/marketing/queue-hygiene";
 import {
   DZEN_FEED_POST_PREFIX,
   DZEN_FEED_TARGET_ITEMS,
@@ -174,6 +175,12 @@ export interface GenerateDraftsResult {
   /** B620/B695: статьи пополнения ленты, возвращённые из архива этим проходом. */
   feedTopUpRestored: number;
   /**
+   * B705: что сделал сторож очереди до засева — сколько строк получило дату,
+   * сколько снято как пустая оболочка вне плана, сколько протухших премодераций
+   * закрыто и сколько готового материала не нашло свободного слота.
+   */
+  hygiene: { scheduled: number; retired: number; expired: number; aligned: number; unplaced: number };
+  /**
    * B702 фаза 5: темы, назначенные планировщиком из спроса/трендов, и сколько
    * из них пришло из каждого источника. Пишется в журнал прохода, чтобы
    * решение планировщика было видно и проверяемо задним числом.
@@ -194,6 +201,12 @@ export async function generateMarketingDrafts(input: {
   // B620/B695: статьи пополнения ленты, сожжённые отказом дороги, возвращаются
   // в работу до того, как проход начнёт считать свободные слоты.
   const feedTopUpRestored = await restoreDzenFeedTopUp({ now }).catch(() => 0);
+
+  // B705: сторож очереди работает ДО подсчёта нехватки. Пустые оболочки вне
+  // действующего плана освобождают слоты, а готовый материал занимает ближние —
+  // иначе проход засеет заново ровно те места, которые сейчас будут убраны.
+  const hygiene = await runQueueHygiene({ now, plan: activePlan })
+    .catch(() => ({ scheduled: 0, retired: 0, expired: 0, aligned: 0, unplaced: 0 }));
 
   // INC-094: the launch post was entered before the autonomous editor existed
   // and remained forever in the non-executable PLANNED state. Put it through
@@ -419,6 +432,7 @@ export async function generateMarketingDrafts(input: {
     // «слот исчерпал перевыпуски»: причины разные и чинятся по-разному.
     duplicateTopics,
     feedTopUpRestored,
+    hygiene,
     // B702 фаза 5: счётчики планировщика в сводке прохода — журнал
     // (`cron-marketing-generate-completed`) и панель видят, сколько тем
     // пришло из спроса, а сколько из живых трендов. Пока планировщик

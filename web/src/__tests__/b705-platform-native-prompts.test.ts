@@ -85,7 +85,10 @@ describe("B705 — площадочный хвост переживает адм
     // `mergeAIPromptOverride` отрезает хвост по длине ИМЕННО этой строки.
     expect(defaultPromptTextForFeature("marketing-agent-writer")).toBe(MARKETING_AGENT_SYSTEM_PROMPT);
     expect(defaultPromptTextForFeature("marketing-agent-reviewer")).toBe(MARKETING_REVIEWER_SYSTEM_PROMPT);
-    expect(defaultPromptTextForFeature("marketing-reply-writer")).toBe(MARKETING_AGENT_SYSTEM_PROMPT);
+    // Заход 6: у ответа человеку теперь своя роль и свой промт, поэтому
+    // `marketing-reply-writer` больше НЕ равен промту автора поста. Совпадение
+    // проверяется по своей фиче в `b705-agent-roles.test.ts`.
+    expect(defaultPromptTextForFeature("marketing-reply-writer")).not.toBe(MARKETING_AGENT_SYSTEM_PROMPT);
   });
 
   it("правка администратора заменяет общую часть, но не стирает контракт площадки", () => {

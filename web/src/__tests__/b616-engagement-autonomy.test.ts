@@ -17,8 +17,8 @@ import {
 import { providerProbeDue } from "@/lib/marketing/provider-health";
 import { parseCoverageSummary, prioritiseRecrawl } from "@/lib/marketing/seo-coverage";
 import {
-  MARKETING_AGENT_SYSTEM_PROMPT,
-  MARKETING_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 
 const NOON = new Date("2026-07-29T09:00:00.000Z"); // 12:00 MSK
@@ -124,15 +124,17 @@ describe("B616 · conversational registers", () => {
 });
 
 describe("B616 · prompt contract for replies", () => {
+  // B705 заход 6: регистр разговора назначается СОБЕСЕДНИКУ, а не автору
+  // поста. Промт разделён по ролям, правило проверяется там, где оно живёт.
   it("hands the assigned register to the writer and forbids inventing one", () => {
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("toneHardLimits");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Разрешены шутка, ирония, сарказм");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("ты не выбираешь его сам");
+    expect(MARKETING_SMM_SYSTEM_PROMPT).toContain("toneHardLimits");
+    expect(MARKETING_SMM_SYSTEM_PROMPT).toContain("Разрешены шутка, ирония, сарказм");
+    expect(MARKETING_SMM_SYSTEM_PROMPT).toContain("ты не выбираешь его сам");
   });
 
   it("makes the editor score register fit without punishing humour", () => {
-    expect(MARKETING_REVIEWER_SYSTEM_PROMPT).toContain("toneFit");
-    expect(MARKETING_REVIEWER_SYSTEM_PROMPT).toContain("НЕ являются дефектом");
+    expect(MARKETING_SMM_REVIEWER_SYSTEM_PROMPT).toContain("toneFit");
+    expect(MARKETING_SMM_REVIEWER_SYSTEM_PROMPT).toContain("НЕ являются дефектом");
   });
 });
 

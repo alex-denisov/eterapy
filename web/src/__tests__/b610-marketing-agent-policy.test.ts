@@ -1,6 +1,8 @@
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { marketingConnectorStates, normalizePublicPostExcerpt } from "@/lib/marketing/discovery";
 import { getDefaultAIRoutingPolicy } from "@/lib/ai-gateway/task-policy";
@@ -31,10 +33,15 @@ describe("B610 · SMM-agent safety and routing contract", () => {
   });
 
   it("comment premoderation and affiliation are non-negotiable prompt rules", () => {
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Telegram-премодерация");
+    // B705 заход 6: премодерация ответа — работа SMM-собеседника и его
+    // редактора, и правило переехало в ИХ промты. У автора поста этой работы
+    // нет. Правила безопасности, действующие на всех, остались дословно в
+    // обеих ролях — это предмет отдельной проверки в b705-agent-roles.
+    expect(MARKETING_SMM_SYSTEM_PROMPT).toContain("Telegram-премодерация");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("я из команды ETerapy");
+    expect(MARKETING_SMM_SYSTEM_PROMPT).toContain("я из команды ETerapy");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("внутренние данные клиентов или практиков ETerapy");
-    expect(MARKETING_REVIEWER_SYSTEM_PROMPT).toContain("не может разрешить автопубликацию");
+    expect(MARKETING_SMM_REVIEWER_SYSTEM_PROMPT).toContain("не может разрешить автопубликацию");
   });
 
   // B617: выдержка чужого поста — свидетельство спроса на тему, а не адресат.

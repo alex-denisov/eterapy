@@ -36,7 +36,18 @@ export interface ContentPlanSlot {
   daypart: Daypart;
   /** B700 фаза 4: сколько окно слота остаётся открытым (B645 — на класс). */
   toleranceMs: number;
+  /**
+   * B705 §7 — под что держится слот.
+   *
+   * `planned` — плановый материал, его пишет автор по теме планировщика.
+   * `reactive` — слот НАМЕРЕННО оставлен пустым под ответ на всплеск, чужой
+   * тред или новость дня. Забитый на 100% план физически исключает лучший
+   * контент: реактивному материалу некуда встать, и он не выходит вовсе.
+   */
+  reserve: SlotReserve;
 }
+
+export type SlotReserve = "planned" | "reactive";
 
 type Topic = Pick<ContentPlanSlot, "cluster" | "articleSlug" | "targetQuery">;
 
@@ -213,6 +224,80 @@ function moscowWeekday(date: string): number {
   return new Date(`${date}T12:00:00+03:00`).getUTCDay();
 }
 
+/**
+ * B705 §7 — ГОРИЗОНТ ПЛАНИРОВАНИЯ РАЗНЫЙ У РАЗНЫХ ЛЕНТ.
+ *
+ * Требование владельца — «максимум неделя, чтобы не жечь токены». Окно ПЛАНА
+ * токены не жжёт: их жгла генерация, шедшая по всему окну, и её ограничивает
+ * `MARKETING_GENERATION_LEAD_MS` (30 часов, B625). Но вывод владельца верен по
+ * другой причине: тема, придуманная для быстрой ленты десять дней назад, к
+ * выпуску мертва, а статья Дзена собирает показы месяцами и требует подготовки.
+ *
+ * Поэтому горизонт — свойство ленты, а не общая константа: неделя быстрым
+ * лентам, две Дзену, три недели Reddit (2 материала в месяц, готовятся долго).
+ */
+export const PLAN_HORIZON_DAYS: Record<PlanChannel, number> = {
+  telegram: 7,
+  threads: 7,
+  vk: 7,
+  instagram: 7,
+  dzen: 14,
+  reddit: 21,
+};
+
+export const PLAN_MAX_HORIZON_DAYS = Math.max(...Object.values(PLAN_HORIZON_DAYS));
+
+/** Ленты, которые живут «сегодняшним днём»: у них горизонт неделя и резерв. */
+const FAST_FEEDS: readonly PlanChannel[] = ["telegram", "threads", "vk", "instagram"];
+
+/**
+ * B705 §7 — 30% слотов быстрых лент остаются пустыми под реактив.
+ *
+ * Доля берётся детерминированно от НОМЕРА СУТОК и порядкового номера слота:
+ * три из десяти. Случайность здесь недопустима — план обязан быть одинаковым
+ * при каждом пересчёте, иначе слот то появляется, то исчезает.
+ */
+const RESERVE_CYCLE = 10;
+const RESERVE_SHARE = 3;
+
+function slotReserve(channel: PlanChannel, date: string, sequence: number): SlotReserve {
+  if (!FAST_FEEDS.includes(channel)) return "planned";
+  // Множитель 7 расцепляет соседние сутки: без него резерв ложился бы полосами.
+  const position = (((dayNumber(date) * 7 + sequence) % RESERVE_CYCLE) + RESERVE_CYCLE) % RESERVE_CYCLE;
+  return position < RESERVE_SHARE ? "reactive" : "planned";
+}
+
+/**
+ * Сколько слотов у площадки в КАЛЕНДАРНЫХ СУТКАХ.
+ *
+ * ⚠ Считается от номера суток, а не от позиции дня в окне плана. Прежние
+ * списки вида `[1, 3, 5, 8, 10, 12]` были позициями в скользящем окне, и это
+ * ровно тот же дефект, который B686 нашёл у ТЕМ: окно пересобирается «от
+ * завтра» каждый заход, поэтому одна и та же дата за две недели успевает
+ * побывать на каждой позиции и получить слот от каждого списка.
+ *
+ * Замер 2026-08-12 (прогон `contentPlanFor` за 21 подряд идущие сутки):
+ * объявленные «Дзен 6 раз за две недели» и «Reddit 2 раза за две недели» на
+ * деле давали ежедневный слот на КАЖДОЙ из шести площадок. Расписание говорило
+ * одно, а конвейер получал другое.
+ *
+ * Числа взяты из §9: 5–8 материалов в сутки по всему флоту при приоритете
+ * площадок Дзен → VK → Telegram → Instagram → Threads → Reddit. Сумма ниже —
+ * около 6,5 в сутки, из них один тяжёлый.
+ */
+function slotsPerDay(channel: PlanChannel, date: string): number {
+  const day = dayNumber(date);
+  const every = (n: number) => (((day % n) + n) % n === 0 ? 1 : 0);
+  switch (channel) {
+    case "telegram": return 2;
+    case "threads": return 2;
+    case "vk": return 1;
+    case "dzen": return 1;
+    case "instagram": return every(2);
+    case "reddit": return every(14);
+  }
+}
+
 function slot(input: {
   channel: PlanChannel;
   date: string;
@@ -228,6 +313,7 @@ function slot(input: {
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
+    reserve: slotReserve(input.channel, input.date, input.sequence),
     channel: input.channel,
     cluster: input.topic.cluster,
     articleSlug: input.topic.articleSlug,
@@ -278,83 +364,105 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     order += 1;
   };
 
-  dates.forEach((date) => {
-    TELEGRAM_FORMATS.forEach(([format, editorialAngle, contentClass], sequence) => {
+  /** Даты, попадающие в горизонт этой ленты. */
+  const datesFor = (channel: PlanChannel) => dates.slice(0, PLAN_HORIZON_DAYS[channel]);
+
+  datesFor("telegram").forEach((date) => {
+    const day = dayNumber(date);
+    for (let sequence = 0; sequence < slotsPerDay("telegram", date); sequence++) {
+      // Формат берётся от номера суток: у ленты три формата на два слота, и без
+      // сдвига по дню третий не выходил бы никогда.
+      const [format, editorialAngle, contentClass] =
+        TELEGRAM_FORMATS[(((day + sequence) % TELEGRAM_FORMATS.length) + TELEGRAM_FORMATS.length) % TELEGRAM_FORMATS.length];
       push({
         channel: "telegram",
         date,
-        topic: topicAt(dayNumber(date) * 3 + sequence),
+        topic: topicAt(day * 3 + sequence),
         sequence: sequence + 1,
         format,
         editorialAngle,
         contentClass,
       });
-    });
+    }
+  });
 
-    THREADS_FORMATS.forEach(([format, editorialAngle, contentClass], sequence) => {
+  datesFor("threads").forEach((date) => {
+    const day = dayNumber(date);
+    for (let sequence = 0; sequence < slotsPerDay("threads", date); sequence++) {
+      const [format, editorialAngle, contentClass] =
+        THREADS_FORMATS[(((day + sequence) % THREADS_FORMATS.length) + THREADS_FORMATS.length) % THREADS_FORMATS.length];
       push({
         channel: "threads",
         date,
-        topic: topicAt(dayNumber(date) * 2 + sequence, 5),
+        topic: topicAt(day * 2 + sequence, 5),
         sequence: sequence + 1,
         format,
         editorialAngle,
         contentClass,
       });
-    });
+    }
   });
 
-  const instagramDays = [0, 2, 4, 6, 7, 9, 11, 13] as const;
-  instagramDays.forEach((dayIndex, sequence) => {
-    const [format, editorialAngle, contentClass] = INSTAGRAM_FORMATS[sequence % INSTAGRAM_FORMATS.length];
-    push({
-      channel: "instagram",
-      date: dates[dayIndex],
-      topic: topicAt(dayNumber(dates[dayIndex]), 8),
-      sequence: 1,
-      format,
-      editorialAngle,
-      contentClass,
-    });
+  datesFor("instagram").forEach((date) => {
+    const day = dayNumber(date);
+    for (let sequence = 0; sequence < slotsPerDay("instagram", date); sequence++) {
+      const [format, editorialAngle, contentClass] =
+        INSTAGRAM_FORMATS[(((day + sequence) % INSTAGRAM_FORMATS.length) + INSTAGRAM_FORMATS.length) % INSTAGRAM_FORMATS.length];
+      push({
+        channel: "instagram",
+        date,
+        topic: topicAt(day, 8),
+        sequence: sequence + 1,
+        format,
+        editorialAngle,
+        contentClass,
+      });
+    }
   });
 
-  const vkDays = [0, 1, 3, 4, 6, 7, 8, 10, 11, 13] as const;
-  vkDays.forEach((dayIndex, sequence) => {
-    const [format, editorialAngle, contentClass] = VK_FORMATS[sequence % VK_FORMATS.length];
-    push({
-      channel: "vk",
-      date: dates[dayIndex],
-      topic: topicAt(dayNumber(dates[dayIndex]), 2),
-      sequence: 1,
-      format,
-      editorialAngle,
-      contentClass,
-    });
+  datesFor("vk").forEach((date) => {
+    const day = dayNumber(date);
+    for (let sequence = 0; sequence < slotsPerDay("vk", date); sequence++) {
+      const [format, editorialAngle, contentClass] =
+        VK_FORMATS[(((day + sequence) % VK_FORMATS.length) + VK_FORMATS.length) % VK_FORMATS.length];
+      push({
+        channel: "vk",
+        date,
+        topic: topicAt(day, 2),
+        sequence: sequence + 1,
+        format,
+        editorialAngle,
+        contentClass,
+      });
+    }
   });
 
-  const dzenDays = [1, 3, 5, 8, 10, 12] as const;
-  dzenDays.forEach((dayIndex) => {
-    push({
-      channel: "dzen",
-      date: dates[dayIndex],
-      topic: topicAt(dayNumber(dates[dayIndex]), 4),
-      sequence: 1,
-      format: "структурированная статья",
-      editorialAngle: "ответ читателю, объяснение, примеры, практический шаг и честный мягкий CTA",
-      contentClass: "article",
-    });
+  datesFor("dzen").forEach((date) => {
+    for (let sequence = 0; sequence < slotsPerDay("dzen", date); sequence++) {
+      push({
+        channel: "dzen",
+        date,
+        topic: topicAt(dayNumber(date), 4),
+        sequence: sequence + 1,
+        format: "структурированная статья",
+        editorialAngle: "ответ читателю, объяснение, примеры, практический шаг и честный мягкий CTA",
+        contentClass: "article",
+      });
+    }
   });
 
-  [4, 11].forEach((dayIndex) => {
-    push({
-      channel: "reddit",
-      date: dates[dayIndex],
-      topic: topicAt(dayNumber(dates[dayIndex]), 6),
-      sequence: 1,
-      format: "community discussion",
-      editorialAngle: "полезная самостоятельная дискуссия без рекламного лида; ссылка только после полной пользы и с раскрытием аффилированности",
-      contentClass: "discussion",
-    });
+  datesFor("reddit").forEach((date) => {
+    for (let sequence = 0; sequence < slotsPerDay("reddit", date); sequence++) {
+      push({
+        channel: "reddit",
+        date,
+        topic: topicAt(dayNumber(date), 6),
+        sequence: sequence + 1,
+        format: "community discussion",
+        editorialAngle: "полезная самостоятельная дискуссия без рекламного лида; ссылка только после полной пользы и с раскрытием аффилированности",
+        contentClass: "discussion",
+      });
+    }
   });
 
   return result.sort((left, right) =>
@@ -373,14 +481,17 @@ function moscowIsoDate(value: Date) {
 }
 
 /**
- * Every daily generator run keeps the next fourteen complete Moscow days in
- * the registry. This extends the calendar in the background without changing
- * keys of already-created rows or requiring a deploy.
+ * Every daily generator run keeps the next complete Moscow days in the
+ * registry. This extends the calendar in the background without changing keys
+ * of already-created rows or requiring a deploy.
+ *
+ * B705 §7: длина окна — самый дальний горизонт (три недели у Reddit), но
+ * каждая лента получает слоты только внутри СВОЕГО горизонта.
  */
 export function contentPlanFor(now: Date): readonly ContentPlanSlot[] {
   const tomorrowMoscow = new Date(`${moscowIsoDate(now)}T09:00:00.000Z`);
   tomorrowMoscow.setUTCDate(tomorrowMoscow.getUTCDate() + 1);
-  const dates = Array.from({ length: 14 }, (_, index) => {
+  const dates = Array.from({ length: PLAN_MAX_HORIZON_DAYS }, (_, index) => {
     const date = new Date(tomorrowMoscow);
     date.setUTCDate(tomorrowMoscow.getUTCDate() + index);
     return date.toISOString().slice(0, 10);
@@ -396,6 +507,12 @@ export function planSlot(key: string): ContentPlanSlot | undefined {
   return CONTENT_PLAN.find((entry) => entry.key === key);
 }
 
+/**
+ * Свободные слоты под ПЛАНОВЫЙ материал.
+ *
+ * Слоты резерва сюда не попадают: их держат пустыми намеренно (§7). Материал
+ * реактивной темы занимает их отдельно — см. `reactivePlanSlots`.
+ */
 export function nextPlanSlots(
   takenKeys: Iterable<string>,
   limit: number,
@@ -403,8 +520,23 @@ export function nextPlanSlots(
 ): ContentPlanSlot[] {
   const taken = new Set(takenKeys);
   return plan
-    .filter((entry) => !taken.has(entry.key))
+    .filter((entry) => entry.reserve === "planned" && !taken.has(entry.key))
     .slice(0, Math.max(0, limit));
+}
+
+/**
+ * Свободные слоты РЕЗЕРВА — те, куда встаёт ответ на всплеск.
+ *
+ * Отдельная функция, а не флаг у предыдущей, намеренно: плановый проход не
+ * должен получить их «случайно», забыв аргумент. Пустой резерв в конце суток —
+ * это не потеря: значит, реактивной темы не случилось.
+ */
+export function reactivePlanSlots(
+  takenKeys: Iterable<string>,
+  plan: readonly ContentPlanSlot[] = CONTENT_PLAN,
+): ContentPlanSlot[] {
+  const taken = new Set(takenKeys);
+  return plan.filter((entry) => entry.reserve === "reactive" && !taken.has(entry.key));
 }
 
 /**

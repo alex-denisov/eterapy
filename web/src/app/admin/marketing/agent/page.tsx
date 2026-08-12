@@ -9,7 +9,10 @@ import { marketingAgentEnabled } from "@/lib/marketing/agent";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
+import { MARKETING_ROLE_IDS, marketingRole, roleCharter } from "@/lib/marketing/agent-roles";
 import { conveyorSnapshot } from "@/lib/marketing/conveyor-snapshot";
 import { marketingConnectorStates } from "@/lib/marketing/discovery";
 import {
@@ -43,6 +46,18 @@ import { MarketingAgentControls } from "./agent-controls";
 import { MarketingInboundTable, type InboundTableRow } from "./inbound-table";
 import { MarketingPlatformSettings } from "./platform-settings";
 import { listMarketingPlatformAdminConfigs } from "@/lib/marketing/platform-settings";
+
+/**
+ * B705 — карточка показывает промт так, как его получает модель: общая часть
+ * роли плюс контракт площадки отдельными блоками. Ключ здесь — фича шлюза, а
+ * не роль: у редактора их две, и промты у них разные.
+ */
+const ROLE_SYSTEM_PROMPTS: Record<string, string> = {
+  "marketing-agent-writer": MARKETING_AGENT_SYSTEM_PROMPT,
+  "marketing-agent-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
+  "marketing-reply-writer": MARKETING_SMM_SYSTEM_PROMPT,
+  "marketing-reply-reviewer": MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
+};
 
 const dateTime = (value: Date | null) => value
   ? value.toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" })
@@ -741,16 +756,32 @@ export default async function MarketingAgentPage() {
           Базовая инструкция версионируется вместе с кодом. Runtime-overrides для
           writer и reviewer управляются в центре AI. B705: к базовой части
           приклеивается контракт ОДНОЙ площадки — той, для которой пишется
-          материал; чужих контрактов модель не видит.
+          материал; чужих контрактов модель не видит. Роли ниже — шесть, но
+          обращаются к модели только три: у планировщика, публикатора и SEO
+          хартия описывает границу ответственности, а работу делает код.
         </p>
-        <details className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт writer (общая часть)</summary>
-          <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{MARKETING_AGENT_SYSTEM_PROMPT}</pre>
-        </details>
-        <details className="mt-3 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">Системный промпт reviewer (общая часть)</summary>
-          <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{MARKETING_REVIEWER_SYSTEM_PROMPT}</pre>
-        </details>
+        {MARKETING_ROLE_IDS.map((roleId) => {
+          const role = marketingRole(roleId);
+          return (
+            <details key={roleId} className="mt-3 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
+              <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">
+                Роль: {role.title}
+                <span className="ml-2 font-normal text-xs text-[var(--soft-ink-soft)]">
+                  {role.kind === "model" ? "обращается к модели" : "детерминированная"} · {role.cadence}
+                </span>
+              </summary>
+              <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{roleCharter(roleId)}</pre>
+              {role.features.map((feature) => (
+                <details key={feature} className="mt-3 rounded-lg border border-[var(--soft-paper-edge)] p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-[var(--soft-ink-strong)]">
+                    Системный промпт (общая часть): {feature}
+                  </summary>
+                  <pre className="mt-2 whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--soft-ink-soft)]">{ROLE_SYSTEM_PROMPTS[feature]}</pre>
+                </details>
+              ))}
+            </details>
+          );
+        })}
         {Object.keys(PLATFORM_PLAYBOOKS).map((platform) => (
           <details key={platform} className="mt-3 rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
             <summary className="cursor-pointer font-semibold text-[var(--soft-ink-strong)]">

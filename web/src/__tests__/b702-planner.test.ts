@@ -112,6 +112,7 @@ function slot(key: string): ContentPlanSlot {
     cluster: "расставание и возврат",
     articleSlug: "vernetsya-li-byvshiy-ili-ya-zhdu-zrya",
     targetQuery: "вернётся ли бывший",
+    reserve: "planned",
     order: 1,
     scheduledAt: "2026-08-12T09:00:00+03:00",
     format: "карточка",

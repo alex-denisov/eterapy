@@ -14,7 +14,10 @@ import {
 import { MARKETING_PLATFORM_FIELDS } from "@/lib/marketing/platform-settings";
 
 describe("B610 · rolling marketing automation", () => {
-  it("keeps a complete, dated fourteen-day plan at the requested cadence", () => {
+  // B705 §7: план перестал быть общим двухнедельным окном. Горизонт —
+  // свойство ленты (неделя быстрым, две Дзену, три недели Reddit), а темп
+  // считается от календарных суток, а не от позиции дня в скользящем окне.
+  it("keeps a dated plan at the per-channel horizon and cadence", () => {
     const plan = contentPlanFor(new Date("2026-07-28T12:00:00.000Z"));
     const counts = plan.reduce<Record<string, number>>((result, entry) => {
       result[entry.channel] = (result[entry.channel] ?? 0) + 1;
@@ -22,22 +25,38 @@ describe("B610 · rolling marketing automation", () => {
     }, {});
     const dates = new Set(plan.map((entry) => entry.scheduledAt.slice(0, 10)));
 
-    expect(plan).toHaveLength(96);
-    expect(dates.size).toBe(14);
+    expect(plan).toHaveLength(54);
+    // 14 суток Дзена покрывают каждую дату своего горизонта; дальше стоят
+    // только даты Reddit — отсюда пятнадцать дат, а не двадцать одна.
+    expect(dates.size).toBe(15);
     expect(counts).toEqual({
-      telegram: 42,
-      threads: 28,
-      instagram: 8,
-      vk: 10,
-      dzen: 6,
+      telegram: 14,
+      threads: 14,
+      instagram: 3,
+      vk: 7,
+      dzen: 14,
       reddit: 2,
     });
     expect(plan.every((entry) => Number.isFinite(plannedAtFor(entry).getTime()))).toBe(true);
     expect(new Set(plan.map((entry) => entry.key)).size).toBe(plan.length);
   });
 
-  it("ships the same initial calendar that the rolling generator creates", () => {
-    expect(contentPlanFor(new Date("2026-07-28T12:00:00.000Z"))).toEqual(CONTENT_PLAN);
+  it("ships the initial calendar as a subset of the rolling window", () => {
+    // `CONTENT_PLAN` — начальный календарь тех же четырнадцати суток; окно
+    // теперь шире (три недели у Reddit), поэтому равенства больше нет. Общая
+    // часть обязана совпадать ключ в ключ, иначе строки реестра, заведённые по
+    // начальному календарю, потеряли бы свой слот.
+    const rolling = contentPlanFor(new Date("2026-07-28T12:00:00.000Z"));
+    const rollingKeys = new Set(rolling.map((entry) => entry.key));
+    const shared = CONTENT_PLAN.filter((entry) => rollingKeys.has(entry.key));
+    expect(shared.length).toBe(CONTENT_PLAN.length);
+    for (const entry of shared) {
+      expect(rolling.find((slot) => slot.key === entry.key)).toMatchObject({
+        channel: entry.channel,
+        scheduledAt: entry.scheduledAt,
+        reserve: entry.reserve,
+      });
+    }
   });
 
   it("pins every autonomous provider to an approved fresh model", () => {

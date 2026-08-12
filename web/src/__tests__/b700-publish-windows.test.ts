@@ -92,8 +92,14 @@ describe("B700 фаза 4 · план собирается из окон", () =>
   const plan = contentPlanFor(new Date("2026-08-11T09:00:00Z"));
 
   it("ни один слот не потерян при переходе на функцию окна", () => {
-    // 14 дней × (3 telegram + 2 threads) + 8 instagram + 10 vk + 6 dzen + 2 reddit.
-    expect(plan.length).toBe(96);
+    // B705 §7: горизонт стал свойством ленты, а темп считается от календарных
+    // суток. 7 дней × (2 telegram + 2 threads + 1 vk) + instagram через сутки
+    // + 14 дней Дзена + Reddit раз в две недели.
+    // Проверяется не число, а то, что окно нашлось КАЖДОМУ слоту: пропуск в
+    // `publishWindow` молча уронил бы слот из плана.
+    const expected = plan.filter((entry) => entry.daypart && entry.toleranceMs > 0).length;
+    expect(plan.length).toBe(expected);
+    expect(plan.length).toBe(54);
   });
 
   it("у каждого слота есть класс, время суток и своя ширина окна", () => {

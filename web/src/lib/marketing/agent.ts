@@ -10,6 +10,8 @@ import { log, serializeError } from "@/lib/logger";
 import {
   marketingReviewerPrompt,
   marketingReviewerSystemPrompt,
+  marketingSmmReviewerSystemPrompt,
+  marketingSmmSystemPrompt,
   marketingWriterPrompt,
   marketingWriterSystemPrompt,
 } from "@/lib/marketing/agent-prompt";
@@ -1256,8 +1258,15 @@ export async function processMarketingDraft(publicationId: string) {
         attempts,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
-          // B705: автор получает контракт СВОЕЙ площадки и только его.
-          { role: "system", content: marketingWriterSystemPrompt(platform) },
+          // B705: автор получает контракт СВОЕЙ площадки и только его, а роль
+          // выбирается по типу материала: пост пишет автор публикаций, ответ
+          // человеку — SMM-собеседник. Прежде обе работы делал один промт.
+          {
+            role: "system",
+            content: isConversational
+              ? marketingSmmSystemPrompt(platform)
+              : marketingWriterSystemPrompt(platform),
+          },
           { role: "user", content: JSON.stringify(writerPrompt) },
         ],
         parse: (raw) => writerObject(raw, publication.title),
@@ -1354,8 +1363,14 @@ export async function processMarketingDraft(publicationId: string) {
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           // B705: «нативность площадке» меряется по контракту той ленты, куда
-          // материал выходит, а не по усреднённым правилам шести.
-          { role: "system", content: marketingReviewerSystemPrompt(platform) },
+          // материал выходит, а не по усреднённым правилам шести. Ответ
+          // человеку судится по своим критериям: пост и реплика — разная работа.
+          {
+            role: "system",
+            content: isConversational
+              ? marketingSmmReviewerSystemPrompt(platform)
+              : marketingReviewerSystemPrompt(platform),
+          },
           {
             role: "user",
             // B700 фаза 6: редактор видит собственные замечания прошлого раунда

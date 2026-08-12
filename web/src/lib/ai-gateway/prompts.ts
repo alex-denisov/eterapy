@@ -13,6 +13,8 @@ import { log, serializeError } from "@/lib/logger";
 import {
   MARKETING_AGENT_SYSTEM_PROMPT,
   MARKETING_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
+  MARKETING_SMM_SYSTEM_PROMPT,
 } from "@/lib/marketing/agent-prompt";
 import { REFRAME_SYSTEM_PROMPT } from "@/lib/reframe-prompt";
 
@@ -26,7 +28,11 @@ const MAX_AUDIT_TEXT_LENGTH = 20_000;
 // часть приклеивает `marketingWriterSystemPrompt`. Без нового номера на проде
 // осталась бы синхронизированная копия старого текста, и автор снова читал бы
 // пять чужих контрактов рядом со своим.
-export const AI_PROMPT_DEFAULT_REVISION = "2026-08-12-b705-platform-native-contracts-v1";
+// B705 заход 6: разделены РОЛИ. Автор поста и SMM-собеседник больше не делят
+// один текст, у редактора появился отдельный промт для ответа человеку. Номер
+// снова поднят — иначе прод оставит копию промта, где автор поста читает
+// правила чужой ветки.
+export const AI_PROMPT_DEFAULT_REVISION = "2026-08-12-b705-agent-roles-v2";
 
 export interface AIPromptConfigView {
   id: string;
@@ -271,10 +277,11 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
   "companion-chat": buildCompanionSystemPrompt("explore"),
   "marketing-agent-writer": MARKETING_AGENT_SYSTEM_PROMPT,
   "marketing-agent-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
-  // B628: та же роль и тот же промт, отдельный суточный кошелёк. Разделение
-  // нужно ради ёмкости, а не ради другого поведения модели.
-  "marketing-reply-writer": MARKETING_AGENT_SYSTEM_PROMPT,
-  "marketing-reply-reviewer": MARKETING_REVIEWER_SYSTEM_PROMPT,
+  // B628 завёл этим фичам отдельный суточный кошелёк, но промт оставил общий с
+  // публикацией. B705 заход 6: роль другая — собеседник, а не автор поста, — и
+  // промт теперь тоже другой. Кошелёк по-прежнему отдельный.
+  "marketing-reply-writer": MARKETING_SMM_SYSTEM_PROMPT,
+  "marketing-reply-reviewer": MARKETING_SMM_REVIEWER_SYSTEM_PROMPT,
   "session-compliance": promptSections({
     role: "ревьюер соблюдения правил ETerapy для сессий практиков; помогаешь модератору, но не принимаешь санкционное решение.",
     task: "оценить риск нарушения правил платформы по материалам сессии: границы компетенции, давление, небезопасные рекомендации, приватность, финансовые/медицинские/юридические обещания.",
