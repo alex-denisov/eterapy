@@ -162,7 +162,7 @@ describe("B705 §23 — записка о починке описывает со
       draft: {
         title: "Вернётся ли бывший",
         text: "а".repeat(900),
-        angle: "",
+        audienceNeed: "",
         goal: "",
         disclosure: "",
         cta: "Разобрать спокойно",

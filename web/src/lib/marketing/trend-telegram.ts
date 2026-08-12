@@ -18,6 +18,11 @@
  * «об этом говорят».
  */
 
+import {
+  EDGE_RELAY_UPSTREAMS,
+  edgeRelayAuthHeaders,
+  edgeRelayBase,
+} from "@/lib/integrations/edge-relay";
 import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 import type { TrendCandidate } from "@/lib/marketing/trend-scan";
 
@@ -26,8 +31,15 @@ export const TELEGRAM_TREND_CHANNELS_KEY = "MARKETING_TREND_TELEGRAM_CHANNELS";
 
 /** В скольких РАЗНЫХ постах должна встретиться тема, чтобы считаться живой. */
 export const TELEGRAM_TREND_MIN_POSTS = 2;
-/** Сколько каналов читаем за заход. */
-export const TELEGRAM_TREND_CHANNEL_LIMIT = 10;
+/**
+ * Сколько каналов читаем за заход.
+ *
+ * Было 10, стало 20 (B707): владелец внёс 13 каналов, и прежний предел молча
+ * отрезал три последних — список режется `slice`, а не отвергается с ошибкой.
+ * Цена подъёма нулевая: каналы читаются параллельно, один канал — одна страница
+ * HTML, ни одного обращения к модели.
+ */
+export const TELEGRAM_TREND_CHANNEL_LIMIT = 20;
 /** Сколько тем отдаёт источник. */
 export const TELEGRAM_TREND_TOPIC_LIMIT = 10;
 /** Сколько ждём страницу канала. */
@@ -134,6 +146,37 @@ function channelsFrom(value: string | null): string[] {
     .slice(0, TELEGRAM_TREND_CHANNEL_LIMIT);
 }
 
+/** Публичный адрес ленты — тот, который открывает человек. */
+export function telegramChannelPublicUrl(channel: string): string {
+  return `${EDGE_RELAY_UPSTREAMS["telegram-web"]}/s/${encodeURIComponent(channel)}`;
+}
+
+/**
+ * Куда и с чем идти за страницей канала.
+ *
+ * B707: с боевой РФ-ноды `t.me` не отвечает вовсе — блокировка та же, из-за
+ * которой бот ходит через релей, а три провайдера моделей через шлюз B633.
+ * Поэтому при настроенном шлюзе идём через него, а без шлюза — напрямую:
+ * вне РФ прямой путь короче и работает.
+ *
+ * Имя канала экранируется: оно приходит из настройки, которую правит человек,
+ * а склеенный руками путь с `..` увёл бы запрос на соседний маршрут шлюза.
+ */
+export function telegramChannelPageRequest(channel: string): {
+  url: string;
+  headers: Record<string, string>;
+} {
+  const relayBase = edgeRelayBase();
+  const headers = edgeRelayAuthHeaders();
+  if (!relayBase || Object.keys(headers).length === 0) {
+    return { url: telegramChannelPublicUrl(channel), headers: {} };
+  }
+  return {
+    url: `${relayBase}/telegram-web/s/${encodeURIComponent(channel)}`,
+    headers,
+  };
+}
+
 /**
  * Живые темы открытых каналов.
  *
@@ -151,10 +194,15 @@ export async function telegramChannelTrends(input: {
 
   const call = input.fetchImpl ?? fetch;
   const pages = await Promise.allSettled(channels.map(async (channel) => {
-    const url = `https://t.me/s/${encodeURIComponent(channel)}`;
-    const response = await call(url, { signal: AbortSignal.timeout(TELEGRAM_TREND_TIMEOUT_MS) });
+    const request = telegramChannelPageRequest(channel);
+    const response = await call(request.url, {
+      headers: request.headers,
+      signal: AbortSignal.timeout(TELEGRAM_TREND_TIMEOUT_MS),
+    });
     if (!response.ok) throw new Error(`Telegram ${channel}: HTTP ${response.status}`);
-    return { url, posts: parseChannelPosts(await response.text()) };
+    // Ссылаемся на публичную страницу, а не на дорогу до неё: адрес шлюза —
+    // наша внутренняя деталь, и в теме кандидата ему делать нечего.
+    return { url: telegramChannelPublicUrl(channel), posts: parseChannelPosts(await response.text()) };
   }));
 
   const candidates: TrendCandidate[] = [];

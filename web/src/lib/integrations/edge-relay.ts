@@ -59,6 +59,12 @@ export const EDGE_RELAY_UPSTREAMS = {
   sambanova: "https://api.sambanova.ai",
   pollinations: "https://text.pollinations.ai",
   huggingface: "https://router.huggingface.co",
+  // Открытая веб-версия ленты Telegram (B707, источник тем B702 фазы 6). Замер
+  // боевой ноды 2026-08-12: `t.me` и `api.telegram.org` отвечают таймаутом —
+  // Telegram закрыт для РФ-ноды целиком, как и три провайдера моделей выше.
+  // Читается страница `t.me/s/<канал>`, та же, что видит человек без входа:
+  // шлюз меняет только точку выхода, а не права.
+  "telegram-web": "https://t.me",
 } as const;
 
 export type EdgeRelayUpstream = keyof typeof EDGE_RELAY_UPSTREAMS;
@@ -102,19 +108,19 @@ export function isEdgeRelayUpstream(value: string): value is EdgeRelayUpstream {
 }
 
 /**
- * B634 — база шлюза для моделей.
+ * B634 — база шлюза.
  *
  * Считается из `META_GRAPH_PROXY_BASE`, а не заводится второй переменной: нода
  * и секрет у контуров общие, и две переменные для одного шлюза означали бы
  * однажды настроить половину. Из значения берётся только origin — сама
  * переменная на проде указывает на путь контура Meta
- * (`…/api/integrations/meta/relay`), а моделям нужен свой маршрут.
+ * (`…/api/integrations/meta/relay`), а остальным нужен свой маршрут.
  *
  * Без секрета база не возвращается вовсе: адрес без секрета получит от шлюза
- * 403, и подставлять его значило бы менять «шлюз не настроен» на «модель не
+ * 403, и подставлять его значило бы менять «шлюз не настроен» на «провайдер не
  * отвечает».
  */
-export function edgeRelayModelBase(): string | null {
+export function edgeRelayBase(): string | null {
   const configured = process.env.META_GRAPH_PROXY_BASE?.trim();
   if (!configured || !process.env.META_GRAPH_PROXY_SECRET?.trim()) return null;
   try {
@@ -122,6 +128,18 @@ export function edgeRelayModelBase(): string | null {
   } catch {
     return null;
   }
+}
+
+/** Та же база под именем, которым её зовёт шлюз моделей (B634). */
+export function edgeRelayModelBase(): string | null {
+  return edgeRelayBase();
+}
+
+/** Секрет шлюза заголовком. Пусто, когда шлюза нет, — звать некуда. */
+export function edgeRelayAuthHeaders(): Record<string, string> {
+  const secret = process.env.META_GRAPH_PROXY_SECRET?.trim();
+  if (!edgeRelayBase() || !secret) return {};
+  return { [EDGE_RELAY_SECRET_HEADER]: secret };
 }
 
 export function edgeRelaySecretMatches(provided: string | null): boolean {
