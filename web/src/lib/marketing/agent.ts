@@ -65,6 +65,7 @@ import {
   type LimitViolation,
 } from "@/lib/marketing/platform-limits";
 import { inspectDraft } from "@/lib/marketing/draft-inspection";
+import { reconcileReviewWithMachine } from "@/lib/marketing/review-machine-authority";
 import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
@@ -713,9 +714,19 @@ export function repairPublishableDraft(input: {
         limit: limits.textLimit,
         mustKeep: input.destinationUrl,
       });
+      /*
+       * B705 §23 — записка обязана описывать состояние ПОСЛЕ починки.
+       *
+       * Прежняя формулировка называла только число «до» («не уложился в 480
+       * (718)»), редактор следующего раунда читал 718 как длину сейчас и
+       * возвращал материал на правку несуществующего дефекта. Число «до»
+       * остаётся для человека в карточке, но рядом стоит длина сейчас.
+       */
       repairs.push({
         field: "length",
-        note: `Автор не уложился в ${limits.textLimit} символов за все раунды (${before}) — текст усекла система по границе предложения, ссылка сохранена.`,
+        note: `Длину привела в норму система: было ${before} символов при пределе `
+          + `${limits.textLimit}, стало ${repairedText.length}. Текст усечён по границе `
+          + `предложения, ссылка сохранена. Длина сейчас в пределах площадки.`,
       });
     }
     if (violation.kind === "media-brief") {
@@ -1006,6 +1017,11 @@ interface EditorialIteration {
   repairs: DraftRepair[];
   reviewer: RoleStamp;
   review: ReviewerOutput;
+  /**
+   * B705 §23: замечания редактора о свойствах, которые машина уже посчитала
+   * годными. Решение изменено не молча — в карточке видно, что именно снято.
+   */
+  machineOverruled?: { issue: string; family: string }[];
 }
 
 /**
@@ -1399,7 +1415,35 @@ export async function processMarketingDraft(publicationId: string) {
           `writer and reviewer resolved to the same model ${writer.model}`,
         );
       }
-      const review = reviewerResult.value;
+      /*
+       * B705 §23 — считаемое свойство судит машина, и на выходе редактора тоже.
+       *
+       * Запрет мерить длину живёт в хартии редактора, но модель его игнорирует:
+       * на проде она жаловалась на превышение лимита Threads при 417, 434 и 466
+       * символах против предела 480, а число «718» списала из нашей же записки
+       * о починке прошлого раунда. Сюда материал попадает только когда
+       * `violations` пуст, то есть длина уже признана годной, — значит такое
+       * замечание ложно по построению и снимается без спора.
+       */
+      const reconciled = reconcileReviewWithMachine({
+        review: reviewerResult.value,
+        machineDefectRules: contractDefects
+          .map((defect) => defect.rule)
+          .filter((rule): rule is string => Boolean(rule)),
+      });
+      const review = reconciled.review;
+      if (reconciled.dropped.length > 0) {
+        // Вычеркнутое видно в кокпите: это не молчаливая правка чужого решения,
+        // а измеримое событие, по которому считается доля ложных замечаний.
+        console.info(JSON.stringify({
+          event: "marketing.review_machine_authority",
+          publicationId: publication.id,
+          platform,
+          round,
+          decision: review.decision,
+          dropped: reconciled.dropped,
+        }));
+      }
       iterationHistory.push({
         round,
         writer: { provider: writer.provider, model: writer.model },
@@ -1407,6 +1451,7 @@ export async function processMarketingDraft(publicationId: string) {
         repairs,
         reviewer: { provider: reviewer.provider, model: reviewer.model },
         review,
+        ...(reconciled.dropped.length > 0 ? { machineOverruled: reconciled.dropped } : {}),
       });
       lastWriter = writer;
       lastReviewer = reviewer;
