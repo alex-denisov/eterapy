@@ -72,10 +72,11 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     const body = await res.text();
     const indexable = anonymousLibraryEntries.filter((e) => e.status === "approved" && e.indexable);
     // Число растёт вместе с каталогом (B601 часть 3 — 14 карточек, B648 — 5
-    // записей с корпусом услуг, снятым со страниц услуг в B647).
+    // записей с корпусом услуг, снятым со страниц услуг в B647, B550 — 3
+    // карточки кластера «ИИ-психолог»).
     // Жёсткое число здесь ловит не размер, а РАСХОЖДЕНИЕ карты сайта с
     // каталогом — его и проверяет цикл ниже; сам размер сверяем с каталогом.
-    expect(indexable.length).toBe(174);
+    expect(indexable.length).toBe(177);
     for (const entry of indexable) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
     }

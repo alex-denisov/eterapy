@@ -1,6 +1,7 @@
 import { LIBRARY_TOPICS, type LibraryTopic, type LibraryCtaProduct } from "@/lib/library-cta";
 import { b383LibraryCards } from "@/data/library-cards-b383";
 import { b601LibraryCards } from "@/data/library-cards-b601";
+import { b550LibraryCards } from "@/data/library-cards-b550";
 import { symbolicLibraryCards } from "@/data/symbolic-library-cards";
 import { serviceGuideLibraryEntries } from "@/data/library-service-guides";
 
@@ -933,6 +934,8 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   ...baseLibraryEntries,
   ...b383LibraryCards,
   ...b601LibraryCards,
+  // B550: кластер «ИИ-психолог» — единственный, где нас уже находят и кликают.
+  ...b550LibraryCards,
   ...symbolicLibraryCards,
   // B648: корпус услуг, снятый со страниц услуг в B647. Записи собираются из
   // `lib/service-guides.ts`, а не пишутся здесь второй раз.
