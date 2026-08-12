@@ -44,6 +44,25 @@ export const DRAFT_QUEUE_TARGET = CONTENT_PLAN.length;
  * суточная ёмкость общая с ответами живым людям, и она важнее.
  */
 export const MAX_SLOT_GENERATIONS = 2;
+/**
+ * B705 — ОТКАЗ ДОРОГИ НЕ ЖЖЁТ СЛОТ.
+ *
+ * Замер стенда 2026-08-12: у Дзена не осталось ни одного черновика на ближнюю
+ * неделю. Причина не в плане — слоты выработали право на перевыпуск, и оба
+ * поколения каждого умерли ТЕХНИЧЕСКИ: первое «dzen publication omitted the
+ * required media», второе «No free provider returned valid structured output».
+ * Материал не был написан ни разу, гореть было нечему, а площадка номер один
+ * по приоритету владельца осталась без выпуска навсегда.
+ *
+ * B695 уже провёл эту границу — но только для статей пополнения ленты
+ * (`b620-rss-dzen-*`). У плановых слотов бюджет поколений считал СУЩЕСТВОВАНИЕ
+ * строки, а не её причину. Теперь поколение, умершее по отказу дороги, бюджет
+ * не тратит: слот получает столько же попыток, сколько раз дорога отказала.
+ *
+ * Жёсткий потолок нужен, чтобы вечно сломанная дорога не давала слоту
+ * бесконечное право: расход всё-таки общий с ответами живым людям.
+ */
+export const MAX_SLOT_GENERATIONS_HARD_CAP = 6;
 const SLOT_GENERATION_SUFFIX = "--r";
 
 /** Ключ строки для N-го поколения слота. Первое поколение — сам слот. */
@@ -260,20 +279,30 @@ export async function generateMarketingDrafts(input: {
 
   // B643: слот свободен, но его прошлые поколения остались в реестре со своими
   // ключами. Один запрос на весь проход вместо запроса на слот.
-  const spentKeys = new Set(
-    slots.length === 0
-      ? []
-      : (await db.externalPublication.findMany({
-        where: {
-          key: {
-            in: slots.flatMap((slot) => Array.from(
-              { length: MAX_SLOT_GENERATIONS },
-              (_, index) => slotKeyForGeneration(slot.key, index + 1),
-            )),
-          },
+  const generationRows = slots.length === 0
+    ? []
+    : await db.externalPublication.findMany({
+      where: {
+        key: {
+          in: slots.flatMap((slot) => Array.from(
+            { length: MAX_SLOT_GENERATIONS_HARD_CAP },
+            (_, index) => slotKeyForGeneration(slot.key, index + 1),
+          )),
         },
-        select: { key: true },
-      })).map((row) => row.key),
+      },
+      select: { key: true, status: true, archiveReason: true, lastError: true },
+    });
+  const spentKeys = new Set(generationRows.map((row) => row.key));
+  /**
+   * Поколения, умершие по отказу дороги: они бюджет слота не тратят. Решение
+   * редактора и safety-блок сюда не попадают — там материал признан негодным
+   * по существу, и повтор дал бы тот же результат за ту же ёмкость.
+   */
+  const roadFailedKeys = new Set(
+    generationRows
+      .filter((row) => row.status === "ARCHIVED"
+        && isRecoverablePublicationError(`${row.archiveReason ?? ""} ${row.lastError ?? ""}`))
+      .map((row) => row.key),
   );
 
   const skippedNoArticle: string[] = [];
@@ -354,13 +383,21 @@ export async function generateMarketingDrafts(input: {
       else plannedByCore += 1;
     }
     used?.add(slot.articleSlug);
-    const generation = Array.from({ length: MAX_SLOT_GENERATIONS }, (_, index) => index + 1)
+    // B705: бюджет слота — два поколения ПЛЮС столько, сколько раз отказала
+    // дорога. Ключ при этом всегда следующий свободный: строка с таким ключом
+    // уже есть, и переиспользовать его нельзя.
+    const roadFailed = Array.from(
+      { length: MAX_SLOT_GENERATIONS_HARD_CAP },
+      (_, index) => slotKeyForGeneration(slot.key, index + 1),
+    ).filter((key) => roadFailedKeys.has(key)).length;
+    const budget = Math.min(MAX_SLOT_GENERATIONS + roadFailed, MAX_SLOT_GENERATIONS_HARD_CAP);
+    const generation = Array.from({ length: budget }, (_, index) => index + 1)
       .find((candidate) => !spentKeys.has(slotKeyForGeneration(slot.key, candidate)));
     if (!generation) {
       // Слот выработал право на перевыпуск. Молчать нельзя: снаружи это выглядит
       // как «план короче, чем обещано», и без строки в журнале причину не найти.
       exhaustedSlots.push(slot.key);
-      log.warn("marketing.plan_slot_exhausted", { slot: slot.key, generations: MAX_SLOT_GENERATIONS });
+      log.warn("marketing.plan_slot_exhausted", { slot: slot.key, generations: budget, roadFailed });
       continue;
     }
     const key = slotKeyForGeneration(slot.key, generation);

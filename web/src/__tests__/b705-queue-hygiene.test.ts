@@ -15,6 +15,8 @@ import {
   type QueueRow,
 } from "@/lib/marketing/queue-hygiene";
 import { contentPlanFor, type ContentPlanSlot } from "@/lib/marketing/content-plan";
+import { MAX_SLOT_GENERATIONS, MAX_SLOT_GENERATIONS_HARD_CAP } from "@/lib/marketing/publication-queue";
+import { isRecoverablePublicationError } from "@/lib/marketing/registry-recovery";
 
 const NOW = new Date("2026-08-12T13:00:00.000Z");
 const PLAN = contentPlanFor(NOW);
@@ -263,5 +265,53 @@ describe("B705 — чего сторож не делает", () => {
     const { actions, unplaced } = planQueueHygiene({ now: NOW, plan: PLAN, rows: [written] });
     expect(actions).toEqual([]);
     expect(unplaced).toEqual(["alien-written"]);
+  });
+});
+
+/**
+ * B705 — отказ дороги не жжёт слот контент-плана.
+ *
+ * Замер стенда 2026-08-12: у Дзена, площадки номер один по приоритету
+ * владельца, не осталось ни одного черновика на ближнюю неделю. Слоты
+ * выработали право на перевыпуск, и оба поколения каждого умерли ТЕХНИЧЕСКИ:
+ * «dzen publication omitted the required media» и «No free provider returned
+ * valid structured output». Материал не был написан ни разу — гореть было
+ * нечему. B695 уже провёл эту границу, но только для статей пополнения ленты.
+ */
+describe("B705 — бюджет поколений слота считает вину, а не строки", () => {
+  const generationRow = (key: string, reason: string) => ({
+    key,
+    status: "ARCHIVED",
+    archiveReason: reason,
+    lastError: null,
+  });
+
+  /** Копия правила из `generateMarketingDrafts`: бюджет = 2 + отказы дороги. */
+  function budgetFor(rows: readonly { key: string; status: string; archiveReason: string | null; lastError: string | null }[]) {
+    const roadFailed = rows.filter((row) => row.status === "ARCHIVED"
+      && isRecoverablePublicationError(`${row.archiveReason ?? ""} ${row.lastError ?? ""}`)).length;
+    return Math.min(MAX_SLOT_GENERATIONS + roadFailed, MAX_SLOT_GENERATIONS_HARD_CAP);
+  }
+
+  it("два поколения, умершие по отказу дороги, дают слоту ещё две попытки", () => {
+    const rows = [
+      generationRow("b610-2w-dzen-20260814-01", "Материал не удалось выпустить за 2 попытки, слот освобождён под новый материал: dzen publication omitted the required media brief"),
+      generationRow("b610-2w-dzen-20260814-01--r2", "No free provider returned valid structured output"),
+    ];
+    expect(budgetFor(rows)).toBe(4);
+  });
+
+  it("решение редактора бюджет тратит: повтор дал бы тот же результат", () => {
+    const rows = [
+      generationRow("b610-2w-vk-20260814-01", "Материал не прошёл выпуск и не подлежит повтору: решение редактора REJECT"),
+      generationRow("b610-2w-vk-20260814-01--r2", "B686_DUPLICATE_TOPIC"),
+    ];
+    expect(budgetFor(rows)).toBe(MAX_SLOT_GENERATIONS);
+  });
+
+  it("вечно сломанная дорога не даёт слоту бесконечного права", () => {
+    const rows = Array.from({ length: 10 }, (_, index) =>
+      generationRow(`b610-2w-dzen-20260814-01--r${index + 2}`, "No free provider returned valid structured output"));
+    expect(budgetFor(rows)).toBe(MAX_SLOT_GENERATIONS_HARD_CAP);
   });
 });
