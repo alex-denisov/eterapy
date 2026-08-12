@@ -182,12 +182,20 @@ export async function sendTelegramPhoto(
 export async function configureTelegramBot({ miniAppUrl, staging }: { miniAppUrl: string; staging: boolean }) {
   // B576: name carries both the distinctive product word and the discovery
   // category. It names AI honestly without presenting the bot as a clinician.
-  const name = staging ? "ETerapy · ИИ-разбор (Stage)" : "ETerapy · ИИ-разбор";
+  //
+  // B708 — ЗДЕСЬ ЖИВЁТ ЕДИНСТВЕННЫЙ ИСТОЧНИК ЭТИХ ТЕКСТОВ, и это не педантизм.
+  // Профиль бота правится двумя путями: руками у @BotFather и этой функцией из
+  // `/api/telegram/setup-webhook`. Пути расходятся МОЛЧА, и побеждает тот, кто
+  // сработал последним: 2026-08-13 владелец переименовал бота вручную, а в коде
+  // оставалось «ETerapy · ИИ-разбор» — первый же вызов setup-webhook откатил бы
+  // правку без единой ошибки. Та же ловушка, что с промтами (B705 §12, B706).
+  // Значения ниже сведены с живым состоянием бота на 2026-08-13.
+  const name = staging ? "Таро и матрица судьбы (Stage) · eTerapy" : "Таро и матрица судьбы — разборы · eTerapy";
   const suffix = staging ? " Тестовая версия." : "";
   const requests: Array<[string, Record<string, unknown>]> = [
     ["setMyName", { name }],
-    ["setMyDescription", { description: `Анонимный ИИ-чат, чтобы разобрать отношения, работу или трудное решение. Ответьте на 2–3 уточнения и получите первичный разбор: факты, главная развилка и следующий шаг. Бесплатно, без карты, около 3 минут. Не заменяет психолога и экстренную помощь. Здесь же приходят выбранные уведомления ETerapy.${suffix}` }],
-    ["setMyShortDescription", { short_description: `Анонимный ИИ-чат: разберите ситуацию и получите первый шаг бесплатно. Не заменяет психолога.${suffix}` }],
+    ["setMyDescription", { description: `Таро, матрица судьбы и натальная карта — с расчётом и разбором, а не с приговором. Опишите вопрос своими словами: бот задаст 2–3 уточнения и соберёт разбор — что стоит за вопросом, главная развилка и один следующий шаг.\n\nБесплатно, без карты и регистрации, около трёх минут.\n\nОтвечает нейросеть, не специалист. Не заменяет психолога и врача; при риске для жизни — 112. 18+\n\nСюда же приходят уведомления ETerapy: /status — проверить связь, /stop — отключить.${suffix}` }],
+    ["setMyShortDescription", { short_description: `Таро, матрица судьбы, натальная карта: расчёт и разбор. Бесплатно. Отвечает нейросеть, не специалист.${suffix}` }],
     ["setMyCommands", { commands: [
       { command: "start", description: "Понять, что дальше — бесплатно" },
       { command: "status", description: "Проверить связь с аккаунтом" },

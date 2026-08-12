@@ -92,21 +92,28 @@ jobs:
       selection: ${{ steps.select.outputs.selection }}
     steps:
       - uses: actions/checkout@v4
-      # B627: два разных бота, и путать их нельзя.
+      # B708 (решение владельца 2026-08-13): уведомления сведены в ОДИН бот.
       #
-      #  * @eterapy_bot — продуктовый: Mini App, вход, платежи Stars. Его токен
-      #    едет на ноды в `.env` и обслуживает пользователей.
-      #  * @eterapy_deploy_bot — служебный: пишет в канал выкатки. Наружу к
-      #    пользователям он не ходит вовсе.
+      # Было два: @eterapy_bot (продуктовый) и @eterapy_deploy_bot (служебный).
+      # Разделение ввёл B627 после того, как 2026-07-30 деплой-бота взломали и
+      # рассылали через него рекламу. Владелец просил свести обратно дважды,
+      # и вот на каком основании это не возврат к прежнему риску:
       #
-      # До этой правки уведомления о выкатке слал продуктовый бот — владелец
-      # 2026-07-30 заметил это как раз тогда, когда деплой-бота взломали и
-      # рассылали через него рекламу. Проверка личности теперь у обоих: чужой
-      # токен в любом из двух секретов останавливает выкатку до внешних вызовов.
-      - name: Verify Telegram bot identities
+      #  * токен продуктового бота УЖЕ лежит в секретах Actions и уже ездит на
+      #    ноды (`deploy.yml`), а `seo-route.yml` уже слал им уведомления —
+      #    новой поверхности атаки консолидация не создаёт;
+      #  * взломан тогда был служебный бот, а не продуктовый, и ровно его мы
+      #    теперь выводим из обращения;
+      #  * право писать в «ETerapy System Notifications» у @eterapy_bot
+      #    проверено живой отправкой 2026-08-13, а не выводом `getChat`.
+      #
+      # ⚠ Что consolidation всё-таки стоит: компрометация продуктового токена
+      # теперь бьёт и по служебному каналу тоже. Отдельный бот поддержки
+      # (@eterapy_support_bot) намеренно оставлен — он ведёт супергруппу и к
+      # уведомлениям отношения не имеет.
+      - name: Verify Telegram bot identity
         env:
           TG_PRODUCT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TG_DEPLOY_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
         run: |
           set -uo pipefail
           # Возвращает 0, только если токен принадлежит ожидаемому боту.
@@ -135,24 +142,10 @@ jobs:
           fi
           echo "@eterapy_bot identity verified"
 
-          # Деплой-бот — НЕ блокирующая. Он пишет только в служебный канал и к
-          # пользователям не ходит. Первая версия этой проверки останавливала
-          # выкатку — и остановила её на самом деле (run 30564617461): Telegram
-          # ответил 401 на выданный токен. Это перевёрнутый приоритет: релиз не
-          # должен зависеть от исправности уведомления о релизе.
-          #
-          # Молчаливого отката на продуктовый токен при этом нет: если деплой-бот
-          # не подтверждён, уведомление просто не отправляется, и в сводке run
-          # написано почему.
-          if reason=$(identity_ok "$TG_DEPLOY_TOKEN" "eterapy_deploy_bot" "TELEGRAM_DEPLOY_BOT_TOKEN"); then
-            echo "@eterapy_deploy_bot identity verified"
-            echo "deploy_bot_ok=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::$reason — уведомления о выкатке отправлены не будут. Выкатка продолжается."
-            echo "### ⚠ Telegram: уведомление о выкатке пропущено" >> "$GITHUB_STEP_SUMMARY"
-            echo "$reason" >> "$GITHUB_STEP_SUMMARY"
-            echo "deploy_bot_ok=0" >> "$GITHUB_OUTPUT"
-          fi
+          # Проверка деплой-бота снята вместе с самим деплой-ботом (B708).
+          # Признак `deploy_bot_ok` был мёртвым и до этой правки: он писался в
+          # `$GITHUB_OUTPUT`, но в `outputs:` задачи не объявлен, то есть ни
+          # одна задача его не читала. Уведомление и так уходило всегда.
       - id: select
         # NODES is untrusted (dispatch input): it is only ever compared against
         # the fixed slug list by jq, never interpolated into a shell command.
@@ -1079,7 +1072,7 @@ jobs:
 
       - name: Send Telegram message
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           TITLE: PRODUCTION deploy
           EMOJI: "🚀"

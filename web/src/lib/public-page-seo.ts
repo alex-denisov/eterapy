@@ -264,7 +264,24 @@ export function jsonLdForPublicPage(route: PublicSeoRoute, options?: { offerPric
       name: "ETerapy",
       url: seoOrigins.main,
       logo: { "@type": "ImageObject", url: canonicalUrl("/icon.svg") },
-      sameAs: ["https://t.me/eterapy_bot"],
+      // B708 · Профили бренда, подтверждённые владельцем 2026-08-13.
+      //
+      // По `sameAs` поисковики и ИИ-движки склеивают разрозненные профили в
+      // ОДНУ сущность. До этой правки здесь стоял один бот — значит для машины
+      // пять живых площадок были пятью незнакомцами, а накопленные там сигналы
+      // не приходили бренду вовсе. Это и есть п.14 контура B701.
+      //
+      // Адреса записаны так, как их отдаёт сама площадка: `vk.ru` (не `.com`)
+      // и `threads.com` (не `.net`) — переписывать «как правильнее» нельзя,
+      // сверка идёт по строке.
+      sameAs: [
+        "https://t.me/eterapy",
+        "https://t.me/eterapy_bot",
+        "https://vk.ru/eterapy",
+        "https://dzen.ru/eterapy",
+        "https://instagram.com/eterapy_official",
+        "https://www.threads.com/@eterapy_official",
+      ],
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",

@@ -87,7 +87,7 @@ describe("B554 — Telegram Mini App UX hardening", () => {
     expect(telegram).toContain('{ command: "status"');
     expect(telegram).toContain('{ command: "stop"');
     expect(webhook).toContain("OPEN_APP_KEYBOARD");
-    expect(webhook).toContain("Что сейчас не даёт вам покоя?");
+    expect(webhook).toContain("С каким вопросом пришли?");
     expect(setup).toContain("configureTelegramBot");
   });
 

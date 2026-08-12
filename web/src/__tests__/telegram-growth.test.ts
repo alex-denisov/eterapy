@@ -68,9 +68,9 @@ describe("B204 Telegram growth surfaces", () => {
     expect(shell).toContain("if (!platform) return");
     expect(shell).toContain("channel: search.get(\"channel\")");
     expect(shell).toContain("entry: search.get(\"entry\")");
-    // B627: шаг проверяет личность обоих ботов — продуктового и деплойного.
-    // Подробности разделения держит b627-deploy-bot-identity.test.ts.
-    expect(deploy).toContain("Verify Telegram bot identities");
+    // B708: бот теперь один, и шаг проверяет его личность. Подробности —
+    // b708-single-notification-bot.test.ts.
+    expect(deploy).toContain("Verify Telegram bot identity");
     expect(deploy).toContain('identity_ok "$TG_PRODUCT_TOKEN" "eterapy_bot" "TELEGRAM_BOT_TOKEN"');
   });
 });
