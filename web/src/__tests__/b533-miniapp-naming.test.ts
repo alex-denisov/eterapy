@@ -22,11 +22,16 @@ describe("B533 — имя мини-аппа утверждено владель�
   // @BotFather. Тест не удалён, а переписан — требование прежнее (имя называет
   // категорию и отличает стенд от боевого), утверждённые слова новые.
   it("профиль бота называет категорию поиска и бренд", () => {
-    expect(telegram).toContain('"Таро и матрица судьбы — разборы · eTerapy"');
+    expect(telegram).toContain('"Матрица и Таро"');
+    // Ограничение не стилистическое: имя обрезает кнопка «Открыть» в строке
+    // поиска Telegram. Замер владельца 2026-08-13 — около 21 символа.
+    const shown = telegram.match(/const name = staging \? "([^"]+)" : "([^"]+)"/u);
+    expect(shown).not.toBeNull();
+    expect(shown![2].length).toBeLessThanOrEqual(21);
   });
 
   it("стенд отличим от боевого бота", () => {
-    expect(telegram).toContain('"Таро и матрица судьбы (Stage) · eTerapy"');
+    expect(telegram).toContain('"Матрица и Таро (Stage)"');
   });
 
   it("кнопка запуска и /start зовут одним глаголом", () => {
