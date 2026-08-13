@@ -180,12 +180,54 @@ export function marketingProvidersWithSingleModel(): AIProvider[] {
   );
 }
 
+/**
+ * B703 — под каким именем провайдер вернул те самые веса.
+ *
+ * Замер прода 2026-08-13: роутер Hugging Face на запрос
+ * `prism-ml/Ternary-Bonsai-27B-AWQ-4bit` отвечает каноническим именем весов
+ * `Prism-ML/Ternary-Bonsai-27B` — другой регистр и без хвоста сборки. Сверка
+ * шла точным совпадением строки, поэтому УСПЕШНЫЙ ответ выбрасывался как
+ * «модель не одобрена», а обращение уходило в бюджет материала. За сутки так
+ * пропало 14 успешных вызовов.
+ *
+ * Ищем одобренные записи, для которых пришедшее имя — это либо та же строка с
+ * точностью до регистра, либо её начало по границе разделителя. Граница
+ * обязательна: без неё `gpt-4` подошло бы к `gpt-4o-mini`, то есть к ДРУГИМ
+ * весам.
+ */
+function approvedReleasesFor(model: string): string[] {
+  const normalized = model.trim().toLowerCase();
+  if (!normalized) return [];
+  const exact = Object.keys(MARKETING_MODEL_RELEASES).find(
+    (key) => key.toLowerCase() === normalized,
+  );
+  if (exact) return [MARKETING_MODEL_RELEASES[exact]];
+  return Object.entries(MARKETING_MODEL_RELEASES)
+    .filter(([key]) => {
+      const candidate = key.toLowerCase();
+      if (!candidate.startsWith(normalized)) return false;
+      const boundary = candidate.charAt(normalized.length);
+      return boundary === "-" || boundary === "_" || boundary === "." || boundary === ":";
+    })
+    .map(([, releaseDate]) => releaseDate);
+}
+
 export function marketingModelFreshness(model: string): {
   eligible: boolean;
   releaseDate: string | null;
   reason: string;
 } {
-  const releaseDate = MARKETING_MODEL_RELEASES[model] ?? null;
+  const candidates = approvedReleasesFor(model);
+  /**
+   * Одно общее имя может покрывать несколько сборок одних весов. Личность
+   * модели по нему не восстановить — но РЕШЕНИЕ восстановить можно, и только
+   * когда оно у всех вариантов одинаково. Берём самую раннюю дату: если она
+   * проходит рубеж, проходят и остальные. Неоднозначность решается отказом,
+   * а не догадкой.
+   */
+  const releaseDate = candidates.length > 0
+    ? candidates.reduce((earliest, date) => (date < earliest ? date : earliest))
+    : null;
   if (!releaseDate) {
     return {
       eligible: false,
