@@ -4,6 +4,7 @@ import { b601LibraryCards } from "@/data/library-cards-b601";
 import { b550LibraryCards } from "@/data/library-cards-b550";
 import { symbolicLibraryCards } from "@/data/symbolic-library-cards";
 import { serviceGuideLibraryEntries } from "@/data/library-service-guides";
+import { arcanaLibraryCards } from "@/data/library-arcana-cards";
 
 export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
 
@@ -28,6 +29,12 @@ export type AnonymousLibraryEntry = {
   hidden?: string[];
   similarCount?: number;
   seo?: { metaTitle: string; metaDescription: string };
+  /**
+   * B710 — дата редакционной проверки записи (ISO). Без неё берётся общая дата
+   * корпуса. Заполняется у записей, вышедших позже общего выпуска: иначе
+   * страница заявляет проверку раньше собственного появления.
+   */
+  reviewedAt?: string;
   faqs?: Array<{ question: string; answer: string }>;
 };
 
@@ -940,6 +947,9 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // B648: корпус услуг, снятый со страниц услуг в B647. Записи собираются из
   // `lib/service-guides.ts`, а не пишутся здесь второй раз.
   ...serviceGuideLibraryEntries,
+  // B710: справочный корпус 22 арканов. Вход в ВЧ-спрос идёт точным подзапросом
+  // («8 аркан в матрице», «на год», «в совместимости»), а не головным словом.
+  ...arcanaLibraryCards,
 ];
 
 export function librarySection(entry: AnonymousLibraryEntry): LibrarySection {

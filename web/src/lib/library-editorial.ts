@@ -4,6 +4,32 @@ import type { LibraryTopic } from "@/lib/library-cta";
 export const LIBRARY_EDITORIAL_DATE = "2026-07-22";
 export const LIBRARY_EDITORIAL_DATE_RU = "22 июля 2026";
 
+const RU_MONTHS = [
+  "января", "февраля", "марта", "апреля", "мая", "июня",
+  "июля", "августа", "сентября", "октября", "ноября", "декабря",
+] as const;
+
+/**
+ * B710 — дата редактуры принадлежит ЗАПИСИ, а не корпусу целиком.
+ *
+ * Общая константа была верна, пока весь корпус вышел одним днём. Запись,
+ * опубликованная позже, показывала бы дату проверки РАНЬШЕ собственного
+ * появления — и в тексте страницы, и в `datePublished`/`dateModified`. Это уже
+ * не «неточность оформления», а недостоверная запись о редакционной проверке.
+ */
+export function libraryEditorialDate(entry: AnonymousLibraryEntry): string {
+  return entry.reviewedAt ?? LIBRARY_EDITORIAL_DATE;
+}
+
+export function libraryEditorialDateRu(entry: AnonymousLibraryEntry): string {
+  const iso = libraryEditorialDate(entry);
+  if (iso === LIBRARY_EDITORIAL_DATE) return LIBRARY_EDITORIAL_DATE_RU;
+  const [year, month, day] = iso.split("-").map(Number);
+  const monthName = RU_MONTHS[month - 1];
+  if (!year || !monthName || !day) return LIBRARY_EDITORIAL_DATE_RU;
+  return `${day} ${monthName} ${year}`;
+}
+
 type TopicGuidance = {
   checks: readonly string[];
   humanSupport: string;

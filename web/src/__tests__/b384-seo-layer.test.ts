@@ -19,7 +19,7 @@ describe("B384 — library cards as search targets (schema.org)", () => {
     expect(detail).toContain("isAccessibleForFree: true");
     expect(detail).toContain("mainEntityOfPage");
     expect(detail).toContain('"@type": "FAQPage"');
-    expect(detail).toContain("dateModified: LIBRARY_EDITORIAL_DATE");
+    expect(detail).toContain("dateModified: libraryEditorialDate(entry)");
   });
 
   it("emits a BreadcrumbList (Главная → Библиотека → тема)", () => {
@@ -73,10 +73,10 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     const indexable = anonymousLibraryEntries.filter((e) => e.status === "approved" && e.indexable);
     // Число растёт вместе с каталогом (B601 часть 3 — 14 карточек, B648 — 5
     // записей с корпусом услуг, снятым со страниц услуг в B647, B550 — 3
-    // карточки кластера «ИИ-психолог»).
+    // карточки кластера «ИИ-психолог», B710 — 22 аркана справочного корпуса).
     // Жёсткое число здесь ловит не размер, а РАСХОЖДЕНИЕ карты сайта с
     // каталогом — его и проверяет цикл ниже; сам размер сверяем с каталогом.
-    expect(indexable.length).toBe(177);
+    expect(indexable.length).toBe(199);
     for (const entry of indexable) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
     }

@@ -10,8 +10,8 @@ import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 import { ogImageUrl } from "@/lib/share";
 import {
-  LIBRARY_EDITORIAL_DATE,
-  LIBRARY_EDITORIAL_DATE_RU,
+  libraryEditorialDate,
+  libraryEditorialDateRu,
   libraryChecks,
   libraryFaqs,
   libraryFirstStep,
@@ -20,8 +20,10 @@ import {
   libraryMetaTitle,
 } from "@/lib/library-editorial";
 import { serviceGuideBySlug } from "@/lib/service-guides";
+import { arcanaGuideBySlug } from "@/lib/arcana";
 import { getV5Product } from "@/lib/v5-products";
 import { ServiceGuideSections } from "@/components/library/service-guide-sections";
+import { ArcanaGuideSections } from "@/components/library/arcana-guide-sections";
 
 // The library corpus is editorial and fully known at build time. Keep the
 // route contract closed as well as the proxy allowlist; the proxy performs the
@@ -102,6 +104,9 @@ export default async function LibraryEntryPage({
   const isSymbolic = section === "symbolic";
   // B648: у записи может быть корпус услуги — соответствие держится данными.
   const guide = serviceGuideBySlug(entry.slug);
+  // B710: и точно так же — корпус аркана. Записи разные, у одной записи может
+  // быть только один корпус.
+  const arcanaGuide = arcanaGuideBySlug(entry.slug);
   const libraryHref = isSymbolic ? "/library?section=symbolic" : "/library";
 
   // B384: each card is a search target — enrich Article (about/section/teaser-gated)
@@ -121,8 +126,8 @@ export default async function LibraryEntryPage({
         mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
         inLanguage: "ru-RU",
         isAccessibleForFree: true,
-        datePublished: LIBRARY_EDITORIAL_DATE,
-        dateModified: LIBRARY_EDITORIAL_DATE,
+        datePublished: libraryEditorialDate(entry),
+        dateModified: libraryEditorialDate(entry),
         author: { "@type": "Organization", name: "ETerapy", url: orgUrl },
         publisher: { "@type": "Organization", name: "ETerapy", url: orgUrl },
       },
@@ -174,7 +179,7 @@ export default async function LibraryEntryPage({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="soft-chip">{entry.topic}</span>
             <span className="text-xs text-[var(--soft-ink-faint)]">
-              {interestCount.toLocaleString("ru-RU")} откликов по теме · обновлено {LIBRARY_EDITORIAL_DATE_RU}
+              {interestCount.toLocaleString("ru-RU")} откликов по теме · обновлено {libraryEditorialDateRu(entry)}
             </span>
           </div>
         </header>
@@ -249,6 +254,10 @@ export default async function LibraryEntryPage({
             serviceName={getV5Product(guide.service)?.name ?? null}
           />
         )}
+
+        {/* B710 — корпус аркана. Та же позиция и то же правило, что у корпуса
+            услуги: сначала материал, потом предложение открыть расчёт. */}
+        {arcanaGuide && <ArcanaGuideSections guide={arcanaGuide} />}
 
         <LibraryEntryCta
           slug={entry.slug}
