@@ -131,6 +131,24 @@ export class MarketingTruncatedOutputError extends Error {
 }
 
 /**
+ * B705 — весь перебор ответил не постом.
+ *
+ * Отдельный класс нужен ради поведения. Один отвергнутый ответ снимает
+ * маршрут, и следующий провайдер отвечает нормально — это обычное дело. Но
+ * если постом не оказался НИ ОДИН ответ, причина лежит в моделях, а не в
+ * материале: тема, план и промт у всех двенадцати маршрутов были одни и те же.
+ * Без этого класса такой случай падал бы в общее «No free provider returned
+ * valid structured output», то есть в приговор материалу — ровно та ошибка,
+ * которую B695 уже разобрал на обрыве по потолку и на отказе дороги.
+ */
+export class MarketingWriterGarbageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MarketingWriterGarbageError";
+  }
+}
+
+/**
  * B680 — один материал не имеет права съесть суточную ёмкость.
  *
  * Замер прода 2026-08-06 (`ai_requests`, роли агента, двое суток): 1190 вызовов
@@ -339,6 +357,9 @@ export function isDeferrableError(error: unknown): boolean {
     // B695: обрыв по НАШЕМУ потолку вывода. Текст не виноват в том, что модель
     // потратила бюджет на размышление; следующий проход возьмёт другую модель.
     || error instanceof MarketingTruncatedOutputError
+    // B705: постом не оказался ни один ответ перебора. Отвечали модели, а тема
+    // и промт у всех были одни — судить материал не по чему.
+    || error instanceof MarketingWriterGarbageError
     // B695: дорога отвалилась — таймаут, 5xx, пустой ответ. Материал ни при чём.
     || error instanceof MarketingInfrastructureError
     || isInfrastructureRoutingError(error);
@@ -881,6 +902,10 @@ async function completeWithValidStructure<T>(input: {
   // них, материал ждёт следующего прохода, а не бракуется.
   let truncationFailures = 0;
   let infrastructureFailures = 0;
+  // B705: сколько маршрутов вернули не пост (лог рассуждений, заглушку,
+  // английский текст). Считается отдельно по той же причине, что и обрыв: если
+  // ИМ состоял весь перебор, отвечали модели, а не материал.
+  let nonPostFailures = 0;
   // B644: бюджет вывода живёт внутри прохода. Обрыв по лимиту — не отказ
   // маршрута, а нехватка нашего же бюджета, и лечится он одним способом:
   // повторить ТЕМ ЖЕ маршрутом с большим потолком. Перебор провайдеров здесь
@@ -949,7 +974,9 @@ async function completeWithValidStructure<T>(input: {
           truncationRetries += 1;
           retrySameProvider = true;
         } else {
-          failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
+          const message = error instanceof Error ? error.message : String(error);
+          if (message.startsWith("writer returned no publishable post")) nonPostFailures += 1;
+          failures.push(`${provider}: ${message}`);
           log.warn("marketing-agent.invalid-structured-output", {
             feature: input.feature,
             provider,
@@ -1015,6 +1042,17 @@ async function completeWithValidStructure<T>(input: {
       === failures.length) {
     throw new MarketingInfrastructureError(
       `Маршруты отвечали отказом дороги, а не по существу материала (${summary})`,
+    );
+  }
+  // B705: постом не оказался ни один ответ перебора. Тема, план и промт у всех
+  // маршрутов были одни и те же — значит отвечали модели, а не материал, и
+  // приговор «не подлежит повтору» здесь был бы неправдой.
+  if (nonPostFailures > 0
+    && nonPostFailures + infrastructureFailures + truncationFailures + capacityFailures
+      + separationFailures === failures.length) {
+    throw new MarketingWriterGarbageError(
+      `Ни один маршрут не вернул текст поста: модели отвечали логом рассуждений, `
+      + `заглушкой или не по-русски. Материал ждёт следующего прохода (${summary})`,
     );
   }
   throw new Error(`No free provider returned valid structured output (${summary})`);

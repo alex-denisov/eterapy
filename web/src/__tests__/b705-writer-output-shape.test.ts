@@ -8,7 +8,12 @@
  * подлежит повтору» за ошибку нашего кода.
  */
 
-import { repairPublishableDraft, writerObject } from "@/lib/marketing/agent";
+import {
+  isDeferrableError,
+  MarketingWriterGarbageError,
+  repairPublishableDraft,
+  writerObject,
+} from "@/lib/marketing/agent";
 
 const POST_TEXT =
   "Три ночи подряд один и тот же сон пугает сильнее самого сюжета. Повтор не предсказывает "
@@ -81,5 +86,18 @@ describe("B705 · разбор ответа автора не доверяет �
       + "I will keep the tone calm, avoid promises, and place the call to action at the very end "
       + "of the message so that it does not read like an advertisement to the audience of the channel.";
     expect(() => writerObject(raw, "запасной заголовок")).toThrow(/no publishable post/u);
+  });
+});
+
+describe("B705 · перебор целиком из «не постов» откладывает материал, а не хоронит", () => {
+  it("отказ стража называется откладываемым, а не браком материала", () => {
+    const garbage = new MarketingWriterGarbageError(
+      "Ни один маршрут не вернул текст поста: модели отвечали логом рассуждений",
+    );
+    expect(isDeferrableError(garbage)).toBe(true);
+
+    // Граница: обычный брак структуры откладываемым НЕ становится — иначе
+    // материал с настоящим дефектом ходил бы по кругу вечно.
+    expect(isDeferrableError(new Error("No free provider returned valid structured output"))).toBe(false);
   });
 });
