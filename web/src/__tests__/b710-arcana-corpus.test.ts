@@ -6,7 +6,9 @@ import { v5Products } from "@/lib/v5-products";
 describe("B710 — справочный корпус арканов", () => {
   const cardSlugs = new Set(arcanaLibraryCards.map((card) => card.slug));
   const librarySlugs = new Set(approvedLibraryEntries().map((entry) => entry.slug));
-  const productRoutes = new Set(v5Products.map((product) => product.route));
+  // Тип элемента — литеральный союз маршрутов, а `link.href` обычная строка:
+  // без расширения до `string` проверка ссылок не проходит `tsc`.
+  const productRoutes = new Set<string>(v5Products.map((product) => product.route));
 
   it("описывает ровно 22 энергии, по одной на число", () => {
     expect(ARCANA_GUIDES).toHaveLength(22);

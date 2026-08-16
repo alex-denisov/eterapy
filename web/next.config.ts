@@ -62,6 +62,23 @@ const nextConfig: NextConfig = {
       ],
     };
   },
+  // B701 · Контур B. Переименование слагов 2026-07-27 (`horary` → `horoscope`,
+  // `synastry` → `compatibility-by-date`) прошло без слоя перенаправлений:
+  // замер 2026-08-14 показал у обоих прежних адресов чистый 404. Всё, что на
+  // них ссылалось снаружи, упиралось в тупик, а поисковик получал «страницы
+  // больше нет» вместо «страница переехала».
+  //
+  // Третья строка — не переименование: `/products/destiny-matrix` живым
+  // адресом не был никогда, но именно так тему называет сам спрос («матрица
+  // судьбы» 205 187/мес), а страница лежит под `numerology`. Это дешёвый вход
+  // для угаданного человеком или ИИ-агентом адреса.
+  async redirects() {
+    return [
+      { source: "/products/horary", destination: "/products/horoscope", permanent: true },
+      { source: "/products/synastry", destination: "/products/compatibility-by-date", permanent: true },
+      { source: "/products/destiny-matrix", destination: "/products/numerology", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

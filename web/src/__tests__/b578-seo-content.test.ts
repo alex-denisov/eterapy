@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { STRATEGIC_KEYWORDS } from "@/lib/search-marketing-data";
 import { SEMANTIC_CORE } from "@/lib/seo/semantic-core-index";
+import { publicPageSeo, type PublicSeoRoute } from "@/lib/public-page-seo";
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
@@ -42,11 +43,28 @@ describe("B578 — SEO/GEO content operations", () => {
   });
 
   it("uses query-led titles without claiming prediction or diagnosis", () => {
-    const seo = source("src/lib/public-page-seo.ts");
-    expect(seo).toContain("Матрица судьбы: рассчитать онлайн с расшифровкой | ETerapy");
-    expect(seo).toContain("Расклад Таро онлайн: карты и разбор ситуации | ETerapy");
-    expect(seo).toContain("Натальная карта онлайн: рассчитать с расшифровкой | ETerapy");
-    expect(seo).toContain("Совместимость по дате рождения: синастрия онлайн | ETerapy");
+    // Проверяем инвариант, а не пришпиленную копию. Прежняя версия сверяла
+    // четыре заголовка дословно: любая правка текста роняла тест, ничего при
+    // этом не защищая, — и наоборот, заголовок можно было испортить по смыслу,
+    // сохранив строку. Инвариант ровно два: головной запрос кластера в
+    // заголовке есть, обещания предсказания нет.
+    const headTermByRoute = {
+      "/products/numerology": "Матрица судьбы",
+      "/products/tarot": "Расклад Таро",
+      "/products/natal-chart": "Натальная карта",
+      "/products/compatibility-by-date": "Совместимость по дате рождения",
+    } as const;
+    const forbidden = ["предсказ", "прогноз", "гаранти", "диагноз"];
+
+    for (const [route, headTerm] of Object.entries(headTermByRoute)) {
+      const { title } = publicPageSeo[route as PublicSeoRoute];
+      expect({ route, headTerm, present: title.includes(headTerm) })
+        .toEqual({ route, headTerm, present: true });
+      for (const word of forbidden) {
+        expect({ route, word, present: title.toLowerCase().includes(word) })
+          .toEqual({ route, word, present: false });
+      }
+    }
   });
 
   it("exposes beginner symbolic FAQs and machine-readable pricing", () => {
