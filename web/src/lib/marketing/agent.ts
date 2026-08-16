@@ -66,6 +66,7 @@ import {
 } from "@/lib/marketing/platform-limits";
 import { inspectDraft } from "@/lib/marketing/draft-inspection";
 import { reconcileReviewWithMachine } from "@/lib/marketing/review-machine-authority";
+import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
 import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
@@ -457,10 +458,76 @@ function jsonStringField(rawInput: string, field: string) {
   return value.trim();
 }
 
-function writerObject(raw: string, fallbackTitle: string): WriterOutput {
+/**
+ * B705 — поле контракта, объявленное строкой, обязано БЫТЬ строкой.
+ *
+ * Замер прода 2026-08-16: два материала (instagram 01.08, vk 30.07) умерли с
+ * `archive_reason = "input.draft.mediaBrief?.trim is not a function"`. Модель
+ * вернула валидный JSON, в котором `mediaBrief` был объектом вида
+ * `{"idea": "…"}`, а не строкой; `jsonObject` разобрал его без единой жалобы,
+ * потому что проверял разбор, а не форму. Первая же `.trim()` уронила проход
+ * TypeError'ом, и материал получил приговор «не подлежит повтору» за ошибку
+ * НАШЕГО кода.
+ *
+ * Запасная ветка `writerObject` (разбор из прозы) от этого была защищена
+ * случайно: `jsonStringField` всегда возвращает строку. Защищена оказалась
+ * только та ветка, которая срабатывает реже.
+ */
+function contractString(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function contractStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(contractString).filter(Boolean);
+}
+
+function normalizeWriterOutput(value: WriterOutput, fallbackTitle: string): WriterOutput {
+  return {
+    ...value,
+    title: contractString(value.title) || fallbackTitle,
+    text: contractString(value.text),
+    audienceNeed: contractString(value.audienceNeed),
+    goal: contractString(value.goal),
+    disclosure: contractString(value.disclosure),
+    cta: contractString(value.cta),
+    mediaBrief: contractString(value.mediaBrief),
+    researchUsed: contractStringList(value.researchUsed),
+    safetyFlags: contractStringList(value.safetyFlags),
+  };
+}
+
+/**
+ * Экспортируется ради теста: разбор ответа автора — граница системы, и
+ * форма пришедшего с той стороны проверяется здесь, а не в вызывающем.
+ */
+export function writerObject(raw: string, fallbackTitle: string): WriterOutput {
+  const guarded = (draft: WriterOutput): WriterOutput => {
+    /*
+     * B705 — ответ, который постом не является, снимает МАРШРУТ, а не материал.
+     *
+     * Бросок отсюда попадает в `parse` внутри `completeWithValidStructure`:
+     * провайдер уходит из перебора, тот же запрос получает следующий. Прежде
+     * английский лог рассуждений доезжал до редактора, стоил ему раунда и
+     * убивал материал причиной, к материалу не относящейся (см.
+     * `writer-output-guard.ts`, замер прода 2026-08-16).
+     */
+    const rejection = rejectNonPostWriterOutput(draft.text);
+    if (rejection) {
+      throw new Error(`writer returned no publishable post (${rejection.rule}): ${rejection.reason}`);
+    }
+    return draft;
+  };
   try {
-    return jsonObject<WriterOutput>(raw);
-  } catch {
+    return guarded(normalizeWriterOutput(jsonObject<WriterOutput>(raw), fallbackTitle));
+  } catch (error) {
+    // Отказ стража — это приговор ответу, а не повод разбирать его ещё раз
+    // запасной веткой: она вернёт тот же текст, и он снова не будет постом.
+    if (error instanceof Error && error.message.startsWith("writer returned no publishable post")) {
+      throw error;
+    }
     // Free routing pools occasionally return a valid draft wrapped in prose or
     // truncate the JSON after the `text` field. Preserve the model-written
     // copy, but never turn a short safety-classifier answer into a publication.
@@ -474,7 +541,7 @@ function writerObject(raw: string, fallbackTitle: string): WriterOutput {
         ? plainText
         : "";
     if (!text) throw new Error("writer returned invalid or incomplete structured output");
-    return {
+    return guarded({
       title: jsonStringField(raw, "title") || fallbackTitle,
       text,
       audienceNeed: jsonStringField(raw, "audienceNeed") || "саморефлексия",
@@ -484,7 +551,7 @@ function writerObject(raw: string, fallbackTitle: string): WriterOutput {
       mediaBrief: jsonStringField(raw, "mediaBrief") || "",
       researchUsed: [],
       safetyFlags: [],
-    };
+    });
   }
 }
 
