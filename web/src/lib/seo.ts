@@ -40,6 +40,10 @@ export const publicSeoRoutes = [
   "/products/human-design",
   "/products/surname-origin",
   "/checkin",
+  // B711 · Хаб расчётной сетки «планета × знак». Стоит здесь, а не только в
+  // карте сайта: без записи в `publicPageSeo` у него не было бы ни описания,
+  // ни разметки, а ячейки остались бы без единой внутренней точки входа.
+  "/astro/planety-v-znakah",
   "/practitioners",
   "/practitioners/apply",
   "/legal/ethics",

@@ -24,6 +24,7 @@ const allowlist = new Set([
   "web/src/app/library/[slug]/page.tsx:react-dangerous-html",
   "web/src/components/analytics.tsx:react-dangerous-html",
   "web/src/components/seo/public-json-ld.tsx:react-dangerous-html",
+  "web/src/components/seo/json-ld-graph.tsx:react-dangerous-html",
   "web/src/app/help/page.tsx:react-dangerous-html",
   "web/src/components/landing/authority-article.tsx:react-dangerous-html",
   // The SVG template is static; injected style values are bounded numeric gates

@@ -110,6 +110,9 @@ export const SERVICE_GUIDES: Partial<Record<V5ProductSlug, ServiceGuide>> = {
     related: [
       { href: "/library/ne-znayu-tochnoe-vremya-rozhdeniya-dlya-natalnoy-karty", label: "Если неизвестно точное время рождения" },
       { href: "/library/natalnaya-karta-obeshchaet-slozhnye-otnosheniya", label: "Карта обещает сложные отношения — это приговор?" },
+      // B711: единственная внутренняя ссылка на хаб расчётной сетки. Без неё
+      // ячейки «планета в знаке» получают обход только из карты сайта.
+      { href: "/astro/planety-v-znakah", label: "Планеты в знаках: разборы и точные даты" },
       { href: "/products/compatibility-by-date", label: "Сравнить две натальные карты" },
     ],
   },

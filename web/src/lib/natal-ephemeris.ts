@@ -1,29 +1,30 @@
 import {
-  Body,
-  EclipticGeoMoon,
-  GeoVector,
   MakeTime,
-  Rotation_EQD_ECT,
-  Rotation_EQJ_EQD,
-  RotateVector,
   SiderealTime,
-  SunPosition,
   type AstroTime,
 } from "astronomy-engine";
 import {
   CHART_LUMINARIES,
-  ZODIAC_SIGNS,
   parseBirthDate,
   type ChartPlacement,
   type NatalWheel,
   type SynastryWheel,
-  type ZodiacSign,
 } from "@/lib/esoteric-chart";
+import {
+  PLANET_BODIES,
+  longitudeOfPlanet,
+  norm360,
+  zodiacForLongitude,
+} from "@/lib/astro/ecliptic";
 import { parseHumanDesignBirth } from "@/lib/human-design";
 import { resolveRussianLocality } from "@/lib/russian-localities";
 
 const RAD2DEG = 180 / Math.PI;
 const DEG2RAD = Math.PI / 180;
+
+// B711: перевод «тело + момент → долгота → знак» переехал в `lib/astro/ecliptic`
+// — тот же расчёт понадобился корпусу страниц «планета в знаке». Копия здесь
+// разошлась бы с оригиналом молча.
 
 const ZODIAC_RUSSIAN_STEMS: Record<string, string> = {
   "Овен": "овн",
@@ -72,19 +73,6 @@ const CITY_COORDINATES: Array<{ match: RegExp; latitude: number; longitude: numb
   { match: /лондон|london/i, latitude: 51.5074, longitude: -0.1278 },
 ];
 
-const PLANET_BODIES: Array<{ key: string; body: Body | null }> = [
-  { key: "sun", body: null },
-  { key: "moon", body: Body.Moon },
-  { key: "mercury", body: Body.Mercury },
-  { key: "venus", body: Body.Venus },
-  { key: "mars", body: Body.Mars },
-  { key: "jupiter", body: Body.Jupiter },
-  { key: "saturn", body: Body.Saturn },
-  { key: "uranus", body: Body.Uranus },
-  { key: "neptune", body: Body.Neptune },
-  { key: "pluto", body: Body.Pluto },
-];
-
 const ASPECTS = [
   { name: "соединение", angle: 0, orb: 7, harmony: "flow" as const },
   { name: "секстиль", angle: 60, orb: 5, harmony: "flow" as const },
@@ -93,28 +81,10 @@ const ASPECTS = [
   { name: "оппозиция", angle: 180, orb: 7, harmony: "tension" as const },
 ];
 
-function norm360(value: number) {
-  return ((value % 360) + 360) % 360;
-}
-
-function eclipticLongitudeOfDate(time: AstroTime, body: Body) {
-  if (body === Body.Moon) return norm360(EclipticGeoMoon(time).lon);
-  const eqj = GeoVector(body, time, true);
-  const eqd = RotateVector(Rotation_EQJ_EQD(time), eqj);
-  const ect = RotateVector(Rotation_EQD_ECT(time), eqd);
-  return norm360(Math.atan2(ect.y, ect.x) * RAD2DEG);
-}
-
-function zodiacForLongitude(longitude: number): ZodiacSign {
-  return ZODIAC_SIGNS[Math.floor(norm360(longitude) / 30) % 12];
-}
-
 function placementsAt(time: AstroTime): ChartPlacement[] {
-  return PLANET_BODIES.map(({ key, body }) => {
+  return PLANET_BODIES.map(({ key }) => {
     const luminary = CHART_LUMINARIES.find((item) => item.key === key)!;
-    const longitude = key === "sun"
-      ? norm360(SunPosition(time).elon)
-      : eclipticLongitudeOfDate(time, body!);
+    const longitude = longitudeOfPlanet(key, time);
     const sign = zodiacForLongitude(longitude);
     return {
       luminary: key,

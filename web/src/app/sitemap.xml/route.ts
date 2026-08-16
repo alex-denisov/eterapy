@@ -1,5 +1,6 @@
 import { canonicalUrl, hostKind, publicSeoRoutes } from "@/lib/seo";
 import { approvedLibraryEntries } from "@/data/anonymous-library";
+import { resolvedCells } from "@/lib/astro/cells";
 import db from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ export async function GET(request: Request) {
     "/llms-full.txt",
     "/pricing.md",
     ...approvedLibraryEntries().map((entry) => `/library/${entry.slug}`),
+    // B711 · Ячейки расчётной сетки «планета × знак». Список растёт волнами и
+    // берётся из корпуса, а не переписывается сюда руками: выложенная ячейка,
+    // забытая в карте сайта, ждала бы обхода месяцами.
+    ...resolvedCells().map((cell) => cell.path),
     ...activePractitioners.filter((p) => p.slug).map((p) => `/practitioners/${p.slug}`),
   ];
 
