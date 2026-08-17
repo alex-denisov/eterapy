@@ -30,6 +30,7 @@ import {
   MARKETING_REPLY_WRITER_FEATURE,
   marketingModelFreshness,
   marketingProviderFromLabel,
+  marketingPaidFallbackEnabled,
   marketingProviderOrder,
 } from "@/lib/marketing/model-pool";
 import {
@@ -755,6 +756,52 @@ export function repairPublishableDraft(input: {
     });
   }
 
+  /**
+   * B713 §2 — ДЛИНУ СНИМАЕТ КОД, И СНИМАЕТ НА КАЖДОМ РАУНДЕ.
+   *
+   * Требование владельца 2026-08-17 дословно: «убедись что лимит по символам
+   * будет именно у автора (иначе это снова превратится в бесконечный круг)».
+   *
+   * Было: усечение стояло НИЖЕ, за условием `input.finalRound`. На первом и
+   * втором раунде материал уходил редактору как есть, тот честно писал «Text
+   * is 5222 chars, limit is 900», автор получал задание сократить — и не мог,
+   * потому что модель не умеет считать символы даже после прямого запрета
+   * (замер прода: 5240 при лимите 1000 после ДВУХ раундов правки). Круг
+   * повторялся до исчерпания раундов: 27 смертей за две недели, и каждая
+   * стоила круга автора И круга редактора.
+   *
+   * Стало: усечение выполняется до того, как считаются замечания. Редактор
+   * физически не может увидеть текст длиннее лимита, значит не может потратить
+   * на него раунд. Это ровно граница `draft-inspection`: что считает регулярка,
+   * редактор считать не должен.
+   *
+   * ⚠ МЕСТО ВЫБРАНО НЕ СЛУЧАЙНО — ПОСЛЕ ПОЧИНКИ ПРИЗЫВА. Призыв добавляет
+   * текст, и мерить длину надо уже вместе с ним, иначе материал уезжает за
+   * предел ровно тем, чем его чинили.
+   */
+  const lengthLimits = platformPublishLimits(input.platform);
+  if (lengthLimits.textLimit !== null && repairedText.length > lengthLimits.textLimit) {
+    const before = repairedText.length;
+    repairedText = trimToLimit({
+      text: repairedText,
+      limit: lengthLimits.textLimit,
+      mustKeep: input.destinationUrl,
+    });
+    /*
+     * B705 §23 — записка обязана описывать состояние ПОСЛЕ починки.
+     *
+     * Прежняя формулировка называла только число «до» («не уложился в 480
+     * (718)»), редактор следующего раунда читал 718 как длину сейчас и
+     * возвращал материал на правку несуществующего дефекта.
+     */
+    repairs.push({
+      field: "length",
+      note: `Длину привела в норму система: было ${before} символов при пределе `
+        + `${lengthLimits.textLimit}, стало ${repairedText.length}. Текст усечён по границе `
+        + `предложения, ссылка сохранена. Длина сейчас в пределах площадки.`,
+    });
+  }
+
   /*
    * B705 — весь остальной контракт площадки, посчитанный без вызова модели.
    *
@@ -794,30 +841,13 @@ export function repairPublishableDraft(input: {
     };
   }
 
-  const limits = platformPublishLimits(input.platform);
+  /*
+   * B713 §2: ветки длины здесь больше нет — усечение выполнено ВЫШЕ и на
+   * каждом раунде, поэтому до этого места замечание `length` дойти не может.
+   * Оставлять её дублем значило бы держать два места, где режется длина, и
+   * ждать, пока они разойдутся.
+   */
   for (const violation of violations) {
-    if (violation.kind === "length" && limits.textLimit !== null) {
-      const before = repairedText.length;
-      repairedText = trimToLimit({
-        text: repairedText,
-        limit: limits.textLimit,
-        mustKeep: input.destinationUrl,
-      });
-      /*
-       * B705 §23 — записка обязана описывать состояние ПОСЛЕ починки.
-       *
-       * Прежняя формулировка называла только число «до» («не уложился в 480
-       * (718)»), редактор следующего раунда читал 718 как длину сейчас и
-       * возвращал материал на правку несуществующего дефекта. Число «до»
-       * остаётся для человека в карточке, но рядом стоит длина сейчас.
-       */
-      repairs.push({
-        field: "length",
-        note: `Длину привела в норму система: было ${before} символов при пределе `
-          + `${limits.textLimit}, стало ${repairedText.length}. Текст усечён по границе `
-          + `предложения, ссылка сохранена. Длина сейчас в пределах площадки.`,
-      });
-    }
     if (violation.kind === "media-brief") {
       mediaBrief = fallbackMediaBrief({ title: input.draft.title ?? "", topic: input.topic });
       repairs.push({
@@ -1385,7 +1415,15 @@ export async function processMarketingDraft(publicationId: string) {
         providerOrder: pinnedWriterProvider
           ? [pinnedWriterProvider]
           // B699: обход только по ключам, которые сейчас не остывают.
-          : marketingProviderOrder(`writer:${cycleSeed}`, [], availability.providers),
+          // B712: платный хвост подключается ТОЛЬКО автору и только по явному
+          // разрешению — редактор судит, а не пишет, и платить за суждение
+          // владелец не просил.
+          : marketingProviderOrder(
+            `writer:${cycleSeed}`,
+            [],
+            availability.providers,
+            { paidFallback: marketingPaidFallbackEnabled() },
+          ),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
         attempts,

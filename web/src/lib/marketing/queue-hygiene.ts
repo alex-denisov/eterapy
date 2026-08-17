@@ -47,6 +47,15 @@ const APPROVED_STATUSES = ["SCHEDULED", "MANUAL"] as const;
  */
 export const PREMODERATION_STALE_MS = 48 * 60 * 60_000;
 
+/**
+ * B713 §6 — с какой просрочки плановая дата считается мёртвой.
+ *
+ * Двое суток. Внутри суток закрывшееся окно — работа переноса B645, и отбирать
+ * у него материал сторожем значило бы лечить здоровых. Всё, что старше, до
+ * переноса уже не дошло, и опрашивать его каждый проход бессмысленно.
+ */
+export const STALE_SCHEDULE_MS = 48 * 60 * 60_000;
+
 export interface QueueRow {
   id: string;
   platform: string;
@@ -143,6 +152,45 @@ export function planQueueHygiene(input: {
 
   const expired = new Set(actions.filter((a) => a.kind === "expireModeration").map((a) => a.id));
 
+  /**
+   * B713 §6 — ПРОСРОЧЕННАЯ СТРОКА: своя болезнь, своё правило.
+   *
+   * Живой случай: строка Reddit со слотом 10.08 в статусе SCHEDULED
+   * перебиралась публикатором каждую минуту неделю подряд и каждую минуту
+   * отбивалась `Reddit OAuth is not connected`.
+   *
+   * Ни один существующий сторож её не брал: `beyond` ловит дату ДАЛЬШЕ
+   * горизонта, а эта в ПРОШЛОМ; `noDate` — пустую, а эта заполнена; слот в
+   * плане ещё числился; перенос B645 до неё не доходит, потому что канал на
+   * паузе и проход прекращается раньше. Просроченное проваливалось между
+   * четырьмя чужими правилами.
+   *
+   * ⚠ ПОРОГ ШИРОКИЙ НАМЕРЕННО. Двое суток, а не два часа: у статьи Дзена окно
+   * шесть часов, а перенос B645 работает внутри суток. Узкий порог отбирал бы
+   * материал у штатного механизма, который справляется сам, — и сторож начал
+   * бы лечить здоровых.
+   *
+   * ⚠ И ЭТО НЕ БРАК МАТЕРИАЛА. Строка с написанным текстом идёт в перенос
+   * вместе с остальными бездомными (`needsPlace`), а не в утиль: виновата
+   * простоявшая очередь, а не текст.
+   */
+  const staleBefore = now.getTime() - STALE_SCHEDULE_MS;
+  const overdue = new Set<string>();
+  for (const row of rows) {
+    if (!isLive(row) || expired.has(row.id) || isConversational(row)) continue;
+    if (!row.scheduledFor || row.scheduledFor.getTime() > staleBefore) continue;
+    const days = Math.floor((now.getTime() - row.scheduledFor.getTime()) / 86_400_000);
+    overdue.add(row.id);
+    if (row.hasDraftText) continue; // ниже попадёт в перенос вместе с бездомными
+    actions.push({
+      kind: "retire",
+      id: row.id,
+      reason: `Плановая дата просрочена на ${days} сут, текста на складе нет. `
+        + "Строка снята с перебора: очередь опрашивала её каждый проход, "
+        + "а выпускать было нечего.",
+    });
+  }
+
   // Плановые строки, которым в действующем плане места нет.
   const needsPlace: QueueRow[] = [];
   for (const row of rows) {
@@ -151,13 +199,20 @@ export function planQueueHygiene(input: {
     const noDate = row.scheduledFor === null;
     const beyond = row.scheduledFor !== null
       && row.scheduledFor.getTime() > horizonEnd(now, row.platform);
-    if (!slotGone && !noDate && !beyond) continue;
+    // B713 §6: просроченное — четвёртая причина остаться без места. Написанный
+    // текст переезжает на живой слот, пустая оболочка уже снята выше.
+    const stale = overdue.has(row.id);
+    if (!slotGone && !noDate && !beyond && !stale) continue;
 
     // Утверждённое и написанное переносится; пустая оболочка снимается.
     if (row.hasDraftText || isApproved(row)) {
-      // Утверждённая строка с живой датой внутри горизонта остаётся на месте
+      // Утверждённая строка с ЖИВОЙ датой внутри горизонта остаётся на месте
       // даже без слота: её уже ждут, и перенос сдвинул бы обещанное время.
-      if (isApproved(row) && !noDate && !beyond) continue;
+      //
+      // B713 §6: но просроченная дата живой не бывает. Без `!stale` строка
+      // Reddit со слотом недельной давности проходила ровно здесь и
+      // возвращалась в перебор — каждую минуту, неделю подряд.
+      if (isApproved(row) && !noDate && !beyond && !stale) continue;
       needsPlace.push(row);
       continue;
     }
@@ -211,10 +266,16 @@ export function planQueueHygiene(input: {
       id: row.id,
       scheduledFor: new Date(slot.scheduledAt),
       planSlot: slot.key,
+      // B713 §6: причина обязана называть ту болезнь, которая была. «Стоял за
+      // горизонтом» на просроченной строке — неправда в журнале, а по журналу
+      // потом разбирают, почему материал двигали.
       reason: row.scheduledFor === null
         ? "Плановая дата проставлена: материал готов, а срока у него не было."
-        : "Перенесено на ближний слот площадки: материал готов, а стоял за "
-          + "горизонтом планирования.",
+        : overdue.has(row.id)
+          ? "Перенесено на ближний слот площадки: материал готов, а его плановая "
+            + "дата давно в прошлом — очередь опрашивала строку каждый проход впустую."
+          : "Перенесено на ближний слот площадки: материал готов, а стоял за "
+            + "горизонтом планирования.",
     });
   }
 

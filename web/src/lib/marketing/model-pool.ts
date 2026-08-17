@@ -53,6 +53,66 @@ export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.HUGGINGFACE,
 ] as const;
 
+/**
+ * B712 — ПРЕДПОЧТЕНИЕ ВЛАДЕЛЬЦА, ЗАПИСАННОЕ ПОРЯДКОМ.
+ *
+ * Требование 2026-08-16 дословно: «Я бы поставил в приоритете следующие
+ * провайдеры: Gemini -> Yandex -> OpenAI».
+ *
+ * Голова НЕ вращается: предпочтение обязано соблюдаться на каждом материале.
+ * Вращается середина — бесплатный пул, у которого квоты независимы (B703).
+ *
+ * ⚠ YANDEX ЗДЕСЬ ЧИСЛИТСЯ, НО НЕ РАБОТАЕТ, И ЭТО НЕ ЗАБЫТЫЙ КОД. Проверено на
+ * боевой базе 2026-08-17: ноль credential'ов (в таблице 16 провайдеров, YANDEX
+ * не среди них), ноль моделей в каталоге, ни одного адаптера YandexGPT в
+ * коде. Пока ключа нет, `marketingProviderOrder` его не отдаёт — место
+ * объявлено, обращений в никуда не создаётся. Появится ключ и модель из
+ * каталога — провайдер включится сам.
+ */
+export const MARKETING_PRIORITY_HEAD = [
+  AIProvider.GEMINI,
+  AIProvider.YANDEX,
+] as const;
+
+/**
+ * B712 — платные маршруты. Стоят ПОСЛЕ всего бесплатного пула.
+ *
+ * Порядок внутри списка — тот же, что назвал владелец: Yandex перед OpenAI.
+ *
+ * ⚠ ПОЧЕМУ ПОСЛЕДНИМИ, А НЕ ВТОРЫМИ. Замер прода: у Gemini 15 отказов 429 за
+ * сутки при 60 успехах. Платный провайдер сразу за головой означал бы 15
+ * оплаченных обращений в сутки только на отказах головы — при том что
+ * бесплатный пул из двенадцати провайдеров в этот момент цел. Владелец назвал
+ * OpenAI словом «fallback», и хвост — это ровно оно.
+ */
+export const MARKETING_PAID_PROVIDERS = [
+  AIProvider.YANDEX,
+  AIProvider.OPENAI,
+] as const;
+
+/**
+ * B712 — выключатель платного хвоста. ПО УМОЛЧАНИЮ ВЫКЛЮЧЕН.
+ *
+ * Причина умолчания — не осторожность вообще, а конкретное правило этого
+ * файла: активный пул бесплатен намеренно, «прямой OpenAI остаётся
+ * наблюдаемым, но не создаёт молча платных обращений». Выкатка кода не имеет
+ * права начать тратить деньги: это должно быть отдельным решением владельца,
+ * принятым в тот момент, когда он его принимает, а не побочным эффектом
+ * деплоя.
+ *
+ * ⚠ ПОТОЛКА РАСХОДА В РУБЛЯХ ЗДЕСЬ НЕТ, И ЭТО НЕ ЗАБЫТО. Посчитать рубли можно
+ * только по таблице цен моделей, которой у нас нет; выдуманная таблица дала бы
+ * потолок, которому нельзя верить, — хуже, чем честное его отсутствие.
+ * Ограничитель, который работает уже сейчас: платный провайдер стоит ПОСЛЕДНИМ
+ * и получает обращение, только когда весь бесплатный пул из двенадцати
+ * провайдеров отказал на этом материале.
+ */
+export function marketingPaidFallbackEnabled(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+): boolean {
+  return env.MARKETING_PAID_FALLBACK_ENABLED === "true";
+}
+
 export const MARKETING_MODEL_RELEASE_CUTOFF = "2026-02-28";
 
 /**
@@ -357,16 +417,61 @@ export function marketingProviderOrder(
   seed: string,
   excluded: AIProvider[] = [],
   availableNow: readonly AIProvider[] = [],
+  options: { paidFallback?: boolean } = {},
 ): AIProvider[] {
   const excludedSet = new Set(excluded);
   const availableSet = new Set(availableNow);
-  const available = MARKETING_ACTIVE_PROVIDERS.filter((provider) => {
+  const usable = (provider: AIProvider) => {
     if (excludedSet.has(provider)) return false;
     return availableSet.size === 0 || availableSet.has(provider);
-  });
-  if (available.length < 1) return [];
-  const offset = stableSeed(seed) % available.length;
-  return [...available.slice(offset), ...available.slice(0, offset)];
+  };
+
+  /*
+   * B712 — ГОЛОВА ПО ПРИОРИТЕТУ, СЕРЕДИНА ВРАЩАЕТСЯ, ХВОСТ ПЛАТНЫЙ.
+   *
+   * Голова берётся из `MARKETING_PRIORITY_HEAD` и НЕ участвует во вращении:
+   * владелец назвал предпочтение, и оно обязано соблюдаться на каждом
+   * материале, а не на каждом седьмом.
+   *
+   * Середина вращается как прежде. Это не украшение: у бесплатных провайдеров
+   * квоты независимые, и постоянная голова выжигала бы одну, не трогая
+   * остальные (B703). Вращать надо ровно то, что бесплатно и взаимозаменяемо.
+   */
+  const head = MARKETING_PRIORITY_HEAD.filter(
+    (provider) => MARKETING_ACTIVE_PROVIDERS.includes(provider as never) && usable(provider),
+  );
+  const headSet = new Set<AIProvider>(head);
+  const rotating = MARKETING_ACTIVE_PROVIDERS.filter(
+    (provider) => !headSet.has(provider) && usable(provider),
+  );
+  const spun = rotating.length > 0
+    ? (() => {
+      const offset = stableSeed(seed) % rotating.length;
+      return [...rotating.slice(offset), ...rotating.slice(0, offset)];
+    })()
+    : [];
+
+  /*
+   * ⚠ ПЛАТНЫЙ ХВОСТ ТОЛЬКО ПО ЯВНОМУ РАЗРЕШЕНИЮ И ТОЛЬКО ПОСЛЕДНИМ.
+   *
+   * `MARKETING_ACTIVE_PROVIDERS` бесплатен намеренно: комментарий к нему
+   * говорит прямо, что прямой OpenAI «остаётся наблюдаемым, но не создаёт
+   * молча платных обращений». Разрешение приходит параметром, а не
+   * умолчанием, и платный провайдер стоит ПОСЛЕ всего бесплатного пула:
+   * тогда деньги тратятся, только когда бесплатной ёмкости не осталось
+   * вовсе, а не на каждом 429 у головы.
+   *
+   * Провайдер без ключа сюда не попадает: `availableNow` его отсечёт, а при
+   * пустом `availableNow` — отсутствие credential'а в базе. Поэтому YANDEX
+   * может стоять в списке до того, как он подключён, и это не создаёт
+   * обращений в никуда.
+   */
+  const paid = options.paidFallback
+    ? MARKETING_PAID_PROVIDERS.filter((provider) => usable(provider)
+      && (availableSet.size === 0 ? provider !== AIProvider.YANDEX : true))
+    : [];
+
+  return [...head, ...spun, ...paid];
 }
 
 export function marketingProviderFromLabel(label: string): AIProvider | null {

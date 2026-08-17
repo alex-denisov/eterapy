@@ -77,12 +77,37 @@ describe("B699 · очередь обхода не стучится в осты�
       .toEqual([AIProvider.MISTRAL]);
   });
 
-  it("вращение первого выбора сохраняется внутри доступных", () => {
+  /**
+   * B712 сдвинул это правило, не отменив его защиту.
+   *
+   * Было: вращался ПЕРВЫЙ выбор. Стало: голову задаёт приоритет владельца
+   * (Gemini), а вращается всё, что за ней. Защита B699 от неравномерного
+   * выжигания квот при этом обязана остаться живой — постоянная голова у
+   * ВСЕГО пула выжигала бы одного провайдера, не трогая остальных.
+   *
+   * Поэтому проверяется два свойства сразу: голова стоит там, где её назвал
+   * владелец, и вращение никуда не делось — оно переехало в хвост.
+   */
+  it("голова задана приоритетом, а вращение сохраняется за ней", () => {
     const available = [AIProvider.GROQ, AIProvider.GEMINI, AIProvider.MISTRAL];
-    const seeds = ["a", "b", "c", "d", "e", "f"].map(
+    const orders = ["a", "b", "c", "d", "e", "f"].map(
+      (seed) => marketingProviderOrder(seed, [], available),
+    );
+    for (const order of orders) {
+      expect(order[0]).toBe(AIProvider.GEMINI);
+      for (const provider of order) expect(available).toContain(provider);
+    }
+    // Хвост за головой продолжает вращаться между материалами.
+    expect(new Set(orders.map((order) => order.slice(1).join(",")))
+      .size).toBeGreaterThan(1);
+  });
+
+  it("без приоритетной головы первый выбор снова вращается", () => {
+    const available = [AIProvider.GROQ, AIProvider.MISTRAL, AIProvider.NVIDIA];
+    const firsts = ["a", "b", "c", "d", "e", "f"].map(
       (seed) => marketingProviderOrder(seed, [], available)[0],
     );
-    expect(new Set(seeds).size).toBeGreaterThan(1);
-    for (const order of seeds) expect(available).toContain(order);
+    expect(new Set(firsts).size).toBeGreaterThan(1);
+    for (const provider of firsts) expect(available).toContain(provider);
   });
 });
