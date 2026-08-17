@@ -73,7 +73,19 @@ export interface QueueRow {
 
 export type QueueHygieneAction =
   | { kind: "schedule"; id: string; scheduledFor: Date; planSlot: string; reason: string }
-  | { kind: "retire"; id: string; reason: string }
+  /**
+   * B713 §4a — `releaseSlot` отпускает `planSlot` вместе со снятием.
+   *
+   * Ставится ТОЛЬКО когда строку снимают за отсутствие слота в плане: такая
+   * строка никогда не была законным владельцем ключа, а `plan_slot` уникален,
+   * и удержание ключа мёртвой строкой закрывает слот навсегда. Ровно это
+   * обнулило правку темпа Telegram: вечерний слот вернулся в план, но все
+   * десять дат горизонта держали снятые строки.
+   *
+   * Материал, умерший по существу (решение редактора, safety), слот держит:
+   * право на перевыпуск там считает бюджет поколений B643, а не этот сторож.
+   */
+  | { kind: "retire"; id: string; reason: string; releaseSlot?: boolean }
   | { kind: "expireModeration"; id: string; reason: string }
   | { kind: "alignPublished"; id: string; scheduledFor: Date; reason: string };
 
@@ -224,6 +236,9 @@ export function planQueueHygiene(input: {
           + "считала его готовым к работе в каждом проходе."
         : "Слот снят из контент-плана (B705 §19: горизонт и темп площадки), "
           + "текста на складе нет — снимать нечего.",
+      // B713 §4a: ключ снятого слота обязан вернуться в оборот. Иначе слот,
+      // вернувшийся в план (как вечерний Telegram), останется закрыт навсегда.
+      releaseSlot: true,
     });
   }
 
@@ -340,7 +355,15 @@ export async function runQueueHygiene(input: {
       } else if (action.kind === "retire") {
         await db.externalPublication.update({
           where: { id: action.id },
-          data: { status: "ARCHIVED", autoPublish: false, archiveReason: action.reason },
+          data: {
+            status: "ARCHIVED",
+            autoPublish: false,
+            archiveReason: action.reason,
+            // B713 §4a: ключ уникален, и мёртвая строка, снятая ЗА ОТСУТСТВИЕ
+            // слота, закрывала бы этот слот навсегда. `undefined` в Prisma —
+            // «не трогать поле», поэтому остальные снятия слот сохраняют.
+            planSlot: action.releaseSlot ? null : undefined,
+          },
         });
         counts.retired += 1;
       } else if (action.kind === "expireModeration") {
