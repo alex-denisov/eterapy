@@ -55,20 +55,57 @@ export const MARKETING_ACTIVE_PROVIDERS = [
 
 export const MARKETING_MODEL_RELEASE_CUTOFF = "2026-02-28";
 
+/**
+ * B713 §7 — СИЛЬНАЯ МОДЕЛЬ ДОСТАЁТСЯ ТОМУ, КТО ПИШЕТ.
+ *
+ * Замер прода 14.08 → 17.08 (`ai_attempts`, только маркетинговые обращения)
+ * показал перевёрнутое распределение: флагманы пула стояли на РЕДАКТОРЕ,
+ * который лишь выносит суждение, а автор — от которого зависит текст — работал
+ * на самых слабых и наименее надёжных моделях.
+ *
+ *   nemotron-3-super-120b:free  89 успехов / 0 отказов — был у редактора
+ *   mistral-medium-2604         41 / 0                 — был у редактора
+ *   nemotron-3-ultra-free       27 / 2                 — был у редактора
+ *   nemotron-3-ultra-550b:free  18 / 1                 — был у редактора
+ *   gemma-4-31b-it:free          0 / 1                 — БЫЛ У АВТОРА
+ *   deepseek-v4-flash-free       0 / 4                 — БЫЛ У АВТОРА
+ *   qwen3.6-27b                 38 / 37                — у автора, он и выдал
+ *                                                        утёкший <think>
+ *
+ * У трёх провайдеров модель автора была МЕРТВА при живой модели редактора:
+ * каждое обращение автора туда — гарантированно потраченная попытка из бюджета
+ * материала, то есть тот же дефект, что B703 нашёл у Hugging Face, только
+ * дешевле не становится от того, что он молчаливый.
+ *
+ * ⚠ ПОЧЕМУ НЕ ПРОСТО «ПОМЕНЯТЬ МЕСТАМИ ВЕЗДЕ». Там, где модель редактора тоже
+ * мертва, менять нечего: провайдер отдаёт автору свою единственную живую
+ * модель и честно становится ОДНОМОДЕЛЬНЫМ — обе роли смотрят в одну строку,
+ * и `marketingProvidersWithSingleModel()` объявляет это само. Придумать
+ * вторую модель нельзя: выдуманное имя — это 404 в бою (B703).
+ *
+ * ⚠ GEMINI НЕ ТРОГАЕМ. У автора там `3.6-flash` — она новее редакторской
+ * `3.5-flash`, то есть роли уже расставлены верно. Перестановка «ради
+ * симметрии» отдала бы автору модель постарше.
+ */
 export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, string>> = {
-  [AIProvider.OPENROUTER]: "google/gemma-4-31b-it:free",
+  // 89/0 — сильнейшая живая модель пула. Вторая модель OpenRouter в замере
+  // мертва (0/1), поэтому провайдер становится одномодельным.
+  [AIProvider.OPENROUTER]: "nvidia/nemotron-3-super-120b-a12b:free",
   [AIProvider.GEMINI]: "gemini-3.6-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
-  [AIProvider.MISTRAL]: "mistral-small-2603",
+  // 41/0 против 3/0 у small: обе живы, роли меняются местами.
+  [AIProvider.MISTRAL]: "mistral-medium-2604",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
   // B703 — модели, ответившие боевым ключом при НУЛЕВОМ балансе (проба
   // 2026-08-11). У SambaNova и TokenRouter бесплатная модель одна на обе роли:
   // вторая отвечает 402/403. Их одиночество объявляет
   // `marketingProvidersWithSingleModel()`, а не молчание.
-  [AIProvider.KILOCODE]: "nvidia/nemotron-3.5-lightning:free",
+  // 18/1 (ultra-550b) против 9/0 (lightning): обе живы, роли меняются местами.
+  [AIProvider.KILOCODE]: "nvidia/nemotron-3-ultra-550b-a55b:free",
   [AIProvider.NVIDIA]: "nvidia/nemotron-3-super-120b-a12b",
-  [AIProvider.OPENCODE_ZEN]: "deepseek-v4-flash-free",
+  // 27/2 против 0/4 у deepseek: провайдер становится одномодельным.
+  [AIProvider.OPENCODE_ZEN]: "nemotron-3-ultra-free",
   [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
   [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
   [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-AWQ-4bit",
@@ -88,22 +125,24 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
  * одиночество честно объявляется через `marketingProvidersWithSingleModel`.
  */
 export const MARKETING_REVIEWER_MODEL_PREFERENCES: Partial<Record<AIProvider, string>> = {
+  // B713: обе роли смотрят в одну модель — вторая (gemma-4-31b-it:free) в
+  // замере 14–17.08 дала 0 успехов. Провайдер одномодельный, и это объявлено.
   [AIProvider.OPENROUTER]: "nvidia/nemotron-3-super-120b-a12b:free",
   [AIProvider.GEMINI]: "gemini-3.5-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
-  [AIProvider.MISTRAL]: "mistral-medium-2604",
+  [AIProvider.MISTRAL]: "mistral-small-2603",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
   // B703. У Hugging Face бесплатны ровно две модели — обе `Ternary-Bonsai-27B`
-  // с ценой входа $0, разной сборки; на них и разводятся роли. Признака
-  // `is_free` у HF нет ни у одной из 129 моделей, поэтому фильтр по флагу
-  // объявил бы провайдера негодным — отбирали по ЦЕНЕ.
-  [AIProvider.KILOCODE]: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  // с ценой входа $0, разной сборки; на них и разводились роли. B713: сборка
+  // `-gguf` в замере дала 0 успехов при 4 отказах, поэтому вторая роль уходит
+  // на живую сборку, а провайдер становится одномодельным.
+  [AIProvider.KILOCODE]: "nvidia/nemotron-3.5-lightning:free",
   [AIProvider.NVIDIA]: "nvidia/nemotron-3.5-lightning-30b-a3b",
   [AIProvider.OPENCODE_ZEN]: "nemotron-3-ultra-free",
   [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
   [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
-  [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-gguf",
+  [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-AWQ-4bit",
 };
 
 const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {

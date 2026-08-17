@@ -76,8 +76,12 @@ describe("B705 — темп считается от календарных су�
     expect(reddit).toHaveLength(2);
   });
 
-  it("суточный объём флота остаётся в границах 5–8 материалов", () => {
+  it("суточный объём флота остаётся в границах 5–9 материалов", () => {
     // §9: конвейер давал такт на 24 материала в сутки — втрое больше, чем нужно.
+    // B713: верхняя граница 8 → 9. Владелец 2026-08-17 вернул Telegram третий
+    // слот в сутки, потому что окна публикации знали о нём, а план — нет, и
+    // строка снималась каждые сутки. Потолок сдвинут ОСОЗНАННО вместе с темпом:
+    // оставить 8 значило бы, что план не помещается в собственную проверку.
     const perDay = new Map<string, number>();
     for (const slot of contentPlanFor(NOW)) {
       const date = slot.scheduledAt.slice(0, 10);
@@ -87,34 +91,38 @@ describe("B705 — темп считается от календарных су�
     const firstWeek = [...perDay.entries()].sort().slice(0, 7).map(([, count]) => count);
     for (const count of firstWeek) {
       expect(count).toBeGreaterThanOrEqual(5);
-      expect(count).toBeLessThanOrEqual(8);
+      expect(count).toBeLessThanOrEqual(9);
     }
   });
 });
 
-describe("B705 — 30% слотов быстрых лент держатся под реактив", () => {
-  it("резерв есть у быстрых лент и отсутствует у длинных форматов", () => {
+/**
+ * B713 выключил резерв решением владельца 2026-08-17: доля 30% → 0.
+ *
+ * Причина не в механизме, а в том, что его нечем питать. За 03.08–17.08
+ * реактивный контур не дал ни одного материала, и каждая третья возможность
+ * выпуска у быстрых лент просто пропадала — при жалобе владельца «постов стало
+ * реже». Механизм оставлен в коде: вернуть его — правка одного числа.
+ *
+ * Прогоны ниже сторожат ИМЕННО ЭТО состояние, а не отсутствие механизма: они
+ * упадут и когда резерв вернётся молча, и когда `reactivePlanSlots` начнёт
+ * отдавать слоты при нулевой доле.
+ */
+describe("B713 — резерв быстрых лент выключен до появления реактивного потока", () => {
+  it("резерва нет ни у одной ленты", () => {
     const plan = contentPlanFor(NOW);
-    const fast = plan.filter((slot) => ["telegram", "threads", "vk", "instagram"].includes(slot.channel));
-    const reserved = fast.filter((slot) => slot.reserve === "reactive");
-    const share = reserved.length / fast.length;
-    expect(share).toBeGreaterThan(0.2);
-    expect(share).toBeLessThan(0.4);
-
-    for (const slot of plan.filter((entry) => entry.channel === "dzen" || entry.channel === "reddit")) {
-      expect(slot.reserve).toBe("planned");
-    }
+    expect(plan.length).toBeGreaterThan(0);
+    expect(plan.every((slot) => slot.reserve === "planned")).toBe(true);
   });
 
-  it("плановый проход не занимает резерв, а реактивный видит только его", () => {
+  it("плановый проход видит весь план, реактивный — пустоту", () => {
     const plan = contentPlanFor(NOW);
     const planned = nextPlanSlots([], plan.length, plan);
     expect(planned.every((slot) => slot.reserve === "planned")).toBe(true);
 
     const reactive = reactivePlanSlots([], plan);
-    expect(reactive.length).toBeGreaterThan(0);
-    expect(reactive.every((slot) => slot.reserve === "reactive")).toBe(true);
-    expect(planned.length + reactive.length).toBe(plan.length);
+    expect(reactive).toHaveLength(0);
+    expect(planned.length).toBe(plan.length);
   });
 
   it("резерв детерминирован: тот же слот резервируется при каждом пересчёте", () => {

@@ -193,7 +193,20 @@ describe("B700 фаза 6 · исчерпанный круг правки не �
     expect(failed!.agentReviewedAt).toBeInstanceOf(Date);
   });
 
-  it("пожизненные круги исчерпаны — материал уходит в брак честно", async () => {
+  /**
+   * B713 §3 изменил исход этой ветки по решению владельца 2026-08-17.
+   *
+   * Было: пожизненные круги кончились → материал в брак. Замер прода
+   * 03.08–17.08 показал цену такого исхода — 21 смерть там, где редактор
+   * возражал по одному пункту и сам признавал остальное годным («превышение
+   * лимита на 48 символов не устранено, остальные параметры соответствуют
+   * требованиям»).
+   *
+   * Стало: выпускается ЛУЧШИЙ из написанных черновиков, а владелец узнаёт об
+   * этом пометкой. Брак остаётся ровно там, где выпускать нечего или нельзя, —
+   * приговор `REJECT`, флаг безопасности, пустой текст.
+   */
+  it("пожизненные круги исчерпаны — выпускается лучший черновик, а не брак", async () => {
     answerWith("REVISE");
     findUnique.mockResolvedValue({
       ...PLANNED_ROW,
@@ -205,6 +218,31 @@ describe("B700 фаза 6 · исчерпанный круг правки не �
         iterationHistory: [],
         previousDraft: JSON.parse(WRITER_ANSWER),
         previousReview: JSON.parse(reviewerAnswer("REVISE")),
+        pending: null,
+      },
+      agentWrittenAt: new Date("2026-08-11T04:00:00.000Z"),
+    });
+
+    const result = await processMarketingDraft("pub-1");
+
+    expect(result.status).toBe("scheduled");
+    expect(writes().some((data) => data.status === "FAILED")).toBe(false);
+    // Материал обязан нести на себе, что круги не сошлись, а кончились.
+    const released = writes().find((data) => data.status === "SCHEDULED");
+    expect(String(released?.lastError)).toContain("без полного одобрения");
+  });
+
+  it("приговор REJECT остаётся браком и после исчерпания кругов", async () => {
+    answerWith("REJECT");
+    findUnique.mockResolvedValue({
+      ...PLANNED_ROW,
+      agentWriterDraft: {
+        round: 1,
+        lifetimeRounds: 6,
+        research: { facts: [] },
+        iterationHistory: [],
+        previousDraft: JSON.parse(WRITER_ANSWER),
+        previousReview: JSON.parse(reviewerAnswer("REJECT")),
         pending: null,
       },
       agentWrittenAt: new Date("2026-08-11T04:00:00.000Z"),

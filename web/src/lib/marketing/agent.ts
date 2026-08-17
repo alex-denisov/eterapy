@@ -67,6 +67,7 @@ import {
 import { inspectDraft } from "@/lib/marketing/draft-inspection";
 import { reconcileReviewWithMachine } from "@/lib/marketing/review-machine-authority";
 import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
+import { pickBestDraft } from "@/lib/marketing/best-draft";
 import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
@@ -1310,6 +1311,17 @@ export async function processMarketingDraft(publicationId: string) {
     const research = carried?.research ?? await buildMarketingResearchBrief(publication);
     const iterationHistory: EditorialIteration[] = carried ? [...carried.iterationHistory] : [];
     let approvedDraft: WriterOutput | null = null;
+    /**
+     * B713 §3 — заполняется, только когда материал выпущен БЕЗ полного
+     * одобрения редактора. Владелец узнаёт об этом карточкой в маркетинговом
+     * канале: «вышло с оставшимися замечаниями» и «вышло одобренным» не имеют
+     * права выглядеть одинаково.
+     */
+    let releasedWithoutApproval: {
+      round: number;
+      score: number;
+      outstandingIssues: string[];
+    } | null = null;
     let lastWriter: RoleStamp | null = carried?.pending?.writer
       ?? carried?.iterationHistory.at(-1)?.writer
       ?? null;
@@ -1631,6 +1643,56 @@ export async function processMarketingDraft(publicationId: string) {
         });
         return { status: "revising" as const };
       }
+
+      /**
+       * B713 §3 — ПОСЛЕДНИЙ КРУГ ВЫПУСКАЕТ ЛУЧШЕЕ, А НЕ ХОРОНИТ ВСЁ.
+       *
+       * Замер прода 03.08–17.08: 21 материал умер там, где редактор возражал по
+       * ОДНОМУ пункту и сам признавал остальное годным — «превышение лимита на
+       * 48 символов не устранено, остальные параметры соответствуют
+       * требованиям». Материал при этом уже стоил кругов автора и редактора.
+       *
+       * Решение владельца 2026-08-17: выпускать лучший из написанных
+       * черновиков, а в маркетинговый канал слать пометку, что материал вышел
+       * без полного одобрения и с какими замечаниями.
+       *
+       * ⚠ ГРАНИЦА НЕ СДВИНУТА ТАМ, ГДЕ ОНА ПРО БЕЗОПАСНОСТЬ. `pickBestDraft`
+       * не отдаёт кандидата с приговором `REJECT`, с флагом безопасности и с
+       * пустым текстом: «доделать» и «негодно» — разные вердикты, и подменять
+       * второй первым нельзя. Плюс на границе наружу стоит рубеж выпуска
+       * (B713 §1), который не пропустит не-пост, чем бы его ни одобрили.
+       */
+      const fallback = pickBestDraft(iterationHistory.map((iteration) => ({
+        round: iteration.round,
+        text: iteration.candidate.text ?? "",
+        scores: iteration.review?.scores,
+        decision: iteration.review?.decision ?? "REVISE",
+        safetyFlags: iteration.candidate.safetyFlags ?? [],
+        issues: iteration.review?.issues ?? [],
+      })));
+      if (fallback) {
+        const chosen = iterationHistory.find((iteration) => iteration.round === fallback.round);
+        if (chosen) {
+          approvedDraft = chosen.candidate;
+          lastWriter = { provider: chosen.writer.provider, model: chosen.writer.model } as typeof lastWriter;
+          lastReviewer = { provider: chosen.reviewer.provider, model: chosen.reviewer.model } as typeof lastReviewer;
+          releasedWithoutApproval = {
+            round: fallback.round,
+            score: fallback.score,
+            outstandingIssues: fallback.outstandingIssues,
+          };
+          log.warn("marketing.agent_released_without_approval", {
+            publicationId: publication.id,
+            round: fallback.round,
+            score: fallback.score,
+            issues: fallback.outstandingIssues.length,
+          });
+        }
+      }
+    }
+
+    if (!approvedDraft || !lastWriter || !lastReviewer) {
+      const lastReview = iterationHistory.at(-1)?.review;
       await db.externalPublication.update({
         where: { id: publication.id },
         data: {
@@ -1670,7 +1732,14 @@ export async function processMarketingDraft(publicationId: string) {
         // дороги наружу у неё нет, и признак должен говорить это прямо.
         autoPublish: !isConversational && nextStatus === "SCHEDULED",
         attemptCount: { increment: 1 },
-        lastError: null,
+        // B713 §3: материал, вышедший без полного одобрения, обязан нести это
+        // на себе. Пустая `lastError` у такого материала означала бы, что круги
+        // сошлись, — а они не сошлись, просто кончились.
+        lastError: releasedWithoutApproval
+          ? `Выпущен без полного одобрения редактора (лучший круг ${releasedWithoutApproval.round}, `
+            + `сумма оценок ${releasedWithoutApproval.score}). Осталось неустранённым: `
+            + `${releasedWithoutApproval.outstandingIssues.join("; ") || "замечания в истории раундов"}`
+          : null,
         agentWriterProvider: lastWriter.provider,
         agentWriterModel: lastWriter.model,
         agentReviewerProvider: lastReviewer.provider,

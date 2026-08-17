@@ -45,6 +45,7 @@ import {
   marketingPlatformValue,
   requiredMarketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
+import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -701,9 +702,15 @@ export interface PublishScheduledResult {
   heldPlatforms: string[];
   /** B645: строки, переехавшие в следующий слот вместо выпуска задним числом. */
   deferred: number;
+  /**
+   * B713: строки, которые рубеж выпуска вернул на склад. Считаются отдельно от
+   * `failed` намеренно — это не брак материала, а брак ответа модели, и в
+   * сводке эти два числа отвечают на разные вопросы.
+   */
+  returned: number;
   outcomes: Array<{
     id: string;
-    status: "published" | "failed" | "held" | "deferred";
+    status: "published" | "failed" | "held" | "deferred" | "returned";
     error?: string;
     slot?: string;
   }>;
@@ -885,6 +892,41 @@ export async function publishScheduledMarketing(input: {
       continue;
     }
 
+    /**
+     * B713 §1 — РУБЕЖ ПЕРЕД ОТПРАВКОЙ НАРУЖУ.
+     *
+     * Страж B705 стоит на разборе ответа автора и проверяет то, что вернула
+     * модель. Здесь проверяется то, что РЕАЛЬНО УЙДЁТ на площадку, и разница
+     * между этими двумя точками стоила бренду поста `t.me/eterapy/19`:
+     * материал одобрили 16.08 в 01:04 UTC, страж поднялся в 12:43 UTC, лог
+     * рассуждений ушёл в канал 17.08. Правило, появившееся позже одобрения,
+     * не действует на склад одобренного — и так будет с КАЖДЫМ следующим
+     * правилом, пока рубеж не стоит на самой границе.
+     *
+     * ⚠ ОТКАЗ ЗДЕСЬ — НЕ БРАК МАТЕРИАЛА, а брак текста, который написала
+     * модель. Строка возвращается на склад (`DRAFT`), попытка ей не
+     * засчитывается: тема и план ни при чём, судить их не за что (B695).
+     * Проверка идёт ДО claim именно поэтому — claim увеличивает `attemptCount`.
+     */
+    const notAPost = rejectNonPostWriterOutput(publication.body ?? "");
+    if (notAPost) {
+      await db.externalPublication.updateMany({
+        where: { id: publication.id, status: "SCHEDULED" },
+        data: {
+          status: "DRAFT",
+          lastError: `Рубеж выпуска не пропустил текст (${notAPost.rule}): ${notAPost.reason}. `
+            + "Материал возвращён на склад — виноват ответ модели, а не тема.",
+        },
+      });
+      log.warn("marketing.publish_gate_rejected_body", {
+        publicationId: publication.id,
+        platform: publication.platform,
+        rule: notAPost.rule,
+      });
+      outcomes.push({ id: publication.id, status: "returned", error: notAPost.rule });
+      continue;
+    }
+
     // Claim before the external call. A second worker cannot publish the same
     // row while the first one is waiting for the platform.
     const claimed = await db.externalPublication.updateMany({
@@ -1062,6 +1104,7 @@ export async function publishScheduledMarketing(input: {
     held: outcomes.filter((item) => item.status === "held").length,
     heldPlatforms: [...holds.keys()],
     deferred: outcomes.filter((item) => item.status === "deferred").length,
+    returned: outcomes.filter((item) => item.status === "returned").length,
     outcomes,
   };
 }

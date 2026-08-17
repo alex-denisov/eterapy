@@ -66,12 +66,22 @@ describe("B699 · выживший в одиночку Mistral снова год
   it("одномодельные провайдеры перечислены явно", () => {
     // B703 — список пополнили SambaNova и TokenRouter: у обоих на бесплатном
     // тарифе ОДНА модель, вторая отвечает 402/403 при нулевом балансе.
+    //
+    // B713 — список пополнили ещё трое, и по той же причине, только выявленной
+    // замером, а не пробой: у OpenRouter (`gemma-4-31b-it:free`), OpenCode Zen
+    // (`deepseek-v4-flash-free`) и Hugging Face (сборка `-gguf`) вторая модель
+    // за 72 часа боевой работы дала НОЛЬ успехов. Числиться двумодельным на
+    // мёртвой модели дороже, чем честно объявить одну: конвейер иначе отправляет
+    // половину обращений в стену и списывает их из бюджета материала.
     expect(marketingProvidersWithSingleModel()).toEqual([
+      AIProvider.OPENROUTER,
       AIProvider.CEREBRAS,
       AIProvider.GROQ,
       AIProvider.COHERE,
+      AIProvider.OPENCODE_ZEN,
       AIProvider.TOKENROUTER,
       AIProvider.SAMBANOVA,
+      AIProvider.HUGGINGFACE,
     ]);
   });
 });

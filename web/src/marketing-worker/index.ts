@@ -32,6 +32,10 @@ import {
   captureMarketingDailySnapshot,
   marketingSnapshotDue,
 } from "@/lib/marketing/daily-snapshot";
+import {
+  collectConveyorShortfall,
+  notifyShortfall,
+} from "@/lib/marketing/shortfall-notification";
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
@@ -162,6 +166,14 @@ async function main() {
         lastSnapshotCheck = now;
         if (await marketingSnapshotDue(new Date(now)).catch(() => false)) {
           await guarded("daily-snapshot", () => captureMarketingDailySnapshot({ now: new Date(now) }));
+          // B713 §5: на том же суточном такте владелец узнаёт, чего конвейеру
+          // не хватило. Замер 17.08: 198 смертей материалов за две недели дали
+          // ноль сообщений в канал, и молчащий конвейер выглядел как
+          // работающий. Сводка идёт ПОСЛЕ снимка и своим `guarded`: её отказ не
+          // имеет права утянуть за собой суточный срез.
+          await guarded("shortfall-notice", async () => {
+            await notifyShortfall(await collectConveyorShortfall(new Date(now)));
+          });
         }
       }
       if (now - lastUrlAudit >= 6 * 60 * 60_000) {

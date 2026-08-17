@@ -175,15 +175,31 @@ describe("B703 · пул SMM", () => {
     expect(MARKETING_ACTIVE_PROVIDERS.length).toBe(12);
   });
 
+  /**
+   * B713 сократил этот список с четырёх до двух, и это НЕ регрессия.
+   *
+   * Замер прода 14–17.08 показал, что вторая модель у OpenCode Zen
+   * (`deepseek-v4-flash-free`) и у Hugging Face (сборка `-gguf`) даёт НОЛЬ
+   * успехов при 4 отказах у каждой. Разведение ролей на мёртвой модели —
+   * разведение только на бумаге: в бою вторая роль там не отвечает вовсе.
+   * Провайдер, честно объявленный одномодельным, стоит дешевле провайдера,
+   * который числится полным и молча теряет каждое второе обращение.
+   */
   it.each([
     AIProvider.KILOCODE,
     AIProvider.NVIDIA,
-    AIProvider.OPENCODE_ZEN,
-    AIProvider.HUGGINGFACE,
   ])("%s в одиночку тянет конвейер: автор и редактор — разные модели", (provider) => {
     expect(marketingPoolCanSeparateRoles([provider])).toBe(true);
     expect(MARKETING_WRITER_MODEL_PREFERENCES[provider])
       .not.toBe(MARKETING_REVIEWER_MODEL_PREFERENCES[provider]);
+  });
+
+  it.each([
+    AIProvider.OPENCODE_ZEN,
+    AIProvider.HUGGINGFACE,
+    AIProvider.OPENROUTER,
+  ])("%s одномодельный: вторая модель в замере мертва", (provider) => {
+    expect(marketingProvidersWithSingleModel()).toContain(provider);
   });
 
   it("SambaNova и TokenRouter названы одномодельными вслух, а не молчат", () => {
