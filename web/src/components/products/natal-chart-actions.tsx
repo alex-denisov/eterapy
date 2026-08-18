@@ -266,6 +266,9 @@ export function NatalChartActions({ creditCost }: { creditCost: number }) {
             <Button
               type="button"
               variant="outline"
+              // B717: без класса soft-* кнопка красится вариантом shadcn —
+              // text-foreground = #f8fafc, то есть белым по бумаге.
+              className="soft-button soft-button-ghost"
               onClick={() => void calculatePreview()}
               disabled={previewLoading || status === "loading"}
               data-testid="natal-preview-start"

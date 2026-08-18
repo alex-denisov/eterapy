@@ -610,6 +610,9 @@ export function SymbolicProductActions({
             <Button
               type="button"
               variant="outline"
+              // B717: без класса soft-* кнопка красится вариантом shadcn —
+              // text-foreground = #f8fafc, то есть белым по бумаге.
+              className="soft-button soft-button-ghost"
               onClick={() => void calculateTarotPreview()}
               disabled={previewLoading || status === "loading"}
               data-testid="tarot-preview-start"

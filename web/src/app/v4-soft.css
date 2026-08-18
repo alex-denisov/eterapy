@@ -61,6 +61,13 @@
 
   .soft-clarity-page {
     position: relative;
+    /* B717: страница светлая, а токен --foreground приходит с :root тёмной
+       темы (#f8fafc). Утилита `text-foreground` — а её приносит любой вариант
+       shadcn-кнопки — красила текст белым по бумаге. Оболочки
+       .soft-app-shell / .soft-admin-shell перекрывали токен давно (см. ниже),
+       публичные страницы остались без перекрытия: так «Рассчитать колесо
+       бесплатно» уехало на прод контрастом 1.06:1. */
+    --foreground: var(--soft-ink);
     background:
       radial-gradient(circle at 12% 18%, rgba(214, 117, 88, 0.08), transparent 34rem),
       radial-gradient(circle at 88% 82%, rgba(168, 155, 201, 0.1), transparent 38rem),
@@ -253,25 +260,33 @@
     background: color-mix(in srgb, var(--soft-bordeaux) 86%, black) !important;
   }
 
+  /* B717: `!important` здесь по той же причине, что и у .soft-button-primary
+     выше. Эти правила живут в @layer components, а варианты shadcn-кнопки
+     (`variant="outline"` и т.п.) — это утилиты Tailwind (@layer utilities),
+     которые в каскаде идут ПОЗЖЕ. Без !important сочетание
+     `<Button variant="outline" className="soft-button soft-button-ghost">`
+     красилось утилитой `text-foreground` = #f8fafc — белый текст на бумаге
+     #fffcf5, контраст 1.06:1. Так выглядели «Назад» в анкете практика и обе
+     кнопки аварийных экранов диалога. */
   .soft-button-ghost {
-    border-color: rgba(92, 42, 44, 0.18);
-    background: transparent;
-    color: var(--soft-bordeaux);
+    border-color: rgba(92, 42, 44, 0.18) !important;
+    background: transparent !important;
+    color: var(--soft-bordeaux) !important;
   }
 
   .soft-button-ghost:hover {
-    border-color: rgba(92, 42, 44, 0.32);
-    background: rgba(92, 42, 44, 0.05);
+    border-color: rgba(92, 42, 44, 0.32) !important;
+    background: rgba(92, 42, 44, 0.05) !important;
   }
 
   .soft-button-soft {
-    background: var(--soft-paper-deep);
-    color: var(--soft-bordeaux);
-    border-color: var(--soft-paper-edge);
+    background: var(--soft-paper-deep) !important;
+    color: var(--soft-bordeaux) !important;
+    border-color: var(--soft-paper-edge) !important;
   }
 
   .soft-button-soft:hover {
-    background: var(--soft-apricot);
+    background: var(--soft-apricot) !important;
   }
 
   .soft-button-lg {
