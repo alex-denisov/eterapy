@@ -71,12 +71,14 @@ describe("AI task taxonomy and default routing policy", () => {
       // Перечисление их здесь строкой уже однажды разошлось с кодом.
       if (isPublicMarketingAIFeature(policy.feature)) {
         expect(policy.providerOrder).not.toContain(AIProvider.YANDEX);
+        // B719 — Cerebras выведен из активного пула (0 успехов, все HTTP_402).
         expect(policy.providerOrder).toEqual(expect.arrayContaining([
           AIProvider.OPENROUTER,
           AIProvider.GEMINI,
-          AIProvider.CEREBRAS,
+          AIProvider.MISTRAL,
           AIProvider.GROQ,
         ]));
+        expect(policy.providerOrder).not.toContain(AIProvider.CEREBRAS);
         expect(policy.modelPreferences ?? {}).toEqual(marketingModelPreferences(policy.feature));
         continue;
       }

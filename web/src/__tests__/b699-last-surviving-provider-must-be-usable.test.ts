@@ -73,13 +73,13 @@ describe("B699 · выживший в одиночку Mistral снова год
     // за 72 часа боевой работы дала НОЛЬ успехов. Числиться двумодельным на
     // мёртвой модели дороже, чем честно объявить одну: конвейер иначе отправляет
     // половину обращений в стену и списывает их из бюджета материала.
+    // B719 — из списка ушли Cerebras, Cohere и TokenRouter: не потому что у
+    // них появилась вторая модель, а потому что они выведены из активного
+    // пула целиком (0 успехов за всю сохранённую историю обращений).
     expect(marketingProvidersWithSingleModel()).toEqual([
       AIProvider.OPENROUTER,
-      AIProvider.CEREBRAS,
       AIProvider.GROQ,
-      AIProvider.COHERE,
       AIProvider.OPENCODE_ZEN,
-      AIProvider.TOKENROUTER,
       AIProvider.SAMBANOVA,
       AIProvider.HUGGINGFACE,
     ]);
@@ -113,6 +113,8 @@ describe("B699 · роли разводятся до вызова автора, 
   });
 
   it("одномодельный провайдер вместе с любым другим роли разводит", () => {
-    expect(marketingPoolCanSeparateRoles([AIProvider.GROQ, AIProvider.CEREBRAS])).toBe(true);
+    // B719: Cerebras выведен из активного пула, поэтому пара берётся из живых
+    // одномодельных — суть проверки та же.
+    expect(marketingPoolCanSeparateRoles([AIProvider.GROQ, AIProvider.SAMBANOVA])).toBe(true);
   });
 });

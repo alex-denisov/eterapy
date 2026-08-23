@@ -19,6 +19,7 @@
 import { approvedLibraryEntries } from "@/data/anonymous-library";
 import type { ContentPlanSlot } from "@/lib/marketing/content-plan";
 import { libraryStartParam, telegramDeepLink } from "@/lib/share";
+import { compactMarketingUrl } from "@/lib/marketing/link-presentation";
 
 export interface GeneratedPost {
   title: string;
@@ -29,7 +30,14 @@ export interface GeneratedPost {
 
 const SITE = "https://eterapy.com";
 
-/** UTM канала. `medium=social` у обоих: это одна и та же природа трафика. */
+/**
+ * UTM канала. `medium=social` у обоих: это одна и та же природа трафика.
+ *
+ * B719 — `content` здесь остаётся, потому что реестр хранит его отдельным
+ * полем и по нему строится сводка. В АДРЕС он больше не попадает: там он
+ * дословно повторял слаг из пути и стоил половины хвоста — см.
+ * `compactMarketingUrl`.
+ */
 function utmFor(slot: ContentPlanSlot) {
   return {
     source: slot.channel,
@@ -47,7 +55,7 @@ export function destinationUrlFor(slot: ContentPlanSlot): string {
     utm_campaign: utm.campaign,
     utm_content: utm.content,
   });
-  const webUrl = `${SITE}/library/${slot.articleSlug}?${query.toString()}`;
+  const webUrl = compactMarketingUrl(`${SITE}/library/${slot.articleSlug}?${query.toString()}`);
   return slot.channel === "telegram"
     ? telegramDeepLink(libraryStartParam(slot.articleSlug), webUrl)
     : webUrl;

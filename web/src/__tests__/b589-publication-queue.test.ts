@@ -103,7 +103,22 @@ describe("B589 · генератор поста", () => {
     const url = new URL(destinationUrlFor(slot));
     expect(url.searchParams.get("utm_source")).toBe(slot.channel);
     expect(url.searchParams.get("utm_medium")).toBe("social");
-    expect(url.searchParams.get("utm_content")).toBe(slot.articleSlug);
+    expect(url.searchParams.get("utm_campaign")).toBe("library");
+  });
+
+  /**
+   * B719 — `utm_content` из адреса убран, и это не потеря разметки.
+   *
+   * Он дословно повторял слаг, который стоит в пути тем же текстом, и стоил
+   * половины хвоста: 108 символов меток на 57 символов адреса. Отчёт Метрики
+   * строится по source/medium/campaign, а страницу входа она называет сама.
+   * В реестре поле `utmContent` остаётся — там оно ничего не стоит.
+   */
+  it("но utm_content в адресе не дублирует слаг из пути", () => {
+    const url = new URL(destinationUrlFor(slot));
+    expect(url.searchParams.get("utm_content")).toBeNull();
+    expect(url.pathname).toContain(slot.articleSlug);
+    expect(generatePost(slot)!.utm.content).toBe(slot.articleSlug);
   });
 
   it("слот без статьи возвращает null, а не подставляет чужую", () => {

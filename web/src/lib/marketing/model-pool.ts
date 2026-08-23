@@ -36,10 +36,8 @@ export const MARKETING_FREE_PROVIDERS = [
 export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.OPENROUTER,
   AIProvider.GEMINI,
-  AIProvider.CEREBRAS,
   AIProvider.GROQ,
   AIProvider.MISTRAL,
-  AIProvider.COHERE,
   // B703 — шесть из семи новых коннекторов. Pollinations в активный список НЕ
   // входит: на его бесплатном тарифе одна модель, gpt-oss-20b от 2025-08-05,
   // то есть старше рубежа свежести на полгода. Придумать ему свежее имя
@@ -48,9 +46,41 @@ export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.KILOCODE,
   AIProvider.NVIDIA,
   AIProvider.OPENCODE_ZEN,
-  AIProvider.TOKENROUTER,
   AIProvider.SAMBANOVA,
   AIProvider.HUGGINGFACE,
+] as const;
+
+/**
+ * B719 — ТРОЕ ВЫВЕДЕНЫ ИЗ АКТИВНОГО ПУЛА ПО РЕШЕНИЮ ВЛАДЕЛЬЦА 2026-08-23.
+ *
+ * Не «давно не отвечали», а НИ РАЗУ за всю сохранённую историю обращений
+ * (`ai_attempts` с 2026-05-08). Замер прода 2026-08-23, окно 7 суток:
+ *
+ *   TOKENROUTER   0 успехов / 61 отказ — все HTTP_503, последний успех 08-12
+ *   COHERE        0 / 27              — все HTTP_429, последний успех 08-06
+ *   CEREBRAS      0 / 7               — все HTTP_402, последний успех 07-28
+ *
+ * Коды различают причины, и ни одна не проходит сама: 503 — у провайдера нет
+ * мощности, 429 без единого успеха — бесплатный тариф выбран навсегда, 402 —
+ * счёт (`INSUFFICIENT_CREDITS` в самом credential'е). Это не «дорога занята»,
+ * это «дороги нет».
+ *
+ * ⚠ ПОЧЕМУ ЭТО НЕ КОСМЕТИКА. Мёртвый провайдер в активном пуле стоит денег
+ * дважды. Во-первых, каждое обращение к нему списывается из бюджета материала
+ * (`maxStructuredAttemptsPerMaterial`) — то есть материал умирает от расхода,
+ * а не от качества; ровно дефект B699. Во-вторых, сам бюджет считается ОТ
+ * РАЗМЕРА ПУЛА, поэтому трое мёртвых раздували его на три обращения, которые
+ * гарантированно уходили в никуда.
+ *
+ * Из `MARKETING_FREE_PROVIDERS` они НЕ убраны намеренно: список выше — это
+ * ещё и периметр трансграничного гейта и то, что видно в суперадминке.
+ * Вернутся сами, как только у них появится успех: список активных правится
+ * решением по замеру, а не молчанием.
+ */
+export const MARKETING_RETIRED_PROVIDERS = [
+  AIProvider.CEREBRAS,
+  AIProvider.COHERE,
+  AIProvider.TOKENROUTER,
 ] as const;
 
 /**
@@ -71,23 +101,108 @@ export const MARKETING_ACTIVE_PROVIDERS = [
  */
 export const MARKETING_PRIORITY_HEAD = [
   AIProvider.GEMINI,
-  AIProvider.YANDEX,
 ] as const;
+
+/**
+ * B719 — У РЕДАКТОРА СВОЯ ГОЛОВА, И ЭТО НЕ СИММЕТРИЯ РАДИ СИММЕТРИИ.
+ *
+ * Требование владельца 2026-08-23: «модель редактора смени на более
+ * оптимальную». Замер, на котором выбрана модель, — живая проба боевыми
+ * ключами с прод-ноды 2026-08-23: ОДИН И ТОТ ЖЕ вердикт по одному и тому же
+ * черновику (промт 245–275 токенов), измерялись латентность и `usage`.
+ *
+ *   mistral-small-2603        0,69 с    63 токена вывода   валидный JSON
+ *   prism-ml/Ternary-Bonsai   17,9 с  1 127 токенов, из них 1 005 —
+ *                                     `reasoning_tokens` (89 %)
+ *   (второй прогон)           29,5 с  2 323 токена, из них 2 175 (94 %)
+ *   ministral-14b-2512         8,9 с   897 токенов
+ *
+ * Вердикт редактора — это одно поле `verdict`, список замечаний и одна фраза
+ * обоснования. Всё, что сверх, — размышление, и в замере его 89–94 % вывода.
+ * Семисуточная статистика прода подтверждает то же по латентности: маршруты
+ * редактора на думающих моделях отвечают 17–36 с, Mistral — 4–5 с.
+ *
+ *   OPENCODE_ZEN nemotron-3-ultra-free        32,3 с   87 % успеха
+ *   KILOCODE     nemotron-3.5-lightning:free  19,5 с   96 %
+ *   NVIDIA       nemotron-3.5-lightning-30b   18,6 с   98 %
+ *   OPENROUTER   nemotron-3-super-120b:free   17,6 с   99 %
+ *   MISTRAL      mistral-small-2603            5,3 с  100 % (28/28)
+ *
+ * Поэтому редактор спрашивает Mistral ПЕРВЫМ. Это предпочтение, а не запрет:
+ * дальше идёт обычное вращение пула, и когда квота Mistral кончится, вердикт
+ * вынесет кто угодно, как раньше.
+ *
+ * ⚠ ПОЧЕМУ НЕ ПЕРЕИМЕНОВАТЬ МОДЕЛИ У ОСТАЛЬНЫХ. У NVIDIA, Kilo, OpenCode Zen,
+ * SambaNova и Hugging Face каталог `ai_provider_models` пуст — имя второй
+ * модели взять неоткуда, а выдуманное имя это 404 в бою (B703). Их
+ * размышление гасится директивой, см. `MARKETING_REVIEWER_REASONING_OFF`.
+ */
+export const MARKETING_REVIEWER_PRIORITY_HEAD = [
+  AIProvider.MISTRAL,
+] as const;
+
+/**
+ * B719 — ВЫКЛЮЧАТЕЛЬ РАЗМЫШЛЕНИЯ У РОЛИ РЕДАКТОРА.
+ *
+ * Там, где модель поменять нельзя (каталог провайдера пуст), остаётся
+ * штатный выключатель самого семейства весов. У NVIDIA Nemotron это
+ * системная строка `detailed thinking off`, у Qwen — `/no_think`. Обе
+ * документированы производителем весов и обе безвредны для модели, которая
+ * их не знает: это обычный системный текст, а не поле протокола.
+ *
+ * Директива ставится ТОЛЬКО редактору. Автор пишет текст, и его размышление —
+ * это работа; у редактора работа — вердикт, и размышление здесь оплачивается
+ * впустую (89–94 % вывода в замере выше).
+ *
+ * Ключ — провайдер, а не модель: модель роли редактора у провайдера ровно
+ * одна и берётся из `MARKETING_REVIEWER_MODEL_PREFERENCES` рядом.
+ */
+export const MARKETING_REVIEWER_REASONING_OFF: Partial<Record<AIProvider, string>> = {
+  [AIProvider.OPENROUTER]: "detailed thinking off",
+  [AIProvider.NVIDIA]: "detailed thinking off",
+  [AIProvider.KILOCODE]: "detailed thinking off",
+  [AIProvider.OPENCODE_ZEN]: "detailed thinking off",
+  [AIProvider.GROQ]: "/no_think",
+};
+
+/**
+ * B719 — директива подавления размышления для роли, если она есть.
+ *
+ * Возвращает `null` для автора всегда и для провайдера без известного
+ * выключателя: молчание здесь честнее, чем строка наугад.
+ */
+export function marketingReasoningSuppression(input: {
+  feature: string;
+  provider: AIProvider;
+}): string | null {
+  const isReviewer = input.feature === "marketing-agent-reviewer"
+    || input.feature === MARKETING_REPLY_REVIEWER_FEATURE;
+  if (!isReviewer) return null;
+  return MARKETING_REVIEWER_REASONING_OFF[input.provider] ?? null;
+}
 
 /**
  * B712 — платные маршруты. Стоят ПОСЛЕ всего бесплатного пула.
  *
- * Порядок внутри списка — тот же, что назвал владелец: Yandex перед OpenAI.
- *
  * ⚠ ПОЧЕМУ ПОСЛЕДНИМИ, А НЕ ВТОРЫМИ. Замер прода: у Gemini 15 отказов 429 за
  * сутки при 60 успехах. Платный провайдер сразу за головой означал бы 15
  * оплаченных обращений в сутки только на отказах головы — при том что
- * бесплатный пул из двенадцати провайдеров в этот момент цел. Владелец назвал
- * OpenAI словом «fallback», и хвост — это ровно оно.
+ * бесплатный пул в этот момент цел. Владелец назвал OpenAI словом «fallback»,
+ * и хвост — это ровно оно.
+ *
+ * B719 — ПОРЯДОК ВНУТРИ ХВОСТА ЗАДАН ВЛАДЕЛЬЦЕМ 2026-08-23, ДОСЛОВНО:
+ * «Яндекс стоит после бесплатного хвоста… OpenAI разрешен как иностранный
+ * маршрут, поставь его перед Яндекс». Раньше здесь стоял обратный порядок по
+ * требованию от 16.08 — оно отменено этим.
+ *
+ * Суточные потолки расхода к каждому из них — в `paid-route-budget.ts`.
+ * Каждый провайдер ограничен в СВОЕЙ валюте счёта: OpenAI в долларах, Yandex
+ * в рублях. Это не педантизм: пересчёт по выдуманному курсу дал бы потолок,
+ * которому нельзя верить.
  */
 export const MARKETING_PAID_PROVIDERS = [
-  AIProvider.YANDEX,
   AIProvider.OPENAI,
+  AIProvider.YANDEX,
 ] as const;
 
 /**
@@ -100,12 +215,12 @@ export const MARKETING_PAID_PROVIDERS = [
  * принятым в тот момент, когда он его принимает, а не побочным эффектом
  * деплоя.
  *
- * ⚠ ПОТОЛКА РАСХОДА В РУБЛЯХ ЗДЕСЬ НЕТ, И ЭТО НЕ ЗАБЫТО. Посчитать рубли можно
- * только по таблице цен моделей, которой у нас нет; выдуманная таблица дала бы
- * потолок, которому нельзя верить, — хуже, чем честное его отсутствие.
- * Ограничитель, который работает уже сейчас: платный провайдер стоит ПОСЛЕДНИМ
- * и получает обращение, только когда весь бесплатный пул из двенадцати
- * провайдеров отказал на этом материале.
+ * B719 — ПОТОЛОК РАСХОДА ПОЯВИЛСЯ. Прежний комментарий здесь утверждал, что
+ * таблицы цен у нас нет; это оказалось неверно — `model-pricing-reference.ts`
+ * держит цены и Yandex (в пересчёте из прайса AI Studio), и OpenAI. Потолки и
+ * их арифметика — в `paid-route-budget.ts`. Ограничитель, который работал и
+ * без них, никуда не делся: платный провайдер стоит ПОСЛЕДНИМ и получает
+ * обращение, только когда весь бесплатный пул отказал на этом материале.
  */
 export function marketingPaidFallbackEnabled(
   env: Partial<NodeJS.ProcessEnv> = process.env,
@@ -169,6 +284,19 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
   [AIProvider.TOKENROUTER]: "moonshotai/kimi-k3-free",
   [AIProvider.SAMBANOVA]: "gemma-4-31B-it",
   [AIProvider.HUGGINGFACE]: "prism-ml/Ternary-Bonsai-27B-AWQ-4bit",
+  /**
+   * B719 — платный хвост. Имена НЕ выдуманы, оба сверены с боевыми данными:
+   * `gpt-5.4-mini` есть в каталоге прода `ai_provider_models` (там же лежит
+   * его датированный псевдоним `gpt-5.4-mini-2026-03-17`, откуда и взята дата
+   * выпуска), `yandexgpt/latest` — тот самый маршрут, которым платформа уже
+   * ходит в YandexGPT Pro (`yandex-adapter.ts`, `YANDEX_TEXT_MODELS`).
+   *
+   * ⚠ `gpt-4o-mini` в `model_override` боевого credential'а СЮДА НЕ ГОДИТСЯ:
+   * модель 2024 года, рубеж свежести пула — 2026-02-28. Явное имя здесь
+   * сильнее override'а, потому что маршрут получает `model` параметром.
+   */
+  [AIProvider.OPENAI]: "gpt-5.4-mini",
+  [AIProvider.YANDEX]: "yandexgpt/latest",
 };
 
 /**
@@ -230,7 +358,31 @@ const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {
   "gemma-4-31B-it": "2026-04-03",
   "prism-ml/Ternary-Bonsai-27B-AWQ-4bit": "2026-07-11",
   "prism-ml/Ternary-Bonsai-27B-gguf": "2026-07-04",
+  /**
+   * B719 — платный хвост. Дата `gpt-5.4-mini` взята из каталога прода: там же
+   * лежит датированный псевдоним `gpt-5.4-mini-2026-03-17`, то есть дата не
+   * оценка, а имя строки в каталоге.
+   */
+  "gpt-5.4-mini": "2026-03-17",
 };
+
+/**
+ * B719 — у скользящего псевдонима нет даты выпуска, и придумывать её нельзя.
+ *
+ * `yandexgpt/latest` по устройству указывает на «текущую» версию: сегодня одну,
+ * завтра другую. Проставить ему дату значило бы записать в допущенные не
+ * модель, а обещание. Поэтому рубеж свежести к платному хвосту не применяется
+ * вовсе — и это не дыра, а разные вопросы:
+ *
+ *   рубеж свежести отвечает «не подсунул ли БЕСПЛАТНЫЙ тариф старые веса
+ *   вместо новых» — вопрос имеет смысл там, где модель нам не выбирают;
+ *
+ *   платный маршрут выбран владельцем поимённо, и защищает его не возраст
+ *   весов, а суточный потолок расхода (`paid-route-budget.ts`).
+ */
+export function marketingModelFreshnessApplies(provider: AIProvider): boolean {
+  return !(MARKETING_PAID_PROVIDERS as readonly AIProvider[]).includes(provider);
+}
 
 /**
  * B699 — какие модели пул вообще может предъявить, если жив только этот набор
@@ -417,7 +569,7 @@ export function marketingProviderOrder(
   seed: string,
   excluded: AIProvider[] = [],
   availableNow: readonly AIProvider[] = [],
-  options: { paidFallback?: boolean } = {},
+  options: { paidFallback?: boolean; role?: "writer" | "reviewer" } = {},
 ): AIProvider[] {
   const excludedSet = new Set(excluded);
   const availableSet = new Set(availableNow);
@@ -437,7 +589,18 @@ export function marketingProviderOrder(
    * квоты независимые, и постоянная голова выжигала бы одну, не трогая
    * остальные (B703). Вращать надо ровно то, что бесплатно и взаимозаменяемо.
    */
-  const head = MARKETING_PRIORITY_HEAD.filter(
+  /*
+   * B719 — у ролей разные головы, потому что у них разная работа.
+   *
+   * Автор пишет текст: голову ему назвал владелец (Gemini). Редактор выносит
+   * вердикт, и там выигрывает не сила модели, а её немногословность — замер
+   * у `MARKETING_REVIEWER_PRIORITY_HEAD` показывает разницу в 18 раз по
+   * выводу и в 26 по времени на одном и том же черновике.
+   */
+  const priorityHead = options.role === "reviewer"
+    ? MARKETING_REVIEWER_PRIORITY_HEAD
+    : MARKETING_PRIORITY_HEAD;
+  const head = priorityHead.filter(
     (provider) => MARKETING_ACTIVE_PROVIDERS.includes(provider as never) && usable(provider),
   );
   const headSet = new Set<AIProvider>(head);
@@ -466,13 +629,42 @@ export function marketingProviderOrder(
    * может стоять в списке до того, как он подключён, и это не создаёт
    * обращений в никуда.
    */
+  /*
+   * B719 — спец-случай «YANDEX только при известном списке ключей» снят.
+   *
+   * Он стоял здесь, пока у Yandex не было ни адаптера, ни имени модели, и
+   * защищал от обращения в никуда. Оба условия закрыты: адаптер
+   * (`yandex-adapter.ts`) работает в продукте давно, имя модели взято из
+   * `YANDEX_TEXT_MODELS`. Провайдера без ключа по-прежнему отсекает
+   * `availableNow`; на боевой базе 2026-08-23 credential'а YANDEX нет, и
+   * поэтому маршрут просто не предлагается — молча и правильно.
+   */
   const paid = options.paidFallback
-    ? MARKETING_PAID_PROVIDERS.filter((provider) => usable(provider)
-      && (availableSet.size === 0 ? provider !== AIProvider.YANDEX : true))
+    ? MARKETING_PAID_PROVIDERS.filter((provider) => usable(provider))
     : [];
 
   return [...head, ...spun, ...paid];
 }
+
+/**
+ * B719 — кого маршруту SMM вообще разрешено спрашивать.
+ *
+ * Охрана в `aiComplete` сверялась с `MARKETING_FREE_PROVIDERS` и отвечала
+ * `MARKETING_PAID_PROVIDER_BLOCKED`. Пока платного хвоста не существовало,
+ * это было верно буквально. Теперь хвост разрешён владельцем поимённо, и
+ * список разрешённых обязан включать его — иначе выкаченный платный маршрут
+ * падал бы на собственной охране, а не на отсутствии ключа.
+ *
+ * ⚠ Охрана при этом не ослабляется. Список остаётся ЗАКРЫТЫМ: провайдер вне
+ * его по-прежнему получает отказ политики. Расширился он ровно на тех двоих,
+ * кого назвал владелец, и ровно с теми потолками расхода, что он назвал.
+ */
+export const MARKETING_ROUTABLE_PROVIDERS = [
+  ...MARKETING_FREE_PROVIDERS,
+  ...MARKETING_PAID_PROVIDERS.filter(
+    (provider) => !(MARKETING_FREE_PROVIDERS as readonly AIProvider[]).includes(provider),
+  ),
+] as const;
 
 export function marketingProviderFromLabel(label: string): AIProvider | null {
   const normalized = label.trim().toUpperCase();

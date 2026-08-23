@@ -26,13 +26,20 @@ import {
 } from "@/lib/marketing/perimeter";
 import {
   MARKETING_ACTIVE_PROVIDERS,
+  MARKETING_PAID_PROVIDERS,
   MARKETING_REPLY_REVIEWER_FEATURE,
   MARKETING_REPLY_WRITER_FEATURE,
   marketingModelFreshness,
+  marketingModelFreshnessApplies,
   marketingProviderFromLabel,
   marketingPaidFallbackEnabled,
   marketingProviderOrder,
+  marketingReasoningSuppression,
 } from "@/lib/marketing/model-pool";
+import {
+  paidRoutesWithBudgetLeft,
+  recordPaidRouteSpend,
+} from "@/lib/marketing/paid-route-budget";
 import {
   marketingHourlyCapacity,
   marketingPoolAvailability,
@@ -657,7 +664,16 @@ function reviewerObject(raw: string, scoreKeys: readonly string[] = REVIEW_SCORE
   };
 }
 
-function assertFreshMarketingModel(model: string) {
+/**
+ * B719 — рубеж свежести спрашивается только у бесплатного пула.
+ *
+ * Почему платный хвост из-под него выведен — в комментарии к
+ * `marketingModelFreshnessApplies`: у скользящего псевдонима вроде
+ * `yandexgpt/latest` даты выпуска нет и быть не может, а маршрут выбран
+ * владельцем поимённо и ограничен деньгами, а не возрастом весов.
+ */
+function assertFreshMarketingModel(model: string, provider: AIProvider) {
+  if (!marketingModelFreshnessApplies(provider)) return;
   const freshness = marketingModelFreshness(model);
   if (!freshness.eligible) {
     throw new Error(`model ${model} is ineligible: ${freshness.reason}`);
@@ -1015,6 +1031,19 @@ async function completeWithValidStructure<T>(input: {
       input.attempts.used += 1;
     }
     try {
+      /**
+       * B719 — выключатель размышления ставится ПЕРЕД собственным системным
+       * сообщением роли и только там, где он у семейства весов есть.
+       *
+       * Порядок важен: директива должна прочитаться раньше правил площадки,
+       * иначе модель успевает начать «думать» о задании. Провайдеру без
+       * известного выключателя не подставляется ничего — строка наугад
+       * засоряла бы промт, за который мы платим токенами.
+       */
+      const suppression = marketingReasoningSuppression({ feature: input.feature, provider });
+      const messages = suppression
+        ? [{ role: "system" as const, content: suppression }, ...input.messages]
+        : input.messages;
       const response = await aiComplete({
         feature: input.feature,
         dataClass: "PUBLIC_MARKETING",
@@ -1023,9 +1052,33 @@ async function completeWithValidStructure<T>(input: {
         temperature: input.temperature,
         requestId: `${input.requestId}:${provider.toLowerCase()}`
           + (truncationRetries > 0 ? `:b${truncationRetries}` : ""),
-        messages: input.messages,
+        messages,
       });
-      assertFreshMarketingModel(response.model);
+      /**
+       * B719 — платный маршрут списывается СРАЗУ ПОСЛЕ ОТВЕТА, до любых
+       * проверок пригодности.
+       *
+       * Провайдер берёт деньги за отданные токены, а не за то, понравился ли
+       * нам ответ: обрезанный по лимиту вывода вердикт оплачен полностью.
+       * Списывать после разбора значило бы вести суточный потолок по одним
+       * удачам и не заметить сутки, целиком ушедшие в брак.
+       *
+       * Сбой записи расхода не имеет права уронить материал (правило «побочное
+       * действие вне try основной операции»), но и промолчать не должен:
+       * непосчитанный расход — это дырка в потолке, и о ней надо знать.
+       */
+      void recordPaidRouteSpend({
+        provider,
+        promptTokens: response.tokensIn,
+        completionTokens: response.tokensOut,
+      }).catch((error) => {
+        log.warn("marketing-agent.paid-route-spend-not-recorded", {
+          provider,
+          feature: input.feature,
+          error: serializeError(error),
+        });
+      });
+      assertFreshMarketingModel(response.model, provider);
       if (input.excludeModel && response.model === input.excludeModel) {
         separationFailures += 1;
         failures.push(`${provider}: resolved to the writer's model ${response.model}`);
@@ -1414,6 +1467,21 @@ export async function processMarketingDraft(publicationId: string) {
      * первой — просто один раз, а не шесть.
      */
     const capacityRefused = new Set<AIProvider>();
+    /**
+     * B719 — платные маршруты, выбравшие суточный потолок расхода.
+     *
+     * Спрашивается один раз на материал, а не на каждом раунде: сутки за
+     * время прохода не меняются, а лишний запрос к базе на каждом круге
+     * правки — это та же лестница обращений, от которой лечил B718.
+     *
+     * Пусто, когда платный хвост выключен вовсе: считать потолки маршрута,
+     * которого нет в очереди, незачем.
+     */
+    const paidRoutesOverBudget = await (async () => {
+      if (!marketingPaidFallbackEnabled()) return [] as AIProvider[];
+      const withBudget = new Set(await paidRoutesWithBudgetLeft());
+      return MARKETING_PAID_PROVIDERS.filter((provider) => !withBudget.has(provider));
+    })();
     // B700: проход продолжает со склада, а не с чистого листа. Справка тоже
     // берётся оттуда — редактор обязан смотреть тот материал, который писал
     // автор, а не свежесобранный по тем же исходным данным.
@@ -1502,9 +1570,16 @@ export async function processMarketingDraft(publicationId: string) {
             `writer:${cycleSeed}`,
             // B718: провайдеров, уже сказавших «квота кончилась» на этом
             // материале, второй раз не спрашиваем.
-            [...capacityRefused],
+            [
+              ...capacityRefused,
+              // B719: платный маршрут, выбравший суточный потолок расхода,
+              // исключается ровно так же, как исчерпавший квоту бесплатный —
+              // через `excluded`. Отдельной ветки он не заслуживает: для
+              // очереди это одно и то же состояние «сегодня уже нельзя».
+              ...paidRoutesOverBudget,
+            ],
             availability.providers,
-            { paidFallback: marketingPaidFallbackEnabled() },
+            { paidFallback: marketingPaidFallbackEnabled(), role: "writer" },
           ),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
@@ -1606,6 +1681,10 @@ export async function processMarketingDraft(publicationId: string) {
         `reviewer:${cycleSeed}`,
         [...capacityRefused],
         availability.providers,
+        // B719: у редактора своя голова очереди — самая немногословная модель
+        // пула. Платного хвоста у редактора нет и не было: платить за
+        // суждение владелец не просил.
+        { role: "reviewer" },
       );
       const reviewerProviderOrder = [
         ...rotated.filter((provider) => provider !== writerProvider),

@@ -36,6 +36,8 @@
  */
 
 /** Как площадка относится к прямому призыву. */
+import type { InlineLinkMarkup } from "@/lib/marketing/link-presentation";
+
 export type CtaPolicy =
   /** Призыв обязателен в каждом материале. */
   | "required"
@@ -80,6 +82,13 @@ export interface PlatformContract {
   maxLinks: number;
   /** Кликабельна ли ссылка в теле. Instagram — единственная, где нет. */
   linksClickable: boolean;
+  /**
+   * B719 — умеет ли площадка прятать адрес под текст, и какой разметкой.
+   *
+   * `null` значит «в теле поста только голый адрес». Это не про кликабельность:
+   * ВКонтакте ссылку кликабельной делает, а гиперссылку в тексте — нет.
+   */
+  inlineLinkMarkup: InlineLinkMarkup;
   /**
    * Допустим ли символ «—» вообще.
    *
@@ -129,6 +138,7 @@ const TELEGRAM: PlatformPlaybook = {
     ctaMinPosition: 0.75,
     maxLinks: 1,
     linksClickable: true,
+    inlineLinkMarkup: "html",
     emDashAllowed: false,
     maxEllipsis: 1,
     maxExclamations: 1,
@@ -200,6 +210,7 @@ const VK: PlatformPlaybook = {
     ctaMinPosition: 0.8,
     maxLinks: 1,
     linksClickable: true,
+    inlineLinkMarkup: null,
     emDashAllowed: false,
     maxEllipsis: 1,
     maxExclamations: 2,
@@ -271,6 +282,7 @@ const THREADS: PlatformPlaybook = {
     ctaMinPosition: 0,
     maxLinks: 0,
     linksClickable: true,
+    inlineLinkMarkup: null,
     emDashAllowed: false,
     maxEllipsis: 0,
     maxExclamations: 1,
@@ -351,6 +363,7 @@ const INSTAGRAM: PlatformPlaybook = {
     // тексте читается как мусор. Единственная дверь — ссылка в шапке профиля.
     maxLinks: 0,
     linksClickable: false,
+    inlineLinkMarkup: null,
     emDashAllowed: false,
     maxEllipsis: 1,
     maxExclamations: 2,
@@ -423,6 +436,15 @@ const DZEN: PlatformPlaybook = {
     ctaMinPosition: 0.85,
     maxLinks: 2,
     linksClickable: true,
+    /**
+     * B719 — у Дзена разметки НЕТ, хотя площадка «богатая».
+     *
+     * Выпуск идёт браузером в редактор Студии, и `publishToDzenBrowser`
+     * снимает разметку перед вводом намеренно: редактор Дзена не понимает ни
+     * markdown, ни HTML и показывает их читателю как есть. Поставить сюда
+     * "html" значило бы напечатать в статье `<a href="…">`.
+     */
+    inlineLinkMarkup: null,
     emDashAllowed: true,
     maxEllipsis: 2,
     maxExclamations: 1,
@@ -497,6 +519,7 @@ const REDDIT: PlatformPlaybook = {
     ctaMinPosition: 0,
     maxLinks: 0,
     linksClickable: true,
+    inlineLinkMarkup: "markdown",
     emDashAllowed: false,
     maxEllipsis: 0,
     maxExclamations: 0,
@@ -572,6 +595,7 @@ const DEFAULT_PLAYBOOK: PlatformPlaybook = {
     ctaMinPosition: 0,
     maxLinks: 20,
     linksClickable: true,
+    inlineLinkMarkup: null,
     emDashAllowed: true,
     maxEllipsis: 20,
     maxExclamations: 20,

@@ -88,10 +88,24 @@ describe("B713 — писатель получает сильнейшую жив
   });
 
   it("не называет ни одной модели, которой нет в таблице свежести", () => {
-    const named = [
-      ...Object.values(MARKETING_WRITER_MODEL_PREFERENCES),
-      ...Object.values(MARKETING_REVIEWER_MODEL_PREFERENCES),
-    ];
+    /**
+     * B719 — вопрос задаётся тому, кому он адресован.
+     *
+     * Рубеж свежести существует, чтобы БЕСПЛАТНЫЙ тариф не подсунул старые
+     * веса под новым именем. К платному хвосту он неприменим: маршрут выбран
+     * владельцем поимённо, а `yandexgpt/latest` — скользящий псевдоним, у
+     * которого даты выпуска нет и быть не может. Ограничивают его деньги
+     * (`paid-route-budget.ts`), а не возраст весов.
+     */
+    const named = [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.GROQ,
+      AIProvider.MISTRAL, AIProvider.KILOCODE, AIProvider.NVIDIA,
+      AIProvider.OPENCODE_ZEN, AIProvider.SAMBANOVA, AIProvider.HUGGINGFACE]
+      .flatMap((provider) => [
+        MARKETING_WRITER_MODEL_PREFERENCES[provider],
+        MARKETING_REVIEWER_MODEL_PREFERENCES[provider],
+      ])
+      .filter((model): model is string => Boolean(model));
+    expect(named.length).toBeGreaterThan(10);
     for (const model of named) {
       expect(marketingModelFreshness(model).eligible).toBe(true);
     }

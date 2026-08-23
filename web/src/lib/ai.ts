@@ -54,6 +54,7 @@ import {
 import { log, serializeError } from "@/lib/logger";
 import {
   MARKETING_FREE_PROVIDERS,
+  MARKETING_ROUTABLE_PROVIDERS,
   isPublicMarketingAIFeature,
   marketingForeignLLMEnabled,
   marketingModelPreferences,
@@ -164,6 +165,21 @@ function attemptStatus(attempt: { status: "succeeded" | "failed" | "skipped"; co
   return AIAttemptStatus.FAILED;
 }
 
+/**
+ * B719 — чей потолок вывода доезжает до провайдера.
+ *
+ * Порядок именно такой: явное значение вызывающего, затем политика, затем
+ * общее умолчание. Раньше первые два стояли наоборот, и потолок политики
+ * побеждал всегда — см. подробный разбор у места вызова.
+ */
+export function resolveAttemptCeiling(input: {
+  requested?: number;
+  fromPolicy?: number;
+  fallback: number;
+}): number {
+  return input.requested ?? input.fromPolicy ?? input.fallback;
+}
+
 export async function aiComplete(options: AIRequestOptions): Promise<AIResponse> {
   const { messages, maxTokens = 2000, temperature = 0.7, requestId, userId } = options;
   const feature = normalizeAIFeatureKey(options.feature ?? "legacy.ai-complete");
@@ -181,11 +197,11 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
   }
   if (
     options.providerOrder?.some(
-      (provider) => !(MARKETING_FREE_PROVIDERS as readonly AIProvider[]).includes(provider),
+      (provider) => !(MARKETING_ROUTABLE_PROVIDERS as readonly AIProvider[]).includes(provider),
     )
   ) {
     throw new AIRoutingPolicyViolationError(
-      "The SMM agent may use only providers from the free marketing pool",
+      "The SMM agent may use only providers from the marketing pool",
       "MARKETING_PAID_PROVIDER_BLOCKED",
     );
   }
@@ -195,7 +211,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     loadPolicy(feature),
   ]);
   const providerConfigs = publicMarketingRequest
-    ? MARKETING_FREE_PROVIDERS.map((provider) => ({
+    ? MARKETING_ROUTABLE_PROVIDERS.map((provider) => ({
       ...(storedProviderConfigs.find((config) => config.provider === provider)
         ?? DEFAULT_PROVIDER_CONFIGS.find((config) => config.provider === provider)!),
       enabled: true,
@@ -234,12 +250,41 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     // модели. Достроенный план отнимал у него именно эту возможность.
     restrictToProviderOrder: Boolean(options.providerOrder?.length),
   });
+  /**
+   * B719 — ПОТОЛОК ВЫВОДА, НАЗВАННЫЙ ВЫЗЫВАЮЩИМ, СИЛЬНЕЕ ПОТОЛКА ИЗ ПОЛИТИКИ.
+   *
+   * Здесь стояло `attempt.maxTokens ?? maxTokens`, то есть значение политики
+   * побеждало ВСЕГДА, а параметр вызова был лишь запасным. Для SMM-агента это
+   * означало, что его собственный бюджет вывода не действовал вовсе: он
+   * просил 16 000, получал 1 200 у редактора и 1 500 у автора — потолки из
+   * `task-policy.ts`.
+   *
+   * Замер прода 2026-08-23 (`ai_attempts` за 3 суток, только успешные):
+   *
+   *   NVIDIA   nemotron-3.5-lightning-30b  68 попыток, min = max = 1 200
+   *   KILOCODE nemotron-3.5-lightning:free 56 попыток, min = max = 1 200
+   *   OPENROUTER nemotron-3-super-120b     78 попыток у автора, ровно 1 500
+   *
+   * Модель не выдаёт ровно 1 200 токенов 56 раз подряд — это срез по потолку.
+   * Дальше срабатывал разбор обрыва в агенте: он поднимал СВОЙ бюджет, который
+   * сюда не доезжал, немедленно упирался в `nextBudget <= budget` и уводил
+   * материал к следующему провайдеру. Так один вердикт обходил весь пул,
+   * оплачивая полным промтом каждый шаг, — и это и есть механика «94 обращения
+   * к моделям на один выпущенный пост» из B718, которую та правка описала
+   * верно, но вылечить не смогла: её значение не доживало до запроса.
+   *
+   * Политика остаётся умолчанием для тех, кто своего потолка не называет.
+   */
   const requestPlan = {
     ...plan,
     attempts: plan.attempts.map((attempt) => ({
       ...attempt,
-      maxTokens: attempt.maxTokens ?? maxTokens,
-      temperature: attempt.temperature ?? temperature,
+      maxTokens: resolveAttemptCeiling({
+        requested: options.maxTokens,
+        fromPolicy: attempt.maxTokens,
+        fallback: maxTokens,
+      }),
+      temperature: options.temperature ?? attempt.temperature ?? temperature,
     })),
   };
   if (!publicMarketingRequest) {

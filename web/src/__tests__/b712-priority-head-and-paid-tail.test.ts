@@ -6,15 +6,20 @@
  * провайдер для целей SMM/SEO. Я бы поставил в приоритете следующие
  * провайдеры: Gemini -> Yandex -> OpenAI».
  *
- * ⚠ ЯНДЕКСА В СИСТЕМЕ НЕТ. Проверено на боевой базе 2026-08-17: ноль записей в
- * `ai_provider_credentials` (там 16 провайдеров, YANDEX не среди них), ноль
- * моделей в `ai_provider_models`, и ни одного адаптера YandexGPT в коде —
- * строка `YANDEX` встречается только в SpeechKit, S3 и Вебмастере, это другие
- * сервисы. Выдумать имя модели нельзя: это 404 в бою (B703).
+ * B719 — ТРЕБОВАНИЕ ЗАКРЫТО РЕШЕНИЕМ ВЛАДЕЛЬЦА 2026-08-23, ДОСЛОВНО: «Яндекс
+ * стоит после бесплатного хвоста, суточный потолок расхода в рублях - 10р,
+ * OpenAI разрешен как иностранный маршрут, поставь его перед Яндекс с суточным
+ * лимитом в 0,03$». Три вопроса, блокировавшие тикет, отвечены; порядок
+ * головы «Gemini → Yandex → OpenAI» от 16.08 этим отменён — Яндекс уехал из
+ * головы в платный хвост и стоит там ВТОРЫМ.
  *
- * Поэтому здесь строится МЕХАНИЗМ, а Яндекс занимает в нём объявленное место и
- * включится сам, когда появится ключ. Прогон сторожит именно это: место
- * объявлено, но пустой провайдер в обход не попадает.
+ * ⚠ ОДНА ИЗ ПРЕЖНИХ ПОСЫЛОК ОКАЗАЛАСЬ НЕВЕРНОЙ. Здесь стояло «ни одного
+ * адаптера YandexGPT в коде». Адаптер есть — `web/src/lib/ai-gateway/
+ * yandex-adapter.ts`, им платформа ходит в YandexGPT Pro в продукте, и имя
+ * модели `yandexgpt/latest` не выдумано, а взято из `YANDEX_TEXT_MODELS`.
+ * Не хватает ровно одного: credential'а YANDEX в боевой базе (сверено
+ * 2026-08-23 — 16 строк, YANDEX среди них нет). Пока его нет, маршрут в обход
+ * не попадает — это и сторожит прогон ниже.
  *
  * ⚠ ЧТО ДЕРЖИТ ВРАЩЕНИЕ. Бесплатный хвост обязан продолжать вращаться: у
  * тринадцати провайдеров квоты независимые, и постоянная голова выжигала бы
@@ -45,7 +50,9 @@ describe("B712 — порядок провайдеров", () => {
 
   it("платный провайдер стоит последним, а не вторым", () => {
     const order = marketingProviderOrder("pub-1", [], [], { paidFallback: true });
-    expect(order.at(-1)).toBe(AIProvider.OPENAI);
+    // B719: хвост из двух, и последним теперь Яндекс — OpenAI перед ним.
+    expect(order.at(-1)).toBe(AIProvider.YANDEX);
+    expect(order.at(-2)).toBe(AIProvider.OPENAI);
   });
 
   it("без явного разрешения платный провайдер не появляется вовсе", () => {
@@ -68,19 +75,34 @@ describe("B712 — порядок провайдеров", () => {
   });
 });
 
-describe("B712 — место Яндекса объявлено, но пустым не занимается", () => {
-  it("Яндекс назван в приоритете вслух", () => {
-    expect(MARKETING_PRIORITY_HEAD).toContain(AIProvider.YANDEX);
-    expect(MARKETING_PRIORITY_HEAD.indexOf(AIProvider.GEMINI))
-      .toBeLessThan(MARKETING_PRIORITY_HEAD.indexOf(AIProvider.YANDEX));
+describe("B719 — платный хвост по решению владельца 2026-08-23", () => {
+  it("в голове остался только Gemini: Яндекс уехал в хвост", () => {
+    expect(MARKETING_PRIORITY_HEAD).toEqual([AIProvider.GEMINI]);
+    expect(MARKETING_PRIORITY_HEAD as readonly AIProvider[]).not.toContain(AIProvider.YANDEX);
   });
 
-  it("но в обход не попадает, пока не подключён", () => {
+  it("OpenAI стоит перед Яндексом, и оба — после всего бесплатного", () => {
+    expect(MARKETING_PAID_PROVIDERS).toEqual([AIProvider.OPENAI, AIProvider.YANDEX]);
     const order = marketingProviderOrder("pub-1", [], [], { paidFallback: true });
-    expect(order).not.toContain(AIProvider.YANDEX);
+    const free = order.filter((provider) =>
+      provider !== AIProvider.OPENAI && provider !== AIProvider.YANDEX);
+    const firstPaid = order.findIndex((provider) =>
+      provider === AIProvider.OPENAI || provider === AIProvider.YANDEX);
+    expect(firstPaid).toBe(free.length);
   });
 
-  it("платный список назван явно и Яндекс в нём перед OpenAI", () => {
-    expect(MARKETING_PAID_PROVIDERS).toEqual([AIProvider.YANDEX, AIProvider.OPENAI]);
+  it("Яндекс в обход не попадает, пока в базе нет его ключа", () => {
+    // `availableNow` — это список провайдеров с живым credential'ом. Яндекса
+    // в нём нет на боевой базе, и хвост обязан это уважать.
+    const available = [AIProvider.GEMINI, AIProvider.MISTRAL, AIProvider.OPENAI];
+    const order = marketingProviderOrder("pub-1", [], available, { paidFallback: true });
+    expect(order).not.toContain(AIProvider.YANDEX);
+    expect(order.at(-1)).toBe(AIProvider.OPENAI);
+  });
+
+  it("появится ключ — маршрут включится сам, без правки кода", () => {
+    const available = [AIProvider.GEMINI, AIProvider.OPENAI, AIProvider.YANDEX];
+    const order = marketingProviderOrder("pub-1", [], available, { paidFallback: true });
+    expect(order.slice(-2)).toEqual([AIProvider.OPENAI, AIProvider.YANDEX]);
   });
 });

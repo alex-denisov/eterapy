@@ -164,15 +164,24 @@ describe("B703 · пул SMM", () => {
     expect(MARKETING_WRITER_MODEL_PREFERENCES[AIProvider.POLLINATIONS]).toBeUndefined();
   });
 
-  it("остальные шесть допущены к непрерывной генерации", () => {
+  it("остальные допущены к непрерывной генерации", () => {
+    // B719 — к Pollinations прибавился TokenRouter: 0 успехов / 61 отказ
+    // HTTP_503 за 7 суток замера прода и ни одного успеха за всю сохранённую
+    // историю. Исключение здесь названо поимённо, чтобы его нельзя было
+    // расширить молча.
+    const notAdmitted = new Set<AIProvider>([AIProvider.POLLINATIONS, AIProvider.TOKENROUTER]);
     for (const provider of FREE_TIER_LLM_PROVIDERS) {
-      if (provider === AIProvider.POLLINATIONS) continue;
+      if (notAdmitted.has(provider)) continue;
       expect(MARKETING_ACTIVE_PROVIDERS).toContain(provider);
     }
   });
 
   it("активный пул вырос вдвое — это и есть рычаг ёмкости B699", () => {
-    expect(MARKETING_ACTIVE_PROVIDERS.length).toBe(12);
+    // B719 — было 12, стало 9: выведены Cerebras, Cohere и TokenRouter. Рычаг
+    // B703 при этом цел, в пуле по-прежнему вдвое больше провайдеров, чем
+    // шесть исходных.
+    expect(MARKETING_ACTIVE_PROVIDERS.length).toBe(9);
+    expect(MARKETING_ACTIVE_PROVIDERS.length).toBeGreaterThan(6);
   });
 
   /**
@@ -202,12 +211,15 @@ describe("B703 · пул SMM", () => {
     expect(marketingProvidersWithSingleModel()).toContain(provider);
   });
 
-  it("SambaNova и TokenRouter названы одномодельными вслух, а не молчат", () => {
-    // Вторая модель у обоих отвечает 402/403 при нулевом балансе. Вписать её
-    // ради разведения ролей значило бы получить отказ по оплате в бою.
-    const single = marketingProvidersWithSingleModel();
-    expect(single).toContain(AIProvider.SAMBANOVA);
-    expect(single).toContain(AIProvider.TOKENROUTER);
+  it("SambaNova назван одномодельным вслух, а не молчит", () => {
+    // Вторая модель отвечает 402 при нулевом балансе. Вписать её ради
+    // разведения ролей значило бы получить отказ по оплате в бою.
+    //
+    // B719 — TokenRouter из этой проверки ушёл: он выведен из активного пула
+    // целиком, и «одномодельный» про него больше не утверждение о ролях, а
+    // артефакт того, что его вообще не спрашивают.
+    expect(marketingProvidersWithSingleModel()).toContain(AIProvider.SAMBANOVA);
+    expect(marketingProvidersWithSingleModel()).not.toContain(AIProvider.TOKENROUTER);
   });
 
   it.each(MARKETING_ACTIVE_PROVIDERS)("модель автора у %s свежее рубежа пула", (provider) => {

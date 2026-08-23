@@ -46,6 +46,13 @@ import {
   requiredMarketingPlatformValue,
 } from "@/lib/marketing/platform-settings";
 import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
+import { platformPlaybook } from "@/lib/marketing/platform-playbook";
+import {
+  DEFAULT_LINK_LABEL,
+  compactOwnLinkInBody,
+  linkLabelFromBody,
+  toPlatformMarkup,
+} from "@/lib/marketing/link-presentation";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -104,6 +111,15 @@ export type PublicationAdapter = (
     engagementTargetUrl: string | null;
     /** B618: адрес входящего, если строка — ответ на него. */
     inbound: InboundReplyTarget | null;
+    /**
+     * B719 — в какой разметке пришло тело.
+     *
+     * `null` или отсутствие значит «обычный текст», и площадка отправляет его
+     * как раньше. Значение появляется только там, где площадка разметку
+     * действительно понимает: у Telegram это `parse_mode`, у Reddit — родной
+     * формат `selftext`.
+     */
+    parseMode?: "HTML" | "Markdown" | null;
   },
 ) => Promise<PublishedPost>;
 
@@ -281,7 +297,7 @@ export async function publishToVk(
 }
 
 export async function publishToTelegram(
-  publication: { body: string; mediaUrl?: string | null },
+  publication: { body: string; mediaUrl?: string | null; parseMode?: "HTML" | "Markdown" | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Telegram");
   const channelId = await requiredMarketingPlatformValue("TELEGRAM_CHANNEL_ID");
@@ -315,6 +331,7 @@ export async function publishToTelegram(
       chat_id: channelId,
       caption: publication.body,
       show_caption_above_media: "false",
+      ...(publication.parseMode ? { parse_mode: publication.parseMode } : {}),
     }, photo)
     : await callTelegramApi<{
       message_id?: number;
@@ -323,6 +340,7 @@ export async function publishToTelegram(
       chat_id: channelId,
       text: publication.body,
       disable_web_page_preview: false,
+      ...(publication.parseMode ? { parse_mode: publication.parseMode } : {}),
     });
   const messageId = response.result?.message_id;
   if (!response.ok || !messageId) {
@@ -937,11 +955,34 @@ export async function publishScheduledMarketing(input: {
 
     try {
       const adapter = adapterFor(publication, input.adapters ?? {});
+      /**
+       * B719 — АДРЕС ПРЯЧЕТСЯ ПОД ТЕКСТ ЗДЕСЬ, А НЕ В ТЕЛЕ МАТЕРИАЛА.
+       *
+       * В реестре материал живёт ПЛОСКИМ текстом, и это не случайность:
+       * плоский текст читают премодерация в Telegram, карточка «опубликовано»
+       * и сводки, а разметка нужна ровно одной площадке в момент отправки.
+       * Хранить размеченный текст значило бы показывать человеку на
+       * премодерации `<a href="…">` вместо поста.
+       *
+       * Перевод — за один шаг перед отправкой, и он безопасно возвращает
+       * `null`, если переводить нечего: тогда уходит ровно то, что уходило
+       * раньше.
+       */
+      const compacted = compactOwnLinkInBody(publication.body, publication.destinationUrl);
+      const markup = toPlatformMarkup({
+        markup: platformPlaybook(publication.platform).contract.inlineLinkMarkup,
+        body: compacted,
+        url: publication.destinationUrl,
+        label: publication.destinationUrl
+          ? linkLabelFromBody(compacted, publication.destinationUrl)
+          : DEFAULT_LINK_LABEL,
+      });
       const published = await adapter({
         id: publication.id,
         key: publication.key,
         title: publication.title,
-        body: publication.body,
+        body: markup?.text ?? compacted,
+        parseMode: markup?.parseMode ?? null,
         platform: publication.platform,
         contentType: publication.contentType,
         mediaUrl: publication.mediaUrl,
