@@ -37,7 +37,8 @@ import {
   marketingReasoningSuppression,
 } from "@/lib/marketing/model-pool";
 import {
-  paidRoutesWithBudgetLeft,
+  paidRouteBudgetStates,
+  paidRouteMaxOutputTokens,
   recordPaidRouteSpend,
 } from "@/lib/marketing/paid-route-budget";
 import {
@@ -991,6 +992,12 @@ async function completeWithValidStructure<T>(input: {
    */
   attempts?: { used: number };
   /**
+   * B719 — сколько денег осталось сегодня у платного маршрута, в валюте его
+   * счёта. Ключ есть только у платных провайдеров: у бесплатного остатка нет
+   * не потому, что он большой, а потому, что вопрос к нему неприменим.
+   */
+  paidRemaining?: Map<AIProvider, number>;
+  /**
    * B718 — сюда складываются провайдеры, отказавшие ПО ЁМКОСТИ. Множество
    * общее на весь материал, поэтому следующий раунд правки уже не спрашивает
    * их снова: квота не восстанавливается за те секунды, что идёт раунд.
@@ -1040,6 +1047,35 @@ async function completeWithValidStructure<T>(input: {
        * известного выключателя не подставляется ничего — строка наугад
        * засоряла бы промт, за который мы платим токенами.
        */
+      /**
+       * B719 — платному маршруту потолок вывода урезается по остатку суток.
+       *
+       * Проверка «есть ли ещё бюджет» стоит перед перебором и отвечает на
+       * вопрос «можно ли вообще»; здесь отвечается второй, не менее важный —
+       * «сколько можно за ЭТО обращение». Без него первый же вызов с потолком
+       * 16 000 токенов перекрыл бы весь суточный лимит OpenAI вдвое.
+       *
+       * Длина промта оценивается по символам (≈3 символа на токен для
+       * русского текста) и намеренно с запасом вверх: завышенная оценка
+       * промта оставляет меньше на вывод, то есть ошибается в сторону
+       * экономии, а не перерасхода.
+       */
+      const paidRemaining = input.paidRemaining?.get(provider);
+      let callBudget = budget;
+      if (paidRemaining !== undefined) {
+        const promptChars = input.messages.reduce((sum, message) => sum + message.content.length, 0);
+        callBudget = paidRouteMaxOutputTokens({
+          provider,
+          remaining: paidRemaining,
+          promptTokens: Math.ceil(promptChars / 3),
+          ceiling: budget,
+        });
+        if (callBudget <= 0) {
+          failures.push(`${provider}: суточный потолок расхода не покрывает даже промт`);
+          queue.shift();
+          continue;
+        }
+      }
       const suppression = marketingReasoningSuppression({ feature: input.feature, provider });
       const messages = suppression
         ? [{ role: "system" as const, content: suppression }, ...input.messages]
@@ -1048,7 +1084,7 @@ async function completeWithValidStructure<T>(input: {
         feature: input.feature,
         dataClass: "PUBLIC_MARKETING",
         providerOrder: [provider],
-        maxTokens: budget,
+        maxTokens: callBudget,
         temperature: input.temperature,
         requestId: `${input.requestId}:${provider.toLowerCase()}`
           + (truncationRetries > 0 ? `:b${truncationRetries}` : ""),
@@ -1477,11 +1513,18 @@ export async function processMarketingDraft(publicationId: string) {
      * Пусто, когда платный хвост выключен вовсе: считать потолки маршрута,
      * которого нет в очереди, незачем.
      */
-    const paidRoutesOverBudget = await (async () => {
-      if (!marketingPaidFallbackEnabled()) return [] as AIProvider[];
-      const withBudget = new Set(await paidRoutesWithBudgetLeft());
-      return MARKETING_PAID_PROVIDERS.filter((provider) => !withBudget.has(provider));
+    const paidBudget = await (async () => {
+      if (!marketingPaidFallbackEnabled()) {
+        return { over: [] as AIProvider[], remaining: new Map<AIProvider, number>() };
+      }
+      const states = await paidRouteBudgetStates().catch(() => []);
+      const remaining = new Map(states.map((state) => [state.provider, state.remaining]));
+      return {
+        over: MARKETING_PAID_PROVIDERS.filter((provider) => (remaining.get(provider) ?? 0) <= 0),
+        remaining,
+      };
     })();
+    const paidRoutesOverBudget = paidBudget.over;
     // B700: проход продолжает со склада, а не с чистого листа. Справка тоже
     // берётся оттуда — редактор обязан смотреть тот материал, который писал
     // автор, а не свежесобранный по тем же исходным данным.
@@ -1583,6 +1626,9 @@ export async function processMarketingDraft(publicationId: string) {
           ),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
+        // B719: платный хвост доступен только автору, значит и остаток денег
+        // нужен только здесь.
+        paidRemaining: paidBudget.remaining,
         attempts,
         capacityRefused,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,

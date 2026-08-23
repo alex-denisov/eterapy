@@ -16,6 +16,7 @@ import {
   paidRouteCap,
   paidRouteScopeKey,
   paidRouteSpend,
+  paidRouteMaxOutputTokens,
   paidRoutesWithBudgetLeft,
 } from "@/lib/marketing/paid-route-budget";
 
@@ -105,5 +106,50 @@ describe("B719 — исчерпанный потолок закрывает ма
     // всему пулу»: там ценой ошибки был лишний бесплатный вызов, здесь —
     // деньги владельца.
     expect(await paidRoutesWithBudgetLeft({}, client as never)).toEqual([]);
+  });
+});
+
+describe("B719 — одно обращение не может перескочить суточный потолок", () => {
+  /**
+   * ⚠ ЭТО НЕ ДУБЛИРУЕТ ПРОВЕРКУ ОСТАТКА. Та отвечает «можно ли сегодня вообще»
+   * и спрашивается ДО обращения; списание происходит ПОСЛЕ, а между ними стоит
+   * целый ответ модели. У SMM-агента потолок вывода 16 000 токенов (B718), и по
+   * оценке $1/$4 за миллион один такой ответ OpenAI стоит ≈$0,064 — вдвое
+   * больше всего суточного лимита. «Сегодня ещё можно» превращалось бы в
+   * двукратный перерасход за одно обращение.
+   */
+  it("полный потолок вывода дороже всего суточного лимита OpenAI", () => {
+    const full = paidRouteSpend({
+      provider: AIProvider.OPENAI, promptTokens: 5_400, completionTokens: 16_000,
+    });
+    expect(full).toBeGreaterThan(paidRouteCap(AIProvider.OPENAI)!.limit * 2);
+  });
+
+  it("поэтому потолок урезается по остатку суток", () => {
+    const allowed = paidRouteMaxOutputTokens({
+      provider: AIProvider.OPENAI, remaining: 0.03, promptTokens: 5_400, ceiling: 16_000,
+    });
+    expect(allowed).toBeLessThan(16_000);
+    expect(paidRouteSpend({
+      provider: AIProvider.OPENAI, promptTokens: 5_400, completionTokens: allowed,
+    })).toBeLessThanOrEqual(0.03);
+  });
+
+  it("остаток больше потолка — потолок не растёт", () => {
+    expect(paidRouteMaxOutputTokens({
+      provider: AIProvider.YANDEX, remaining: 10_000, promptTokens: 100, ceiling: 16_000,
+    })).toBe(16_000);
+  });
+
+  it("остатка не хватает даже на промт — обращения не будет вовсе", () => {
+    expect(paidRouteMaxOutputTokens({
+      provider: AIProvider.YANDEX, remaining: 0.5, promptTokens: 5_400, ceiling: 16_000,
+    })).toBe(0);
+  });
+
+  it("бесплатный провайдер потолка вывода не теряет", () => {
+    expect(paidRouteMaxOutputTokens({
+      provider: AIProvider.GEMINI, remaining: 0, promptTokens: 5_400, ceiling: 16_000,
+    })).toBe(16_000);
   });
 });

@@ -183,6 +183,39 @@ export async function paidRoutesWithBudgetLeft(input: {
   return allowed;
 }
 
+/**
+ * B719 — СКОЛЬКО ТОКЕНОВ ВЫВОДА ЕЩЁ МОЖНО СЕБЕ ПОЗВОЛИТЬ.
+ *
+ * ⚠ ПОЧЕМУ ОДНОЙ ПРОВЕРКИ ПЕРЕД ВЫЗОВОМ МАЛО. Потолок спрашивается ДО
+ * обращения, а списывается ПОСЛЕ, и между ними стоит целый ответ модели. У
+ * SMM-агента потолок вывода — 16 000 токенов (B718), и по оценке $1/$4 за
+ * миллион один такой ответ OpenAI стоит около $0,064 — вдвое больше всего
+ * суточного лимита в $0,03. То есть «сегодня ещё можно» превращалось бы в
+ * двукратный перерасход за одно обращение, и заметили бы мы это уже по счёту.
+ *
+ * Поэтому остаток переводится в потолок вывода и передаётся вызову. Промпт при
+ * этом уже оплачен фактом обращения — его стоимость вычитается из остатка
+ * первой, а на вывод идёт то, что уцелело.
+ *
+ * Возвращает `0`, если на обращение не хватает даже промпта: такой вызов
+ * делать нельзя вовсе.
+ */
+export function paidRouteMaxOutputTokens(input: {
+  provider: AIProvider;
+  remaining: number;
+  promptTokens: number;
+  ceiling: number;
+}): number {
+  const cap = paidRouteCap(input.provider);
+  if (!cap) return input.ceiling;
+  const promptCost = (input.promptTokens * cap.inputPerThousand) / 1000;
+  const leftForOutput = input.remaining - promptCost;
+  if (leftForOutput <= 0) return 0;
+  if (cap.outputPerThousand <= 0) return input.ceiling;
+  const affordable = Math.floor((leftForOutput * 1000) / cap.outputPerThousand);
+  return Math.max(0, Math.min(input.ceiling, affordable));
+}
+
 export async function paidRouteBudgetStates(input: { period?: string } = {}, client = db): Promise<PaidRouteBudgetState[]> {
   const states: PaidRouteBudgetState[] = [];
   for (const provider of MARKETING_PAID_PROVIDERS) {
