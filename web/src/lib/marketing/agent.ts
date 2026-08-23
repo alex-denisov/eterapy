@@ -240,8 +240,13 @@ const TRUNCATION_BUDGET_FACTOR = 1.75;
 /**
  * B644 — стартовые бюджеты ролей. Были 2200 у автора и 1600 у редактора: на
  * текст хватало с запасом, на «текст плюс размышление» — нет ни разу.
+ *
+ * B718 — старт равен потолку по той же причине, что у редактора ниже. Лестница
+ * автора была 4000 → 7000 → 12250 → 16000: до четырёх полных вызовов одного
+ * промта ради одного текста (замер 48 часов — 19 таких обрывов у
+ * `gemini-3.6-flash`). Потолок не резервируется и не оплачивается.
  */
-export const MARKETING_WRITER_MAX_TOKENS = 4_000;
+export const MARKETING_WRITER_MAX_TOKENS = MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS;
 /**
  * B695 — у редактора своя ступень, выше авторской.
  *
@@ -253,8 +258,29 @@ export const MARKETING_WRITER_MAX_TOKENS = 4_000;
  * Поднимать здесь дёшево: `maxTokens` — потолок, а не расход, и платим мы за
  * фактический вывод. Зато обрезанный шаг лестницы платит ПОЛНЫМ промптом и не
  * даёт ничего — стартовать с 4000 значит гарантированно выбросить две ступени.
+ *
+ * B718 — РАССУЖДЕНИЕ ДОВЕДЕНО ДО КОНЦА: СТАРТ РАВЕН ПОТОЛКУ.
+ *
+ * Комментарий выше говорит верную вещь и останавливается на полпути. Если
+ * `maxTokens` — это потолок, а не резерв, то любое стартовое значение НИЖЕ
+ * потолка не экономит ничего и стоит целой ступени всякий раз, когда модель
+ * думает дольше ожидаемого. Замер прода 2026-08-23 по логу
+ * `eterapy-marketing-agent-1` за 48 часов: 167 событий `output-truncated`, из
+ * них ~135 у редактора — ступени 8000 → 14000 → 16000. То есть ОДИН вердикт
+ * стоил трёх полных вызовов с промтом в 5 400 токенов вместо одного, и
+ * добирались до тех же 16 000, с которых можно было начать бесплатно.
+ *
+ * Средний УСПЕШНЫЙ вердикт редактора — 943 токена вывода (`ai_attempts`,
+ * 623 успеха за неделю). Расход не вырастет: платим за то, что модель
+ * действительно выдала. Исчезает только лестница.
+ *
+ * ⚠ Что теперь означает обрыв. Стартуя с потолка, повышать некуда, и
+ * `nextBudget <= budget` уводит маршрут в `MarketingTruncatedOutputError` —
+ * то есть в СЛЕДУЮЩЕГО провайдера, а не в третий заход к тому же. Это и есть
+ * правильный ответ на «эта модель не уложилась»: пробовать другую, а не
+ * оплачивать тот же обрыв заново.
  */
-export const MARKETING_REVIEWER_MAX_TOKENS = 8_000;
+export const MARKETING_REVIEWER_MAX_TOKENS = MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS;
 
 const CAPACITY_ERROR_MARKERS = [
   "daily token budget exceeded",
@@ -415,11 +441,35 @@ const EDITORIAL_ROUND_LIMIT = 3;
  * повторяются, а не заменяются), поэтому второй круг — это запас на редкий
  * случай, а не режим работы. Всё, что не сошлось за шесть раундов, сходиться
  * уже не собирается, и дальше платить за него нельзя.
+ *
+ * B718 — ШЕСТЬ СТАЛО ТРЕМЯ, И ЭТО СЛЕДСТВИЕ ИЗ УЖЕ НАПИСАННОГО ВЫШЕ.
+ *
+ * Комментарий сам говорит: «сходящаяся правка укладывается в первые два-три
+ * раунда», «второй круг — запас на редкий случай». Замер прода 2026-08-23 за
+ * двое суток: автор 100 обращений, редактор 284 — то есть 2,8 рецензии на одно
+ * написание. Запас перестал быть редким случаем и стал режимом работы, а
+ * вместе с ним 623 успешные рецензии за неделю на 14 выпущенных материалов
+ * (44 рецензии на пост).
+ *
+ * Второй круг больше не оплачивается, и материал при этом НЕ гибнет: с B713
+ * исчерпанный круг выпускает лучший черновик с пометкой о незакрытых
+ * замечаниях. Раньше сокращение кругов означало бы больше смертей — теперь оно
+ * означает более ранний выпуск.
  */
 const EDITORIAL_LIFETIME_ROUND_LIMIT = Math.max(
   EDITORIAL_ROUND_LIMIT,
-  Number(process.env.MARKETING_EDITORIAL_LIFETIME_ROUNDS || 6),
+  Number(process.env.MARKETING_EDITORIAL_LIFETIME_ROUNDS || EDITORIAL_ROUND_LIMIT),
 );
+
+/**
+ * B718 — оба рубежа наружу одной функцией: прогон обязан мерить их ОТНОШЕНИЕ,
+ * а не два числа по отдельности. «Пожизненный круг равен кругу за проход» —
+ * это и есть правило «второй круг не оплачивается», и записать его надо там,
+ * где его нельзя случайно разъединить.
+ */
+export function marketingEditorialRoundLimits(): { perPass: number; lifetime: number } {
+  return { perPass: EDITORIAL_ROUND_LIMIT, lifetime: EDITORIAL_LIFETIME_ROUND_LIMIT };
+}
 const REVIEW_SCORE_KEYS = [
   "relevance",
   "value",
@@ -924,6 +974,12 @@ async function completeWithValidStructure<T>(input: {
    * тогда, когда он считает материал целиком, а не каждый вызов по отдельности.
    */
   attempts?: { used: number };
+  /**
+   * B718 — сюда складываются провайдеры, отказавшие ПО ЁМКОСТИ. Множество
+   * общее на весь материал, поэтому следующий раунд правки уже не спрашивает
+   * их снова: квота не восстанавливается за те секунды, что идёт раунд.
+   */
+  capacityRefused?: Set<AIProvider>;
 }) {
   const failures: string[] = [];
   let capacityFailures = 0;
@@ -1038,8 +1094,12 @@ async function completeWithValidStructure<T>(input: {
         queue.shift();
         continue;
       }
-      if (isCapacityError(error)) capacityFailures += 1;
-      else if (isInfrastructureRoutingError(error)) infrastructureFailures += 1;
+      if (isCapacityError(error)) {
+        capacityFailures += 1;
+        // B718: отказ по ёмкости помнится до конца материала — см. объявление
+        // `capacityRefused` в `runMaterial`.
+        input.capacityRefused?.add(provider);
+      } else if (isInfrastructureRoutingError(error)) infrastructureFailures += 1;
       failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!retrySameProvider) queue.shift();
@@ -1334,6 +1394,26 @@ export async function processMarketingDraft(publicationId: string) {
     // B680: счётчик обращений к моделям на весь материал — общий для обеих
     // ролей и всех раундов правки.
     const attempts = { used: 0 };
+    /**
+     * B718 — ОТКАЗ ПО ЁМКОСТИ ПОМНИТСЯ ДО КОНЦА МАТЕРИАЛА.
+     *
+     * `marketingProviderOrder` строится заново на КАЖДОМ раунде, а голова
+     * очереди по требованию владельца (B712) не вращается. Значит провайдер,
+     * только что сказавший «квота кончилась», получает тот же вопрос в
+     * следующем раунде — и отвечает то же самое.
+     *
+     * Замер прода 19–20.08 показывает цену: у Gemini 45 и 44 отказа 429 за
+     * сутки при 38 и 25 успехах, а семь живых бесплатных провайдеров в те же
+     * сутки не получили НИ ОДНОГО обращения автора. Пул из двенадцати работал
+     * как пул из одного — ровно то, на что жалуется владелец словами «выжигаются
+     * все лимиты бесплатных провайдеров». Выжигался один.
+     *
+     * Множество живёт ровно один проход материала: квота восстанавливается по
+     * часам, и помнить отказ дольше значило бы вычеркнуть провайдера из пула
+     * по одному 429. Предпочтение владельца не нарушено: голова спрашивается
+     * первой — просто один раз, а не шесть.
+     */
+    const capacityRefused = new Set<AIProvider>();
     // B700: проход продолжает со склада, а не с чистого листа. Справка тоже
     // берётся оттуда — редактор обязан смотреть тот материал, который писал
     // автор, а не свежесобранный по тем же исходным данным.
@@ -1420,13 +1500,16 @@ export async function processMarketingDraft(publicationId: string) {
           // владелец не просил.
           : marketingProviderOrder(
             `writer:${cycleSeed}`,
-            [],
+            // B718: провайдеров, уже сказавших «квота кончилась» на этом
+            // материале, второй раз не спрашиваем.
+            [...capacityRefused],
             availability.providers,
             { paidFallback: marketingPaidFallbackEnabled() },
           ),
         maxTokens: MARKETING_WRITER_MAX_TOKENS,
         temperature: 0.45,
         attempts,
+        capacityRefused,
         requestId: `marketing-writer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           // B705: автор получает контракт СВОЕЙ площадки и только его, а роль
@@ -1519,7 +1602,11 @@ export async function processMarketingDraft(publicationId: string) {
       // критерий — другая МОДЕЛЬ. Провайдер автора остаётся в конце очереди как
       // последний вариант: он допустим, если отдаст не ту же модель.
       const writerProvider = marketingProviderFromLabel(writer.provider);
-      const rotated = marketingProviderOrder(`reviewer:${cycleSeed}`, [], availability.providers);
+      const rotated = marketingProviderOrder(
+        `reviewer:${cycleSeed}`,
+        [...capacityRefused],
+        availability.providers,
+      );
       const reviewerProviderOrder = [
         ...rotated.filter((provider) => provider !== writerProvider),
         ...rotated.filter((provider) => provider === writerProvider),
@@ -1531,6 +1618,7 @@ export async function processMarketingDraft(publicationId: string) {
         maxTokens: MARKETING_REVIEWER_MAX_TOKENS,
         temperature: 0.05,
         attempts,
+        capacityRefused,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,
         messages: [
           // B705: «нативность площадке» меряется по контракту той ленты, куда

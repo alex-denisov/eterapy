@@ -39,6 +39,41 @@ import {
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
+
+/**
+ * B718 — ТАКТ ЛИНИИ ОТДЕЛЁН ОТ ТАКТА ВОРКЕРА.
+ *
+ * Требование владельца 2026-08-23 дословно: «почему прогоны моделей
+ * осуществляются в среднем раз в минуту? ведь посты не пишутся раз в минуту.
+ * Нужно управлять этим как конвейером».
+ *
+ * Что было. Шаг воркера — 60 секунд, и `runMarketingAgentCycle` вызывался
+ * КАЖДЫЙ шаг. Норма часа (`conveyorTact`) ограничивает только АВТОРА; очередь
+ * редактора намеренно оставлена вне нормы («материал со склада стоит один
+ * вызов и сразу превращается в готовое»), и берёт она до `LOOP_LIMIT` = 3
+ * материалов за проход. То есть при непустом складе линия имела право на 180
+ * рецензий в час.
+ *
+ * Так и вышло. Замер прода 2026-08-22 по часам: в 12:00 — 192 обращения и
+ * 988 596 токенов за один час, дальше сутки почти в нуле. За 48 часов
+ * `marketing-worker.agent` отработал 2 660 раз и выпустил 3 материала.
+ *
+ * Почему это чинится ШАГОМ, а не новой нормой для редактора. Незавершённое
+ * производство уже ограничено сверху (`MARKETING_MAX_AWAITING_REVIEW` = 6), а
+ * окна выпуска — часы, а не минуты (`publish-windows.ts`). Значит десятиминутный
+ * шаг даёт до 6 разборов склада в час при потолке склада в 6 материалов — этого
+ * достаточно с запасом, и он не требует второго счётчика темпа, который
+ * немедленно разошёлся бы с первым.
+ *
+ * ⚠ ДЕШЁВЫЕ ОПЕРАЦИИ ОСТАЮТСЯ НА МИНУТНОМ ШАГЕ. Выпуск в срок, ответы на
+ * входящее и сбор метрик к моделям не ходят; замедлить их значило бы обменять
+ * расход, которого у них нет, на опоздание, которое видно человеку.
+ */
+const agentCycleMs = Math.max(
+  pollMs,
+  Number(process.env.MARKETING_AGENT_CYCLE_MS || 10 * 60_000),
+);
+let lastAgentCycle = 0;
 let stopping = false;
 let lastDiscovery = 0;
 let lastSeoAudit = 0;
@@ -73,7 +108,7 @@ async function guarded(name: string, run: () => Promise<unknown>) {
 }
 
 async function main() {
-  log.info("marketing-worker.started", { pollMs });
+  log.info("marketing-worker.started", { pollMs, agentCycleMs });
   // B703 — коннекторы на бесплатных тарифах поднимаются из оверлея `.env` до
   // первого прохода агента, а не рукой в панели. Заход стоит семь upsert'ов и
   // делается ОДИН раз при старте: ключи меняются выкаткой, а выкатка
@@ -105,7 +140,12 @@ async function main() {
       // пополняется каждый тик, до генерации: так ответ попадает в тот же
       // проход writer → редактор, а не в следующий.
       await guarded("inbound-queue", () => queueInboundReplies({ now: new Date() }));
-      await guarded("agent", runMarketingAgentCycle);
+      // B718: единственная операция цикла, которая ходит к моделям, — и
+      // единственная, у которой свой шаг.
+      if (now - lastAgentCycle >= agentCycleMs) {
+        lastAgentCycle = now;
+        await guarded("agent", runMarketingAgentCycle);
+      }
       // Approved comments are dispatched independently of the owned-post
       // autopublish flag. Owned posts still obey MARKETING_AUTOPUBLISH.
       await guarded("publish", () => publishScheduledMarketing());

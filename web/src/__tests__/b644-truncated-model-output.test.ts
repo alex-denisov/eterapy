@@ -157,14 +157,33 @@ describe("признак обрезки", () => {
 });
 
 describe("обрыв лечится бюджетом, а не перебором провайдеров", () => {
-  it("повторяем ТОТ ЖЕ маршрут с большим лимитом", async () => {
+  /**
+   * B718 — ЛЕСТНИЦЫ БОЛЬШЕ НЕТ, И ЭТО ОТМЕНА ЭТОГО САМОГО ПРАВИЛА.
+   *
+   * B644 требовал повторить ТОТ ЖЕ маршрут с большим потолком, рассуждая так:
+   * «перебор чужих маршрутов вернул бы тот же обрыв». B695 это опроверг
+   * замером — обрывается ДУМАЮЩАЯ модель, а `mistral-small` в той же очереди
+   * отвечает без обрыва, — но оставил лестницу на месте, добавив переход к
+   * следующему провайдеру только НА ВЕРХУ лестницы.
+   *
+   * Замер B718 (прод, лог за 48 часов): 167 обрывов, из них ~135 у редактора на
+   * ступенях 8000 → 14000 → 16000. Каждая ступень — новый вызов с полным
+   * промтом в 5 400 токенов. То есть до двух лишних оплаченных вызовов ради
+   * потолка, до которого всё равно доходили и с которого можно было начать
+   * бесплатно: `maxTokens` — это ПОТОЛОК, а не резерв, и платим мы за
+   * фактический вывод.
+   *
+   * Поэтому старт равен потолку, а обрыв означает то, что он и означает:
+   * эта модель ушла в размышление и нужна другая. Прогон меряет теперь это.
+   */
+  it("обрыв уводит к следующему маршруту, а не ко второму заходу к тому же", async () => {
     let writerCalls = 0;
     aiComplete.mockImplementation((input: AiCall) => {
       if (input.feature.includes("writer")) {
         writerCalls += 1;
         return Promise.resolve(writerCalls === 1
           ? { text: TRUNCATED, provider: "GEMINI", model: "gemini-3.6-flash", finishReason: "MAX_TOKENS" }
-          : { text: WRITER_ANSWER, provider: "GEMINI", model: "gemini-3.6-flash", finishReason: "STOP" });
+          : { text: WRITER_ANSWER, provider: "GROQ", model: "qwen/qwen3.6-27b", finishReason: "STOP" });
       }
       return Promise.resolve({
         text: REVIEWER_ANSWER,
@@ -178,10 +197,11 @@ describe("обрыв лечится бюджетом, а не перебором
 
     const writer = callsFor("writer");
     expect(writer).toHaveLength(2);
-    // Тот же провайдер: перебор чужих маршрутов вернул бы тот же обрыв.
-    expect(writer[1].providerOrder).toEqual(writer[0].providerOrder);
-    expect(writer[1].maxTokens).toBeGreaterThan(writer[0].maxTokens);
-    // И материал доходит до конца, а не гибнет с ложной причиной.
+    // Второй вызов уходит СЛЕДУЮЩЕМУ провайдеру очереди, а не первому снова.
+    expect(writer[1].providerOrder).not.toEqual(writer[0].providerOrder);
+    // И потолок не растёт: расти ему больше некуда, он и был максимальным.
+    expect(writer[1].maxTokens).toBe(writer[0].maxTokens);
+    // Материал доходит до конца, а не гибнет с ложной причиной.
     const failed = update.mock.calls.find(
       (call) => (call[0] as { data: { status?: string } }).data.status === "FAILED",
     );
@@ -232,11 +252,14 @@ describe("обрыв лечится бюджетом, а не перебором
 });
 
 describe("бюджет ролей покрывает размышление", () => {
-  it("стартовый лимит выше замеренного p90 видимого вывода с запасом", () => {
+  it("стартовый лимит ролей равен потолку — ступеней между ними нет", () => {
     // Замер прода 2026-08-03: p90 видимого вывода 1080 у автора и 1151 у
     // редактора при лимитах 2200 и 1600 — и `MAX_TOKENS` в каждой попытке.
-    expect(MARKETING_WRITER_MAX_TOKENS).toBeGreaterThanOrEqual(4_000);
-    expect(MARKETING_REVIEWER_MAX_TOKENS).toBeGreaterThanOrEqual(3_000);
-    expect(MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS).toBeGreaterThan(MARKETING_WRITER_MAX_TOKENS);
+    // B718: запас перестал быть ступенчатым. Обе роли стартуют с потолка,
+    // потому что потолок ничего не стоит, пока модель до него не дописала.
+    expect(MARKETING_WRITER_MAX_TOKENS).toBe(MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS);
+    expect(MARKETING_REVIEWER_MAX_TOKENS).toBe(MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS);
+    // Запас над замеренным p90 сохраняется с многократным перекрытием.
+    expect(MARKETING_REVIEWER_MAX_TOKENS).toBeGreaterThan(1_151 * 5);
   });
 });

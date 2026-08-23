@@ -163,6 +163,72 @@ const CLASS_TOLERANCE_MS: Record<ContentClass, number> = {
   article: 6 * 60 * 60_000,
 };
 
+/**
+ * B718 — ДЖИТТЕР: ЧАС ВЫПУСКА ПЕРЕСТАЁТ БЫТЬ ОДНИМ И ТЕМ ЖЕ ЧИСЛОМ.
+ *
+ * Требование владельца 2026-08-23 дословно: «Нужно расписание с джиттером
+ * (чтобы не выглядело как все роботизированное)».
+ *
+ * Что было. Таблица `PLATFORM_AUDIENCE` отдаёт литеральный час на пару
+ * «площадка × время суток», отдельно для будней и выходных. Значит Telegram
+ * выходил в 08:30 каждый будний день подряд, Дзен — в 09:30 каждый день
+ * вообще. Замер очереди на 24.08–10.09 (прод, 2026-08-23): 15 подряд идущих
+ * слотов Telegram на трёх временах и 12 слотов Дзена на одном. Человек так не
+ * публикует, и это видно без всякой аналитики.
+ *
+ * ⚠ ДЖИТТЕР ОБЯЗАН БЫТЬ ДЕТЕРМИНИРОВАННЫМ. План пересобирается при каждом
+ * заходе воркера (`contentPlanFor` вызывается заново), и случайный сдвиг
+ * означал бы, что у слота каждый раз другое время: строка реестра уехала бы от
+ * своего же ключа, `nextSlotCandidates` перестал бы находить перенос, а окно
+ * выпуска (B645) открывалось бы и закрывалось на ровном месте. Поэтому сдвиг —
+ * чистая функция от ключа слота.
+ *
+ * ⚠ РАЗМАХ ПРИВЯЗАН К ШИРИНЕ ОКНА КЛАССА, А НЕ ВЗЯТ КРУГЛЫМ ЧИСЛОМ. У карточки
+ * дня смысл в часе выпуска — ей четверть окна, то есть ±30 минут. У статьи
+ * окно шесть часов, и ±45 минут её не портят. Верхняя граница ±45 стоит не
+ * ради красоты: два соседних времени суток у самой плотной площадки (Threads,
+ * 10:45 и 18:45) разнесены на восемь часов, а у самой тесной пары (Telegram
+ * 08:30 → 13:00) — на четыре с половиной часа. ±45 минут не дотягивается до
+ * соседа ни в одном случае, и это проверяется прогоном по всему плану.
+ */
+const MAX_JITTER_MINUTES = 45;
+
+/** Небольшой стабильный хеш — тот же на всех нодах и между перезапусками. */
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function jitterMinutesFor(contentClass: ContentClass, seed: string): number {
+  const quarterWindowMinutes = Math.floor(CLASS_TOLERANCE_MS[contentClass] / 60_000 / 4);
+  const spread = Math.min(MAX_JITTER_MINUTES, quarterWindowMinutes);
+  if (spread <= 0) return 0;
+  // Диапазон [-spread, +spread] — 2*spread+1 значений, чтобы ноль тоже был
+  // возможен: расписание без единого совпадения с «ровным» часом выглядело бы
+  // так же неестественно, как расписание из одних ровных часов.
+  return (stableHash(seed) % (spread * 2 + 1)) - spread;
+}
+
+/**
+ * Сдвинуть `HH:MM` на минуты, не выходя за сутки.
+ *
+ * Границы 05:00 и 23:30 — не про вкус, а про то, что окно выпуска (B645)
+ * открывается ПОСЛЕ названного часа: слот в 23:50 закрылся бы переходом суток
+ * раньше, чем линия успела его взять.
+ */
+function shiftTime(time: string, minutes: number): string {
+  const [hours, mins] = time.split(":").map((part) => Number(part));
+  const total = hours * 60 + mins + minutes;
+  const clamped = Math.min(23 * 60 + 30, Math.max(5 * 60, total));
+  const hh = String(Math.floor(clamped / 60)).padStart(2, "0");
+  const mm = String(clamped % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 export interface PublishWindow {
   /** Час выпуска в МСК, `HH:MM`. */
   time: string;
@@ -197,6 +263,13 @@ export function publishWindow(input: {
   contentClass: ContentClass;
   weekday: number;
   taken?: readonly Daypart[];
+  /**
+   * B718 — ключ слота. Есть ключ — час получает детерминированный сдвиг; нет
+   * ключа — таблица отдаёт литеральный час, как отдавала до правки. Так
+   * прогон B700, доказывающий «механизм заменён, расписание — нет», остаётся
+   * осмысленным: он и дальше меряет ТАБЛИЦУ, а не джиттер.
+   */
+  jitterSeed?: string | null;
 }): PublishWindow | null {
   const audience = PLATFORM_AUDIENCE[input.platform];
   if (!audience) return null;
@@ -207,7 +280,7 @@ export function publishWindow(input: {
     const hours = audience.dayparts[daypart];
     if (!hours || taken.has(daypart)) continue;
     return {
-      time: weekend ? hours.weekend : hours.weekday,
+      time: withJitter(weekend ? hours.weekend : hours.weekday, input, daypart),
       toleranceMs: CLASS_TOLERANCE_MS[input.contentClass],
       daypart,
     };
@@ -220,12 +293,28 @@ export function publishWindow(input: {
     const hours = audience.dayparts[daypart];
     if (!hours || taken.has(daypart)) continue;
     return {
-      time: weekend ? hours.weekend : hours.weekday,
+      time: withJitter(weekend ? hours.weekend : hours.weekday, input, daypart),
       toleranceMs: CLASS_TOLERANCE_MS[input.contentClass],
       daypart,
     };
   }
   return null;
+}
+
+/** Сдвиг применяется в одном месте — иначе две ветки разъедутся молча. */
+function withJitter(
+  time: string,
+  input: { contentClass: ContentClass; jitterSeed?: string | null },
+  daypart: Daypart,
+): string {
+  if (!input.jitterSeed) return time;
+  return shiftTime(
+    time,
+    // Время суток входит в зерно: иначе два слота одной площадки в один день
+    // получили бы ОДИН и тот же сдвиг, и расписание сдвинулось бы целиком,
+    // оставшись такой же ровной сеткой.
+    jitterMinutesFor(input.contentClass, `${input.jitterSeed}:${daypart}`),
+  );
 }
 
 export function slotToleranceMsFor(contentClass: ContentClass): number {

@@ -14,7 +14,22 @@
 
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
-import { CONTENT_PLAN, contentPlanFor, nextPlanSlots, plannedAtFor, topicArticleSlug, withUnusedTopic } from "@/lib/marketing/content-plan";
+import {
+  CONTENT_PLAN,
+  contentPlanFor,
+  nextPlanSlots,
+  PLAN_MAX_HORIZON_DAYS,
+  plannedAtFor,
+  topicArticleSlug,
+  withUnusedTopic,
+} from "@/lib/marketing/content-plan";
+
+/**
+ * B718 — площадки, у которых нет вечного запрета повтора темы, но есть окно.
+ * Список закрытый и совпадает с `PlanChannel` минус Дзен: новая площадка
+ * обязана получить решение о повторах явно, а не унаследовать «можно всё».
+ */
+const FAST_FEED_PLATFORMS = ["telegram", "threads", "vk", "instagram", "reddit"] as const;
 import { runQueueHygiene } from "@/lib/marketing/queue-hygiene";
 import {
   DZEN_FEED_POST_PREFIX,
@@ -322,16 +337,64 @@ export async function generateMarketingDrafts(input: {
    */
   const UNIQUE_TOPIC_PLATFORMS = new Set(["dzen"]);
 
+  /**
+   * B718 — ЗАПРЕТ ПОВТОРА РАСПРОСТРАНЁН НА ВСЕ ПЛОЩАДКИ, НО ОКНОМ.
+   *
+   * Комментарий выше обосновывал исключение для Дзена так: «в плане на две
+   * недели 42 слота на 16 тем, и возврат к теме другим форматом — норма;
+   * запрет уникальности выкосил бы там две трети плана». Это было верно, пока
+   * тему выбирала константа `TOPICS` из шестнадцати штук. С B702 тему выбирает
+   * планировщик из ОДОБРЕННОЙ БИБЛИОТЕКИ — 199 карточек на ≈50 слотов в
+   * неделю. Посылка исключения перестала существовать, а исключение осталось.
+   *
+   * Цена видна в очереди прода на 24.08–10.09 (замер 2026-08-23): «9 аркан
+   * (Отшельник)» в трёх слотах, «3 аркан (Императрица)» в трёх, «19 аркан
+   * (Солнце)» в трёх, «Что значит повтор одного аркана» в трёх, «Квадрат
+   * Пифагора» два дня подряд на одной площадке. Владелец описал это словами
+   * «будто сухой блог ведется везде».
+   *
+   * ⚠ ПОЧЕМУ ОКНО, А НЕ ВЕЧНЫЙ ЗАПРЕТ. Вечный запрет — правило Дзена, и оно
+   * там осмысленно: длинная статья живёт в ленте месяцами. Короткая лента
+   * забывает пост за сутки, и вернуться к теме через две недели — нормальная
+   * работа редакции, а не повтор. Поэтому у быстрых лент граница по ВРЕМЕНИ, и
+   * ширина её — горизонт плана самой длинной из них (`PLAN_MAX_HORIZON_DAYS`),
+   * то есть «в пределах видимого плана тема встречается один раз».
+   *
+   * ⚠ И ПОЧЕМУ ОКНО ОБЩЕЕ НА ФЛОТ, А НЕ НА ПЛОЩАДКУ. Прежняя карта была
+   * `Map<platform, Set>`: одна и та же статья законно доставалась Telegram,
+   * Threads и VK в соседние дни, и именно так в очереди оказались «Высокая
+   * совместимость…» (threads 28.08 + telegram 29.08) и «Любим друг друга…»
+   * (vk 28.08 + instagram 29.08). Владелец читает не одну ленту, а все.
+   */
+  const CROSS_PLATFORM_TOPIC_WINDOW_MS = PLAN_MAX_HORIZON_DAYS * 24 * 3_600_000;
+
   // Занятые темы считаются ОДИН раз на проход и пополняются по мере создания:
   // иначе два слота одного окна выберут одну и ту же «первую свободную».
   const usedTopicsByPlatform = new Map<string, Set<string>>();
+
+  // Общий на весь флот слой: темы, занятые в окне видимого плана где угодно.
+  const recentRows = await db.externalPublication.findMany({
+    where: {
+      // Архив — это отбракованное; его темы снова свободны
+      // (`feedback_reschedule_never_archive_media` про обратное — про то, что
+      // хороший материал в архив не отправляют вовсе).
+      status: { not: "ARCHIVED" },
+      planSlot: { not: null },
+      scheduledFor: {
+        gte: new Date(now.getTime() - CROSS_PLATFORM_TOPIC_WINDOW_MS),
+        lte: new Date(now.getTime() + CROSS_PLATFORM_TOPIC_WINDOW_MS),
+      },
+    },
+    select: { cluster: true, targetQuery: true },
+  }).catch(() => []);
+  const usedAcrossFleet = new Set(
+    recentRows.map(topicArticleSlug).filter((value): value is string => Boolean(value)),
+  );
+
   for (const platform of UNIQUE_TOPIC_PLATFORMS) {
     const rows = await db.externalPublication.findMany({
       where: {
         platform,
-        // Архив — это отбракованное; его темы снова свободны
-        // (`feedback_reschedule_never_archive_media` про обратное — про то, что
-        // хороший материал в архив не отправляют вовсе).
         status: { not: "ARCHIVED" },
         planSlot: { not: null },
       },
@@ -339,8 +402,16 @@ export async function generateMarketingDrafts(input: {
     }).catch(() => []);
     usedTopicsByPlatform.set(
       platform,
-      new Set(rows.map(topicArticleSlug).filter((value): value is string => Boolean(value))),
+      new Set([
+        ...rows.map(topicArticleSlug).filter((value): value is string => Boolean(value)),
+        ...usedAcrossFleet,
+      ]),
     );
+  }
+  // Быстрые ленты получают ровно общий слой: своего вечного запрета у них нет.
+  for (const platform of FAST_FEED_PLATFORMS) {
+    if (usedTopicsByPlatform.has(platform)) continue;
+    usedTopicsByPlatform.set(platform, new Set(usedAcrossFleet));
   }
 
   // B702 фаза 4 — тема свободного слота решается планировщиком спроса/трендов,

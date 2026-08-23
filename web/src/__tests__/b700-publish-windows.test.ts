@@ -129,18 +129,51 @@ describe("B700 фаза 4 · план собирается из окон", () =>
     }
   });
 
-  it("выходные слоты сдвинуты, будние — нет", () => {
+  /**
+   * B718 — прежняя редакция прогона требовала ТОЧНОГО «08:30» у будних слотов
+   * плана. Это доказывало утверждение B700 «механизм заменён, расписание — нет»
+   * и было верным ровно до тех пор, пока расписание не меняли намеренно.
+   *
+   * Теперь его меняют: у слота есть детерминированный джиттер (требование
+   * владельца 2026-08-23, «чтобы не выглядело как все роботизированное»).
+   * Инвариант поэтому переехал на уровень выше — час слота остаётся В ОКРЕСТНОСТИ
+   * табличного, а сама таблица не тронута (это проверяет `publishWindow` без
+   * зерна выше в этом же файле).
+   */
+  it("будний час держится окрестности таблицы, выходной сдвинут позже", () => {
     const telegramMorning = plan.filter((slot) => slot.channel === "telegram" && slot.daypart === "morning");
-    const hours = new Map<string, string>();
+    expect(telegramMorning.length).toBeGreaterThan(0);
+    const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+    const byKind = new Map<string, number[]>();
     for (const slot of telegramMorning) {
-      const at = new Date(slot.scheduledAt);
-      const moscow = new Date(at.getTime() + 3 * 3_600_000);
-      const weekday = moscow.getUTCDay();
-      const time = slot.scheduledAt.slice(11, 16);
-      hours.set(weekday === 0 || weekday === 6 ? "weekend" : "weekday", time);
+      const moscow = new Date(new Date(slot.scheduledAt).getTime() + 3 * 3_600_000);
+      const kind = moscow.getUTCDay() === 0 || moscow.getUTCDay() === 6 ? "weekend" : "weekday";
+      byKind.set(kind, [...(byKind.get(kind) ?? []), minutesOf(slot.scheduledAt.slice(11, 16))]);
     }
-    expect(hours.get("weekday")).toBe("08:30");
-    expect(hours.get("weekend")).toBe("10:00");
+    for (const value of byKind.get("weekday") ?? []) {
+      expect(Math.abs(value - minutesOf("08:30"))).toBeLessThanOrEqual(45);
+    }
+    for (const value of byKind.get("weekend") ?? []) {
+      expect(Math.abs(value - minutesOf("10:00"))).toBeLessThanOrEqual(45);
+    }
+  });
+
+  /**
+   * B718 — сам джиттер: он обязан быть и обязан быть повторяемым.
+   *
+   * Два свойства в одном прогоне, потому что порознь каждое проходит на
+   * сломанной реализации: «повторяемость» зелена при джиттере, выключенном
+   * вовсе, а «разнообразие» — при случайном сдвиге, который ломает перенос
+   * слота.
+   */
+  it("джиттер повторяем и всё-таки разводит одинаковые слоты", () => {
+    const again = contentPlanFor(new Date("2026-08-11T09:00:00Z"));
+    expect(again.map((slot) => slot.scheduledAt)).toEqual(plan.map((slot) => slot.scheduledAt));
+
+    const telegramMorning = plan
+      .filter((slot) => slot.channel === "telegram" && slot.daypart === "morning")
+      .map((slot) => slot.scheduledAt.slice(11, 16));
+    expect(new Set(telegramMorning).size).toBeGreaterThan(1);
   });
 });
 

@@ -30,6 +30,7 @@
 import { AIGatewayRoutingError } from "@/lib/ai-gateway/routing";
 import { INBOUND_REPLY_CONTENT_TYPE } from "@/lib/marketing/perimeter";
 import {
+  MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS,
   MARKETING_REVIEWER_MAX_TOKENS,
   MARKETING_WRITER_MAX_TOKENS,
   MarketingInfrastructureError,
@@ -279,11 +280,22 @@ describe("граница откладывания: вина материала, 
     expect(isCapacityError(error)).toBe(false);
   });
 
-  it("стартовая ступень редактора выше авторской", () => {
-    // Замер реестра прода 2026-08-06: все десять обрывов по лимиту вывода — на
-    // моделях РОЛИ РЕДАКТОРА (`nemotron-3-super` 8, `gemini-3.5-flash` 2), у
-    // автора ни одного. Обрезанный шаг платит полным промптом и не даёт ничего.
-    expect(MARKETING_REVIEWER_MAX_TOKENS).toBeGreaterThan(MARKETING_WRITER_MAX_TOKENS);
+  /**
+   * B718 — СТУПЕНЕЙ БОЛЬШЕ НЕТ, ПОЭТОМУ НЕТ И «ВЫШЕ АВТОРСКОЙ».
+   *
+   * Наблюдение B695 верное и никуда не делось: обрывается роль РЕДАКТОРА, у
+   * автора обрывов почти нет. Но вывод из него был половинчатым — редактору
+   * подняли старт до 8000 и оставили лестницу до 16000. Замер 2026-08-23 за 48
+   * часов: ~135 обрывов редактора на ступенях 8000 → 14000 → 16000, то есть
+   * лестницу проходили НАСКВОЗЬ и платили за неё полным промтом дважды.
+   *
+   * Обе роли стартуют с потолка. Утверждение «редактору нужно больше» теперь
+   * выражено иначе: больше уже некуда, и обрыв на потолке означает не нехватку
+   * бюджета, а зациклившееся размышление — лечится другой моделью.
+   */
+  it("обе роли стартуют с потолка: ступеней между стартом и потолком нет", () => {
+    expect(MARKETING_REVIEWER_MAX_TOKENS).toBe(MARKETING_WRITER_MAX_TOKENS);
+    expect(MARKETING_REVIEWER_MAX_TOKENS).toBe(MARKETING_MAX_STRUCTURED_OUTPUT_TOKENS);
   });
 
   it("брак материала остаётся браком", () => {

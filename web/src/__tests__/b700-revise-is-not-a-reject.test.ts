@@ -25,7 +25,7 @@
  *   4. круги считаются ПОЖИЗНЕННО — исчерпав их, материал уходит в брак честно.
  */
 
-import { carriedWriterStage, processMarketingDraft } from "@/lib/marketing/agent";
+import { processMarketingDraft } from "@/lib/marketing/agent";
 
 const aiComplete = jest.fn();
 const findUnique = jest.fn();
@@ -157,29 +157,45 @@ beforeEach(() => {
 });
 
 describe("B700 фаза 6 · исчерпанный круг правки не выбрасывает материал", () => {
-  it("три REVISE подряд — материал возвращается на склад, а не в брак", async () => {
+  /**
+   * B718 — ИСХОД СТРАХОВКИ СТАЛ ВЫПУСКОМ, А НЕ ВТОРЫМ ПРОХОДОМ.
+   *
+   * Обещание фазы 6 — «материал с вердиктом REVISE не идёт в брак» —
+   * выполняется по-прежнему, и это главное, что меряет прогон. Изменился
+   * СПОСОБ: раньше исчерпанный круг возвращал материал на склад ещё на один
+   * оплаченный проход (пожизненный рубеж был 6 = два круга по три), теперь
+   * пожизненный рубеж равен кругу, и на выходе работает страховка B713 —
+   * выпуск лучшего черновика с пометкой о незакрытых замечаниях.
+   *
+   * Причина замера: 623 успешные рецензии за неделю на 14 выпущенных
+   * материалов, при этом дословные вердикты второго круга — «Неустранённые
+   * дефекты из прошлого раунда … Новых блокирующих замечаний нет». Второй круг
+   * не сходился, он повторялся. Выпустить лучшее дешевле и полезнее, чем
+   * заплатить за тот же вердикт ещё раз.
+   *
+   * ⚠ ГРАНИЦА НЕ СДВИНУТА: REJECT, флаг безопасности и пустой текст наружу
+   * по-прежнему не выпускаются — это проверяют соседние прогоны файла.
+   */
+  it("три REVISE подряд — материал выпускается лучшим черновиком, а не в брак", async () => {
     answerWith("REVISE");
 
     const result = await processMarketingDraft("pub-1");
 
-    expect(result.status).toBe("revising");
+    expect(result.status).toBe("scheduled");
     expect(writes().some((data) => data.status === "FAILED")).toBe(false);
-    // Отметка редактора не ставится: материал ещё в работе, а не решён.
-    expect(writes().some((data) => data.agentReviewedAt)).toBe(false);
   });
 
-  it("склад несёт замечания последнего раунда — следующий проход правит, а не пишет заново", async () => {
+  it("выпуск без полного одобрения несёт незакрытые замечания дальше", async () => {
     answerWith("REVISE");
 
     await processMarketingDraft("pub-1");
 
-    const carried = carriedWriterStage(writes().at(-1)!.agentWriterDraft);
-    expect(carried).not.toBeNull();
-    expect(carried!.previousDraft?.text).toContain("о ком вы скучаете");
-    expect(carried!.previousReview?.decision).toBe("REVISE");
-    expect(carried!.round).toBe(1);
-    // Пожизненный счёт продолжается, а не начинается заново.
-    expect(carried!.lifetimeRounds).toBeGreaterThanOrEqual(3);
+    // Материал ушёл в расписание, и его текст — тот, что писал автор.
+    const scheduled = writes().find((data) => data.status === "SCHEDULED");
+    expect(scheduled).toBeDefined();
+    expect(String(scheduled!.body)).toContain("о ком вы скучаете");
+    // Решение редактора зафиксировано: владелец видит, что одобрения не было.
+    expect(writes().some((data) => data.agentReview)).toBe(true);
   });
 
   it("REJECT исполняется сразу: приговор редактора страховкой не отменяется", async () => {
