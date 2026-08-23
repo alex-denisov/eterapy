@@ -24,6 +24,7 @@ import { arcanaGuideBySlug } from "@/lib/arcana";
 import { getV5Product } from "@/lib/v5-products";
 import { ServiceGuideSections } from "@/components/library/service-guide-sections";
 import { ArcanaGuideSections } from "@/components/library/arcana-guide-sections";
+import { libraryDepth } from "@/lib/library-depth";
 
 // The library corpus is editorial and fully known at build time. Keep the
 // route contract closed as well as the proxy allowlist; the proxy performs the
@@ -50,10 +51,23 @@ export async function generateMetadata({
   // текст вопроса идёт в og:title/description (соцсеть рисует его сама).
   const ogImage = canonicalUrl(ogImageUrl("library"));
 
+  /**
+   * B714 — тонкая карточка остаётся для людей, но не предлагается поисковику.
+   *
+   * `follow` без `index`: ссылки со страницы должны продолжать передавать вес
+   * на углублённые материалы и услуги. `noindex, nofollow` отрезал бы и это,
+   * превратив половину каталога в тупик.
+   *
+   * Признак вычисляется гейтом глубины, а не читается из данных: поле
+   * `indexable` стояло `true` у всех 199 записей — см. `library-depth.ts`.
+   */
+  const depth = libraryDepth(entry);
+
   return {
     title,
     description,
     alternates: { canonical: url },
+    ...(depth.indexable ? {} : { robots: { index: false, follow: true } }),
     openGraph: {
       title,
       description,
@@ -196,6 +210,35 @@ export default async function LibraryEntryPage({
               Это не единственное объяснение. Полезнее рассматривать его как отправную точку и проверять по конкретным событиям, словам и собственным границам.
             </p>
           </section>
+
+          {/* B714 — РАЗВЁРНУТЫЙ ОТВЕТ. Ради него и заводилась библиотека.
+              Раньше у страницы был только «короткий ответ» в одно предложение,
+              и весь корпус из 199 адресов Яндекс снял с вердиктом о
+              малоценности. Секция появляется только там, где текст написан:
+              пустой заголовок хуже его отсутствия. */}
+          {(entry.body ?? []).length > 0 && (
+            <>
+              <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
+              <section aria-labelledby="library-body-title">
+                <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]" id="library-body-title">
+                  разбор
+                </p>
+                {(entry.body ?? []).map((block) => (
+                  <div key={block.heading} className="mt-6 first:mt-4">
+                    <h2 className="soft-h3">{block.heading}</h2>
+                    {block.paragraphs.map((paragraph) => (
+                      <p
+                        key={paragraph.slice(0, 48)}
+                        className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </section>
+            </>
+          )}
 
           <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
 

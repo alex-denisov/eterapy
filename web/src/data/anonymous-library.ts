@@ -11,6 +11,26 @@ export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
 export type LibraryMainFork = { title: string; note?: string };
 export type LibrarySection = "life" | "symbolic";
 
+/**
+ * B714 — ТЕЛО МАТЕРИАЛА. Поля, которого у библиотеки не было изначально.
+ *
+ * Модель `AnonymousLibraryEntry` описывала КАРТОЧКУ В СПИСКЕ — вопрос, одно
+ * предложение сути, заголовок развилки, один шаг. Ровно этот набор и уехал в
+ * индекс как «статья»: 199 адресов по ≈60 уникальных слов каждый. Яндекс снял
+ * корпус целиком 2026-08-17 (219 страниц → 43) с вердиктом о малоценности, и
+ * вердикт был буквально верен.
+ *
+ * Поэтому сначала поле, потом наполнение — в обратном порядке «наполнить
+ * карточки ключевыми словами» даёт тот же дорвей другими словами.
+ */
+export type LibraryBodySection = {
+  heading: string;
+  paragraphs: string[];
+};
+
+/** Откуда взято утверждение, если оно не наше рассуждение. */
+export type LibrarySource = { title: string; url: string };
+
 export type AnonymousLibraryEntry = {
   slug: string;
   topic: LibraryTopic;
@@ -36,6 +56,13 @@ export type AnonymousLibraryEntry = {
    */
   reviewedAt?: string;
   faqs?: Array<{ question: string; answer: string }>;
+  /**
+   * B714 — развёрнутый ответ. Пока его нет, запись остаётся карточкой: она
+   * видна людям и участвует в перелинковке, но в карту сайта не попадает.
+   * Решает это `libraryDepth()`, а не флаг `indexable` — см. `library-depth.ts`.
+   */
+  body?: LibraryBodySection[];
+  sources?: LibrarySource[];
 };
 
 const baseLibraryEntries: AnonymousLibraryEntry[] = [
@@ -956,9 +983,18 @@ export function librarySection(entry: AnonymousLibraryEntry): LibrarySection {
   return entry.section ?? "life";
 }
 
+/**
+ * Что показываем ЛЮДЯМ: каталог, страница записи, перелинковка.
+ *
+ * B714 — условие `indexable` отсюда убрано намеренно. Раньше одно поле решало
+ * сразу два разных вопроса — «показать человеку» и «предложить поисковику», —
+ * и когда тонкие карточки понадобилось убрать из индекса, убрать их можно было
+ * только вместе с людьми. Требования у этих вопросов разные: человеку короткая
+ * карточка полезна, поисковику она вредна.
+ */
 export function approvedLibraryEntries(section?: LibrarySection) {
   return anonymousLibraryEntries.filter(
-    (entry) => entry.status === "approved" && entry.indexable && (!section || librarySection(entry) === section),
+    (entry) => entry.status === "approved" && (!section || librarySection(entry) === section),
   );
 }
 
@@ -970,4 +1006,19 @@ export function libraryTopics(section?: LibrarySection): LibraryTopic[] {
 
 export function getApprovedLibraryEntry(slug: string) {
   return approvedLibraryEntries().find((entry) => entry.slug === slug);
+}
+
+/**
+ * B714 — что предлагаем ПОИСКОВИКУ.
+ *
+ * Живёт отдельно от `approvedLibraryEntries` и считается гейтом глубины, а не
+ * читается из поля. Разбор, почему поле не годится, — в `library-depth.ts`.
+ *
+ * Импорт внутри функции, а не в шапке файла: `library-depth` импортирует тип
+ * отсюда, и встречный импорт в шапке замкнул бы модули друг на друга.
+ */
+export function indexableLibraryEntries(section?: LibrarySection) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { libraryIsIndexable } = require("@/lib/library-depth") as typeof import("@/lib/library-depth");
+  return approvedLibraryEntries(section).filter((entry) => libraryIsIndexable(entry));
 }

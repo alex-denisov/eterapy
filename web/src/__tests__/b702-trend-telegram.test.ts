@@ -16,6 +16,7 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
 import {
   TELEGRAM_TREND_MIN_POSTS,
   telegramChannelTrends,
+  TELEGRAM_TREND_DEFAULT_CHANNELS,
 } from "@/lib/marketing/trend-telegram";
 
 /** Страница канала: каждый пост — один блок `tgme_widget_message_text`. */
@@ -80,11 +81,30 @@ describe("B702 фаза 6 — тренды из открытых Telegram-кан
     expect(trends.every((item) => item.referenceUrl === "https://t.me/s/live_channel")).toBe(true);
   });
 
-  it("пустая настройка не ходит в сеть вовсе", async () => {
+  /**
+   * B719 — ПОВЕДЕНИЕ ПРИ ПУСТОЙ НАСТРОЙКЕ ИЗМЕНЕНО НАМЕРЕННО.
+   *
+   * Прежде источник при пустой настройке молчал. Это выглядело безопасно и
+   * было худшим из исходов: нода, где настройку не заполнили, теряла источник
+   * трендов ЦЕЛИКОМ и не сообщала об этом — планировщик просто получал на
+   * один сигнал меньше. Правило владельца от 2026-07-22 закрывает такой класс
+   * ошибок: значение, живущее только в ручной настройке, до прода не доезжает.
+   *
+   * Теперь пустая настройка означает «берём список из кода», а молчание
+   * остаётся только у явно пустого списка, переданного вызывающим.
+   */
+  it("пустая настройка берёт список каналов из кода, а не молчит", async () => {
     settings.MARKETING_TREND_TELEGRAM_CHANNELS = null;
-    const fetchImpl = jest.fn();
+    const fetchImpl = jest.fn(async () => respond(page("тема одна", "тема одна")));
 
-    await expect(telegramChannelTrends({ fetchImpl: fetchImpl as never })).resolves.toEqual([]);
+    await telegramChannelTrends({ fetchImpl: fetchImpl as never });
+    expect(fetchImpl.mock.calls.length).toBe(TELEGRAM_TREND_DEFAULT_CHANNELS.length);
+  });
+
+  it("явно пустой список каналов в сеть не ходит", async () => {
+    const fetchImpl = jest.fn();
+    await expect(telegramChannelTrends({ channels: [], fetchImpl: fetchImpl as never }))
+      .resolves.toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

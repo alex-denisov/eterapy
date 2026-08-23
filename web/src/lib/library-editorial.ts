@@ -1,4 +1,5 @@
 import { librarySection, type AnonymousLibraryEntry } from "@/data/anonymous-library";
+import { isEchoOf } from "@/lib/library-depth";
 import type { LibraryTopic } from "@/lib/library-cta";
 
 export const LIBRARY_EDITORIAL_DATE = "2026-07-22";
@@ -148,9 +149,32 @@ export type LibraryFaq = {
 };
 
 export function libraryChecks(entry: AnonymousLibraryEntry): readonly string[] {
-  return entry.perspectives.length > 0
+  const own = entry.perspectives.length > 0
     ? [...new Set(entry.perspectives)]
-    : TOPIC_GUIDANCE[entry.topic].checks;
+    : [...TOPIC_GUIDANCE[entry.topic].checks];
+  /**
+   * B714 — «первый шаг» не повторяется в списке проверок.
+   *
+   * У части записей `freeFragment` дословно совпадает с первым пунктом
+   * `perspectives`, и страница печатала одну фразу дважды: в списке «что можно
+   * проверить» и крупным шрифтом в блоке «первый шаг». Живой пример —
+   * `/library/net-nastoyashchikh-druzey`.
+   *
+   * Убираем из списка, а не из блока: «первый шаг» — единственное место, где
+   * фраза стоит как призыв к действию, и именно там она полезна.
+   */
+  /**
+   * Пробой служит РЕЗУЛЬТАТ `libraryFirstStep`, а не поле `freeFragment`: без
+   * своего фрагмента первым шагом становится `perspectives[0]`, и тогда
+   * дублируется как раз он. Проверка по полю пропускала ровно этот случай —
+   * самый частый в корпусе.
+   */
+  const firstStep = libraryFirstStep(entry).trim();
+  if (!firstStep) return own;
+  const filtered = own.filter((item) => !isEchoOf(item, [firstStep]));
+  // Если после чистки не осталось ничего, честнее показать исходный список,
+  // чем пустой раздел: пустой заголовок читается как поломка страницы.
+  return filtered.length > 0 ? filtered : own;
 }
 
 export function libraryFirstStep(entry: AnonymousLibraryEntry): string {
@@ -161,39 +185,53 @@ export function libraryHumanSupport(entry: AnonymousLibraryEntry): string {
   return TOPIC_GUIDANCE[entry.topic].humanSupport;
 }
 
+/**
+ * B714 — САМОПОВТОР СНЯТ, И СНЯТ ОН ЗДЕСЬ, А НЕ В ДАННЫХ.
+ *
+ * Живая проверка `/library/net-nastoyashchikh-druzey` до правки: фраза
+ * «Близость строится через повторный контакт…» стояла на странице ТРИЖДЫ — в
+ * списке «что можно проверить», в блоке «первый шаг» и в ответе FAQ. Причина
+ * была в шаблоне: ответы FAQ собирались из `summary` и `firstStep`, то есть
+ * дословно из того, что страница уже напечатала выше. Для поисковика это
+ * 60 уникальных слов, размноженные до 200.
+ *
+ * Правило простое: ответ FAQ не имеет права повторять уже напечатанное. Если
+ * своего ответа нет, честнее показать меньше вопросов, чем те же слова под
+ * новым заголовком.
+ */
+function withoutEchoes(faqs: LibraryFaq[], alreadyPrinted: readonly string[]): LibraryFaq[] {
+  return faqs.filter((faq) => !isEchoOf(faq.answer, alreadyPrinted));
+}
+
 export function libraryFaqs(entry: AnonymousLibraryEntry): LibraryFaq[] {
   if (entry.faqs?.length) return entry.faqs;
+  const printed = [entry.summary, libraryFirstStep(entry), ...libraryChecks(entry)];
   if (librarySection(entry) === "symbolic") {
-    return [
+    return withoutEchoes([
       {
         question: `Можно ли считать трактовку по теме «${entry.topic}» точным прогнозом?`,
         answer: "Нет. Символический разбор помогает поставить вопросы и увидеть возможные связи, но не доказывает характер, судьбу или будущие события.",
       },
       {
         question: "Что сильнее всего меняет значение в этой ситуации?",
-        answer: `${entry.summary} Поэтому важны формулировка вопроса, ваши личные ассоциации и наблюдаемые факты, а не только готовое значение символа.`,
+        answer: "Значение символа меняют формулировка вопроса, ваши личные ассоциации и наблюдаемые факты, а не только готовая трактовка.",
       },
       {
         question: "Как использовать этот разбор без фатализма?",
-        answer: `${libraryFirstStep(entry)} Относитесь к результату как к гипотезе для проверки и не передавайте ему право решать за вас.`,
+        answer: "Относитесь к результату как к гипотезе для проверки и не передавайте ему право решать за вас.",
       },
-    ];
+    ], printed);
   }
-  const firstStep = libraryFirstStep(entry);
-  return [
+  return withoutEchoes([
     {
       question: "Можно ли по этой странице точно понять, почему это произошло?",
-      answer: `${entry.summary} Это рабочая гипотеза для размышления, а не установленный факт о вас или другом человеке.`,
-    },
-    {
-      question: "Что можно сделать прямо сейчас?",
-      answer: firstStep,
+      answer: "Нет. Разбор даёт рабочую гипотезу для размышления, а не установленный факт о вас или другом человеке.",
     },
     {
       question: "Заменяет ли этот материал консультацию психолога?",
       answer: "Нет. Материал помогает сформулировать вопрос и увидеть возможные направления для проверки. Он не является диагностикой, лечением или психологической консультацией.",
     },
-  ];
+  ], printed);
 }
 
 function compactQuestion(question: string, maxLength = 54): string {

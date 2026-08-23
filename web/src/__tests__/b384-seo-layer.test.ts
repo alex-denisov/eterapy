@@ -5,6 +5,7 @@ import { publicPageSeo } from "@/lib/public-page-seo";
 import { publicSeoRoutes } from "@/lib/seo";
 import { GET as sitemapXml } from "@/app/sitemap.xml/route";
 import { libraryMetaDescription, libraryMetaTitle } from "@/lib/library-editorial";
+import { libraryIsIndexable } from "@/lib/library-depth";
 
 const srcDir = path.join(process.cwd(), "src");
 const source = (rel: string) => fs.readFileSync(path.join(srcDir, rel), "utf8");
@@ -67,18 +68,36 @@ describe("B384 — unique, search-friendly metadata", () => {
 });
 
 describe("B384 — sitemap covers the full published catalogue", () => {
-  it("lists every approved & indexable card and no others", async () => {
+  /**
+   * B714 — КАРТА САЙТА БОЛЬШЕ НЕ РАВНА КАТАЛОГУ, И ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ.
+   *
+   * Прежняя проверка сторожила равенство «каталог = карта сайта» и была верна
+   * ровно до 2026-08-17, когда Яндекс вынес из индекса 176 страниц из 219
+   * разом. Причина: 199 адресов из 251 несли ≈60 уникальных слов каждый, и
+   * корпус профилировал хост как ферму шаблонов.
+   *
+   * Теперь в карту сайта идёт то, что прошло гейт глубины, а каталог остаётся
+   * людям целиком. Проверяется соответствие карты сайта ГЕЙТУ, а заодно то,
+   * что тонкая карточка в карту не просочилась.
+   */
+  it("lists every card that passes the depth gate and no others", async () => {
     const res = await sitemapXml(new Request("https://eterapy.com/sitemap.xml", { headers: { host: "eterapy.com" } }));
     const body = await res.text();
-    const indexable = anonymousLibraryEntries.filter((e) => e.status === "approved" && e.indexable);
-    // Число растёт вместе с каталогом (B601 часть 3 — 14 карточек, B648 — 5
-    // записей с корпусом услуг, снятым со страниц услуг в B647, B550 — 3
-    // карточки кластера «ИИ-психолог», B710 — 22 аркана справочного корпуса).
-    // Жёсткое число здесь ловит не размер, а РАСХОЖДЕНИЕ карты сайта с
-    // каталогом — его и проверяет цикл ниже; сам размер сверяем с каталогом.
-    expect(indexable.length).toBe(199);
-    for (const entry of indexable) {
+    const approved = anonymousLibraryEntries.filter((e) => e.status === "approved");
+    const deep = approved.filter((e) => libraryIsIndexable(e));
+    const thin = approved.filter((e) => !libraryIsIndexable(e));
+
+    // Каталог людям не сократился: карточки никуда не делись.
+    expect(approved.length).toBeGreaterThanOrEqual(199);
+    // А в индекс предлагается только то, у чего есть собственный материал.
+    expect(deep.length).toBeGreaterThan(0);
+    expect(deep.length).toBeLessThan(approved.length / 2);
+
+    for (const entry of deep) {
       expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
+    }
+    for (const entry of thin) {
+      expect(body).not.toContain(`https://eterapy.com/library/${entry.slug}`);
     }
   });
 });

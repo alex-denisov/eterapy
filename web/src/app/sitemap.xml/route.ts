@@ -1,5 +1,5 @@
 import { canonicalUrl, hostKind, publicSeoRoutes } from "@/lib/seo";
-import { approvedLibraryEntries } from "@/data/anonymous-library";
+import { indexableLibraryEntries } from "@/data/anonymous-library";
 import { resolvedCells } from "@/lib/astro/cells";
 import db from "@/lib/db";
 
@@ -31,7 +31,14 @@ export async function GET(request: Request) {
     "/llms.txt",
     "/llms-full.txt",
     "/pricing.md",
-    ...approvedLibraryEntries().map((entry) => `/library/${entry.slug}`),
+    /**
+     * B714 — в карту сайта идут только записи, прошедшие гейт глубины.
+     *
+     * До 2026-08-17 сюда попадали все 199 карточек, и именно это профилировало
+     * хост как ферму шаблонов: 199 адресов из 251 по ≈60 уникальных слов.
+     * Люди по-прежнему видят весь каталог — `approvedLibraryEntries()`.
+     */
+    ...indexableLibraryEntries().map((entry) => `/library/${entry.slug}`),
     // B711 · Ячейки расчётной сетки «планета × знак». Список растёт волнами и
     // берётся из корпуса, а не переписывается сюда руками: выложенная ячейка,
     // забытая в карте сайта, ждала бы обхода месяцами.

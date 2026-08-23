@@ -4,6 +4,7 @@ import { approvedLibraryEntries, anonymousLibraryEntries, getApprovedLibraryEntr
 import { publicPageSeo } from "@/lib/public-page-seo";
 import { publicSeoRoutes } from "@/lib/seo";
 import { GET as sitemapXml } from "@/app/sitemap.xml/route";
+import { libraryIsIndexable } from "@/lib/library-depth";
 
 const srcDir = path.join(process.cwd(), "src");
 
@@ -45,12 +46,17 @@ describe("anonymous question library", () => {
     expect(detailPage).not.toContain("Вопрос обезличен и прошел модерацию");
   });
 
-  it("adds only approved and indexable question pages to sitemap", async () => {
+  /**
+   * B714 — в карту сайта идёт глубина, а не признак `indexable` из данных.
+   * Поле стояло `true` у всех 199 записей: признак, который можно проставить
+   * рукой, рано или поздно проставят. Разбор — в `library-depth.ts`.
+   */
+  it("adds only pages that pass the depth gate to sitemap", async () => {
     const response = await sitemapXml(requestFor("eterapy.com"));
     const body = await response.text();
 
     for (const entry of anonymousLibraryEntries) {
-      if (entry.status === "approved" && entry.indexable) {
+      if (entry.status === "approved" && libraryIsIndexable(entry)) {
         expect(body).toContain(`https://eterapy.com/library/${entry.slug}`);
       } else {
         expect(body).not.toContain(`/library/${entry.slug}`);
