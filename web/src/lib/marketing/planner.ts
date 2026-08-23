@@ -138,11 +138,39 @@ export function planTopicsForSlots(input: {
     });
 
   const taken = new Set<string>();
+  /**
+   * B718 — КВОТА КЛАСТЕРА НА СУТКИ.
+   *
+   * Запрет повтора СТАТЬИ (`taken` + `usedByPlatform`) не мешает ленте стать
+   * однотемной: жадный выбор идёт сверху ранжирования, а верх занимает один
+   * кластер целиком. Замер прода 2026-08-23, сразу после включения запрета
+   * повтора: 56 черновиков, из них **29 в кластере «Матрица судьбы»** — все
+   * заголовки разные («9 аркан», «13 аркан», «16 аркан», …), а лента одна и та
+   * же. Владелец назвал это «будто сухой блог ведется везде», и уникальный
+   * слаг такую претензию не снимает.
+   *
+   * Правило: в одни сутки кластер занимает не больше одного слота НА ВЕСЬ ФЛОТ.
+   * Не «не больше одного на площадку»: читатель, подписанный на два наших
+   * канала, видит обе ленты, и два аркана в один день читаются как один пост,
+   * продублированный дважды.
+   *
+   * ⚠ Правило УСТУПАЕТ, а не блокирует. Если кандидата другого кластера нет,
+   * слот получает лучшего доступного: пустой слот хуже однотемного. Поэтому
+   * поиск двухступенчатый, а не один `find` с двумя условиями.
+   */
+  const clusterByDay = new Map<string, Set<string>>();
+
   for (const slot of input.slots) {
     const usedOnPlatform = input.usedByPlatform.get(slot.channel) ?? new Set<string>();
-    const next = candidates.find((candidate) =>
-      !taken.has(candidate.articleSlug) && !usedOnPlatform.has(candidate.articleSlug));
+    const free = (candidate: TopicCandidate) =>
+      !taken.has(candidate.articleSlug) && !usedOnPlatform.has(candidate.articleSlug);
+    const day = slot.scheduledAt.slice(0, 10);
+    const clustersToday = clusterByDay.get(day) ?? new Set<string>();
+    const next = candidates.find((candidate) => free(candidate) && !clustersToday.has(candidate.cluster))
+      ?? candidates.find(free);
     if (!next) continue;
+    clustersToday.add(next.cluster);
+    clusterByDay.set(day, clustersToday);
     taken.add(next.articleSlug);
     const origin: TopicOrigin = next.trendBonus > 0 && next.trendTopics.length > 0
       ? "trend"
