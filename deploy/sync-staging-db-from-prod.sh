@@ -313,8 +313,37 @@ verify_container_database_target() {
   '
 }
 
+# B720: a single production table created under another role took the whole
+# staging sync down for a day. pg_dump acquires LOCK TABLE ... IN ACCESS SHARE
+# MODE for every table of the schema in one statement, so one denied table
+# aborts the dump entirely. Dump only what the dump role may actually read and
+# name whatever is skipped, instead of losing staging over it. The script still
+# never writes to production.
+unreadable_prod_tables() {
+  psql --no-align --tuples-only --dbname="$PROD_PG_URL" --command="
+    select quote_ident(schemaname) || '.' || quote_ident(tablename)
+    from pg_tables
+    where schemaname = 'public'
+      and not has_table_privilege(
+        current_user,
+        format('%I.%I', schemaname, tablename)::regclass,
+        'SELECT'
+      )
+    order by 1
+  "
+}
+
+DUMP_EXCLUDES=()
+while IFS= read -r unreadable_table; do
+  [[ -n "$unreadable_table" ]] || continue
+  log "WARNING: skipping table $unreadable_table — dump role lacks SELECT on it"
+  DUMP_EXCLUDES+=(--exclude-table="$unreadable_table")
+done < <(unreadable_prod_tables)
+
 log "Dumping production DB '$PROD_DB_NAME' to a temporary custom-format dump"
-pg_dump --format=custom --no-owner --no-acl --dbname="$PROD_PG_URL" --file="$DUMP_FILE"
+pg_dump --format=custom --no-owner --no-acl \
+  ${DUMP_EXCLUDES[@]+"${DUMP_EXCLUDES[@]}"} \
+  --dbname="$PROD_PG_URL" --file="$DUMP_FILE"
 
 log "Preparing inactive staging DB '$TARGET_DB_NAME' while '$STAGING_DB_NAME' stays live"
 drop_database_if_exists "$TARGET_DB_NAME"
