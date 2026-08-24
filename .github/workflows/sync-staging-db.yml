@@ -56,3 +56,29 @@ jobs:
       - name: Cleanup SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key
+
+      # B720: 26 red runs in a row went unnoticed for a day because this
+      # workflow was the only scheduled pipeline without a notification —
+      # staging silently served yesterday's data. Only failures are sent:
+      # the job runs hourly, and 24 green messages a day train people to
+      # ignore the channel.
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TITLE: STAGING DB sync
+          EMOJI: "🧪"
+          STAGES: |
+            sync=failure
+          GH_REPO: ${{ github.repository }}
+          GH_REF: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          export FIELDS="Env=staging database
+          Repo=$GH_REPO
+          Branch=$GH_REF
+          Trigger=${{ github.event_name }}
+          Impact=staging keeps serving the previous refresh"
+          bash .github/scripts/telegram-notify.sh
+        continue-on-error: true
