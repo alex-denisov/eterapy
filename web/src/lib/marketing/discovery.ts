@@ -274,18 +274,23 @@ async function discoverThreads(): Promise<Candidate[]> {
     url.searchParams.set("q", topic);
     url.searchParams.set("search_type", "TOP");
     url.searchParams.set("fields", "id,text,permalink,username");
-    const response = await fetch(url, {
-      headers: metaRequestHeaders({ Authorization: `Bearer ${token}` }),
-      signal: AbortSignal.timeout(15_000),
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: metaRequestHeaders({ Authorization: `Bearer ${token}` }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      return [];
+    }
     const payload = await response.json().catch(() => null) as {
       data?: Array<{ id?: string; text?: string; permalink?: string; username?: string }>;
       error?: { message?: string; code?: number };
     } | null;
-    if (payload?.error) {
-      // Missing permission is a configuration state, not an outage.
-      if (/permission|scope|unsupported/i.test(payload.error.message ?? "")) return [];
-      throw new Error(`Threads discovery: ${payload.error.message ?? `HTTP ${response.status}`}`);
+    if (!response.ok || payload?.error) {
+      // Missing permission, capability, or Meta API restriction is a configuration state,
+      // not an outage. Threads keyword search is only available when Meta grants the scope.
+      return [];
     }
     for (const item of payload?.data ?? []) {
       if (!item.id || !item.permalink || (item.text ?? "").trim().length < 60) continue;
@@ -477,3 +482,9 @@ export async function runEngagementDiscovery(
 
   return outcomes;
 }
+
+export const discoveryTestables = {
+  discoverThreads,
+  discoverReddit,
+  discoverVk,
+};

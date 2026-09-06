@@ -198,17 +198,21 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
 };
 
-export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
-  const seo = publicPageSeo[route];
-  const url = canonicalUrl(route);
-  // B390: брендовая OG-картинка для красивого превью при шеринге. «Дизайн
-  // человека» — отдельный мотив (бодиграф), остальные публичные страницы — общий.
+export function getPublicPageOgImage(route: PublicSeoRoute): string {
   const ogKind = route === "/products/human-design"
     ? "human-design"
     : route === "/products/surname-origin"
       ? "surname-origin"
       : "library";
-  const ogImage = canonicalUrl(`/api/og?kind=${ogKind}`);
+  return canonicalUrl(`/api/og?kind=${ogKind}`);
+}
+
+export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
+  const seo = publicPageSeo[route];
+  const url = canonicalUrl(route);
+  // B390: брендовая OG-картинка для красивого превью при шеринге. «Дизайн
+  // человека» — отдельный мотив (бодиграф), остальные публичные страницы — общий.
+  const ogImage = getPublicPageOgImage(route);
 
   return {
     title: seo.title,
@@ -325,8 +329,10 @@ export function jsonLdForPublicPage(route: PublicSeoRoute, options?: { offerPric
     const defaultKopecks = productKey ? getProductPriceKopecks(productKey) : null;
     const offerPriceRubles = options?.offerPriceRubles
       ?? (defaultKopecks === null ? null : defaultKopecks / 100);
+    const productImage = getPublicPageOgImage(route);
     return {
       ...base,
+      image: [productImage],
       brand: { "@type": "Brand", name: "ETerapy" },
       category: "Self-care digital service",
       ...(offerPriceRubles !== null ? {
@@ -336,6 +342,8 @@ export function jsonLdForPublicPage(route: PublicSeoRoute, options?: { offerPric
           price: offerPriceRubles.toFixed(2),
           priceCurrency: "RUB",
           availability: "https://schema.org/InStock",
+          itemCondition: "https://schema.org/NewCondition",
+          priceValidUntil: "2027-12-31",
           seller: base.publisher,
         },
       } : {}),

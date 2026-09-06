@@ -103,10 +103,25 @@ describe("v5 SEO routing policy", () => {
   it("gives every Product schema a real Offer instead of inventing reviews", () => {
     for (const route of publicSeoRoutes) {
       if (publicPageSeo[route].schemaKind !== "Product") continue;
-      const jsonLd = jsonLdForPublicPage(route) as { offers?: { price?: string; priceCurrency?: string; availability?: string }; review?: unknown; aggregateRating?: unknown };
+      const jsonLd = jsonLdForPublicPage(route) as {
+        image?: string[];
+        offers?: {
+          price?: string;
+          priceCurrency?: string;
+          availability?: string;
+          itemCondition?: string;
+          priceValidUntil?: string;
+        };
+        review?: unknown;
+        aggregateRating?: unknown;
+      };
+      expect(Array.isArray(jsonLd.image)).toBe(true);
+      expect(jsonLd.image?.[0]).toMatch(/^https?:\/\//);
       expect(Number(jsonLd.offers?.price)).toBeGreaterThan(0);
       expect(jsonLd.offers?.priceCurrency).toBe("RUB");
       expect(jsonLd.offers?.availability).toBe("https://schema.org/InStock");
+      expect(jsonLd.offers?.itemCondition).toBe("https://schema.org/NewCondition");
+      expect(jsonLd.offers?.priceValidUntil).toBeDefined();
       expect(jsonLd.review).toBeUndefined();
       expect(jsonLd.aggregateRating).toBeUndefined();
     }

@@ -2,7 +2,16 @@ import db from "@/lib/db";
 import {
   collectDuePublicationMetrics,
   marketingMetricTestables,
+  metricAdapters,
 } from "@/lib/marketing/metrics";
+
+jest.mock("@/lib/marketing/platform-settings", () => ({
+  requiredMarketingPlatformValue: jest.fn(async (key: string) => {
+    if (key === "VK_COMMUNITY_TOKEN") return "vk-token";
+    if (key === "VK_COMMUNITY_ID") return "123456";
+    return "mock-value";
+  }),
+}));
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -101,5 +110,41 @@ describe("B552 / B589 D+7 D+14 D+28 metric automation", () => {
       new Set(["API_VK_D7", "API_VK_D14", "API_VK_D28"]),
       "vk",
     )).toBeNull();
+  });
+
+  it("handles VK error 27 (group auth failed) without throwing an error", async () => {
+    const originalFetch = global.fetch;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          error: {
+            error_code: 27,
+            error_msg: "Group authorization failed: method is unavailable with group auth",
+          },
+        }),
+      } as Response);
+
+      const adapter = metricAdapters.vk!;
+      const result = await adapter({
+        externalPostId: "123",
+        contentType: "POST",
+        engagementTargetId: null,
+      });
+      expect(result).toEqual({
+        reach: null,
+        views: null,
+        reactions: null,
+        comments: null,
+        shares: null,
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("wall.getById unavailable with group token"),
+      );
+    } finally {
+      warnSpy.mockRestore();
+      global.fetch = originalFetch;
+    }
   });
 });

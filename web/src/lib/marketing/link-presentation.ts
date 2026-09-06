@@ -174,3 +174,68 @@ export function linkLabelFromBody(body: string, url: string): string {
   }
   return DEFAULT_LINK_LABEL;
 }
+
+const ALLOWED_SHORT_LINK_PLATFORMS = new Set([
+  "telegram", "tg",
+  "vk",
+  "dzen",
+  "reddit",
+  "threads",
+  "instagram", "ig",
+]);
+
+/**
+ * Построить компактную ссылку вида /s/[platform]/[targetPath]
+ * без видимых 100-символьных UTM-параметров.
+ */
+export function buildShortMarketingUrl(input: {
+  origin?: string;
+  platform: string;
+  pathOrUrl: string;
+}): string {
+  const origin = (input.origin ?? "https://eterapy.com").replace(/\/+$/, "");
+  let targetPath = input.pathOrUrl;
+  try {
+    const parsed = new URL(input.pathOrUrl);
+    targetPath = parsed.pathname;
+  } catch {
+    // Уже путь
+  }
+  const cleanPath = targetPath.replace(/^\/+/, "");
+  const normalizedPlatform = input.platform.toLowerCase().trim();
+  return `${origin}/s/${normalizedPlatform}/${cleanPath}`;
+}
+
+/**
+ * Резолвит короткую ссылку обратно в целевой URL с полной разметкой UTM
+ * для прозрачной аналитики в Яндекс Метрике.
+ */
+export function resolveShortMarketingTarget(input: {
+  platform: string;
+  targetPath: string;
+  origin?: string;
+}): string | null {
+  const normalizedPlatform = input.platform.toLowerCase().trim();
+  if (!ALLOWED_SHORT_LINK_PLATFORMS.has(normalizedPlatform)) return null;
+
+  const cleanPath = input.targetPath.replace(/^\/+/, "");
+  if (!cleanPath || cleanPath.includes("://") || cleanPath.startsWith("//") || cleanPath.includes("..")) {
+    return null;
+  }
+
+  const origin = (input.origin ?? "https://eterapy.com").replace(/\/+$/, "");
+  const segments = cleanPath.split("/");
+  const campaign = segments[0] || "marketing";
+  const utmSource = normalizedPlatform === "tg"
+    ? "telegram"
+    : normalizedPlatform === "ig"
+      ? "instagram"
+      : normalizedPlatform;
+
+  const url = new URL(`/${cleanPath}`, origin);
+  url.searchParams.set("utm_source", utmSource);
+  url.searchParams.set("utm_medium", "social");
+  url.searchParams.set("utm_campaign", campaign);
+
+  return url.toString();
+}

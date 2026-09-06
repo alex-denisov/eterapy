@@ -10,10 +10,12 @@
  */
 
 import {
+  buildShortMarketingUrl,
   compactMarketingUrl,
   compactOwnLinkInBody,
   linkLabelFromBody,
   renderMarketingLink,
+  resolveShortMarketingTarget,
   toPlatformMarkup,
 } from "@/lib/marketing/link-presentation";
 import { platformPlaybook } from "@/lib/marketing/platform-playbook";
@@ -122,5 +124,61 @@ describe("B719 — разметка не портит текст", () => {
     expect(toPlatformMarkup({
       markup: "html", body: "пост без ссылки", url: LIVE, label: "Разбор",
     })).toBeNull();
+  });
+});
+
+describe("Короткие ссылки /s/[platform]/[...target]", () => {
+  it("строит аккуратную короткую ссылку без сырого UTM-хвоста", () => {
+    const shortUrl = buildShortMarketingUrl({
+      origin: "https://eterapy.com",
+      platform: "vk",
+      pathOrUrl: "https://eterapy.com/library/9-arkan-otshelnik-v-matritse-sudby",
+    });
+    expect(shortUrl).toBe("https://eterapy.com/s/vk/library/9-arkan-otshelnik-v-matritse-sudby");
+    expect(shortUrl.length).toBeLessThan(70);
+  });
+
+  it("успешно резолвит целевую ссылку с простановкой UTM для Метрики", () => {
+    const target = resolveShortMarketingTarget({
+      origin: "https://eterapy.com",
+      platform: "vk",
+      targetPath: "library/9-arkan-otshelnik-v-matritse-sudby",
+    });
+    expect(target).toBe(
+      "https://eterapy.com/library/9-arkan-otshelnik-v-matritse-sudby?utm_source=vk&utm_medium=social&utm_campaign=library"
+    );
+  });
+
+  it("нормализует алиасы платформ (tg -> telegram, ig -> instagram)", () => {
+    const targetTg = resolveShortMarketingTarget({
+      origin: "https://eterapy.com",
+      platform: "tg",
+      targetPath: "products/natal-chart",
+    });
+    expect(targetTg).toContain("utm_source=telegram");
+    expect(targetTg).toContain("utm_campaign=products");
+
+    const targetIg = resolveShortMarketingTarget({
+      origin: "https://eterapy.com",
+      platform: "ig",
+      targetPath: "library/some-slug",
+    });
+    expect(targetIg).toContain("utm_source=instagram");
+  });
+
+  it("отвергает опасные или некорректные пути", () => {
+    expect(
+      resolveShortMarketingTarget({
+        platform: "vk",
+        targetPath: "../etc/passwd",
+      })
+    ).toBeNull();
+
+    expect(
+      resolveShortMarketingTarget({
+        platform: "unknown_platform",
+        targetPath: "library/slug",
+      })
+    ).toBeNull();
   });
 });

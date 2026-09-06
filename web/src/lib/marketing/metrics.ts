@@ -44,6 +44,14 @@ async function json(url: string, init?: RequestInit) {
   return payload as Record<string, unknown>;
 }
 
+const EMPTY_SNAPSHOT: PublicationMetricSnapshot = {
+  reach: null,
+  views: null,
+  reactions: null,
+  comments: null,
+  shares: null,
+};
+
 export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> = {
   vk: async (publication) => {
     const token = await requiredMarketingPlatformValue("VK_COMMUNITY_TOKEN");
@@ -57,10 +65,16 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
         posts: `-${communityId}_${publication.externalPostId}`,
       }),
     });
-    const error = payload.error as { error_msg?: string } | undefined;
-    if (error) throw new Error(`VK metrics failed: ${error.error_msg ?? "unknown error"}`);
+    const error = payload.error as { error_msg?: string; error_code?: number } | undefined;
+    if (error) {
+      if (error.error_code === 27 || /group auth|authorization failed/i.test(error.error_msg ?? "")) {
+        console.warn(`[metrics:vk] wall.getById unavailable with group token (${error.error_msg}), skipping without crash`);
+        return EMPTY_SNAPSHOT;
+      }
+      throw new Error(`VK metrics failed: ${error.error_msg ?? "unknown error"}`);
+    }
     const item = (payload.response as Array<Record<string, unknown>> | undefined)?.[0];
-    if (!item) throw new Error("VK metrics returned no post");
+    if (!item) return EMPTY_SNAPSHOT;
     return {
       reach: optionalInt((item.reach as { count?: unknown } | undefined)?.count),
       views: optionalInt((item.views as { count?: unknown } | undefined)?.count),
