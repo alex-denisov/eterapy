@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveShortMarketingTarget } from "@/lib/marketing/link-presentation";
+import { requestOrigin } from "@/lib/request-origin";
 import { seoOrigins } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,10 @@ export async function GET(
 ) {
   const { platform, target } = await props.params;
   const targetPath = Array.isArray(target) ? target.join("/") : "";
-  const origin = new URL(request.url).origin || seoOrigins.main;
+  const rawOrigin = requestOrigin(request);
+  const origin = !rawOrigin || /0\.0\.0\.0|localhost|127\.0\.0\.1/.test(rawOrigin)
+    ? seoOrigins.main
+    : rawOrigin;
 
   const destination = resolveShortMarketingTarget({
     platform,

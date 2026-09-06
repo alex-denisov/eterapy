@@ -46,4 +46,19 @@ describe("GET /s/[platform]/[...target]", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://eterapy.com/");
   });
+
+  it("resolves canonical origin when called through internal reverse proxy (0.0.0.0:3000)", async () => {
+    const request = new Request("http://0.0.0.0:3000/s/vk/products/natal-chart");
+    const response = await GET(request, {
+      params: Promise.resolve({
+        platform: "vk",
+        target: ["products", "natal-chart"],
+      }),
+    });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://eterapy.com/products/natal-chart?utm_source=vk&utm_medium=social&utm_campaign=products"
+    );
+  });
 });
