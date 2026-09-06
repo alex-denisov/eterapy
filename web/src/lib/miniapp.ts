@@ -34,6 +34,8 @@ export interface MiniAppDetectInput {
   hasTelegramWebApp?: boolean;
   /** Boolean(window.vkBridge) — set when the VK bridge global is present. */
   hasVkBridge?: boolean;
+  /** Boolean(window.WebApp && !window.Telegram) — set when MAX webview bridge is present. */
+  hasMaxWebApp?: boolean;
   /** Persisted value from a previous detection in the same session. */
   stored?: string | null;
 }
@@ -54,6 +56,7 @@ export function detectMiniAppPlatform(input: MiniAppDetectInput): MiniAppPlatfor
     userAgent = "",
     hasTelegramWebApp = false,
     hasVkBridge = false,
+    hasMaxWebApp = false,
     stored = null,
   } = input;
 
@@ -71,8 +74,8 @@ export function detectMiniAppPlatform(input: MiniAppDetectInput): MiniAppPlatfor
   if (hasVkBridge) return "vk";
   if (/[?&]vk_app_id=/.test(search) || /[?&]vk_platform=/.test(search)) return "vk";
 
-  // 4. MAX (VK messenger) — stub: explicit launch marker only, to avoid UA
-  //    false positives until the real SDK is wired.
+  // 4. MAX (VK messenger): live SDK or explicit launch marker
+  if (hasMaxWebApp) return "max";
   if (/[?&]max_app=/.test(search)) return "max";
 
   // 5. Carry a prior detection forward (sessionStorage) for in-app navigation.

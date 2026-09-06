@@ -182,6 +182,7 @@ const ALLOWED_SHORT_LINK_PLATFORMS = new Set([
   "reddit",
   "threads",
   "instagram", "ig",
+  "max",
 ]);
 
 /**

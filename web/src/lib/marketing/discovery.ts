@@ -20,7 +20,7 @@ import { pickEngagementTone } from "@/lib/marketing/engagement-tone";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 
 export type MarketingConnectorState = {
-  platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen";
+  platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max";
   ownedPublishing: boolean;
   discovery: boolean;
   /** B617: ответы на ВХОДЯЩЕЕ (комментарии к своим постам, упоминания). Комментариев под чужими публикациями больше нет ни на одной площадке. */
@@ -36,6 +36,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
     "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID",
+    "MAX_BOT_TOKEN", "MAX_BOT_ID", "MAX_CHANNEL_ID",
     "DZEN_CHANNEL_URL", "DZEN_BROWSER_ENDPOINT", "DZEN_BROWSER_TOKEN",
   ] as const;
   const values = new Map(await Promise.all(keys.map(async (key) => [key, await marketingPlatformValue(key)] as const)));
@@ -62,7 +63,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     return requirement === "required";
   });
   const enabled = new Map(await Promise.all(
-    (["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen"] as const)
+    (["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen", "Max"] as const)
       .map(async (platform) => [platform, await marketingPlatformEnabled(platform)] as const),
   ));
   return [
@@ -148,6 +149,14 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
       // доступа к нему — оба обязательны, без них выпуск в Дзен невозможен.
       missing: missing("DZEN_CHANNEL_URL", "DZEN_BROWSER_ENDPOINT", "DZEN_BROWSER_TOKEN"),
       note: "Выпуск идёт размеченной RSS-лентой, которую канал подключает у себя — законный документированный путь вместо сохранённой браузерной сессии. Слепок сессии остаётся необязательным запасным механизмом до подтверждения ленты и после него не используется.",
+    },
+    {
+      platform: "Max",
+      ownedPublishing: Boolean(enabled.get("Max")) && has("MAX_BOT_TOKEN") && has("MAX_CHANNEL_ID"),
+      discovery: false,
+      inboundReplies: false,
+      missing: missing("MAX_BOT_TOKEN", "MAX_CHANNEL_ID"),
+      note: "Официальный MAX Bot API: отправка постов и медиа в канал, разметка HTML/Markdown. Работает в РФ без VPN.",
     },
   ];
 }

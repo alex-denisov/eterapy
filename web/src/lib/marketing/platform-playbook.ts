@@ -552,6 +552,45 @@ const REDDIT: PlatformPlaybook = {
 `.trim(),
 };
 
+const MAX: PlatformPlaybook = {
+  contract: {
+    minCharacters: 150,
+    maxCharacters: 2_500,
+    hookCharacters: 90,
+    maxTitleCharacters: null,
+    maxParagraphs: 8,
+    maxParagraphCharacters: 400,
+    subheadingEveryCharacters: null,
+    mediaBriefRequired: false,
+    minHashtags: 0,
+    maxHashtags: 3,
+    maxEmoji: 3,
+    ctaPolicy: "sparing",
+    ctaShareOfPosts: 0.33,
+    ctaMinPosition: 0.7,
+    maxLinks: 1,
+    linksClickable: true,
+    inlineLinkMarkup: "html",
+    emDashAllowed: false,
+    maxEllipsis: 1,
+    maxExclamations: 1,
+  },
+  audience: "пользователи РФ (без VPN), подписанные на канал в мессенджере MAX",
+  role: "прямой канал коммуникации в РФ и бесшовный переход в Mini App",
+  briefing: `
+### Что такое наш MAX-канал
+
+MAX — официальный национальный мессенджер в РФ, работающий стабильно без VPN.
+Канал удерживает аудиторию и переводит её в наш Mini App прямо внутри приложения.
+
+### Что здесь работает
+
+- Зеркалирование и адаптация ключевых материалов Telegram-канала: разборы жизненных ситуаций, вопросы читателей.
+- Прямой переход в Mini App по ссылке без выхода из мессенджера.
+- Краткость, ёмкость, живой диалог.
+`.trim(),
+};
+
 export const PLATFORM_PLAYBOOKS: Record<string, PlatformPlaybook> = {
   telegram: TELEGRAM,
   vk: VK,
@@ -559,6 +598,7 @@ export const PLATFORM_PLAYBOOKS: Record<string, PlatformPlaybook> = {
   instagram: INSTAGRAM,
   dzen: DZEN,
   reddit: REDDIT,
+  max: MAX,
 };
 
 /**

@@ -29,6 +29,7 @@ import { MINIAPP_FEATURES, miniAppFeatureForPath } from "@/lib/miniapp/registry"
 import type { MiniAppInitialData, MiniAppService } from "@/lib/miniapp/types";
 import { useMiniApp } from "@/components/miniapp-provider";
 import { MiniAppTelegramBootstrap } from "@/components/miniapp/telegram-bootstrap";
+import { MiniAppMaxBootstrap } from "@/components/miniapp/max-bootstrap";
 import { miniAppClass as c, styles } from "@/components/miniapp/styles";
 
 // Контекст живёт в отдельном модуле без CSS — см. `miniapp-context.ts`.
@@ -302,6 +303,7 @@ export function MiniAppShell({ data, children }: { data: MiniAppInitialData; chi
   return (
     <MiniAppV21Context.Provider value={value}>
       <MiniAppTelegramBootstrap authenticated={data.viewer.authenticated} onGuestName={setTelegramName} />
+      <MiniAppMaxBootstrap onGuestName={setTelegramName} />
       <main className={styles.stage} data-testid="miniapp-shell">
         <section className={styles.app} aria-label="ETerapy Mini App">
           {data.loadError ? <div className={styles["inline-error"]} role="status">Личные данные временно не загрузились. Основные разделы доступны.</div> : null}

@@ -89,4 +89,15 @@ describe("security headers", () => {
       expect.arrayContaining([expect.objectContaining({ key: "Content-Security-Policy-Report-Only" })]),
     );
   });
+
+  it("B476: разрешает встраивание в MAX, Telegram и VK для miniapp маршрутов", () => {
+    const headers = securityHeaders({ production: true, isMiniApp: true });
+    const xFrameOptions = headers.find((h) => h.key === "X-Frame-Options");
+    expect(xFrameOptions).toBeUndefined();
+
+    const csp = headers.find((h) => h.key === "Content-Security-Policy")?.value ?? "";
+    expect(csp).toContain("frame-ancestors 'self' https://*.max.ru https://max.ru https://*.telegram.org https://telegram.org https://*.vk.com https://vk.com");
+    expect(csp).toContain("https://st.max.ru");
+    expect(csp).toContain("https://platform-api2.max.ru");
+  });
 });

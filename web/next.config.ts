@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
-import { baseSecurityHeaders } from "./src/lib/security-headers";
+import { baseSecurityHeaders, miniappSecurityHeaders } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -99,11 +99,21 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
-        // B523: base hardening-заголовки — на КАЖДЫЙ путь (HSTS/анти-clickjacking
+        // B476: Mini App маршруты (/miniapp*) исключают X-Frame-Options: DENY,
+        // так как встраивание в MAX, Telegram и VK контролируется через CSP frame-ancestors.
+        source: "/miniapp",
+        headers: miniappSecurityHeaders(),
+      },
+      {
+        source: "/miniapp/:path*",
+        headers: miniappSecurityHeaders(),
+      },
+      {
+        // B523: base hardening-заголовки — на КАЖДЫЙ путь, кроме /miniapp* (HSTS/анти-clickjacking
         // и для api/_next/static). CSP-заголовок документа выставляет proxy.ts,
         // где есть host/path контекст и per-request nonce, — так на HTML нет
         // двух конкурирующих CSP-политик.
-        source: "/:path*",
+        source: "/:path((?!miniapp(?:$|/)).*)",
         headers: baseSecurityHeaders(),
       },
     ];

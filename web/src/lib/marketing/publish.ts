@@ -28,6 +28,7 @@ import {
 } from "@/lib/marketing/publish-hold";
 import { publishInboundReply, type InboundReplyTarget } from "@/lib/marketing/inbound-reply";
 import { notifyPublished } from "@/lib/marketing/publish-notification";
+import { publishToMax } from "@/lib/max/client";
 import { deferPublicationToNextSlot, isSlotWindowOpen, slotToleranceMs } from "@/lib/marketing/slot-window";
 import {
   browserFallbackConfigured,
@@ -123,7 +124,7 @@ export type PublicationAdapter = (
   },
 ) => Promise<PublishedPost>;
 
-async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen") {
+async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max") {
   if (!await marketingPlatformEnabled(platform)) {
     throw new Error(`${platform} connector is disabled`);
   }
@@ -707,6 +708,7 @@ function adapterFor(
   if (normalized === "reddit") return publishToReddit;
   if (normalized === "instagram") return publishToInstagram;
   if (normalized === "dzen") return publishToDzen;
+  if (normalized === "max") return publishToMax;
   throw new Error(`Unsupported publication platform: ${publication.platform}`);
 }
 
@@ -877,7 +879,8 @@ export async function publishScheduledMarketing(input: {
       instagram: "Instagram",
       telegram: "Telegram",
       dzen: "Dzen",
-    } as const)[publication.platform.toLowerCase() as "vk" | "reddit" | "threads" | "instagram" | "telegram" | "dzen"];
+      max: "Max",
+    } as const)[publication.platform.toLowerCase() as "vk" | "reddit" | "threads" | "instagram" | "telegram" | "dzen" | "max"];
     const normalizedPlatform = publication.platform.toLowerCase();
     if (
       connectorPlatform
@@ -1039,6 +1042,47 @@ export async function publishScheduledMarketing(input: {
           },
         });
       }
+
+      // B722: Автоматическое зеркалирование Telegram-постов в MAX канал (platform-api2.max.ru)
+      if (normalizedPlatform === "telegram" && (await marketingPlatformEnabled("Max"))) {
+        try {
+          const maxAdapter = input.adapters?.max ?? publishToMax;
+          const maxPublished = await maxAdapter({
+            id: publication.id,
+            key: publication.key,
+            title: publication.title,
+            body: markup?.text ?? compacted,
+            platform: "max",
+            contentType: publication.contentType,
+            mediaUrl: publication.mediaUrl,
+            engagementTargetId: publication.engagementTargetId,
+            engagementTargetUrl: publication.engagementTargetUrl,
+            inbound: publication.inboundReplyTo ?? null,
+            parseMode: markup?.parseMode ?? null,
+          });
+          if (maxPublished.publicUrl) {
+            await db.externalPublication.update({
+              where: { id: publication.id },
+              data: {
+                notes: [publishedData.notes ?? publication.notes, `MAX: ${maxPublished.publicUrl}`]
+                  .filter(Boolean)
+                  .join("\n"),
+              },
+            }).catch(() => null);
+          }
+          log.info("marketing.telegram_mirrored_to_max", {
+            publicationId: publication.id,
+            maxPostId: maxPublished.externalPostId,
+            maxUrl: maxPublished.publicUrl,
+          });
+        } catch (maxErr) {
+          log.warn("marketing.telegram_mirror_to_max_failed", {
+            publicationId: publication.id,
+            error: maxErr instanceof Error ? maxErr.message : String(maxErr),
+          });
+        }
+      }
+
       // B653: владелец узнаёт о выпуске в тот же момент, что и площадка.
       //
       // ⚠ Место выбрано не случайно: сюда попадает ровно один воркер и ровно
@@ -1149,3 +1193,5 @@ export async function publishScheduledMarketing(input: {
     outcomes,
   };
 }
+
+export { publishToMax } from "@/lib/max/client";

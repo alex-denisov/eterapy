@@ -19,9 +19,10 @@ const NONCE_REQUEST_HEADER = "x-eterapy-csp-nonce";
 // inline-скриптам; наш маркер повторяет тот же nonce для ответной политики.
 function enableNonce(requestHeaders: Headers): void {
   const nonce = Buffer.from(globalThis.crypto.randomUUID()).toString("base64");
+  const isMiniApp = requestHeaders.get("x-eterapy-miniapp") === "1";
   requestHeaders.set(
     "content-security-policy",
-    cspValue({ production: process.env.NODE_ENV === "production", nonce }),
+    cspValue({ production: process.env.NODE_ENV === "production", nonce, isMiniApp }),
   );
   requestHeaders.set(NONCE_REQUEST_HEADER, nonce);
 }
@@ -75,7 +76,8 @@ function redirectAbs(domain: string, pathname: string, context: { requestId: str
 // (prerender) — статическую политику + строгий report-only для телеметрии.
 function applyDocumentCsp<T extends NextResponse>(response: T, requestHeaders: Headers): T {
   const nonce = requestHeaders.get(NONCE_REQUEST_HEADER) ?? undefined;
-  for (const header of cspHeaders(nonce ? { nonce } : {})) {
+  const isMiniApp = requestHeaders.get("x-eterapy-miniapp") === "1";
+  for (const header of cspHeaders({ nonce, isMiniApp })) {
     response.headers.set(header.key, header.value);
   }
   return response;
@@ -216,8 +218,12 @@ export default async function proxy(request: NextRequest) {
   // pin a known nonce and weaken their document CSP.
   requestHeaders.delete(NONCE_REQUEST_HEADER);
   requestHeaders.delete("content-security-policy");
+  requestHeaders.delete("x-eterapy-miniapp");
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
+  if (pathname === "/miniapp" || pathname.startsWith("/miniapp/")) {
+    requestHeaders.set("x-eterapy-miniapp", "1");
+  }
 
   const servesPublicHome = !USE_SUBDOMAINS || host === MAIN_DOMAIN || host === `www.${MAIN_DOMAIN}`;
   if (servesPublicHome && pathname === "/" && request.headers.get("accept")?.includes("text/markdown")) {

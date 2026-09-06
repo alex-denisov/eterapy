@@ -46,6 +46,10 @@ export const MARKETING_PLATFORM_FIELDS = [
   // обсуждений — у самого канала комментариев нет. Без её id бот не увидит ни
   // одного комментария, поэтому это отдельное поле, а не догадка по каналу.
   { platform: "Telegram", key: "TELEGRAM_DISCUSSION_CHAT_ID", label: "Группа обсуждений канала (для ответов на комментарии)", secret: false, multiline: false, requirement: "optional" },
+  // B722: официальный канал в MAX мессенджере (платформа platform-api2.max.ru)
+  { platform: "Max", key: "MAX_BOT_TOKEN", label: "Токен бота MAX", secret: true, multiline: false },
+  { platform: "Max", key: "MAX_BOT_ID", label: "ID бота MAX (например id774315089677_bot)", secret: false, multiline: false },
+  { platform: "Max", key: "MAX_CHANNEL_ID", label: "ID канала MAX (например id774315089677_biz или числовой)", secret: false, multiline: false },
   { platform: "Dzen", key: "DZEN_CHANNEL_URL", label: "Адрес канала", secret: false, multiline: false },
   // B698: слепок `storageState` больше не используется — профиль живёт в томе
   // браузерного сервиса и стареет естественно. Здесь остались только адрес
@@ -99,10 +103,10 @@ function decodeStored(value: string, secret: boolean) {
 export async function marketingPlatformValue(key: MarketingPlatformFieldKey): Promise<string | null> {
   const field = FIELD_BY_KEY.get(key);
   if (!field) return null;
-  const row = await db.platformSetting.findUnique({
+  const row = await db.platformSetting?.findUnique({
     where: { key: settingKey(key) },
     select: { value: true },
-  }).catch(() => null);
+  })?.catch(() => null);
   if (row?.value) {
     try {
       return decodeStored(row.value, field.secret).trim() || null;
@@ -125,10 +129,10 @@ export async function requiredMarketingPlatformValue(key: MarketingPlatformField
 }
 
 export async function marketingPlatformEnabled(platform: MarketingPlatform): Promise<boolean> {
-  const row = await db.platformSetting.findUnique({
+  const row = await db.platformSetting?.findUnique({
     where: { key: enabledSettingKey(platform) },
     select: { value: true },
-  }).catch(() => null);
+  })?.catch(() => null);
   if (row) return row.value === "true";
   const fields = MARKETING_PLATFORM_FIELDS.filter((field) => field.platform === platform);
   return (await Promise.all(fields.map((field) => marketingPlatformValue(field.key))))

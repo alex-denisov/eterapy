@@ -13,6 +13,10 @@ const SCRIPT_HOSTS = [
   "https://mc.yandex.ru",
   "https://telegram.org",
   "https://oauth.telegram.org",
+  "https://max.ru",
+  "https://*.max.ru",
+  "https://st.max.ru",
+  "https://platform-api2.max.ru",
 ];
 
 /**
@@ -32,7 +36,12 @@ const SCRIPT_HOSTS = [
  */
 export const PRE_PAINT_SCRIPT_CSP_HASH = "'sha256-pLyIPT6DwVpD/+z4wxjUjs3AD1+tPNhTD+QwjajYvXo='";
 
-export function cspValue(options: { production: boolean; reportOnly?: boolean; nonce?: string }) {
+export function cspValue(options: {
+  production: boolean;
+  reportOnly?: boolean;
+  nonce?: string;
+  isMiniApp?: boolean;
+}) {
   // B523: с nonce (аутентифицированные /cabinet и /admin — всегда динамический
   // рендер) script-src живёт БЕЗ 'unsafe-inline'; Next подхватывает nonce из
   // request-заголовка Content-Security-Policy и проставляет его своим
@@ -49,11 +58,17 @@ export function cspValue(options: { production: boolean; reportOnly?: boolean; n
     ...(!options.production && !options.reportOnly ? ["'unsafe-eval'"] : []),
     ...SCRIPT_HOSTS,
   ];
+  // B476: страницы /miniapp разрешают встраивание клиентам поддерживаемых мессенджеров (MAX, TG, VK).
+  // Все остальные страницы остаются под строгой защитой frame-ancestors 'none'.
+  const frameAncestors = options.isMiniApp
+    ? "frame-ancestors 'self' https://*.max.ru https://max.ru https://*.telegram.org https://telegram.org https://*.vk.com https://vk.com"
+    : "frame-ancestors 'none'";
+
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "frame-ancestors 'none'",
+    frameAncestors,
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
@@ -70,7 +85,7 @@ export function cspValue(options: { production: boolean; reportOnly?: boolean; n
     // `/ops/browser/…`. Браузер резал вставку МОЛЧА — пустая рамка, ни одной
     // ошибки в сети. От перехвата кликов защищает `frame-ancestors 'none'`
     // выше: наши страницы по-прежнему не может встроить никто, включая нас.
-    "frame-src 'self' https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org",
+    "frame-src 'self' https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org https://*.max.ru https://max.ru",
     "form-action 'self' https://yoomoney.ru https://*.yookassa.ru",
     ...(options.reportOnly || options.nonce ? ["report-uri /api/csp-report"] : []),
   ];
@@ -94,19 +109,29 @@ export function baseSecurityHeaders(): SecurityHeader[] {
   ];
 }
 
+/**
+ * B476: Заголовки для Mini App маршрутов (/miniapp*).
+ * Исключают X-Frame-Options: DENY, так как встраивание во фреймы контролируется
+ * директивой CSP frame-ancestors ('self' https://*.max.ru https://*.telegram.org https://*.vk.com).
+ */
+export function miniappSecurityHeaders(): SecurityHeader[] {
+  return baseSecurityHeaders().filter((header) => header.key !== "X-Frame-Options");
+}
+
 /** Только CSP-заголовки. Для документов их выставляет proxy (там есть host/path
  *  контекст и per-request nonce); без nonce добавляется строгий report-only. */
-export function cspHeaders(options: { production?: boolean; nonce?: string } = {}): SecurityHeader[] {
+export function cspHeaders(options: { production?: boolean; nonce?: string; isMiniApp?: boolean } = {}): SecurityHeader[] {
   const production = options.production ?? process.env.NODE_ENV === "production";
   return [
-    { key: "Content-Security-Policy", value: cspValue({ production, nonce: options.nonce }) },
+    { key: "Content-Security-Policy", value: cspValue({ production, nonce: options.nonce, isMiniApp: options.isMiniApp }) },
     ...(production && !options.nonce
-      ? [{ key: "Content-Security-Policy-Report-Only", value: cspValue({ production, reportOnly: true }) }]
+      ? [{ key: "Content-Security-Policy-Report-Only", value: cspValue({ production, reportOnly: true, isMiniApp: options.isMiniApp }) }]
       : []),
   ];
 }
 
 /** Полный набор (base + CSP). Сохранён для обратной совместимости/тестов. */
-export function securityHeaders(options: { production?: boolean; nonce?: string } = {}): SecurityHeader[] {
-  return [...cspHeaders(options), ...baseSecurityHeaders()];
+export function securityHeaders(options: { production?: boolean; nonce?: string; isMiniApp?: boolean } = {}): SecurityHeader[] {
+  const base = options.isMiniApp ? miniappSecurityHeaders() : baseSecurityHeaders();
+  return [...cspHeaders(options), ...base];
 }

@@ -30,7 +30,11 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
 
   // Detect once on mount and remember it for the rest of the session.
   useEffect(() => {
-    const win = window as unknown as { Telegram?: { WebApp?: { initData?: string } }; vkBridge?: unknown };
+    const win = window as unknown as {
+      Telegram?: { WebApp?: { initData?: string } };
+      vkBridge?: unknown;
+      WebApp?: { initData?: string; platform?: string };
+    };
     let stored: string | null = null;
     try {
       stored = window.sessionStorage.getItem(MINIAPP_STORAGE_KEY);
@@ -43,6 +47,7 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
       userAgent: navigator.userAgent,
       hasTelegramWebApp: Boolean(win.Telegram?.WebApp?.initData),
       hasVkBridge: Boolean(win.vkBridge),
+      hasMaxWebApp: Boolean(win.WebApp && !win.Telegram?.WebApp),
       stored,
     });
     if (!detected) return;

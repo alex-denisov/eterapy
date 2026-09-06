@@ -50,8 +50,9 @@ describe("B381 — mini-app shell detection", () => {
       expect(detectMiniAppPlatform({ search: "?sign=x&vk_platform=mobile_web" })).toBe("vk");
     });
 
-    it("detects MAX only via an explicit launch marker (stub)", () => {
+    it("detects MAX via explicit launch marker or live WebApp bridge", () => {
       expect(detectMiniAppPlatform({ search: "?max_app=1" })).toBe("max");
+      expect(detectMiniAppPlatform({ hasMaxWebApp: true })).toBe("max");
       // No UA false positive — "MAX" appearing elsewhere must not trip it.
       expect(detectMiniAppPlatform({ userAgent: "Mozilla/5.0 ThunderMAX/2" })).toBeNull();
     });
