@@ -673,9 +673,12 @@ export function platformContract(platform: string): PlatformContract {
  * ГРАНИЦУ. Замер прода показал, что одной прозы мало — «не более 480 символов»
  * стояло в промте, и автор писал 718.
  */
-export function platformContractForPrompt(platform: string): Record<string, unknown> {
+export function platformContractForPrompt(
+  platform: string,
+  overrideContract?: PlatformContract,
+): Record<string, unknown> {
   const playbook = platformPlaybook(platform);
-  const c = playbook.contract;
+  const c = overrideContract ?? playbook.contract;
   return {
     platform,
     audience: playbook.audience,

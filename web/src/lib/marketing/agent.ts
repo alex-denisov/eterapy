@@ -77,7 +77,8 @@ import { calculateWeightedScore, inspectDraft } from "@/lib/marketing/draft-insp
 import { reconcileReviewWithMachine } from "@/lib/marketing/review-machine-authority";
 import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
 import { pickBestDraft } from "@/lib/marketing/best-draft";
-import { platformContract, platformPlaybook, type PlatformContract } from "@/lib/marketing/platform-playbook";
+import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
+import { resolvePlatformContract } from "@/lib/marketing/playbook-settings";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
@@ -848,7 +849,7 @@ export function repairPublishableDraft(input: {
    * текст, и мерить длину надо уже вместе с ним, иначе материал уезжает за
    * предел ровно тем, чем его чинили.
    */
-  const lengthLimits = platformPublishLimits(input.platform);
+  const lengthLimits = platformPublishLimits(input.platform, input.contract);
   if (lengthLimits.textLimit !== null && repairedText.length > lengthLimits.textLimit) {
     const before = repairedText.length;
     repairedText = trimToLimit({
@@ -898,6 +899,7 @@ export function repairPublishableDraft(input: {
       platform: input.platform,
       text: repairedText,
       mediaBrief,
+      overrideContract: input.contract,
     }),
   ];
 
@@ -1411,10 +1413,26 @@ export async function processMarketingDraft(publicationId: string) {
   const isInboundReply = publication.contentType === INBOUND_REPLY_CONTENT_TYPE;
   const isConversational = isConversationalContentType(publication.contentType);
   const platform = safePlatform(publication.platform);
+  const contract = await resolvePlatformContract(platform);
   const tone = isConversational ? engagementToneById(publication.engagementTone) : null;
   const scoreKeys = isConversational
     ? [...REVIEW_SCORE_KEYS, COMMENT_REVIEW_SCORE_KEY]
     : REVIEW_SCORE_KEYS;
+
+  let parsedNotes: {
+    format?: string;
+    editorialAngle?: string;
+    outline?: string[];
+    keyPoints?: string[];
+  } | null = null;
+  if (publication.notes) {
+    try {
+      parsedNotes = JSON.parse(publication.notes);
+    } catch {
+      parsedNotes = null;
+    }
+  }
+
   // Public social content is part of the SMM task. Internal ETerapy user,
   // practitioner, dialogue, booking and session data is never attached here.
   // B640: разговор помнит, о чём он. Без этого каждое следующее сообщение
@@ -1444,6 +1462,10 @@ export async function processMarketingDraft(publicationId: string) {
     title: publication.title,
     topic: publication.cluster ?? publication.targetQuery ?? "саморефлексия",
     editorialBrief: publication.notes,
+    format: parsedNotes?.format ?? null,
+    editorialAngle: parsedNotes?.editorialAngle ?? null,
+    outline: parsedNotes?.outline ?? null,
+    keyPoints: parsedNotes?.keyPoints ?? null,
     destinationUrl: isConversational ? null : publication.destinationUrl,
     // Для ответа на входящее это НАШ разговор: человек написал нам сам, и его
     // текст — адресат ответа, а не свидетельство спроса.
@@ -1468,7 +1490,7 @@ export async function processMarketingDraft(publicationId: string) {
     // абзацем в общем контракте. Абзац в контракте стоял всё время, пока прод
     // выдавал материал на 40% длиннее допустимого: общий текст читается как
     // пожелание, конкретное число в задаче — как требование.
-    platformLimits: isConversational ? null : platformLimitsForPrompt(platform),
+    platformLimits: isConversational ? null : platformLimitsForPrompt(platform, contract),
     // Ветка разговора и наш пост, под которым он идёт. Это ДАННЫЕ: указания,
     // встретившиеся внутри чужих реплик, исполнять нельзя — то же правило, что
     // и для research.
@@ -1676,6 +1698,7 @@ export async function processMarketingDraft(publicationId: string) {
         platform,
         topic: publication.cluster ?? publication.targetQuery,
         finalRound: round === EDITORIAL_ROUND_LIMIT,
+        contract,
       });
       }
       let { draft } = repaired;
@@ -1792,8 +1815,8 @@ export async function processMarketingDraft(publicationId: string) {
               // заново и не выдаёт своими словами третий круг подряд.
               machineFindings: contractDefects,
               // B724: площадки без ссылок и CTA (Threads, Reddit)
-              allowNoCta: platformPlaybook(platform).contract.ctaPolicy === "discouraged"
-                || platformPlaybook(platform).contract.maxLinks === 0,
+              allowNoCta: contract.ctaPolicy === "discouraged"
+                || contract.maxLinks === 0,
             })),
           },
         ],
@@ -1862,6 +1885,7 @@ export async function processMarketingDraft(publicationId: string) {
             platform,
             topic: publication.targetQuery ?? publication.title,
             finalRound: true,
+            contract,
           });
           draft = repairedRevised.draft;
           repairs.push(...repairedRevised.repairs);
@@ -2021,7 +2045,14 @@ export async function processMarketingDraft(publicationId: string) {
         body: approvedDraft.text.trim(),
         mediaUrl: isConversational
           ? null
-          : `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`,
+          : (() => {
+              const baseUrl = `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`;
+              const effectiveTitle = approvedDraft.title?.trim() || publication.title;
+              const isDialogue = effectiveTitle.includes("«")
+                || /диалог|переписк|сообщен|написал|молчани|чат/i.test(effectiveTitle)
+                || /диалог|переписк/i.test(publication.cluster ?? "");
+              return isDialogue ? `${baseUrl}?layout=chat_mockup` : baseUrl;
+            })(),
         status: nextStatus,
         // Ручная площадка не «публикуется сама» ни при каком выключателе:
         // дороги наружу у неё нет, и признак должен говорить это прямо.

@@ -21,7 +21,11 @@
  * вариантов: потрачены токены обеих ролей, а на площадку не вышло ничего.
  */
 
-import { platformContract, platformPlaybook } from "@/lib/marketing/platform-playbook";
+import {
+  platformContract,
+  platformPlaybook,
+  type PlatformContract,
+} from "@/lib/marketing/platform-playbook";
 
 export interface PlatformPublishLimits {
   /** Предел длины готового текста ВМЕСТЕ со ссылкой; `null` — предела нет. */
@@ -52,8 +56,11 @@ export interface PlatformPublishLimits {
  * а этот модуль остаётся тем, чем он полезен: усечением, запасными значениями
  * и формулировкой замечаний.
  */
-export function platformPublishLimits(platform: string): PlatformPublishLimits {
-  const contract = platformContract(platform);
+export function platformPublishLimits(
+  platform: string,
+  overrideContract?: PlatformContract,
+): PlatformPublishLimits {
+  const contract = overrideContract ?? platformContract(platform);
   const playbook = platformPlaybook(platform);
   return {
     textLimit: contract.maxCharacters,
@@ -67,13 +74,16 @@ export function platformPublishLimits(platform: string): PlatformPublishLimits {
  * абзац в общем контракте. Общий контракт автор уже читал: цифры в нём стояли
  * всё время, пока прод выдавал материал на 40% длиннее предела.
  */
-export function platformLimitsForPrompt(platform: string): {
+export function platformLimitsForPrompt(
+  platform: string,
+  overrideContract?: PlatformContract,
+): {
   platform: string;
   maxCharacters: number | null;
   mediaBriefRequired: boolean;
   note: string;
 } {
-  const limits = platformPublishLimits(platform);
+  const limits = platformPublishLimits(platform, overrideContract);
   return {
     platform,
     maxCharacters: limits.textLimit,
@@ -131,8 +141,9 @@ export function draftLimitViolations(input: {
   platform: string;
   text: string;
   mediaBrief?: string | null;
+  overrideContract?: PlatformContract;
 }): LimitViolation[] {
-  const limits = platformPublishLimits(input.platform);
+  const limits = platformPublishLimits(input.platform, input.overrideContract);
   const violations: LimitViolation[] = [];
   const length = input.text.length;
 

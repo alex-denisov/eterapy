@@ -514,6 +514,9 @@ export async function generateMarketingDrafts(input: {
             // планировщика можно было проверить задним числом.
             topicOrigin: planned?.origin,
             topicRationale: planned?.rationale,
+            // B700 фазы 9–10: структурированный бриф и ключевые тезисы
+            outline: slot.outline,
+            keyPoints: slot.keyPoints,
           }),
           source: "CRON_B589",
           autoPublish: false,

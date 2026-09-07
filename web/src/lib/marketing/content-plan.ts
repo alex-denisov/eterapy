@@ -45,6 +45,10 @@ export interface ContentPlanSlot {
    * контент: реактивному материалу некуда встать, и он не выходит вовсе.
    */
   reserve: SlotReserve;
+  /** B700 фазы 9–10: структурированный бриф (план структуры). */
+  outline?: readonly string[];
+  /** B700 фазы 9–10: ключевые тезисы для раскрытия в материале. */
+  keyPoints?: readonly string[];
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -315,6 +319,36 @@ function slotsPerDay(channel: PlanChannel, date: string): number {
   }
 }
 
+export function defaultSlotOutline(cluster: string, format: string): readonly string[] {
+  if (/диалог|разбор переписки|разбор кейса/i.test(format)) {
+    return [
+      "1. Цитата или фрагмент ситуации клиента",
+      "2. Скрытый психологический подтекст происходящего",
+      "3. Типичная ошибка реакции и альтернативный шаг",
+    ];
+  }
+  if (/вопрос-ответ|q&a/i.test(format)) {
+    return [
+      "1. Острый жизненный вопрос от первого лица",
+      "2. Что на самом деле стоит за этим переживанием",
+      "3. Практический ориентир для самопроверки",
+    ];
+  }
+  return [
+    "1. Жизненная точка напряжения без назидательности",
+    "2. Внутренний механизм и почему уговоры не работают",
+    "3. Спокойный фокус внимания для выхода из тупика",
+  ];
+}
+
+export function defaultSlotKeyPoints(cluster: string, targetQuery: string): readonly string[] {
+  return [
+    `Фокус на запросе «${targetQuery}» из темы «${cluster}».`,
+    "Живая человеческая интонация куратора без штампов («разложим по полочкам», «давайте разберемся»).",
+    "Ясный переход к самостоятельной рефлексии без навязывания продажи.",
+  ];
+}
+
 function slot(input: {
   channel: PlanChannel;
   date: string;
@@ -342,6 +376,8 @@ function slot(input: {
     contentClass: input.contentClass,
     daypart: input.daypart,
     toleranceMs: input.toleranceMs,
+    outline: defaultSlotOutline(input.topic.cluster, input.format),
+    keyPoints: defaultSlotKeyPoints(input.topic.cluster, input.topic.targetQuery),
   };
 }
 

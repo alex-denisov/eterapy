@@ -45,6 +45,8 @@ import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin
 import { MarketingAgentControls } from "./agent-controls";
 import { MarketingInboundTable, type InboundTableRow } from "./inbound-table";
 import { MarketingPlatformSettings } from "./platform-settings";
+import { MarketingPlatformPlaybooks } from "./platform-playbooks";
+import { resolvePlatformContracts } from "@/lib/marketing/playbook-settings";
 import { listMarketingPlatformAdminConfigs } from "@/lib/marketing/platform-settings";
 
 /**
@@ -82,6 +84,7 @@ export default async function MarketingAgentPage() {
     dzenFeed,
     metaBrandAudit,
     conveyor,
+    resolvedPlaybooks,
   ] = await Promise.all([
     marketingAgentEnabled(),
     db.externalPublication.count({ where: { status: "REVIEW" } }),
@@ -154,6 +157,7 @@ export default async function MarketingAgentPage() {
     // B700 фаза 5: состояние конвейера на момент запроса. Сбой чтения не должен
     // ронять кокпит целиком — панель просто не покажется.
     conveyorSnapshot().catch(() => null),
+    resolvePlatformContracts(),
   ]);
   // B617: у Reddit больше нет отдельного режима комментирования, который надо
   // было доуточнять состоянием OAuth — остались только свои посты и входящее.
@@ -720,6 +724,14 @@ export default async function MarketingAgentPage() {
           <code>docs/v5-release/tasks/tickets/B610-owner-social-accounts-setup.md</code>.
         </p>
         <MarketingPlatformSettings configs={platformConfigs} />
+      </AnalyticsSection>
+
+      <AnalyticsSection title="Контракты площадок (Playbooks)">
+        <p className="mb-3 text-xs text-[var(--soft-ink-soft)]">
+          Числовые правила и лимиты для каждой площадки (длина, хук, эмодзи, хэштеги, политика CTA).
+          Переопределения применяются сразу в конвейере генерации и инспекции без пересборки контейнеров.
+        </p>
+        <MarketingPlatformPlaybooks initialPlaybooks={resolvedPlaybooks} />
       </AnalyticsSection>
 
       <AnalyticsSection title="Последние циклы writer → reviewer">
