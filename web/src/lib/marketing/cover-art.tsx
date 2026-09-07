@@ -296,6 +296,254 @@ export interface CoverInput {
   title: string;
   eyebrow: string;
   scheduledFor: Date | null;
+  /** B725 — выбор шаблона: 0-token диалоговый мокап (мессенджер) или графический мотив */
+  layout?: "art" | "chat_mockup";
+  messageText?: string;
+  responsePreview?: string;
+}
+
+/**
+ * B725 — Диалоговый мокап чата для разбора переписок (0 токенов, чистый SVG/Satori).
+ * Стилизованный нейтральный интерфейс мессенджера со входящим сообщением и плашкой разбора Ани.
+ */
+export function ChatMockupArt(input: CoverInput) {
+  const { width, height } = coverCanvas(input.platform);
+  const theme = coverThemeFor({
+    key: input.slotKey,
+    platform: input.platform,
+    scheduledFor: input.scheduledFor,
+  });
+
+  const rawMsg = input.messageText || input.title;
+  const quoteMatch = /[«"]([^»"]+)[»"]/u.exec(rawMsg);
+  const quote = quoteMatch ? quoteMatch[1] : rawMsg;
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        position: "relative",
+        overflow: "hidden",
+        backgroundColor: "#0B0F19",
+        color: "#F1F5F9",
+        fontFamily: "Arial, sans-serif",
+        padding: `${Math.round(height * 0.05)}px ${Math.round(width * 0.06)}px`,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "-15%",
+          right: "-10%",
+          width: `${Math.round(width * 0.7)}px`,
+          height: `${Math.round(width * 0.7)}px`,
+          borderRadius: "999px",
+          background: `radial-gradient(circle, rgba(${theme.warm}, 0.25) 0%, rgba(15, 23, 42, 0) 70%)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-20%",
+          left: "-10%",
+          width: `${Math.round(width * 0.8)}px`,
+          height: `${Math.round(width * 0.8)}px`,
+          borderRadius: "999px",
+          background: `radial-gradient(circle, rgba(${theme.cool}, 0.2) 0%, rgba(15, 23, 42, 0) 70%)`,
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          paddingBottom: `${Math.round(height * 0.02)}px`,
+          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          zIndex: 2,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div
+            style={{
+              width: `${Math.round(height * 0.055)}px`,
+              height: `${Math.round(height * 0.055)}px`,
+              borderRadius: "999px",
+              backgroundColor: "rgba(255, 255, 255, 0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: `${Math.round(height * 0.024)}px`,
+              color: "#E2E8F0",
+              fontWeight: 700,
+            }}
+          >
+            Он
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: `${Math.round(height * 0.028)}px`, fontWeight: 700, color: "#FFFFFF" }}>
+              Диалог в 01:42
+            </div>
+            <div style={{ fontSize: `${Math.round(height * 0.02)}px`, color: "#94A3B8" }}>
+              был(а) только что
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            padding: "8px 16px",
+            borderRadius: "999px",
+            fontSize: `${Math.round(height * 0.022)}px`,
+            color: "#CBD5E1",
+            fontWeight: 600,
+          }}
+        >
+          <div
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              backgroundColor: "#22C55E",
+            }}
+          />
+          eTerapy
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: `${Math.round(height * 0.03)}px`,
+          margin: `${Math.round(height * 0.04)}px 0`,
+          zIndex: 2,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignSelf: "flex-start",
+            maxWidth: "85%",
+            backgroundColor: "rgba(30, 41, 59, 0.85)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "24px 24px 24px 6px",
+            padding: `${Math.round(height * 0.035)}px ${Math.round(width * 0.04)}px`,
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: `${Math.round(height * (quote.length > 80 ? 0.036 : 0.042))}px`,
+              lineHeight: 1.3,
+              fontWeight: 600,
+              color: "#F8FAFC",
+            }}
+          >
+            «{quote}»
+          </div>
+          <div
+            style={{
+              fontSize: `${Math.round(height * 0.018)}px`,
+              color: "#64748B",
+              alignSelf: "flex-end",
+              marginTop: "10px",
+            }}
+          >
+            01:42
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignSelf: "flex-end",
+            maxWidth: "75%",
+            backgroundColor: `rgba(${theme.warm}, 0.22)`,
+            border: `1px solid rgba(${theme.warm}, 0.45)`,
+            borderRadius: "24px 24px 6px 24px",
+            padding: `${Math.round(height * 0.024)}px ${Math.round(width * 0.035)}px`,
+          }}
+        >
+          <div
+            style={{
+              fontSize: `${Math.round(height * 0.028)}px`,
+              fontWeight: 500,
+              color: "#E2E8F0",
+            }}
+          >
+            {input.responsePreview || "Что ответить, чтобы не пожалеть?"}
+          </div>
+          <div
+            style={{
+              fontSize: `${Math.round(height * 0.018)}px`,
+              color: "rgba(255, 255, 255, 0.6)",
+              alignSelf: "flex-end",
+              marginTop: "8px",
+            }}
+          >
+            01:45 · Прочитано ✓✓
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          backgroundColor: "rgba(15, 23, 42, 0.95)",
+          border: `1px solid rgba(${theme.warm}, 0.5)`,
+          borderRadius: "20px",
+          padding: `${Math.round(height * 0.03)}px ${Math.round(width * 0.04)}px`,
+          zIndex: 2,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            fontSize: `${Math.round(height * 0.022)}px`,
+            color: `rgb(${theme.warm})`,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "2px",
+          }}
+        >
+          <div
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "999px",
+              backgroundColor: `rgb(${theme.warm})`,
+            }}
+          />
+          РАЗБОР АНИ · КУРАТОР ETERAPY
+        </div>
+        <div
+          style={{
+            fontSize: `${Math.round(height * 0.03)}px`,
+            fontWeight: 700,
+            color: "#FFFFFF",
+            lineHeight: 1.25,
+          }}
+        >
+          {input.eyebrow || "Скрытый мотив: почему мы читаем между строк вместо вопроса"}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -306,6 +554,10 @@ export interface CoverInput {
  * занимает нижнюю треть и стоит поверх рисунка, а не вместо него.
  */
 export function CoverArt(input: CoverInput) {
+  if (input.layout === "chat_mockup") {
+    return <ChatMockupArt {...input} />;
+  }
+
   const { width, height } = coverCanvas(input.platform);
   const theme = coverThemeFor({
     key: input.slotKey,

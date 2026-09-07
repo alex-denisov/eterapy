@@ -74,17 +74,17 @@ function plain(value: string, limit = 700) {
 
 function rssItems(xml: string): MarketingResearchItem[] {
   return [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)]
-    .slice(0, 8)
+    .slice(0, 6)
     .map((match) => {
       const block = match[1];
       const field = (name: string) =>
         block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"))?.[1] ?? "";
       return {
-        source: plain(field("source"), 120) || "Google News",
-        title: plain(field("title"), 260),
-        url: plain(field("link"), 700),
-        publishedAt: plain(field("pubDate"), 120) || null,
-        excerpt: plain(field("description"), 700),
+        source: plain(field("source"), 100) || "Google News",
+        title: plain(field("title"), 120),
+        url: plain(field("link"), 500),
+        publishedAt: plain(field("pubDate"), 60) || null,
+        excerpt: plain(field("description"), 200),
       };
     })
     .filter((item) => item.title && /^https:\/\//i.test(item.url));
@@ -145,6 +145,7 @@ async function competitorPages(fetchImpl: typeof fetch) {
       const description = plain(
         body.match(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']+)/i)?.[1]
           ?? body,
+        200,
       );
       items.push({
         source: url.hostname,
@@ -185,7 +186,7 @@ export async function buildMarketingResearchBrief(
       },
       select: { platform: true, title: true, body: true, publishedAt: true },
       orderBy: [{ publishedAt: "desc" }, { scheduledFor: "desc" }],
-      take: 10,
+      take: 5,
     }).catch(() => []),
     currentNews(query, fetchImpl).catch((error) => {
       log.warn("marketing-research.news-fetch-failed", {
@@ -203,7 +204,7 @@ export async function buildMarketingResearchBrief(
       title: "Публичный материал, на который готовится ответ",
       url: publication.engagementTargetUrl ?? "",
       publishedAt: null,
-      excerpt: plain(publication.engagementExcerpt),
+      excerpt: plain(publication.engagementExcerpt, 200),
     }, ...newsResult]
     : newsResult;
   const limitations: string[] = [];
@@ -215,12 +216,12 @@ export async function buildMarketingResearchBrief(
     query,
     platform: publication.platform,
     scheduledContext: moscowSchedule(publication.scheduledFor),
-    currentSignals: currentSignals.slice(0, 8),
-    competitorSignals: competitorResult.slice(0, 8),
+    currentSignals: currentSignals.slice(0, 6),
+    competitorSignals: competitorResult.slice(0, 6),
     recentOwnMaterials: recentOwnMaterials.map((row) => ({
       platform: row.platform,
       title: row.title,
-      bodyExcerpt: plain(row.body ?? "", 400),
+      bodyExcerpt: plain(row.body ?? "", 100),
       publishedAt: row.publishedAt?.toISOString() ?? null,
     })),
     limitations,

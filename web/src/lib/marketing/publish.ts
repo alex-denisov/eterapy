@@ -55,6 +55,7 @@ import {
   toPlatformMarkup,
 } from "@/lib/marketing/link-presentation";
 import { stripHiddenMarkers } from "@/lib/marketing/text-hygiene";
+import { stripImageMetadata } from "@/lib/marketing/image-hygiene";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -152,10 +153,16 @@ async function downloadPublicationMedia(mediaUrl: string): Promise<{
   if (!source.ok || !contentType.startsWith("image/")) {
     throw new Error(`media download failed: HTTP ${source.status}`);
   }
-  const bytes = await source.arrayBuffer();
-  if (bytes.byteLength > MEDIA_UPLOAD_LIMIT_BYTES) {
+  const rawBytes = await source.arrayBuffer();
+  if (rawBytes.byteLength > MEDIA_UPLOAD_LIMIT_BYTES) {
     throw new Error("media exceeds the 15 MB upload limit");
   }
+  // B725: Очистка EXIF/C2PA метаданных перед отправкой на площадку
+  const cleanedBuffer = await stripImageMetadata(Buffer.from(rawBytes)).catch(() => Buffer.from(rawBytes));
+  const bytes = cleanedBuffer.buffer.slice(
+    cleanedBuffer.byteOffset,
+    cleanedBuffer.byteOffset + cleanedBuffer.byteLength,
+  ) as ArrayBuffer;
   return { bytes, contentType, filename: "eterapy-publication.png" };
 }
 

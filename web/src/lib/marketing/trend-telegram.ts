@@ -18,6 +18,8 @@
  * «об этом говорят».
  */
 
+import { log } from "@/lib/logger";
+import { z } from "zod";
 import {
   EDGE_RELAY_UPSTREAMS,
   edgeRelayAuthHeaders,
@@ -246,6 +248,118 @@ export function telegramChannelPageRequest(channel: string): {
   };
 }
 
+export const SemanticTrendItemSchema = z.object({
+  userPain: z.string().min(3),
+  situationHook: z.string().min(5),
+  category: z.enum(["relationship", "projective", "expert"]),
+  targetService: z.string().default("pair"),
+  keywords: z.array(z.string()).min(1),
+});
+
+export const SemanticTrendsResponseSchema = z.object({
+  trends: z.array(SemanticTrendItemSchema).min(1),
+});
+
+export type SemanticTrendItem = z.infer<typeof SemanticTrendItemSchema>;
+
+/**
+ * B726 — Семантическое извлечение болей и запросов аудитории через Gemini Flash.
+ *
+ * Анализирует срез свежих постов открытых каналов и возвращает структурированные
+ * жизненные ситуации с хуками. При отсутствии ключа или сбое возвращает null,
+ * обеспечивая прозрачный откат на биграммный подсчет.
+ */
+export async function extractSemanticTrendsWithLLM(
+  posts: string[],
+  options: {
+    fetchImpl?: typeof fetch;
+    apiKey?: string;
+  } = {},
+): Promise<SemanticTrendItem[] | null> {
+  const apiKey = options.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
+  if (!apiKey || posts.length === 0) {
+    return null;
+  }
+
+  const call = options.fetchImpl || fetch;
+  const samplePosts = posts.slice(0, 25).map((p) => p.slice(0, 280)).join("\n---\n");
+
+  const prompt = `Ты — аналитик болей аудитории платформы eTerapy (разбор отношений, сообщений и жизненных тупиков).
+Изучи посты открытых каналов и выдели ровно 5 острых жизненных ситуаций и скрытых болей людей в общении.
+
+Распределение тем (70/20/10):
+- 3-4 темы (relationship): разбор конкретных фраз в переписке, молчание, скрытые мотивы, расставания.
+- 1 тема (projective): проективное зеркало / архетип Юнга / совместимость.
+- 1 тема (expert): сложный жизненный выбор, выгорание или вопрос к специалисту.
+
+Верни СТРОГО JSON:
+{
+  "trends": [
+    {
+      "userPain": "Парень пишет только после 23:00 и пропадает днём",
+      "situationHook": "«Ты где?» — почему позднее сообщение злит сильнее молчания",
+      "category": "relationship",
+      "targetService": "pair",
+      "keywords": ["переписка", "молчание", "отношения"]
+    }
+  ]
+}
+
+Тексты:
+${samplePosts}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const response = await call(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1200,
+          responseMimeType: "application/json",
+        },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      log.warn("trend-telegram.gemini-flash.http-failed", { status: response.status });
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+      }>;
+    };
+
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) return null;
+
+    const parsedJson = JSON.parse(rawText);
+    const normalized = Array.isArray(parsedJson) ? { trends: parsedJson } : parsedJson;
+    const validated = SemanticTrendsResponseSchema.safeParse(normalized);
+    if (!validated.success) {
+      log.warn("trend-telegram.gemini-flash.schema-invalid", { error: validated.error.message });
+      return null;
+    }
+
+    return validated.data.trends;
+  } catch (error) {
+    log.warn("trend-telegram.gemini-flash.failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
 /**
  * Живые темы открытых каналов.
  *
@@ -276,6 +390,27 @@ export async function telegramChannelTrends(input: {
     return { url: telegramChannelPublicUrl(channel), posts: parseChannelPosts(await response.text()) };
   }));
 
+  const allPosts: string[] = [];
+  for (const page of pages) {
+    if (page.status === "fulfilled") {
+      allPosts.push(...page.value.posts);
+    }
+  }
+
+  // B726: Первичный путь — интеллектуальное семантическое извлечение болей через Gemini Flash
+  const llmTrends = await extractSemanticTrendsWithLLM(allPosts, { fetchImpl: call });
+  if (llmTrends && llmTrends.length > 0) {
+    const candidates: TrendCandidate[] = llmTrends.map((trend) => ({
+      topic: trend.userPain,
+      rationale: `Болевая точка аудитории (${trend.category}): ${trend.situationHook}`,
+      source: "telegramChannels",
+      referenceUrl: channels[0] ? telegramChannelPublicUrl(channels[0]) : "https://t.me",
+      keywords: trend.keywords,
+    }));
+    return candidates.slice(0, input.limit ?? TELEGRAM_TREND_TOPIC_LIMIT);
+  }
+
+  // Резервный fallback: детерминированный подсчет биграмм при отсутствии LLM
   const candidates: TrendCandidate[] = [];
   for (const page of pages) {
     if (page.status !== "fulfilled") continue;

@@ -43,6 +43,11 @@ export async function GET(
   );
   const canvas = coverCanvas(publication.platform);
 
+  const url = new URL(_request.url);
+  const requestedLayout = url.searchParams.get("layout");
+  const isChat = requestedLayout === "chat_mockup"
+    || (!requestedLayout && (publication.title.includes("«") || /диалог|переписк|сообщен|написал|молчани/i.test(publication.title)));
+
   return new ImageResponse(
     (
       <CoverArt
@@ -51,6 +56,7 @@ export async function GET(
         title={title}
         eyebrow={eyebrow}
         scheduledFor={publication.scheduledFor}
+        layout={isChat ? "chat_mockup" : "art"}
       />
     ),
     {
