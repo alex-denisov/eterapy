@@ -9,7 +9,7 @@
  */
 
 import type { ReactElement } from "react";
-import { ChatMockupArt, chatMetrics, coverCanvas } from "@/lib/marketing/cover-art";
+import { ChatMockupArt, buildThread, chatMetrics, coverCanvas } from "@/lib/marketing/cover-art";
 import { ogFonts, OG_FONT_FAMILY } from "@/lib/marketing/cover-fonts";
 
 type Node = ReactElement<{ children?: unknown; style?: Record<string, unknown> }>;
@@ -66,9 +66,72 @@ describe("B731: мокап переписки — скриншот Telegram, а 
   it("нарисованы обязательные части интерфейса: строка состояния, шапка, поле ввода", () => {
     const text = textOf(ChatMockupArt({ ...BASE, messageText: "Ты стала какой-то чужой" }));
     expect(text).toMatch(/\d{2}:\d{2}/); // часы в строке состояния и время сообщений
-    expect(text).toContain("был(а) недавно");
+    expect(text).toMatch(/в сети|был\(а\)/); // подпись присутствия в шапке
     expect(text).toContain("Сообщение"); // подсказка поля ввода
-    expect(text).toContain("Сегодня"); // служебная плашка даты
+  });
+
+  it("собеседник не всегда один и тот же — имя и заливка аватара меняются", () => {
+    // Замечание владельца: «Имя собеседника не всегда "Он" […] Но не надо делать
+    // всегда одно и то же». Одна подпись во всей ленте читается как шаблон.
+    const names = new Set<string>();
+    for (let index = 0; index < 24; index += 1) {
+      const element = ChatMockupArt({
+        ...BASE,
+        slotKey: `b610-2w-telegram-2026090${index % 9}-0${index % 7}`,
+        messageText: "Ты стала какой-то чужой",
+      });
+      const header = textOf(element).split(/\d{2}:\d{2}/)[1] ?? "";
+      names.add(header.trim().slice(0, 20));
+    }
+    expect(names.size).toBeGreaterThan(3);
+  });
+
+  it("лента набирается так, чтобы не помещаться на экран — это скриншот, а не два пузыря", () => {
+    // Замечание владельца: «когда делаешь скриншот экрана, то видно весь экран,
+    // а не только урезанную его часть». Пустота между шапкой и парой пузырей —
+    // экран, который не может так выглядеть ни у кого.
+    for (const platform of ["telegram", "dzen", "instagram", "threads"]) {
+      const canvas = coverCanvas(platform);
+      const { dp, phoneDp } = chatMetrics(canvas.width, canvas.height);
+      const chatDp = canvas.height / dp - (24 + 56 + 48);
+      const thread = buildThread({
+        seed: `b610-2w-${platform}-20260909-01`,
+        quote: "Ты стала какой-то чужой, я не понимаю, что происходит",
+        reply: "Не знаю, что на это ответить",
+        chatDp,
+        maxBubbleDp: Math.round(phoneDp * 0.74),
+      });
+      expect(thread.length).toBeGreaterThan(2);
+      // Реплика из тела поста стоит предпоследней, наш ответ — последним.
+      expect(thread[thread.length - 2].side).toBe("in");
+      expect(thread[thread.length - 1].side).toBe("out");
+      // Время идёт по возрастанию к низу.
+      const minutes = thread.map((line) => Number(line.time.slice(0, 2)) * 60 + Number(line.time.slice(3)));
+      for (let index = 1; index < minutes.length; index += 1) {
+        expect(minutes[index]).toBeGreaterThan(minutes[index - 1]);
+      }
+      // Трёх подряд с одной стороны не бывает.
+      for (let index = 2; index < thread.length; index += 1) {
+        const run = thread[index].side === thread[index - 1].side && thread[index - 1].side === thread[index - 2].side;
+        expect(run).toBe(false);
+      }
+    }
+  });
+
+  it("длина переписки меняется от материала к материалу", () => {
+    const lengths = new Set<number>();
+    for (let index = 0; index < 12; index += 1) {
+      lengths.add(
+        buildThread({
+          seed: `b610-2w-telegram-2026090${index % 9}-0${index}`,
+          quote: "Ты стала какой-то чужой",
+          reply: "Не знаю, что на это ответить",
+          chatDp: 200,
+          maxBubbleDp: 268,
+        }).length,
+      );
+    }
+    expect(lengths.size).toBeGreaterThan(1);
   });
 
   it("реплика в пузыре печатается без кавычек — сообщений в «ёлочках» не бывает", () => {

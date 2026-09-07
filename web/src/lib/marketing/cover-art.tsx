@@ -389,18 +389,206 @@ export function chatMetrics(width: number, height: number): { dp: number; phoneD
   return { dp: width / phoneDp, phoneDp };
 }
 
-/** Время в мокапе детерминировано ключом слота: одна и та же картинка на всех нодах. */
-function clockFrom(seed: string): { incoming: string; outgoing: string; status: string } {
-  const hour = 21 + pick(seed, "hour", 3);
-  const minute = pick(seed, "minute", 55);
-  const format = (h: number, m: number) =>
-    `${String(h % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-  const outMinute = minute + 1 + pick(seed, "gap", 3);
+/**
+ * Собеседник — не всегда «Он».
+ *
+ * Правка по замечанию владельца 2026-09-07: «Имя собеседника не всегда "Он", это
+ * может быть "Любимый", "Бывший", "Андрей", "Сергей" (или любое имя) […] Но не
+ * надо делать всегда одно и то же». Одна и та же подпись во всей ленте читается
+ * как шаблон — а шаблон и есть признак генерации.
+ *
+ * Имена вымышленные и намеренно обычные: это иллюстрация типичной ситуации, а не
+ * скриншот от реального клиента ([[feedback_demo_stats_become_fabrication]]).
+ * Поэтому в списке нет ни фамилий, ни ников, ни телефонов — ничего, по чему
+ * подпись можно принять за конкретного человека.
+ *
+ * Заливки аватара — три пары, которые ЕСТЬ в `night.attheme`
+ * (`avatar_backgroundSaved`, `…Orange`, `…Red`); остальные цвета Telegram в
+ * ночной теме не переопределяет, и придумывать их значения было бы ровно тем
+ * «примерно», которое запрещено условием задачи.
+ */
+const AVATAR_FILLS: [string, string][] = [
+  ["#4fa1e8", "#1a88e7"], // avatar_backgroundSaved / avatar_background2Saved
+  ["#f2bc64", "#e58943"], // avatar_backgroundOrange / avatar_background2Orange
+  ["#dc805b", "#d9614f"], // avatar_backgroundRed / avatar_background2Red
+];
+
+const CONTACT_NAMES = [
+  "Андрей",
+  "Сергей",
+  "Максим",
+  "Дима",
+  "Кирилл",
+  "Артём",
+  "Лена",
+  "Марина",
+  "Оля",
+  "Любимый",
+  "Бывший",
+  "Он",
+  "Она",
+];
+
+// ⚠ «Мама», «Начальник» и прочие роли из пула убраны намеренно: подпись
+// выбирается ключом слота, а не темой материала, и «Мама» под репликой «Ты
+// стала какой-то чужой» читается как чужая, случайно приклеенная переписка.
+// В пуле остаются только те подписи, при которых любая реплика о близких
+// отношениях остаётся уместной.
+
+/** Подпись присутствия — тоже не одна на всю ленту. */
+const PRESENCE = ["был(а) недавно", "в сети", "был(а) 5 минут назад", "был(а) вчера"];
+
+function contactFrom(seed: string): {
+  name: string;
+  letter: string;
+  fill: [string, string];
+  presence: string;
+} {
+  const name = CONTACT_NAMES[pick(seed, "name", CONTACT_NAMES.length)];
   return {
-    incoming: format(hour, minute),
-    outgoing: format(hour + (outMinute >= 60 ? 1 : 0), outMinute),
-    status: format(hour + (outMinute + 2 >= 60 ? 1 : 0), outMinute + 2),
+    name,
+    letter: name.slice(0, 1).toUpperCase(),
+    fill: AVATAR_FILLS[pick(seed, "avatar", AVATAR_FILLS.length)],
+    presence: PRESENCE[pick(seed, "presence", PRESENCE.length)],
   };
+}
+
+/**
+ * Переписка вокруг реплики — не две строчки, а живой хвост диалога.
+ *
+ * Правка по замечанию владельца 2026-09-07: «когда делаешь скриншот экрана, то
+ * видно весь экран, а не только урезанную его часть […] Очень важно чтобы реплик
+ * было рандомное количество, а не только 2 штуки по одной с каждой стороны».
+ *
+ * Первая редакция рисовала ровно два пузыря, и на высоком холсте между шапкой и
+ * ними зияла пустота — экран, который не может так выглядеть ни у кого. Теперь
+ * лента набирается фоновыми репликами ВВЕРХ до тех пор, пока не перестанет
+ * помещаться: верхнее сообщение обрезается шапкой, как в открытом чате,
+ * прокрученном вниз.
+ *
+ * Фоновые реплики намеренно бессодержательны и не привязаны к теме поста —
+ * владелец это разрешил дословно («включая нерелевантный посту текст»), и это
+ * честнее выдуманной осмысленной переписки: ничего, что можно принять за
+ * свидетельство, в них нет.
+ *
+ * ⚠ Эмодзи здесь нет и быть не может: во вшитом подмножестве Roboto их глифов
+ * нет, а `next/og` тянет эмодзи-шрифт из сети — на российской ноде это отказ, а
+ * в сборке запрещено. Вместо них скобки — как люди и пишут в русской переписке.
+ */
+const FILLER_IN = [
+  "привет",
+  "ты тут?",
+  "нам надо поговорить",
+  "почему ты не отвечаешь",
+  "я весь день об этом думаю",
+  "ладно",
+  "как знаешь",
+  "прсти, я не хотел так",
+  "щас не могу говорить",
+  "давай завтра",
+  "ты серьёзно?",
+  "((",
+  "я просто устал",
+  "и что теперь",
+  "ок.",
+];
+
+const FILLER_OUT = [
+  "привет",
+  "да, тут",
+  "я не знаю, что сказать",
+  "давай позже",
+  "мне тоже тяжело",
+  "))",
+  "хорошо",
+  "ок",
+  "я подумаю",
+  "не начинай, пожалуйста",
+  "мне нужно время",
+  "я перезвоню",
+  "угу",
+];
+
+/** Наши короткие ответы — тоже не одна строка на всю ленту. */
+const REPLIES = [
+  "Не знаю, что на это ответить",
+  "И что мне теперь делать",
+  "Я не хочу так больше",
+  "Мне нужно подумать",
+];
+
+interface ThreadLine {
+  side: "in" | "out";
+  text: string;
+  time: string;
+}
+
+/**
+ * Сколько dp по высоте займёт пузырь. Оценка грубая и намеренно такая: она нужна
+ * только чтобы понять, сколько реплик набрать, чтобы лента гарантированно не
+ * помещалась.
+ */
+function bubbleHeightDp(text: string, maxBubbleDp: number): number {
+  const perLine = Math.max(12, Math.floor(maxBubbleDp / 8));
+  return Math.ceil(text.length / perLine) * 20 + 17;
+}
+
+export function buildThread(input: {
+  seed: string;
+  quote: string;
+  reply: string;
+  chatDp: number;
+  maxBubbleDp: number;
+}): ThreadLine[] {
+  const { seed, quote, reply, chatDp, maxBubbleDp } = input;
+  // Хвост диалога задан: чужая реплика (та самая, из тела поста) и наш ответ.
+  const lines: Omit<ThreadLine, "time">[] = [
+    { side: "in", text: quote },
+    { side: "out", text: reply },
+  ];
+  let height = bubbleHeightDp(quote, maxBubbleDp) + bubbleHeightDp(reply, maxBubbleDp);
+
+  // Дальше добираем ВВЕРХ, пока лента не перестанет помещаться на экран.
+  //
+  // Запас случайный (30–80 dp) и не декоративный: он задаёт, НАСКОЛЬКО чат
+  // прокручен, то есть сколько реплик ушло за верхний край. Постоянный запас
+  // давал бы всем материалам переписку одной длины — а владелец просил разной.
+  const depth = chatDp + 30 + pick(seed, "depth", 50);
+  for (let index = 0; index < 18 && height < depth; index += 1) {
+    const previous = lines[0].side;
+    const runs = lines[0] && lines[1] && lines[0].side === lines[1].side;
+    // Серия из трёх подряд с одной стороны выглядит неестественно чаще, чем
+    // встречается, поэтому третью подряд запрещаем.
+    const side: "in" | "out" = runs
+      ? previous === "in"
+        ? "out"
+        : "in"
+      : pick(seed, `side${index}`, 10) < 6
+        ? previous === "in"
+          ? "out"
+          : "in"
+        : previous;
+    const pool = side === "in" ? FILLER_IN : FILLER_OUT;
+    const text = pool[pick(seed, `filler${index}`, pool.length)];
+    lines.unshift({ side, text });
+    height += bubbleHeightDp(text, maxBubbleDp);
+  }
+
+  // Время идёт по возрастанию к низу: последняя пара — «только что».
+  const endMinutes = (21 + pick(seed, "hour", 3)) * 60 + pick(seed, "minute", 55);
+  const stamps: number[] = [];
+  let cursor = endMinutes;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    stamps[index] = cursor;
+    cursor -= 1 + pick(seed, `gap${index}`, 4);
+  }
+
+  return lines.map((line, index) => ({ ...line, time: formatClock(stamps[index]) }));
+}
+
+function formatClock(minutes: number): string {
+  const wrapped = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -427,12 +615,28 @@ const TAIL_OUT =
 
 export function ChatMockupArt(input: CoverInput) {
   const { width, height } = coverCanvas(input.platform);
-  const { dp } = chatMetrics(width, height);
+  const { dp, phoneDp } = chatMetrics(width, height);
   const px = (value: number) => Math.round(value * dp);
-  const clock = clockFrom(input.slotKey);
+  const contact = contactFrom(input.slotKey);
 
-  const incoming = bubbleText(input.messageText || input.title, 150);
-  const outgoing = bubbleText(input.responsePreview || "Не знаю, что на это ответить", 60);
+  const maxBubbleDp = Math.round(phoneDp * 0.74);
+  const chatDp = height / dp - (BAR_DP.status + BAR_DP.header + BAR_DP.panel);
+  const thread = buildThread({
+    seed: input.slotKey,
+    quote: bubbleText(input.messageText || input.title, 150),
+    reply: bubbleText(
+      input.responsePreview || REPLIES[pick(input.slotKey, "reply", REPLIES.length)],
+      60,
+    ),
+    chatDp,
+    maxBubbleDp,
+  });
+  const statusClock = formatClock(
+    Number(thread[thread.length - 1].time.slice(0, 2)) * 60 +
+      Number(thread[thread.length - 1].time.slice(3)) +
+      1 +
+      pick(input.slotKey, "statusgap", 4),
+  );
 
   const icon = (path: string, size: number, color: string, key: string) => (
     <svg key={key} width={px(size)} height={px(size)} viewBox="0 0 24 24" fill="none" style={{ display: "flex" }}>
@@ -443,33 +647,9 @@ export function ChatMockupArt(input: CoverInput) {
   /**
    * Короткое сообщение Telegram ставит время В ТУ ЖЕ строку, а переносит на
    * следующую только когда последняя строка длинная. Отдельная строка со
-   * временем под коротким «Ты стала какой-то чужой» — заметный признак
-   * нарисованного интерфейса, поэтому порог здесь есть.
+   * временем под коротким «ок» — заметный признак нарисованного интерфейса.
    */
   const INLINE_TIME_LIMIT = 28;
-
-  const bubbleTime = (time: string, color: string, read: boolean, inline: boolean) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        alignSelf: "flex-end",
-        marginTop: inline ? px(4) : px(2),
-        marginLeft: inline ? px(6) : 0,
-        gap: px(3),
-        fontSize: px(12),
-        color,
-      }}
-    >
-      <span style={{ display: "flex" }}>{time}</span>
-      {read ? (
-        <svg width={px(16)} height={px(11)} viewBox="0 0 16 11" fill="none" style={{ display: "flex" }}>
-          <path d="M1 6.2 3.6 8.8 9.2 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M6.4 6.6 8.4 8.8 14.6 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : null}
-    </div>
-  );
 
   return (
     <div
@@ -495,7 +675,7 @@ export function ChatMockupArt(input: CoverInput) {
           backgroundColor: TG.bar,
         }}
       >
-        <div style={{ display: "flex", fontSize: px(12), fontWeight: 500, color: "#ffffff" }}>{clock.status}</div>
+        <div style={{ display: "flex", fontSize: px(12), fontWeight: 500, color: "#ffffff" }}>{statusClock}</div>
         <div style={{ display: "flex", flexGrow: 1 }} />
         <div style={{ display: "flex", alignItems: "flex-end", gap: px(5) }}>
           {/* сеть */}
@@ -541,18 +721,27 @@ export function ChatMockupArt(input: CoverInput) {
             height: px(40),
             marginLeft: px(12),
             borderRadius: "999px",
-            background: `linear-gradient(180deg, ${TG.avatarTop} 0%, ${TG.avatarBottom} 100%)`,
+            background: `linear-gradient(180deg, ${contact.fill[0]} 0%, ${contact.fill[1]} 100%)`,
             fontSize: px(18),
             fontWeight: 500,
             color: "#ffffff",
           }}
         >
-          О
+          {contact.letter}
         </div>
         <div style={{ display: "flex", flexDirection: "column", marginLeft: px(12), flexGrow: 1 }}>
-          <div style={{ display: "flex", fontSize: px(16), fontWeight: 500, color: TG.barTitle }}>Он</div>
-          <div style={{ display: "flex", fontSize: px(13), color: TG.barSubtitle, marginTop: px(1) }}>
-            был(а) недавно
+          <div style={{ display: "flex", fontSize: px(16), fontWeight: 500, color: TG.barTitle }}>
+            {contact.name}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: px(13),
+              color: contact.presence === "в сети" ? TG.online : TG.barSubtitle,
+              marginTop: px(1),
+            }}
+          >
+            {contact.presence}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: px(18) }}>
@@ -570,105 +759,119 @@ export function ChatMockupArt(input: CoverInput) {
         </div>
       </div>
 
-      {/* Лента сообщений. Прижата книзу и обрезана сверху — как открытый чат. */}
+      {/* Лента. Прижата книзу и обрезана сверху шапкой — как прокрученный чат. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          // ⚠ Только `flexGrow` мало: длинная реплика раздувала ленту, и поле
-          // ввода уезжало за нижний край холста — на широком Дзене этого не
-          // видно ни в одном тесте, только на отрисованном PNG.
+          // ⚠ Только `flexGrow` мало: длинная лента выдавливала поле ввода за
+          // нижний край холста — на широком Дзене этого не видно ни в одном
+          // прогоне, только на отрисованном PNG.
           flexGrow: 1,
           flexShrink: 1,
           minHeight: 0,
           justifyContent: "flex-end",
           overflow: "hidden",
           padding: `${px(8)}px ${px(9)}px`,
-          gap: px(6),
         }}
       >
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: px(4) }}>
-          <div
-            style={{
-              display: "flex",
-              backgroundColor: TG.service,
-              borderRadius: "999px",
-              padding: `${px(4)}px ${px(10)}px`,
-              fontSize: px(13),
-              color: TG.serviceText,
-            }}
-          >
-            Сегодня
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-start", paddingLeft: px(6) }}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              maxWidth: `${px(268)}px`,
-              backgroundColor: TG.inBubble,
-              borderRadius: `${px(12)}px ${px(12)}px ${px(12)}px 0`,
-              padding: `${px(7)}px ${px(10)}px ${px(6)}px ${px(10)}px`,
-            }}
-          >
-            <svg
-              width={px(6)}
-              height={px(17)}
-              viewBox="0 0 6 17"
-              fill="none"
-              style={{ position: "absolute", left: `${-px(6)}px`, bottom: 0, display: "flex" }}
-            >
-              <path d={TAIL_IN} fill={TG.inBubble} />
-            </svg>
+        {thread.map((line, index) => {
+          const next = thread[index + 1];
+          // Хвостик — только у последнего пузыря серии, как в Telegram.
+          const tailed = !next || next.side !== line.side;
+          const inline = line.text.length <= INLINE_TIME_LIMIT;
+          const isIn = line.side === "in";
+          const radius = px(12);
+          return (
             <div
+              key={`m${index}`}
               style={{
                 display: "flex",
-                flexDirection: incoming.length <= INLINE_TIME_LIMIT ? "row" : "column",
-                alignItems: incoming.length <= INLINE_TIME_LIMIT ? "flex-end" : "stretch",
+                justifyContent: isIn ? "flex-start" : "flex-end",
+                padding: `0 ${px(6)}px`,
+                // Отступ задаёт ПРЕДЫДУЩЕЕ сообщение: серия с одной стороны в
+                // Telegram стоит плотно (2 dp), смена стороны — с воздухом.
+                marginTop:
+                  index === 0 ? 0 : px(thread[index - 1].side === line.side ? 2 : 6),
               }}
             >
-              <div style={{ display: "flex", fontSize: px(16), lineHeight: 1.28, color: TG.inText }}>{incoming}</div>
-              {bubbleTime(clock.incoming, TG.inTime, false, incoming.length <= INLINE_TIME_LIMIT)}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  position: "relative",
+                  maxWidth: `${px(maxBubbleDp)}px`,
+                  ...(isIn
+                    ? { backgroundColor: TG.inBubble }
+                    : {
+                        background: `linear-gradient(180deg, ${TG.outBubbleTop} 0%, ${TG.outBubbleBottom} 100%)`,
+                      }),
+                  borderRadius: tailed
+                    ? isIn
+                      ? `${radius}px ${radius}px ${radius}px 0`
+                      : `${radius}px ${radius}px 0 ${radius}px`
+                    : `${radius}px`,
+                  padding: `${px(7)}px ${px(10)}px ${px(6)}px ${px(10)}px`,
+                }}
+              >
+                {tailed ? (
+                  <svg
+                    width={px(6)}
+                    height={px(17)}
+                    viewBox="0 0 6 17"
+                    fill="none"
+                    style={{
+                      position: "absolute",
+                      ...(isIn ? { left: `${-px(6)}px` } : { right: `${-px(6)}px` }),
+                      bottom: 0,
+                      display: "flex",
+                    }}
+                  >
+                    <path d={isIn ? TAIL_IN : TAIL_OUT} fill={isIn ? TG.inBubble : TG.outBubbleBottom} />
+                  </svg>
+                ) : null}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: inline ? "row" : "column",
+                    alignItems: inline ? "flex-end" : "stretch",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      fontSize: px(16),
+                      lineHeight: 1.28,
+                      color: isIn ? TG.inText : TG.outText,
+                    }}
+                  >
+                    {line.text}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      alignSelf: "flex-end",
+                      marginTop: inline ? px(4) : px(2),
+                      marginLeft: inline ? px(6) : 0,
+                      gap: px(3),
+                      fontSize: px(12),
+                      color: isIn ? TG.inTime : TG.outTime,
+                    }}
+                  >
+                    <span style={{ display: "flex" }}>{line.time}</span>
+                    {isIn ? null : (
+                      <svg width={px(16)} height={px(11)} viewBox="0 0 16 11" fill="none" style={{ display: "flex" }}>
+                        <path d="M1 6.2 3.6 8.8 9.2 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M6.4 6.6 8.4 8.8 14.6 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: px(6) }}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              maxWidth: `${px(268)}px`,
-              background: `linear-gradient(180deg, ${TG.outBubbleTop} 0%, ${TG.outBubbleBottom} 100%)`,
-              borderRadius: `${px(12)}px ${px(12)}px 0 ${px(12)}px`,
-              padding: `${px(7)}px ${px(10)}px ${px(6)}px ${px(10)}px`,
-            }}
-          >
-            <svg
-              width={px(6)}
-              height={px(17)}
-              viewBox="0 0 6 17"
-              fill="none"
-              style={{ position: "absolute", right: `${-px(6)}px`, bottom: 0, display: "flex" }}
-            >
-              <path d={TAIL_OUT} fill={TG.outBubbleBottom} />
-            </svg>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: outgoing.length <= INLINE_TIME_LIMIT ? "row" : "column",
-                alignItems: outgoing.length <= INLINE_TIME_LIMIT ? "flex-end" : "stretch",
-              }}
-            >
-              <div style={{ display: "flex", fontSize: px(16), lineHeight: 1.28, color: TG.outText }}>{outgoing}</div>
-              {bubbleTime(clock.outgoing, TG.outTime, true, outgoing.length <= INLINE_TIME_LIMIT)}
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Поле ввода — 48 dp: смайл, подсказка, скрепка, микрофон. */}
@@ -699,7 +902,6 @@ export function ChatMockupArt(input: CoverInput) {
     </div>
   );
 }
-
 /**
  * Разметка обложки.
  *
