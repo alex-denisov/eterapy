@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import db from "@/lib/db";
 import { CoverArt, coverCanvas } from "@/lib/marketing/cover-art";
 import { coverLayoutFor } from "@/lib/marketing/cover-layout";
+import { ogFonts } from "@/lib/marketing/cover-fonts";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,17 @@ export async function GET(
   const isChat = requestedLayout === "chat_mockup"
     || (!requestedLayout && decided.layout === "chat_mockup");
 
+  /**
+   * B731 — Roboto передаётся ТОЛЬКО мокапу переписки.
+   *
+   * Мокап обязан быть набран тем же шрифтом, что настоящий Telegram на Android.
+   * Графической раскладке он не нужен, а вреден: как только у `ImageResponse`
+   * появляется свой список шрифтов, встроенный шрифт `next/og` не грузится
+   * вовсе, и знаки вне вшитого подмножества (→, ✓, ₽ — проверено по таблице
+   * cmap) пропали бы из заголовков молча, без ошибки.
+   */
+  const fonts = isChat ? await ogFonts() : [];
+
   return new ImageResponse(
     (
       <CoverArt
@@ -76,6 +88,7 @@ export async function GET(
     {
       width: canvas.width,
       height: canvas.height,
+      ...(fonts.length > 0 ? { fonts } : {}),
       headers: {
         "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
         "X-Robots-Tag": "noindex, nofollow",

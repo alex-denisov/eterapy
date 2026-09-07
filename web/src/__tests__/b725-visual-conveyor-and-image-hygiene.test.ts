@@ -60,7 +60,10 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
     expect(await hasAiImageMetadata(cleanJpeg)).toBe(false);
   });
 
-  it("ChatMockupArt корректно собирает разметку диалога со входящим сообщением и плашкой Ани", () => {
+  // B731: плашки «РАЗБОР АНИ» в мокапе больше нет — ни один скриншот из
+  // мессенджера её не содержит, и она сильнее всего выдавала подделку. Фон стал
+  // цветом ночной темы Telegram. Подробности проверяет b731-*.
+  it("ChatMockupArt корректно собирает разметку диалога со входящим сообщением", () => {
     const element = ChatMockupArt({
       slotKey: "test-slot-1",
       platform: "telegram",
@@ -70,7 +73,7 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
     });
 
     expect(element).toBeDefined();
-    expect(element.props.style.backgroundColor).toBe("#0B0F19");
+    expect(element.props.style.backgroundColor).toBe("#0f0f10");
   });
 
   it("CoverArt переключается на ChatMockupArt при layout=chat_mockup", () => {

@@ -303,21 +303,173 @@ export interface CoverInput {
 }
 
 /**
- * B725 — Диалоговый мокап чата для разбора переписок (0 токенов, чистый SVG/Satori).
- * Стилизованный нейтральный интерфейс мессенджера со входящим сообщением и плашкой разбора Ани.
+ * B731 — МОКАП ПЕРЕПИСКИ ПЕРЕСТАЁТ БЫТЬ «АБСТРАКТНЫМ МЕССЕНДЖЕРОМ».
+ *
+ * Требование владельца 2026-09-07 дословно: «Я хочу чтобы ты скриншоты генерил
+ * именно по такому же шаблону как настоящий мессенджер Telegram. Если скриншоты
+ * будут хоть немного непохожи на Telegram, то это будет явным признаком полной
+ * ИИ-генерации».
+ *
+ * Первая редакция (B725) выдавала себя девятью признаками сразу: имя чата
+ * «Диалог в 01:42», аватар с текстом «Он», два радиальных пятна вместо фона
+ * темы, свои градиенты пузырей, Arial, отсутствие строки состояния и поля
+ * ввода, слово «Прочитано» текстом — и, самое заметное, брендовая плашка
+ * «РАЗБОР АНИ · КУРАТОР ETERAPY» во всю ширину. Ни один скриншот из мессенджера
+ * такого элемента не содержит; плашка одна выдавала подделку сильнее, чем все
+ * цвета вместе.
+ *
+ * ЭТАЛОН — НЕ ПАМЯТЬ, А ФАЙЛ ТЕМЫ. Цвета сняты с официальной ночной темы
+ * Telegram для Android: `TMessagesProj/src/main/assets/night.attheme` из
+ * репозитория DrKLO/Telegram. Там они лежат знаковыми ARGB-числами
+ * (`chat_wallpaper=-15790320`), здесь — те же значения в hex. Придумывать
+ * «примерно такой синий» в этой задаче нельзя по условию.
+ *
+ * ГЕОМЕТРИЯ В dp, А НЕ В ПРОЦЕНТАХ. Интерфейс Android описан в независимых от
+ * плотности единицах: строка состояния 24, шапка 56, поле ввода 48, текст
+ * сообщения 16sp. Проценты от холста давали бы на широком Дзене шапку вдвое
+ * выше, чем на вертикальном Instagram, — и ни один размер не совпал бы с
+ * настоящим. Поэтому холст пересчитывается в «ширину телефона» (`chatMetrics`),
+ * а всё остальное считается от неё.
+ *
+ * ШРИФТ. Telegram на Android набран Roboto; он вшит в образ и передаётся в
+ * `ImageResponse` маршрутом (`cover-fonts.ts`). Из сети ничего не тянется.
+ *
+ * ЧЕГО ЗДЕСЬ СОЗНАТЕЛЬНО НЕТ. Имени реального человека и намёка на «скриншот
+ * от клиента»: собеседник подписан «Он», и это иллюстрация типичной ситуации, а
+ * не поддельное свидетельство ([[feedback_demo_stats_become_fabrication]]).
  */
+
+/**
+ * Палитра ночной темы Telegram Android (`night.attheme`).
+ * Слева — ключ темы, чтобы правку можно было сверить с исходником построчно.
+ */
+const TG = {
+  wallpaper: "#0f0f10", // chat_wallpaper
+  bar: "#232326", // actionBarDefault
+  barTitle: "#ffffff", // actionBarDefaultTitle
+  barSubtitle: "rgba(242, 242, 242, 0.45)", // actionBarDefaultSubtitle
+  online: "#74bdf9", // chat_status
+  inBubble: "#1f2123", // chat_inBubble
+  inText: "#fafafa", // chat_messageTextIn
+  inTime: "#7d7f81", // chat_inTimeText
+  outBubbleTop: "#366caf", // chat_outBubble
+  outBubbleBottom: "#3b8cb9", // chat_outBubbleGradient
+  outText: "#fafafa", // chat_messageTextOut
+  outTime: "#94d3f6", // chat_outTimeText
+  check: "rgba(201, 240, 255, 0.88)", // chat_outSentCheckRead
+  panel: "#1e1e1f", // chat_messagePanelBackground
+  panelHint: "rgba(255, 255, 255, 0.39)", // chat_messagePanelHint
+  panelIcon: "rgba(255, 255, 255, 0.39)", // chat_messagePanelIcons
+  service: "rgba(55, 55, 55, 0.59)", // chat_serviceBackground
+  serviceText: "#ffffff", // chat_serviceText
+  avatarTop: "#4fa1e8", // avatar_backgroundSaved
+  avatarBottom: "#1a88e7", // avatar_background2Saved
+} as const;
+
+/** Высоты элементов интерфейса Android в dp — из макета Telegram. */
+const BAR_DP = { status: 24, header: 56, panel: 48 } as const;
+
+/**
+ * Пересчёт холста площадки в «ширину телефона».
+ *
+ * Холсты у площадок разные (Дзен 16:9, Instagram 4:5), а телефон один. Если
+ * всегда брать 360 dp, на широком и низком холсте шапка с полем ввода съедят
+ * почти всю высоту и переписке останется полоска. Поэтому ширина телефона
+ * растягивается ровно настолько, чтобы под сообщения осталось не меньше
+ * `MIN_CHAT_DP`, — интерфейс при этом остаётся пропорциональным, меняется
+ * только «плотность экрана».
+ */
+const MIN_CHAT_DP = 165;
+const PHONE_DP = { min: 360, max: 560 } as const;
+
+export function chatMetrics(width: number, height: number): { dp: number; phoneDp: number } {
+  const chrome = BAR_DP.status + BAR_DP.header + BAR_DP.panel;
+  const needed = (width * (chrome + MIN_CHAT_DP)) / height;
+  const phoneDp = Math.min(PHONE_DP.max, Math.max(PHONE_DP.min, Math.round(needed)));
+  return { dp: width / phoneDp, phoneDp };
+}
+
+/** Время в мокапе детерминировано ключом слота: одна и та же картинка на всех нодах. */
+function clockFrom(seed: string): { incoming: string; outgoing: string; status: string } {
+  const hour = 21 + pick(seed, "hour", 3);
+  const minute = pick(seed, "minute", 55);
+  const format = (h: number, m: number) =>
+    `${String(h % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const outMinute = minute + 1 + pick(seed, "gap", 3);
+  return {
+    incoming: format(hour, minute),
+    outgoing: format(hour + (outMinute >= 60 ? 1 : 0), outMinute),
+    status: format(hour + (outMinute + 2 >= 60 ? 1 : 0), outMinute + 2),
+  };
+}
+
+/**
+ * Реплика в пузыре — без кавычек.
+ *
+ * В теле поста реплика стоит в «ёлочках», потому что там она цитата. В
+ * мессенджере кавычек вокруг собственного сообщения не бывает ни у кого, и
+ * именно они читались бы как «нарисовано», а не «прислано».
+ */
+function bubbleText(raw: string, limit: number): string {
+  const text = raw.replace(/\s+/gu, " ").replace(/^[«"'\s]+|[»"'\s]+$/gu, "").trim();
+  return text.length <= limit ? text : `${text.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
+}
+
+/** Хвостик пузыря — путь из веб-клиента Telegram, 6×17 dp. */
+//
+// ⚠ Флаги дуги записаны через пробелы (`0 0 1`), а не слитно (`016`): слитную
+// сокращённую запись из веб-клиента разбирает браузер, но не Satori — хвостик
+// исходящего пузыря от неё пропадал молча, без ошибки в прогоне.
+const TAIL_IN =
+  "M6 17H0V0c.193 2.84.876 5.767 2.05 8.782.904 2.325 2.446 4.485 4.625 6.48A1 1 0 0 1 6 17z";
+const TAIL_OUT =
+  "M0 17h6V0c-.193 2.84-.876 5.767-2.05 8.782-.904 2.325-2.446 4.485-4.625 6.48A1 1 0 0 0 0 17z";
+
 export function ChatMockupArt(input: CoverInput) {
   const { width, height } = coverCanvas(input.platform);
-  const theme = coverThemeFor({
-    key: input.slotKey,
-    platform: input.platform,
-    scheduledFor: input.scheduledFor,
-  });
+  const { dp } = chatMetrics(width, height);
+  const px = (value: number) => Math.round(value * dp);
+  const clock = clockFrom(input.slotKey);
 
-  const rawMsg = input.messageText || input.title;
-  const quoteMatch = /[«"]([^»"]+)[»"]/u.exec(rawMsg);
-  const quote = quoteMatch ? quoteMatch[1] : rawMsg;
-  const quoteDisplay = `«${quote}»`;
+  const incoming = bubbleText(input.messageText || input.title, 150);
+  const outgoing = bubbleText(input.responsePreview || "Не знаю, что на это ответить", 60);
+
+  const icon = (path: string, size: number, color: string, key: string) => (
+    <svg key={key} width={px(size)} height={px(size)} viewBox="0 0 24 24" fill="none" style={{ display: "flex" }}>
+      <path d={path} stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  /**
+   * Короткое сообщение Telegram ставит время В ТУ ЖЕ строку, а переносит на
+   * следующую только когда последняя строка длинная. Отдельная строка со
+   * временем под коротким «Ты стала какой-то чужой» — заметный признак
+   * нарисованного интерфейса, поэтому порог здесь есть.
+   */
+  const INLINE_TIME_LIMIT = 28;
+
+  const bubbleTime = (time: string, color: string, read: boolean, inline: boolean) => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        alignSelf: "flex-end",
+        marginTop: inline ? px(4) : px(2),
+        marginLeft: inline ? px(6) : 0,
+        gap: px(3),
+        fontSize: px(12),
+        color,
+      }}
+    >
+      <span style={{ display: "flex" }}>{time}</span>
+      {read ? (
+        <svg width={px(16)} height={px(11)} viewBox="0 0 16 11" fill="none" style={{ display: "flex" }}>
+          <path d="M1 6.2 3.6 8.8 9.2 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M6.4 6.6 8.4 8.8 14.6 1.6" stroke={TG.check} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : null}
+    </div>
+  );
 
   return (
     <div
@@ -326,234 +478,223 @@ export function ChatMockupArt(input: CoverInput) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        position: "relative",
         overflow: "hidden",
-        backgroundColor: "#0B0F19",
-        color: "#F1F5F9",
-        fontFamily: "Arial, sans-serif",
-        padding: `${Math.round(height * 0.05)}px ${Math.round(width * 0.06)}px`,
+        backgroundColor: TG.wallpaper,
+        fontFamily: "Roboto",
+        color: TG.inText,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          top: "-15%",
-          right: "-10%",
-          width: `${Math.round(width * 0.7)}px`,
-          height: `${Math.round(width * 0.7)}px`,
-          borderRadius: "999px",
-          display: "flex",
-          background: `radial-gradient(circle, rgba(${theme.warm}, 0.25) 0%, rgba(15, 23, 42, 0) 70%)`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "-20%",
-          left: "-10%",
-          width: `${Math.round(width * 0.8)}px`,
-          height: `${Math.round(width * 0.8)}px`,
-          borderRadius: "999px",
-          display: "flex",
-          background: `radial-gradient(circle, rgba(${theme.cool}, 0.2) 0%, rgba(15, 23, 42, 0) 70%)`,
-        }}
-      />
-
+      {/* Строка состояния — 24 dp, тот же цвет, что и шапка. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          paddingBottom: `${Math.round(height * 0.02)}px`,
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          height: px(BAR_DP.status),
+          flexShrink: 0,
+          padding: `0 ${px(10)}px`,
+          backgroundColor: TG.bar,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              width: `${Math.round(height * 0.055)}px`,
-              height: `${Math.round(height * 0.055)}px`,
-              borderRadius: "999px",
-              backgroundColor: "rgba(255, 255, 255, 0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: `${Math.round(height * 0.024)}px`,
-              color: "#E2E8F0",
-              fontWeight: 700,
-            }}
-          >
-            Он
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: `${Math.round(height * 0.028)}px`, fontWeight: 700, color: "#FFFFFF" }}>
-              Диалог в 01:42
-            </div>
-            <div style={{ display: "flex", fontSize: `${Math.round(height * 0.02)}px`, color: "#94A3B8" }}>
-              был(а) только что
-            </div>
-          </div>
+        <div style={{ display: "flex", fontSize: px(12), fontWeight: 500, color: "#ffffff" }}>{clock.status}</div>
+        <div style={{ display: "flex", flexGrow: 1 }} />
+        <div style={{ display: "flex", alignItems: "flex-end", gap: px(5) }}>
+          {/* сеть */}
+          <svg width={px(15)} height={px(11)} viewBox="0 0 15 11" fill="none" style={{ display: "flex" }}>
+            <rect x="0" y="7.5" width="2.6" height="3.5" rx="0.6" fill="#ffffff" />
+            <rect x="4.1" y="5" width="2.6" height="6" rx="0.6" fill="#ffffff" />
+            <rect x="8.2" y="2.5" width="2.6" height="8.5" rx="0.6" fill="#ffffff" />
+            <rect x="12.3" y="0" width="2.6" height="11" rx="0.6" fill="#ffffff" />
+          </svg>
+          {/* wi-fi */}
+          <svg width={px(14)} height={px(11)} viewBox="0 0 14 11" fill="none" style={{ display: "flex" }}>
+            <path d="M1 3.6C2.6 2.1 4.7 1.2 7 1.2s4.4.9 6 2.4" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
+            <path d="M3.3 6.2C4.3 5.3 5.6 4.7 7 4.7s2.7.6 3.7 1.5" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
+            <path d="M7 9.6l-1.7-1.8A2.4 2.4 0 017 7.1c.7 0 1.3.3 1.7.7L7 9.6z" fill="#ffffff" />
+          </svg>
+          {/* батарея */}
+          <svg width={px(20)} height={px(11)} viewBox="0 0 20 11" fill="none" style={{ display: "flex" }}>
+            <rect x="0.6" y="0.6" width="16.4" height="9.8" rx="2.2" stroke="rgba(255,255,255,0.5)" strokeWidth={1.2} />
+            <rect x="2.2" y="2.2" width="11.4" height="6.6" rx="1.2" fill="#ffffff" />
+            <rect x="18.2" y="3.6" width="1.6" height="3.8" rx="0.8" fill="rgba(255,255,255,0.5)" />
+          </svg>
         </div>
+      </div>
+
+      {/* Шапка чата — 56 dp: стрелка назад, аватар, имя и подпись, звонок и меню. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          height: px(BAR_DP.header),
+          flexShrink: 0,
+          padding: `0 ${px(12)}px 0 ${px(10)}px`,
+          backgroundColor: TG.bar,
+        }}
+      >
+        {icon("M20 12H4M10 6l-6 6 6 6", 24, "#ffffff", "back")}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            backgroundColor: "rgba(255, 255, 255, 0.06)",
-            padding: "8px 16px",
+            justifyContent: "center",
+            width: px(40),
+            height: px(40),
+            marginLeft: px(12),
             borderRadius: "999px",
-            fontSize: `${Math.round(height * 0.022)}px`,
-            color: "#CBD5E1",
-            fontWeight: 600,
+            background: `linear-gradient(180deg, ${TG.avatarTop} 0%, ${TG.avatarBottom} 100%)`,
+            fontSize: px(18),
+            fontWeight: 500,
+            color: "#ffffff",
           }}
         >
-          <div
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "999px",
-              display: "flex",
-              backgroundColor: "#22C55E",
-            }}
-          />
-          eTerapy
+          О
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", marginLeft: px(12), flexGrow: 1 }}>
+          <div style={{ display: "flex", fontSize: px(16), fontWeight: 500, color: TG.barTitle }}>Он</div>
+          <div style={{ display: "flex", fontSize: px(13), color: TG.barSubtitle, marginTop: px(1) }}>
+            был(а) недавно
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: px(18) }}>
+          {icon(
+            "M6.5 3.5 8.8 8l-2 2c1 2 2.6 3.6 4.6 4.6l2-2 4.5 2.3v3.6c0 .6-.5 1.1-1.1 1C8.4 18.7 4.3 14.6 3.4 5.6a1 1 0 011-1.1h2.1z",
+            22,
+            "#ffffff",
+            "call",
+          )}
+          <svg width={px(4)} height={px(18)} viewBox="0 0 4 18" fill="none" style={{ display: "flex" }}>
+            <circle cx="2" cy="2" r="2" fill="#ffffff" />
+            <circle cx="2" cy="9" r="2" fill="#ffffff" />
+            <circle cx="2" cy="16" r="2" fill="#ffffff" />
+          </svg>
         </div>
       </div>
 
+      {/* Лента сообщений. Прижата книзу и обрезана сверху — как открытый чат. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: `${Math.round(height * 0.03)}px`,
-          margin: `${Math.round(height * 0.04)}px 0`,
+          // ⚠ Только `flexGrow` мало: длинная реплика раздувала ленту, и поле
+          // ввода уезжало за нижний край холста — на широком Дзене этого не
+          // видно ни в одном тесте, только на отрисованном PNG.
+          flexGrow: 1,
+          flexShrink: 1,
+          minHeight: 0,
+          justifyContent: "flex-end",
+          overflow: "hidden",
+          padding: `${px(8)}px ${px(9)}px`,
+          gap: px(6),
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignSelf: "flex-start",
-            maxWidth: "85%",
-            backgroundColor: "rgba(30, 41, 59, 0.85)",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            borderRadius: "24px 24px 24px 6px",
-            padding: `${Math.round(height * 0.035)}px ${Math.round(width * 0.04)}px`,
-            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: px(4) }}>
           <div
             style={{
               display: "flex",
-              fontSize: `${Math.round(height * (quote.length > 80 ? 0.036 : 0.042))}px`,
-              lineHeight: 1.3,
-              fontWeight: 600,
-              color: "#F8FAFC",
+              backgroundColor: TG.service,
+              borderRadius: "999px",
+              padding: `${px(4)}px ${px(10)}px`,
+              fontSize: px(13),
+              color: TG.serviceText,
             }}
           >
-            {quoteDisplay}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: `${Math.round(height * 0.018)}px`,
-              color: "#64748B",
-              alignSelf: "flex-end",
-              marginTop: "10px",
-            }}
-          >
-            01:42
+            Сегодня
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignSelf: "flex-end",
-            maxWidth: "75%",
-            backgroundColor: `rgba(${theme.warm}, 0.22)`,
-            border: `1px solid rgba(${theme.warm}, 0.45)`,
-            borderRadius: "24px 24px 6px 24px",
-            padding: `${Math.round(height * 0.024)}px ${Math.round(width * 0.035)}px`,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "flex-start", paddingLeft: px(6) }}>
           <div
             style={{
               display: "flex",
-              fontSize: `${Math.round(height * 0.028)}px`,
-              fontWeight: 500,
-              color: "#E2E8F0",
+              flexDirection: "column",
+              position: "relative",
+              maxWidth: `${px(268)}px`,
+              backgroundColor: TG.inBubble,
+              borderRadius: `${px(12)}px ${px(12)}px ${px(12)}px 0`,
+              padding: `${px(7)}px ${px(10)}px ${px(6)}px ${px(10)}px`,
             }}
           >
-            {input.responsePreview || "Что ответить, чтобы не пожалеть?"}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: `${Math.round(height * 0.018)}px`,
-              color: "rgba(255, 255, 255, 0.6)",
-              alignSelf: "flex-end",
-              marginTop: "8px",
-            }}
-          >
-            <span style={{ display: "flex" }}>01:45 · Прочитано</span>
-            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ display: "flex" }}>
-              <path d="M1 6.5L4.5 10L11 2" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M5 6.5L8.5 10L15 2" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              width={px(6)}
+              height={px(17)}
+              viewBox="0 0 6 17"
+              fill="none"
+              style={{ position: "absolute", left: `${-px(6)}px`, bottom: 0, display: "flex" }}
+            >
+              <path d={TAIL_IN} fill={TG.inBubble} />
             </svg>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: incoming.length <= INLINE_TIME_LIMIT ? "row" : "column",
+                alignItems: incoming.length <= INLINE_TIME_LIMIT ? "flex-end" : "stretch",
+              }}
+            >
+              <div style={{ display: "flex", fontSize: px(16), lineHeight: 1.28, color: TG.inText }}>{incoming}</div>
+              {bubbleTime(clock.incoming, TG.inTime, false, incoming.length <= INLINE_TIME_LIMIT)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: px(6) }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              maxWidth: `${px(268)}px`,
+              background: `linear-gradient(180deg, ${TG.outBubbleTop} 0%, ${TG.outBubbleBottom} 100%)`,
+              borderRadius: `${px(12)}px ${px(12)}px 0 ${px(12)}px`,
+              padding: `${px(7)}px ${px(10)}px ${px(6)}px ${px(10)}px`,
+            }}
+          >
+            <svg
+              width={px(6)}
+              height={px(17)}
+              viewBox="0 0 6 17"
+              fill="none"
+              style={{ position: "absolute", right: `${-px(6)}px`, bottom: 0, display: "flex" }}
+            >
+              <path d={TAIL_OUT} fill={TG.outBubbleBottom} />
+            </svg>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: outgoing.length <= INLINE_TIME_LIMIT ? "row" : "column",
+                alignItems: outgoing.length <= INLINE_TIME_LIMIT ? "flex-end" : "stretch",
+              }}
+            >
+              <div style={{ display: "flex", fontSize: px(16), lineHeight: 1.28, color: TG.outText }}>{outgoing}</div>
+              {bubbleTime(clock.outgoing, TG.outTime, true, outgoing.length <= INLINE_TIME_LIMIT)}
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Поле ввода — 48 dp: смайл, подсказка, скрепка, микрофон. */}
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-          backgroundColor: "rgba(15, 23, 42, 0.95)",
-          border: `1px solid rgba(${theme.warm}, 0.5)`,
-          borderRadius: "20px",
-          padding: `${Math.round(height * 0.03)}px ${Math.round(width * 0.04)}px`,
+          alignItems: "center",
+          height: px(BAR_DP.panel),
+          flexShrink: 0,
+          padding: `0 ${px(12)}px`,
+          gap: px(12),
+          backgroundColor: TG.panel,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            fontSize: `${Math.round(height * 0.022)}px`,
-            color: `rgb(${theme.warm})`,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "2px",
-          }}
-        >
-          <div
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "999px",
-              display: "flex",
-              backgroundColor: `rgb(${theme.warm})`,
-            }}
-          />
-          РАЗБОР АНИ · КУРАТОР ETERAPY
-        </div>
-        <div
-          style={{
-            display: "flex",
-            fontSize: `${Math.round(height * 0.03)}px`,
-            fontWeight: 700,
-            color: "#FFFFFF",
-            lineHeight: 1.25,
-          }}
-        >
-          {input.eyebrow || "Скрытый мотив: почему мы читаем между строк вместо вопроса"}
-        </div>
+        <svg width={px(24)} height={px(24)} viewBox="0 0 24 24" fill="none" style={{ display: "flex" }}>
+          <circle cx="12" cy="12" r="9" stroke={TG.panelIcon} strokeWidth={1.8} />
+          <circle cx="9" cy="10" r="1.2" fill={TG.panelIcon} />
+          <circle cx="15" cy="10" r="1.2" fill={TG.panelIcon} />
+          <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8" stroke={TG.panelIcon} strokeWidth={1.8} strokeLinecap="round" />
+        </svg>
+        <div style={{ display: "flex", flexGrow: 1, fontSize: px(16), color: TG.panelHint }}>Сообщение</div>
+        {icon("M14.5 6.5 8 13a2.5 2.5 0 003.5 3.5l7-7a4.5 4.5 0 00-6.4-6.4l-7 7a6.5 6.5 0 009.2 9.2l5.7-5.7", 24, TG.panelIcon, "clip")}
+        <svg width={px(24)} height={px(24)} viewBox="0 0 24 24" fill="none" style={{ display: "flex" }}>
+          <rect x="9" y="2.5" width="6" height="11" rx="3" stroke={TG.panelIcon} strokeWidth={1.8} />
+          <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" stroke={TG.panelIcon} strokeWidth={1.8} strokeLinecap="round" />
+        </svg>
       </div>
     </div>
   );
