@@ -42,21 +42,16 @@
  */
 
 import { coverThemeFor } from "@/lib/marketing/cover-theme";
-
-/** Небольшой стабильный хеш — тот же на всех нодах и между перезапусками. */
-function hash(value: string): number {
-  let out = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    out ^= value.charCodeAt(index);
-    out = Math.imul(out, 16777619);
-  }
-  return out >>> 0;
-}
-
-/** Детерминированное число из ключа и «соли» — разные соли дают разные оси. */
-function pick(seed: string, salt: string, max: number): number {
-  return hash(`${seed}#${salt}`) % Math.max(1, max);
-}
+import { hash, pick } from "@/lib/marketing/cover-seed";
+import {
+  buildThread,
+  contactFor,
+  formatClock,
+  replyFor,
+  segmentEmoji,
+  type ChatTopic,
+} from "@/lib/marketing/chat-thread";
+import type { EmojiMap } from "@/lib/marketing/cover-emoji";
 
 /**
  * Размер холста по площадке.
@@ -300,6 +295,12 @@ export interface CoverInput {
   layout?: "art" | "chat_mockup";
   messageText?: string;
   responsePreview?: string;
+  /** B731 — тема переписки: от неё зависят и подпись собеседника, и фоновые реплики. */
+  topic?: ChatTopic;
+  /** B731 — карта «эмодзи → data-URI»; без неё эмодзи из реплик выбрасываются. */
+  emoji?: EmojiMap;
+  /** B731 — экран целиком или кадр без шапки. По умолчанию решает ключ слота. */
+  framing?: ScreenshotFraming;
 }
 
 /**
@@ -390,213 +391,6 @@ export function chatMetrics(width: number, height: number): { dp: number; phoneD
 }
 
 /**
- * Собеседник — не всегда «Он».
- *
- * Правка по замечанию владельца 2026-09-07: «Имя собеседника не всегда "Он", это
- * может быть "Любимый", "Бывший", "Андрей", "Сергей" (или любое имя) […] Но не
- * надо делать всегда одно и то же». Одна и та же подпись во всей ленте читается
- * как шаблон — а шаблон и есть признак генерации.
- *
- * Имена вымышленные и намеренно обычные: это иллюстрация типичной ситуации, а не
- * скриншот от реального клиента ([[feedback_demo_stats_become_fabrication]]).
- * Поэтому в списке нет ни фамилий, ни ников, ни телефонов — ничего, по чему
- * подпись можно принять за конкретного человека.
- *
- * Заливки аватара — три пары, которые ЕСТЬ в `night.attheme`
- * (`avatar_backgroundSaved`, `…Orange`, `…Red`); остальные цвета Telegram в
- * ночной теме не переопределяет, и придумывать их значения было бы ровно тем
- * «примерно», которое запрещено условием задачи.
- */
-const AVATAR_FILLS: [string, string][] = [
-  ["#4fa1e8", "#1a88e7"], // avatar_backgroundSaved / avatar_background2Saved
-  ["#f2bc64", "#e58943"], // avatar_backgroundOrange / avatar_background2Orange
-  ["#dc805b", "#d9614f"], // avatar_backgroundRed / avatar_background2Red
-];
-
-const CONTACT_NAMES = [
-  "Андрей",
-  "Сергей",
-  "Максим",
-  "Дима",
-  "Кирилл",
-  "Артём",
-  "Лена",
-  "Марина",
-  "Оля",
-  "Любимый",
-  "Бывший",
-  "Он",
-  "Она",
-];
-
-// ⚠ «Мама», «Начальник» и прочие роли из пула убраны намеренно: подпись
-// выбирается ключом слота, а не темой материала, и «Мама» под репликой «Ты
-// стала какой-то чужой» читается как чужая, случайно приклеенная переписка.
-// В пуле остаются только те подписи, при которых любая реплика о близких
-// отношениях остаётся уместной.
-
-/** Подпись присутствия — тоже не одна на всю ленту. */
-const PRESENCE = ["был(а) недавно", "в сети", "был(а) 5 минут назад", "был(а) вчера"];
-
-function contactFrom(seed: string): {
-  name: string;
-  letter: string;
-  fill: [string, string];
-  presence: string;
-} {
-  const name = CONTACT_NAMES[pick(seed, "name", CONTACT_NAMES.length)];
-  return {
-    name,
-    letter: name.slice(0, 1).toUpperCase(),
-    fill: AVATAR_FILLS[pick(seed, "avatar", AVATAR_FILLS.length)],
-    presence: PRESENCE[pick(seed, "presence", PRESENCE.length)],
-  };
-}
-
-/**
- * Переписка вокруг реплики — не две строчки, а живой хвост диалога.
- *
- * Правка по замечанию владельца 2026-09-07: «когда делаешь скриншот экрана, то
- * видно весь экран, а не только урезанную его часть […] Очень важно чтобы реплик
- * было рандомное количество, а не только 2 штуки по одной с каждой стороны».
- *
- * Первая редакция рисовала ровно два пузыря, и на высоком холсте между шапкой и
- * ними зияла пустота — экран, который не может так выглядеть ни у кого. Теперь
- * лента набирается фоновыми репликами ВВЕРХ до тех пор, пока не перестанет
- * помещаться: верхнее сообщение обрезается шапкой, как в открытом чате,
- * прокрученном вниз.
- *
- * Фоновые реплики намеренно бессодержательны и не привязаны к теме поста —
- * владелец это разрешил дословно («включая нерелевантный посту текст»), и это
- * честнее выдуманной осмысленной переписки: ничего, что можно принять за
- * свидетельство, в них нет.
- *
- * ⚠ Фоновые реплики намеренно БЕЗ темы. Проверка на стенде показала, почему:
- * под материалом про застрявший проект вокруг реплики «Почему застрял проект?»
- * стояли «мне тоже тяжело» и «Я не хочу так больше» — переписка про отношения
- * поверх делового вопроса. Фоновая реплика обязана подходить ЛЮБОМУ материалу,
- * иначе она не фон, а чужой сюжет.
- *
- * ⚠ Эмодзи здесь нет и быть не может: во вшитом подмножестве Roboto их глифов
- * нет, а `next/og` тянет эмодзи-шрифт из сети — на российской ноде это отказ, а
- * в сборке запрещено. Вместо них скобки — как люди и пишут в русской переписке.
- */
-const FILLER_IN = [
-  "привет",
-  "ты тут?",
-  "нам надо поговорить",
-  "почему ты не отвечаешь",
-  "я весь день об этом думаю",
-  "ладно",
-  "как знаешь",
-  "прсти, не хотел так",
-  "щас не могу говорить",
-  "давай завтра",
-  "ты серьёзно?",
-  "((",
-  "и что теперь",
-  "ок.",
-  "долго объяснять",
-];
-
-const FILLER_OUT = [
-  "привет",
-  "да, тут",
-  "я не знаю, что сказать",
-  "давай позже",
-  "))",
-  "хорошо",
-  "ок",
-  "я подумаю",
-  "мне нужно время",
-  "я перезвоню",
-  "угу",
-  "ты о чём вообще",
-];
-
-/** Наши короткие ответы — тоже не одна строка на всю ленту. */
-const REPLIES = [
-  "Не знаю, что на это ответить",
-  "И что мне теперь делать",
-  "Не знаю, как на это реагировать",
-  "Мне нужно подумать",
-];
-
-interface ThreadLine {
-  side: "in" | "out";
-  text: string;
-  time: string;
-}
-
-/**
- * Сколько dp по высоте займёт пузырь. Оценка грубая и намеренно такая: она нужна
- * только чтобы понять, сколько реплик набрать, чтобы лента гарантированно не
- * помещалась.
- */
-function bubbleHeightDp(text: string, maxBubbleDp: number): number {
-  const perLine = Math.max(12, Math.floor(maxBubbleDp / 8));
-  return Math.ceil(text.length / perLine) * 20 + 17;
-}
-
-export function buildThread(input: {
-  seed: string;
-  quote: string;
-  reply: string;
-  chatDp: number;
-  maxBubbleDp: number;
-}): ThreadLine[] {
-  const { seed, quote, reply, chatDp, maxBubbleDp } = input;
-  // Хвост диалога задан: чужая реплика (та самая, из тела поста) и наш ответ.
-  const lines: Omit<ThreadLine, "time">[] = [
-    { side: "in", text: quote },
-    { side: "out", text: reply },
-  ];
-  let height = bubbleHeightDp(quote, maxBubbleDp) + bubbleHeightDp(reply, maxBubbleDp);
-
-  // Дальше добираем ВВЕРХ, пока лента не перестанет помещаться на экран.
-  //
-  // Запас случайный (30–80 dp) и не декоративный: он задаёт, НАСКОЛЬКО чат
-  // прокручен, то есть сколько реплик ушло за верхний край. Постоянный запас
-  // давал бы всем материалам переписку одной длины — а владелец просил разной.
-  const depth = chatDp + 30 + pick(seed, "depth", 50);
-  for (let index = 0; index < 18 && height < depth; index += 1) {
-    const previous = lines[0].side;
-    const runs = lines[0] && lines[1] && lines[0].side === lines[1].side;
-    // Серия из трёх подряд с одной стороны выглядит неестественно чаще, чем
-    // встречается, поэтому третью подряд запрещаем.
-    const side: "in" | "out" = runs
-      ? previous === "in"
-        ? "out"
-        : "in"
-      : pick(seed, `side${index}`, 10) < 6
-        ? previous === "in"
-          ? "out"
-          : "in"
-        : previous;
-    const pool = side === "in" ? FILLER_IN : FILLER_OUT;
-    const text = pool[pick(seed, `filler${index}`, pool.length)];
-    lines.unshift({ side, text });
-    height += bubbleHeightDp(text, maxBubbleDp);
-  }
-
-  // Время идёт по возрастанию к низу: последняя пара — «только что».
-  const endMinutes = (21 + pick(seed, "hour", 3)) * 60 + pick(seed, "minute", 55);
-  const stamps: number[] = [];
-  let cursor = endMinutes;
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    stamps[index] = cursor;
-    cursor -= 1 + pick(seed, `gap${index}`, 4);
-  }
-
-  return lines.map((line, index) => ({ ...line, time: formatClock(stamps[index]) }));
-}
-
-function formatClock(minutes: number): string {
-  const wrapped = ((minutes % 1440) + 1440) % 1440;
-  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
-}
-
-/**
  * Реплика в пузыре — без кавычек.
  *
  * В теле поста реплика стоит в «ёлочках», потому что там она цитата. В
@@ -618,29 +412,48 @@ const TAIL_IN =
 const TAIL_OUT =
   "M0 17h6V0c-.193 2.84-.876 5.767-2.05 8.782-.904 2.325-2.446 4.485-4.625 6.48A1 1 0 0 0 0 17z";
 
+/**
+ * Полный экран или обрезанный сверху.
+ *
+ * Владелец 2026-09-08: «Представь что ты — пользователь, который делает
+ * скриншот реальной переписки — ты делаешь скриншот, а затем принимаешь решение
+ * "обрезать его" или "не обрезать" […] Если требуется показать только часть
+ * диалога, то показывается обычно только последняя (нижняя) часть диалога,
+ * соответственно шапка обрезана».
+ *
+ * Поэтому вариантов ровно два, и оба — настоящие: либо экран целиком (строка
+ * состояния, шапка, лента, поле ввода), либо кадр без верха — лента и поле
+ * ввода. Обрезать низ нельзя: снизу поле ввода, оно на экране всегда.
+ */
+export type ScreenshotFraming = "full" | "cropped";
+
+export function framingFor(seed: string): ScreenshotFraming {
+  return pick(seed, "framing", 10) < 4 ? "cropped" : "full";
+}
+
 export function ChatMockupArt(input: CoverInput) {
   const { width, height } = coverCanvas(input.platform);
   const { dp, phoneDp } = chatMetrics(width, height);
   const px = (value: number) => Math.round(value * dp);
-  const contact = contactFrom(input.slotKey);
+
+  const topic = input.topic ?? "general";
+  const contact = contactFor(input.slotKey, topic);
+  const framing = input.framing ?? framingFor(input.slotKey);
+  const chrome = framing === "full" ? BAR_DP.status + BAR_DP.header + BAR_DP.panel : BAR_DP.panel;
 
   const maxBubbleDp = Math.round(phoneDp * 0.74);
-  const chatDp = height / dp - (BAR_DP.status + BAR_DP.header + BAR_DP.panel);
+  const chatDp = height / dp - chrome;
   const thread = buildThread({
     seed: input.slotKey,
+    topic,
     quote: bubbleText(input.messageText || input.title, 150),
-    reply: bubbleText(
-      input.responsePreview || REPLIES[pick(input.slotKey, "reply", REPLIES.length)],
-      60,
-    ),
+    reply: bubbleText(input.responsePreview || replyFor(input.slotKey, topic), 60),
     chatDp,
     maxBubbleDp,
   });
+  const last = thread[thread.length - 1].time;
   const statusClock = formatClock(
-    Number(thread[thread.length - 1].time.slice(0, 2)) * 60 +
-      Number(thread[thread.length - 1].time.slice(3)) +
-      1 +
-      pick(input.slotKey, "statusgap", 4),
+    Number(last.slice(0, 2)) * 60 + Number(last.slice(3)) + 1 + pick(input.slotKey, "statusgap", 4),
   );
 
   const icon = (path: string, size: number, color: string, key: string) => (
@@ -656,6 +469,150 @@ export function ChatMockupArt(input: CoverInput) {
    */
   const INLINE_TIME_LIMIT = 28;
 
+  /**
+   * Текст пузыря. Эмодзи в Satori — картинка, а не символ: глифов эмодзи во
+   * вшитом Roboto нет. Строка без эмодзи рисуется как была, одним узлом: путь
+   * с переносом строк у Satori проверенный, и рисковать им на 90 % реплик,
+   * которые эмодзи не содержат, незачем.
+   */
+  const bubbleBody = (text: string, color: string) => {
+    const parts = segmentEmoji(text, input.emoji);
+    if (parts.length <= 1) {
+      return (
+        <div style={{ display: "flex", fontSize: px(16), lineHeight: 1.28, color }}>
+          {parts[0]?.value ?? text}
+        </div>
+      );
+    }
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          fontSize: px(16),
+          lineHeight: 1.28,
+          color,
+        }}
+      >
+        {parts.map((part, index) =>
+          part.kind === "text" ? (
+            <div key={`t${index}`} style={{ display: "flex" }}>{part.value}</div>
+          ) : (
+            <img
+              key={`e${index}`}
+              src={part.value}
+              width={px(19)}
+              height={px(19)}
+              // Пробелы вокруг эмодзи Satori схлопывает на границе узлов —
+              // воздух приходится задавать полями, иначе «шоке😳он».
+              style={{ marginLeft: px(3), marginRight: px(3) }}
+            />
+          ),
+        )}
+      </div>
+    );
+  };
+
+  const statusBar = (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        height: px(BAR_DP.status),
+        flexShrink: 0,
+        padding: `0 ${px(10)}px`,
+        backgroundColor: TG.bar,
+      }}
+    >
+      <div style={{ display: "flex", fontSize: px(12), fontWeight: 500, color: "#ffffff" }}>{statusClock}</div>
+      <div style={{ display: "flex", flexGrow: 1 }} />
+      <div style={{ display: "flex", alignItems: "flex-end", gap: px(5) }}>
+        {/* сеть */}
+        <svg width={px(15)} height={px(11)} viewBox="0 0 15 11" fill="none" style={{ display: "flex" }}>
+          <rect x="0" y="7.5" width="2.6" height="3.5" rx="0.6" fill="#ffffff" />
+          <rect x="4.1" y="5" width="2.6" height="6" rx="0.6" fill="#ffffff" />
+          <rect x="8.2" y="2.5" width="2.6" height="8.5" rx="0.6" fill="#ffffff" />
+          <rect x="12.3" y="0" width="2.6" height="11" rx="0.6" fill="#ffffff" />
+        </svg>
+        {/* wi-fi */}
+        <svg width={px(14)} height={px(11)} viewBox="0 0 14 11" fill="none" style={{ display: "flex" }}>
+          <path d="M1 3.6C2.6 2.1 4.7 1.2 7 1.2s4.4.9 6 2.4" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
+          <path d="M3.3 6.2C4.3 5.3 5.6 4.7 7 4.7s2.7.6 3.7 1.5" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
+          <path d="M7 9.6l-1.7-1.8A2.4 2.4 0 017 7.1c.7 0 1.3.3 1.7.7L7 9.6z" fill="#ffffff" />
+        </svg>
+        {/* батарея */}
+        <svg width={px(20)} height={px(11)} viewBox="0 0 20 11" fill="none" style={{ display: "flex" }}>
+          <rect x="0.6" y="0.6" width="16.4" height="9.8" rx="2.2" stroke="rgba(255,255,255,0.5)" strokeWidth={1.2} />
+          <rect x="2.2" y="2.2" width="11.4" height="6.6" rx="1.2" fill="#ffffff" />
+          <rect x="18.2" y="3.6" width="1.6" height="3.8" rx="0.8" fill="rgba(255,255,255,0.5)" />
+        </svg>
+      </div>
+    </div>
+  );
+
+  const header = (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        height: px(BAR_DP.header),
+        flexShrink: 0,
+        padding: `0 ${px(12)}px 0 ${px(10)}px`,
+        backgroundColor: TG.bar,
+      }}
+    >
+      {icon("M20 12H4M10 6l-6 6 6 6", 24, "#ffffff", "back")}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: px(40),
+          height: px(40),
+          marginLeft: px(12),
+          borderRadius: "999px",
+          background: `linear-gradient(180deg, ${contact.fill[0]} 0%, ${contact.fill[1]} 100%)`,
+          fontSize: px(18),
+          fontWeight: 500,
+          color: "#ffffff",
+        }}
+      >
+        {contact.letter}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", marginLeft: px(12), flexGrow: 1 }}>
+        <div style={{ display: "flex", fontSize: px(16), fontWeight: 500, color: TG.barTitle }}>
+          {contact.name}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: px(13),
+            color: contact.presence === "в сети" || contact.presence === "печатает…"
+              ? TG.online
+              : TG.barSubtitle,
+            marginTop: px(1),
+          }}
+        >
+          {contact.presence}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: px(18) }}>
+        {icon(
+          "M6.5 3.5 8.8 8l-2 2c1 2 2.6 3.6 4.6 4.6l2-2 4.5 2.3v3.6c0 .6-.5 1.1-1.1 1C8.4 18.7 4.3 14.6 3.4 5.6a1 1 0 011-1.1h2.1z",
+          22,
+          "#ffffff",
+          "call",
+        )}
+        <svg width={px(4)} height={px(18)} viewBox="0 0 4 18" fill="none" style={{ display: "flex" }}>
+          <circle cx="2" cy="2" r="2" fill="#ffffff" />
+          <circle cx="2" cy="9" r="2" fill="#ffffff" />
+          <circle cx="2" cy="16" r="2" fill="#ffffff" />
+        </svg>
+      </div>
+    </div>
+  );
+
   return (
     <div
       style={{
@@ -669,102 +626,10 @@ export function ChatMockupArt(input: CoverInput) {
         color: TG.inText,
       }}
     >
-      {/* Строка состояния — 24 dp, тот же цвет, что и шапка. */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: px(BAR_DP.status),
-          flexShrink: 0,
-          padding: `0 ${px(10)}px`,
-          backgroundColor: TG.bar,
-        }}
-      >
-        <div style={{ display: "flex", fontSize: px(12), fontWeight: 500, color: "#ffffff" }}>{statusClock}</div>
-        <div style={{ display: "flex", flexGrow: 1 }} />
-        <div style={{ display: "flex", alignItems: "flex-end", gap: px(5) }}>
-          {/* сеть */}
-          <svg width={px(15)} height={px(11)} viewBox="0 0 15 11" fill="none" style={{ display: "flex" }}>
-            <rect x="0" y="7.5" width="2.6" height="3.5" rx="0.6" fill="#ffffff" />
-            <rect x="4.1" y="5" width="2.6" height="6" rx="0.6" fill="#ffffff" />
-            <rect x="8.2" y="2.5" width="2.6" height="8.5" rx="0.6" fill="#ffffff" />
-            <rect x="12.3" y="0" width="2.6" height="11" rx="0.6" fill="#ffffff" />
-          </svg>
-          {/* wi-fi */}
-          <svg width={px(14)} height={px(11)} viewBox="0 0 14 11" fill="none" style={{ display: "flex" }}>
-            <path d="M1 3.6C2.6 2.1 4.7 1.2 7 1.2s4.4.9 6 2.4" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
-            <path d="M3.3 6.2C4.3 5.3 5.6 4.7 7 4.7s2.7.6 3.7 1.5" stroke="#ffffff" strokeWidth={1.4} strokeLinecap="round" />
-            <path d="M7 9.6l-1.7-1.8A2.4 2.4 0 017 7.1c.7 0 1.3.3 1.7.7L7 9.6z" fill="#ffffff" />
-          </svg>
-          {/* батарея */}
-          <svg width={px(20)} height={px(11)} viewBox="0 0 20 11" fill="none" style={{ display: "flex" }}>
-            <rect x="0.6" y="0.6" width="16.4" height="9.8" rx="2.2" stroke="rgba(255,255,255,0.5)" strokeWidth={1.2} />
-            <rect x="2.2" y="2.2" width="11.4" height="6.6" rx="1.2" fill="#ffffff" />
-            <rect x="18.2" y="3.6" width="1.6" height="3.8" rx="0.8" fill="rgba(255,255,255,0.5)" />
-          </svg>
-        </div>
-      </div>
+      {framing === "full" ? statusBar : null}
+      {framing === "full" ? header : null}
 
-      {/* Шапка чата — 56 dp: стрелка назад, аватар, имя и подпись, звонок и меню. */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: px(BAR_DP.header),
-          flexShrink: 0,
-          padding: `0 ${px(12)}px 0 ${px(10)}px`,
-          backgroundColor: TG.bar,
-        }}
-      >
-        {icon("M20 12H4M10 6l-6 6 6 6", 24, "#ffffff", "back")}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: px(40),
-            height: px(40),
-            marginLeft: px(12),
-            borderRadius: "999px",
-            background: `linear-gradient(180deg, ${contact.fill[0]} 0%, ${contact.fill[1]} 100%)`,
-            fontSize: px(18),
-            fontWeight: 500,
-            color: "#ffffff",
-          }}
-        >
-          {contact.letter}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", marginLeft: px(12), flexGrow: 1 }}>
-          <div style={{ display: "flex", fontSize: px(16), fontWeight: 500, color: TG.barTitle }}>
-            {contact.name}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: px(13),
-              color: contact.presence === "в сети" ? TG.online : TG.barSubtitle,
-              marginTop: px(1),
-            }}
-          >
-            {contact.presence}
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: px(18) }}>
-          {icon(
-            "M6.5 3.5 8.8 8l-2 2c1 2 2.6 3.6 4.6 4.6l2-2 4.5 2.3v3.6c0 .6-.5 1.1-1.1 1C8.4 18.7 4.3 14.6 3.4 5.6a1 1 0 011-1.1h2.1z",
-            22,
-            "#ffffff",
-            "call",
-          )}
-          <svg width={px(4)} height={px(18)} viewBox="0 0 4 18" fill="none" style={{ display: "flex" }}>
-            <circle cx="2" cy="2" r="2" fill="#ffffff" />
-            <circle cx="2" cy="9" r="2" fill="#ffffff" />
-            <circle cx="2" cy="16" r="2" fill="#ffffff" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Лента. Прижата книзу и обрезана сверху шапкой — как прокрученный чат. */}
+      {/* Лента. Прижата книзу и обрезана сверху — как прокрученный чат. */}
       <div
         style={{
           display: "flex",
@@ -796,8 +661,7 @@ export function ChatMockupArt(input: CoverInput) {
                 padding: `0 ${px(6)}px`,
                 // Отступ задаёт ПРЕДЫДУЩЕЕ сообщение: серия с одной стороны в
                 // Telegram стоит плотно (2 dp), смена стороны — с воздухом.
-                marginTop:
-                  index === 0 ? 0 : px(thread[index - 1].side === line.side ? 2 : 6),
+                marginTop: index === 0 ? 0 : px(thread[index - 1].side === line.side ? 2 : 6),
               }}
             >
               <div
@@ -842,16 +706,7 @@ export function ChatMockupArt(input: CoverInput) {
                     alignItems: inline ? "flex-end" : "stretch",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      fontSize: px(16),
-                      lineHeight: 1.28,
-                      color: isIn ? TG.inText : TG.outText,
-                    }}
-                  >
-                    {line.text}
-                  </div>
+                  {bubbleBody(line.text, isIn ? TG.inText : TG.outText)}
                   <div
                     style={{
                       display: "flex",

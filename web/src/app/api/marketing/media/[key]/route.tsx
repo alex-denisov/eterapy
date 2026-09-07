@@ -3,6 +3,8 @@ import db from "@/lib/db";
 import { CoverArt, coverCanvas } from "@/lib/marketing/cover-art";
 import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 import { ogFonts } from "@/lib/marketing/cover-fonts";
+import { ogEmoji } from "@/lib/marketing/cover-emoji";
+import { chatTopicFor } from "@/lib/marketing/chat-thread";
 
 export const runtime = "nodejs";
 
@@ -72,6 +74,19 @@ export async function GET(
    * cmap) пропали бы из заголовков молча, без ошибки.
    */
   const fonts = isChat ? await ogFonts() : [];
+  /**
+   * B731 — тема переписки решает, кто в шапке и о чём фоновые реплики.
+   * Без неё под материалом про застрявший проект стояли «мне тоже тяжело» и
+   * «Я не хочу так больше» — переписка про отношения поверх делового вопроса.
+   */
+  const topic = isChat
+    ? chatTopicFor({
+      title: publication.title,
+      cluster: publication.cluster,
+      body: publication.body,
+    })
+    : undefined;
+  const emoji = isChat ? await ogEmoji() : undefined;
 
   return new ImageResponse(
     (
@@ -83,6 +98,8 @@ export async function GET(
         scheduledFor={publication.scheduledFor}
         layout={isChat ? "chat_mockup" : "art"}
         messageText={decided.messageText ?? undefined}
+        topic={topic}
+        emoji={emoji}
       />
     ),
     {

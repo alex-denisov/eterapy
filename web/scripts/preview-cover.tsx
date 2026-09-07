@@ -14,6 +14,8 @@ import { writeFile } from "node:fs/promises";
 import { ImageResponse } from "next/og";
 import { CoverArt, coverCanvas } from "@/lib/marketing/cover-art";
 import { ogFonts } from "@/lib/marketing/cover-fonts";
+import { ogEmoji } from "@/lib/marketing/cover-emoji";
+import type { ChatTopic } from "@/lib/marketing/chat-thread";
 
 function arg(name: string, fallback: string): string {
   const found = process.argv.find((item) => item.startsWith(`--${name}=`));
@@ -25,6 +27,7 @@ async function main() {
   const layout = arg("layout", "chat_mockup") as "art" | "chat_mockup";
   const canvas = coverCanvas(platform);
   const fonts = layout === "chat_mockup" ? await ogFonts() : [];
+  const emoji = layout === "chat_mockup" ? await ogEmoji() : undefined;
 
   const response = new ImageResponse(
     (
@@ -36,7 +39,10 @@ async function main() {
         scheduledFor={null}
         layout={layout}
         messageText={arg("message", "Ты стала какой-то чужой, я не понимаю, что происходит")}
-        responsePreview={arg("response", "")|| undefined}
+        responsePreview={arg("response", "") || undefined}
+        topic={(arg("topic", "") || undefined) as ChatTopic | undefined}
+        framing={(arg("framing", "") || undefined) as "full" | "cropped" | undefined}
+        emoji={emoji}
       />
     ),
     { width: canvas.width, height: canvas.height, ...(fonts.length > 0 ? { fonts } : {}) },

@@ -9,7 +9,16 @@
  */
 
 import type { ReactElement } from "react";
-import { ChatMockupArt, buildThread, chatMetrics, coverCanvas } from "@/lib/marketing/cover-art";
+import { ChatMockupArt, chatMetrics, coverCanvas } from "@/lib/marketing/cover-art";
+import {
+  buildThread,
+  chatTopicFor,
+  contactFor,
+  segmentEmoji,
+  type ThreadLine,
+} from "@/lib/marketing/chat-thread";
+import { ogEmoji } from "@/lib/marketing/cover-emoji";
+import { framingFor } from "@/lib/marketing/cover-art";
 import { ogFonts, OG_FONT_FAMILY } from "@/lib/marketing/cover-fonts";
 
 type Node = ReactElement<{ children?: unknown; style?: Record<string, unknown> }>;
@@ -96,6 +105,7 @@ describe("B731: мокап переписки — скриншот Telegram, а 
       const chatDp = canvas.height / dp - (24 + 56 + 48);
       const thread = buildThread({
         seed: `b610-2w-${platform}-20260909-01`,
+        topic: "relationships",
         quote: "Ты стала какой-то чужой, я не понимаю, что происходит",
         reply: "Не знаю, что на это ответить",
         chatDp,
@@ -106,7 +116,7 @@ describe("B731: мокап переписки — скриншот Telegram, а 
       expect(thread[thread.length - 2].side).toBe("in");
       expect(thread[thread.length - 1].side).toBe("out");
       // Время идёт по возрастанию к низу.
-      const minutes = thread.map((line) => Number(line.time.slice(0, 2)) * 60 + Number(line.time.slice(3)));
+      const minutes = thread.map((line: ThreadLine) => Number(line.time.slice(0, 2)) * 60 + Number(line.time.slice(3)));
       for (let index = 1; index < minutes.length; index += 1) {
         expect(minutes[index]).toBeGreaterThan(minutes[index - 1]);
       }
@@ -124,6 +134,7 @@ describe("B731: мокап переписки — скриншот Telegram, а 
       lengths.add(
         buildThread({
           seed: `b610-2w-telegram-2026090${index % 9}-0${index}`,
+          topic: "general",
           quote: "Ты стала какой-то чужой",
           reply: "Не знаю, что на это ответить",
           chatDp: 200,
@@ -164,5 +175,70 @@ describe("B731: мокап переписки — скриншот Telegram, а 
       // проявилась бы только на отрисованной картинке.
       expect(Buffer.from(font.data.slice(0, 4)).toString("hex")).toBe("00010000");
     }
+  });
+
+  it("тема переписки берётся из материала, а собеседник — из темы", () => {
+    // Проверка на стенде: вокруг реплики «Почему застрял проект?» стояли
+    // «мне тоже тяжело» и «Я не хочу так больше» — переписка про отношения
+    // поверх делового вопроса.
+    expect(chatTopicFor({ title: "Почему застрял проект и что с этим делать" })).toBe("work");
+    expect(chatTopicFor({ title: "Подросток не разговаривает: что делать родителю" })).toBe("parenting");
+    expect(chatTopicFor({ title: "Он изменил: что дальше" })).toBe("cheating");
+    expect(chatTopicFor({ title: "Как пережить расставание с парнем" })).toBe("relationships");
+    expect(chatTopicFor({ title: "Аркан Жрица в раскладе" })).toBe("general");
+
+    // Под рабочим материалом в шапке не может стоять «Любимый».
+    for (let index = 0; index < 30; index += 1) {
+      const contact = contactFor(`b610-2w-telegram-2026090${index % 9}-0${index % 7}`, "work");
+      expect(contact.name).not.toMatch(/Любим|Бывш|Свекров/);
+    }
+  });
+
+  it("реплики темы разные у разных тем — фон не тащит чужой сюжет", () => {
+    const forTopic = (topic: "work" | "relationships") =>
+      buildThread({
+        seed: "b610-2w-telegram-20260909-01",
+        topic,
+        quote: "Почему застрял проект?",
+        reply: "принял",
+        chatDp: 200,
+        maxBubbleDp: 268,
+      })
+        .map((line) => line.text)
+        .join(" | ");
+    expect(forTopic("work")).not.toBe(forTopic("relationships"));
+  });
+
+  it("эмодзи подставляются картинкой, служебные символы выбрасываются", async () => {
+    const map = await ogEmoji();
+    expect(Object.keys(map).length).toBeGreaterThanOrEqual(40);
+    for (const source of Object.values(map)) {
+      expect(source.startsWith("data:image/svg+xml;base64,")).toBe(true);
+    }
+
+    // «❤️» — это ДВА символа: сердце и селектор начертания U+FE0F. Селектор без
+    // глифа печатался бы пустым прямоугольником рядом с эмодзи.
+    const parts = segmentEmoji("да ладно))) \u2764\uFE0F", map);
+    expect(parts.filter((part) => part.kind === "emoji")).toHaveLength(1);
+    expect(parts.map((part) => part.value).join("")).not.toContain("\uFE0F");
+
+    // Без карты эмодзи выбрасывается, а не рисуется квадратом.
+    expect(segmentEmoji("ок \u{1F600}", undefined).filter((part) => part.kind === "emoji")).toHaveLength(0);
+  });
+
+  it("кадр бывает и полным, и обрезанным сверху — как решает автор скриншота", () => {
+    const framings = new Set<string>();
+    for (let index = 0; index < 30; index += 1) {
+      framings.add(framingFor(`b610-2w-telegram-2026090${index % 9}-0${index % 7}`));
+    }
+    expect(framings).toEqual(new Set(["full", "cropped"]));
+
+    // Обрезанный кадр не показывает шапку: ни имени, ни подписи присутствия.
+    const cropped = textOf(
+      ChatMockupArt({ ...BASE, framing: "cropped", messageText: "Ты стала какой-то чужой" }),
+    );
+    expect(cropped).not.toMatch(/в сети|был\(а\)/);
+    // Поле ввода остаётся: снизу его обрезать нельзя, оно на экране всегда.
+    expect(cropped).toContain("Сообщение");
   });
 });
