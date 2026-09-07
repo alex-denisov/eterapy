@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import db from "@/lib/db";
 import { CoverArt, coverCanvas } from "@/lib/marketing/cover-art";
+import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,7 @@ export async function GET(
       targetQuery: true,
       platform: true,
       scheduledFor: true,
+      body: true,
     },
   });
   if (!publication) {
@@ -43,10 +45,21 @@ export async function GET(
   );
   const canvas = coverCanvas(publication.platform);
 
+  /**
+   * B727 — раскладка берётся из общего правила (`cover-layout`), а не из второй
+   * копии эвристики по заголовку. Параметр `?layout=` остаётся сильнее правила:
+   * его ставит агент в момент утверждения, и обложка обязана слушаться его,
+   * даже если тело позже переписали.
+   */
   const url = new URL(_request.url);
   const requestedLayout = url.searchParams.get("layout");
+  const decided = coverLayoutFor({
+    title: publication.title,
+    body: publication.body,
+    cluster: publication.cluster,
+  });
   const isChat = requestedLayout === "chat_mockup"
-    || (!requestedLayout && (publication.title.includes("«") || /диалог|переписк|сообщен|написал|молчани/i.test(publication.title)));
+    || (!requestedLayout && decided.layout === "chat_mockup");
 
   return new ImageResponse(
     (
@@ -57,6 +70,7 @@ export async function GET(
         eyebrow={eyebrow}
         scheduledFor={publication.scheduledFor}
         layout={isChat ? "chat_mockup" : "art"}
+        messageText={decided.messageText ?? undefined}
       />
     ),
     {

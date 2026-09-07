@@ -521,11 +521,26 @@ export function marketingModelPreferences(
 export const MARKETING_REPLY_WRITER_FEATURE = "marketing-reply-writer";
 export const MARKETING_REPLY_REVIEWER_FEATURE = "marketing-reply-reviewer";
 
+/**
+ * B727 — у радара тем свой ключ возможности, а не общий с автором.
+ *
+ * Причина та же, по которой её завели ответам (B640): суточный потолок считается
+ * по ключу. Радар зовётся в крон-проходе планировщика и по природе всплесковый —
+ * дели он ёмкость с автором, один прогон планирования недели мог бы закрыть
+ * выпуск постов на остаток суток.
+ *
+ * Ключ ОБЯЗАН стоять в этом списке: трансграничный гейт пускает публичный
+ * SMM-контур ровно по нему, и вызов с незарегистрированным ключом получает
+ * отказ политики (`PUBLIC_MARKETING_ROUTE_FORBIDDEN`), а не отказ модели.
+ */
+export const MARKETING_TOPIC_RADAR_FEATURE = "marketing-topic-radar";
+
 export const PUBLIC_MARKETING_AI_FEATURES = [
   "marketing-agent-writer",
   "marketing-agent-reviewer",
   MARKETING_REPLY_WRITER_FEATURE,
   MARKETING_REPLY_REVIEWER_FEATURE,
+  MARKETING_TOPIC_RADAR_FEATURE,
 ] as const;
 
 export type PublicMarketingAIFeature = typeof PUBLIC_MARKETING_AI_FEATURES[number];

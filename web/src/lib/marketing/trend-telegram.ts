@@ -26,6 +26,12 @@ import {
   edgeRelayBase,
 } from "@/lib/integrations/edge-relay";
 import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
+import { aiComplete } from "@/lib/ai";
+import {
+  MARKETING_TOPIC_RADAR_FEATURE,
+  marketingProviderOrder,
+} from "@/lib/marketing/model-pool";
+import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import type { TrendCandidate } from "@/lib/marketing/trend-scan";
 
 /** Настройка со списком каналов: через запятую или с новой строки. */
@@ -263,25 +269,36 @@ export const SemanticTrendsResponseSchema = z.object({
 export type SemanticTrendItem = z.infer<typeof SemanticTrendItemSchema>;
 
 /**
- * B726 — Семантическое извлечение болей и запросов аудитории через Gemini Flash.
+ * B726 — Семантическое извлечение болей и запросов аудитории.
  *
  * Анализирует срез свежих постов открытых каналов и возвращает структурированные
- * жизненные ситуации с хуками. При отсутствии ключа или сбое возвращает null,
- * обеспечивая прозрачный откат на биграммный подсчет.
+ * жизненные ситуации с хуками. При сбое возвращает null, откатывая планировщик
+ * на биграммный подсчёт, — но НЕ молча (см. `catch`).
+ *
+ * B727 — ХОДИТ ЧЕРЕЗ ШЛЮЗ МОДЕЛЕЙ, А НЕ НАПРЯМУЮ.
+ *
+ * Первая версия звала `generativelanguage.googleapis.com` своими руками и брала
+ * ключ из `process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY`.
+ * Ни той, ни другой переменной в контейнере прода нет и не было: учётки Gemini
+ * живут в хранилище шлюза (БД), и сам шлюз ходит в Gemini успешно. Функция
+ * возвращала `null` на первой же строке, планировщик тем работал на биграммах,
+ * а доска считала радар выкаченным (замер прода 2026-09-07).
+ *
+ * Через шлюз это ещё и вращение пула: у бесплатных провайдеров квоты
+ * независимые, и постоянная голова выжигала бы одну (B703).
  */
 export async function extractSemanticTrendsWithLLM(
   posts: string[],
   options: {
-    fetchImpl?: typeof fetch;
-    apiKey?: string;
+    completeImpl?: typeof aiComplete;
+    seed?: string;
   } = {},
 ): Promise<SemanticTrendItem[] | null> {
-  const apiKey = options.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
-  if (!apiKey || posts.length === 0) {
+  if (posts.length === 0) {
     return null;
   }
 
-  const call = options.fetchImpl || fetch;
+  const complete = options.completeImpl ?? aiComplete;
   const samplePosts = posts.slice(0, 25).map((p) => p.slice(0, 280)).join("\n---\n");
 
   const prompt = `Ты — аналитик болей аудитории платформы eTerapy (разбор отношений, сообщений и жизненных тупиков).
@@ -292,7 +309,7 @@ export async function extractSemanticTrendsWithLLM(
 - 1 тема (projective): проективное зеркало / архетип Юнга / совместимость.
 - 1 тема (expert): сложный жизненный выбор, выгорание или вопрос к специалисту.
 
-Верни СТРОГО JSON:
+Верни СТРОГО JSON без пояснений и без markdown-ограды:
 {
   "trends": [
     {
@@ -309,55 +326,70 @@ export async function extractSemanticTrendsWithLLM(
 ${samplePosts}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const response = await call(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1200,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: AbortSignal.timeout(10_000),
+    /**
+     * B727 — обход только по ключам, которые сейчас не остывают (правило B699):
+     * у остывающего ключа отказ гарантирован, и стоит он времени прохода
+     * планировщика.
+     *
+     * Чтение пула стоит внутри `try` намеренно. Радар — необязательный вход
+     * планировщика, и его откат на биграммы обязан переживать в том числе сбой
+     * этого чтения: наружу из него не имеет права выйти исключение.
+     */
+    const availability = await marketingPoolAvailability();
+    const response = await complete({
+      feature: MARKETING_TOPIC_RADAR_FEATURE,
+      dataClass: "PUBLIC_MARKETING",
+      providerOrder: marketingProviderOrder(
+        options.seed ?? "topic-radar",
+        [],
+        availability.providers,
+      ),
+      maxTokens: 1200,
+      temperature: 0.3,
+      requestId: `marketing-topic-radar:${options.seed ?? "scan"}`,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    if (!response.ok) {
-      log.warn("trend-telegram.gemini-flash.http-failed", { status: response.status });
+    const rawText = response.text?.trim();
+    if (!rawText) {
+      log.warn("trend-telegram.topic-radar.empty-response", { provider: response.provider });
       return null;
     }
 
-    const data = (await response.json()) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-    };
-
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) return null;
-
-    const parsedJson = JSON.parse(rawText);
+    const parsedJson = JSON.parse(stripJsonFence(rawText));
     const normalized = Array.isArray(parsedJson) ? { trends: parsedJson } : parsedJson;
     const validated = SemanticTrendsResponseSchema.safeParse(normalized);
     if (!validated.success) {
-      log.warn("trend-telegram.gemini-flash.schema-invalid", { error: validated.error.message });
+      log.warn("trend-telegram.topic-radar.schema-invalid", { error: validated.error.message });
       return null;
     }
 
+    log.info("trend-telegram.topic-radar.extracted", {
+      provider: response.provider,
+      model: response.model,
+      trends: validated.data.trends.length,
+      posts: posts.length,
+    });
     return validated.data.trends;
   } catch (error) {
-    log.warn("trend-telegram.gemini-flash.failed", {
+    /**
+     * B727 — откат на биграммы обязан называть себя.
+     *
+     * Прежняя версия возвращала `null` молча при отсутствии ключа в окружении,
+     * и планировщик недели работал на биграммах, пока доска считала радар
+     * выкаченным. Молчащий fallback неотличим от работающего механизма.
+     */
+    log.warn("trend-telegram.topic-radar.failed-falling-back-to-bigrams", {
       error: error instanceof Error ? error.message : String(error),
     });
     return null;
   }
+}
+
+/** Модель иногда оборачивает JSON в ```json-ограду вопреки запрету в промте. */
+function stripJsonFence(text: string): string {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/u.exec(text);
+  return (fenced ? fenced[1] : text).trim();
 }
 
 /**
@@ -398,7 +430,7 @@ export async function telegramChannelTrends(input: {
   }
 
   // B726: Первичный путь — интеллектуальное семантическое извлечение болей через Gemini Flash
-  const llmTrends = await extractSemanticTrendsWithLLM(allPosts, { fetchImpl: call });
+  const llmTrends = await extractSemanticTrendsWithLLM(allPosts, { seed: channels[0] ?? "scan" });
   if (llmTrends && llmTrends.length > 0) {
     const candidates: TrendCandidate[] = llmTrends.map((trend) => ({
       topic: trend.userPain,

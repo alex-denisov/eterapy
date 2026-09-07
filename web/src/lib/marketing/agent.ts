@@ -79,6 +79,7 @@ import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
 import { pickBestDraft } from "@/lib/marketing/best-draft";
 import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { resolvePlatformContract } from "@/lib/marketing/playbook-settings";
+import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
@@ -2047,11 +2048,17 @@ export async function processMarketingDraft(publicationId: string) {
           ? null
           : (() => {
               const baseUrl = `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`;
-              const effectiveTitle = approvedDraft.title?.trim() || publication.title;
-              const isDialogue = effectiveTitle.includes("«")
-                || /диалог|переписк|сообщен|написал|молчани|чат/i.test(effectiveTitle)
-                || /диалог|переписк/i.test(publication.cluster ?? "");
-              return isDialogue ? `${baseUrl}?layout=chat_mockup` : baseUrl;
+              /**
+               * B727 — раскладку выбирает общее правило по ТЕЛУ материала.
+               * Прежняя проверка спрашивала заголовок и не сработала ни разу:
+               * цитату собеседника персона Ани ставит в текст поста.
+               */
+              const { layout } = coverLayoutFor({
+                title: approvedDraft.title?.trim() || publication.title,
+                body: approvedDraft.text,
+                cluster: publication.cluster,
+              });
+              return layout === "chat_mockup" ? `${baseUrl}?layout=chat_mockup` : baseUrl;
             })(),
         status: nextStatus,
         // Ручная площадка не «публикуется сама» ни при каком выключателе:
