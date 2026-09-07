@@ -371,23 +371,79 @@ const TG = {
 const BAR_DP = { status: 24, header: 56, panel: 48 } as const;
 
 /**
- * Пересчёт холста площадки в «ширину телефона».
+ * ЭКРАН НАСТОЯЩЕГО ТЕЛЕФОНА, А НЕ РАСТЯНУТЫЙ ПОД ХОЛСТ ИНТЕРФЕЙС.
  *
- * Холсты у площадок разные (Дзен 16:9, Instagram 4:5), а телефон один. Если
- * всегда брать 360 dp, на широком и низком холсте шапка с полем ввода съедят
- * почти всю высоту и переписке останется полоска. Поэтому ширина телефона
- * растягивается ровно настолько, чтобы под сообщения осталось не меньше
- * `MIN_CHAT_DP`, — интерфейс при этом остаётся пропорциональным, меняется
- * только «плотность экрана».
+ * Замечание владельца 2026-09-08 дословно: «если ты делаешь скриншот, то в весь
+ * экран […] попадает шапка + поле ввода + реплики. У тебя же […] показана шапка
+ * + поле ввода + 3 реплики, при этом высота скриншота не соответствует ни
+ * одному экрану мобильного устройства в мире».
+ *
+ * Он прав, и ошибка была системная. Прежняя редакция подбирала «ширину
+ * телефона» так, чтобы под ленту осталось 165 dp, — то есть подгоняла телефон
+ * под холст. При холсте 1200×900 получался экран высотой 292 dp: таких
+ * телефонов нет, а шапка и поле ввода на нём стояли одновременно.
+ *
+ * Теперь наоборот: экран — фиксированный, из списка НАСТОЯЩИХ размеров, а под
+ * холст подгоняется КАДР. Отсюда ровно два честных варианта:
+ *
+ *  • `cropped` — кадр во всю ширину экрана и по высоте холста, прижатый к низу.
+ *    Это обрезанный скриншот: шапки в нём нет, потому что она осталась выше
+ *    среза. Единственный вариант для широких холстов (Telegram 4:3, Дзен 16:9):
+ *    целиком экран телефона в них не помещается ни при каком масштабе.
+ *  • `full` — весь экран целиком, вписанный по высоте холста, с полями по бокам.
+ *    Так скриншот и выглядит, когда его публикуют как есть. Возможен только на
+ *    вертикальных и квадратных холстах (Instagram 4:5, Threads 1:1).
  */
-const MIN_CHAT_DP = 165;
-const PHONE_DP = { min: 360, max: 560 } as const;
+const DEVICES: [number, number][] = [
+  [393, 873], // Pixel 7 / 8
+  [390, 844], // iPhone 12–14
+  [412, 915], // Pixel 6 Pro
+  [375, 812], // iPhone X / 13 mini
+  [360, 800], // массовый Android
+];
 
-export function chatMetrics(width: number, height: number): { dp: number; phoneDp: number } {
-  const chrome = BAR_DP.status + BAR_DP.header + BAR_DP.panel;
-  const needed = (width * (chrome + MIN_CHAT_DP)) / height;
-  const phoneDp = Math.min(PHONE_DP.max, Math.max(PHONE_DP.min, Math.round(needed)));
-  return { dp: width / phoneDp, phoneDp };
+export interface ScreenMetrics {
+  /** Пикселей холста на 1 dp экрана. */
+  dp: number;
+  /** Размер экрана устройства в dp. */
+  device: [number, number];
+  /** Размер отрисованного экрана в пикселях холста. */
+  screen: { width: number; height: number };
+  framing: ScreenshotFraming;
+  /** Сколько dp по высоте остаётся ленте сообщений. */
+  chatDp: number;
+}
+
+export function screenMetrics(
+  width: number,
+  height: number,
+  seed: string,
+  requested?: ScreenshotFraming,
+): ScreenMetrics {
+  const device = DEVICES[pick(seed, "device", DEVICES.length)];
+  // Широкий холст не вмещает телефон целиком — там кадр только обрезанный.
+  const framing: ScreenshotFraming = requested
+    ?? (width >= height ? "cropped" : framingFor(seed));
+
+  if (framing === "full") {
+    const dp = height / device[1];
+    return {
+      dp,
+      device,
+      screen: { width: Math.round(device[0] * dp), height },
+      framing,
+      chatDp: device[1] - (BAR_DP.status + BAR_DP.header + BAR_DP.panel),
+    };
+  }
+
+  const dp = width / device[0];
+  return {
+    dp,
+    device,
+    screen: { width, height },
+    framing,
+    chatDp: height / dp - BAR_DP.panel,
+  };
 }
 
 /**
@@ -433,16 +489,14 @@ export function framingFor(seed: string): ScreenshotFraming {
 
 export function ChatMockupArt(input: CoverInput) {
   const { width, height } = coverCanvas(input.platform);
-  const { dp, phoneDp } = chatMetrics(width, height);
+  const metrics = screenMetrics(width, height, input.slotKey, input.framing);
+  const { dp, framing, chatDp } = metrics;
   const px = (value: number) => Math.round(value * dp);
 
   const topic = input.topic ?? "general";
   const contact = contactFor(input.slotKey, topic);
-  const framing = input.framing ?? framingFor(input.slotKey);
-  const chrome = framing === "full" ? BAR_DP.status + BAR_DP.header + BAR_DP.panel : BAR_DP.panel;
 
-  const maxBubbleDp = Math.round(phoneDp * 0.74);
-  const chatDp = height / dp - chrome;
+  const maxBubbleDp = Math.round(metrics.device[0] * 0.74);
   const thread = buildThread({
     seed: input.slotKey,
     topic,
@@ -619,11 +673,24 @@ export function ChatMockupArt(input: CoverInput) {
         width: "100%",
         height: "100%",
         display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        overflow: "hidden",
+        // Поля вокруг целого экрана — чёрные: так скриншот и лежит в ленте,
+        // когда его публикуют как есть, а не подгоняют под формат площадки.
+        backgroundColor: framing === "full" ? "#000000" : TG.wallpaper,
+        fontFamily: "Roboto",
+        color: TG.inText,
+      }}
+    >
+    <div
+      style={{
+        width: `${metrics.screen.width}px`,
+        height: `${metrics.screen.height}px`,
+        display: "flex",
         flexDirection: "column",
         overflow: "hidden",
         backgroundColor: TG.wallpaper,
-        fontFamily: "Roboto",
-        color: TG.inText,
       }}
     >
       {framing === "full" ? statusBar : null}
@@ -670,11 +737,15 @@ export function ChatMockupArt(input: CoverInput) {
                   flexDirection: "column",
                   position: "relative",
                   maxWidth: `${px(maxBubbleDp)}px`,
-                  ...(isIn
-                    ? { backgroundColor: TG.inBubble }
-                    : {
-                        background: `linear-gradient(180deg, ${TG.outBubbleTop} 0%, ${TG.outBubbleBottom} 100%)`,
-                      }),
+                  // ⚠ Исходящий пузырь ЗАЛИТ РОВНО, без градиента. Владелец
+                  // увидел «артефакты синего bubble справа внизу, будто
+                  // наложение изображения»: хвостик рисуется отдельной фигурой
+                  // и заливался конечным цветом градиента, а сам пузырь в этом
+                  // месте был светлее — шов на стыке и читался как накладка. В
+                  // Telegram градиент к тому же общий на весь чат, а не свой у
+                  // каждого пузыря, так что ровная заливка ещё и ближе к
+                  // эталону.
+                  backgroundColor: isIn ? TG.inBubble : TG.outBubbleTop,
                   borderRadius: tailed
                     ? isIn
                       ? `${radius}px ${radius}px ${radius}px 0`
@@ -696,7 +767,7 @@ export function ChatMockupArt(input: CoverInput) {
                       display: "flex",
                     }}
                   >
-                    <path d={isIn ? TAIL_IN : TAIL_OUT} fill={isIn ? TG.inBubble : TG.outBubbleBottom} />
+                    <path d={isIn ? TAIL_IN : TAIL_OUT} fill={isIn ? TG.inBubble : TG.outBubbleTop} />
                   </svg>
                 ) : null}
                 <div
@@ -759,6 +830,7 @@ export function ChatMockupArt(input: CoverInput) {
           <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" stroke={TG.panelIcon} strokeWidth={1.8} strokeLinecap="round" />
         </svg>
       </div>
+    </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@
  */
 
 import type { ReactElement } from "react";
-import { ChatMockupArt, chatMetrics, coverCanvas } from "@/lib/marketing/cover-art";
+import { ChatMockupArt, screenMetrics, coverCanvas } from "@/lib/marketing/cover-art";
 import {
   buildThread,
   chatTopicFor,
@@ -73,9 +73,12 @@ describe("B731: мокап переписки — скриншот Telegram, а 
   });
 
   it("нарисованы обязательные части интерфейса: строка состояния, шапка, поле ввода", () => {
-    const text = textOf(ChatMockupArt({ ...BASE, messageText: "Ты стала какой-то чужой" }));
+    // Шапка есть только в полном кадре: в обрезанном она осталась выше среза.
+    const text = textOf(
+      ChatMockupArt({ ...BASE, framing: "full", messageText: "Ты стала какой-то чужой" }),
+    );
     expect(text).toMatch(/\d{2}:\d{2}/); // часы в строке состояния и время сообщений
-    expect(text).toMatch(/в сети|был\(а\)/); // подпись присутствия в шапке
+    expect(text).toMatch(/в сети|был\(а\)|печатает/); // подпись присутствия в шапке
     expect(text).toContain("Сообщение"); // подсказка поля ввода
   });
 
@@ -86,10 +89,11 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     for (let index = 0; index < 24; index += 1) {
       const element = ChatMockupArt({
         ...BASE,
+        framing: "full",
         slotKey: `b610-2w-telegram-2026090${index % 9}-0${index % 7}`,
         messageText: "Ты стала какой-то чужой",
       });
-      const header = textOf(element).split(/\d{2}:\d{2}/)[1] ?? "";
+      const header = textOf({ ...element, props: { ...element.props } }).split(/\d{2}:\d{2}/)[1] ?? "";
       names.add(header.trim().slice(0, 20));
     }
     expect(names.size).toBeGreaterThan(3);
@@ -101,15 +105,14 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     // экран, который не может так выглядеть ни у кого.
     for (const platform of ["telegram", "dzen", "instagram", "threads"]) {
       const canvas = coverCanvas(platform);
-      const { dp, phoneDp } = chatMetrics(canvas.width, canvas.height);
-      const chatDp = canvas.height / dp - (24 + 56 + 48);
+      const metrics = screenMetrics(canvas.width, canvas.height, `b610-2w-${platform}-20260909-01`);
       const thread = buildThread({
         seed: `b610-2w-${platform}-20260909-01`,
         topic: "relationships",
         quote: "Ты стала какой-то чужой, я не понимаю, что происходит",
         reply: "Не знаю, что на это ответить",
-        chatDp,
-        maxBubbleDp: Math.round(phoneDp * 0.74),
+        chatDp: metrics.chatDp,
+        maxBubbleDp: Math.round(metrics.device[0] * 0.74),
       });
       expect(thread.length).toBeGreaterThan(2);
       // Реплика из тела поста стоит предпоследней, наш ответ — последним.
@@ -154,14 +157,38 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     expect(text).not.toContain("»");
   });
 
-  it("под ленту сообщений остаётся не меньше 165 dp на каждом холсте площадки", () => {
-    // Иначе шапка с полем ввода съедают экран, и на широком Дзене от переписки
-    // остаётся полоска — а это уже не скриншот.
+  it("экран — размера настоящего телефона, а не подогнан под холст", () => {
+    // Замечание владельца: «высота скриншота не соответствует ни одному экрану
+    // мобильного устройства в мире». Шапка и поле ввода могут стоять на одной
+    // картинке ТОЛЬКО если показан весь экран целиком.
+    const DEVICES = [[393, 873], [390, 844], [412, 915], [375, 812], [360, 800]];
     for (const platform of ["telegram", "vk", "dzen", "instagram", "threads", "reddit"]) {
       const canvas = coverCanvas(platform);
-      const { dp } = chatMetrics(canvas.width, canvas.height);
-      const chatDp = canvas.height / dp - (24 + 56 + 48);
-      expect(chatDp).toBeGreaterThanOrEqual(164);
+      const metrics = screenMetrics(canvas.width, canvas.height, `b610-2w-${platform}-20260909-01`);
+
+      if (metrics.framing === "full") {
+        // Пропорции кадра совпадают с пропорциями реального устройства.
+        const ratio = metrics.screen.height / metrics.screen.width;
+        const deviceRatio = metrics.device[1] / metrics.device[0];
+        expect(Math.abs(ratio - deviceRatio)).toBeLessThan(0.02);
+        expect(DEVICES).toContainEqual(metrics.device);
+        // Целый экран влезает только в вертикальный или квадратный холст.
+        expect(canvas.width).toBeLessThan(canvas.height + 1);
+      } else {
+        // Обрезанный кадр — во всю ширину экрана, шапки в нём нет.
+        expect(metrics.screen.width).toBe(canvas.width);
+        expect(metrics.chatDp).toBeGreaterThan(60);
+      }
+    }
+  });
+
+  it("широкий холст не показывает экран целиком — телефон в него не помещается", () => {
+    for (const platform of ["telegram", "vk", "dzen", "reddit"]) {
+      const canvas = coverCanvas(platform);
+      for (let index = 0; index < 12; index += 1) {
+        const metrics = screenMetrics(canvas.width, canvas.height, `k-${platform}-${index}`);
+        expect(metrics.framing).toBe("cropped");
+      }
     }
   });
 
