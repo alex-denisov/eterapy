@@ -505,6 +505,22 @@ export function marketingModelPreferences(
   if (feature === "marketing-agent-reviewer" || feature === "marketing-reply-reviewer") {
     return MARKETING_REVIEWER_MODEL_PREFERENCES;
   }
+  /**
+   * B727 — радару тем нужны ИМЕНА МОДЕЛЕЙ, а не только место в пуле.
+   *
+   * Пустая карта здесь означала бы «модель возьмём из каталога провайдера», а у
+   * NVIDIA, Kilo, OpenCode Zen, SambaNova и Hugging Face каталог
+   * `ai_provider_models` пуст (B703). Радар доходил бы только до Gemini —
+   * единственного, у кого имя модели зашито в адаптер, — и вставал бы на его
+   * 429 вместо того, чтобы спросить следующего.
+   *
+   * Берётся карта АВТОРА, а не редактора: работа радара — структурированное
+   * извлечение из текста, это ближе к письму, чем к вердикту, и подавлять
+   * размышление здесь не нужно.
+   */
+  if (feature === MARKETING_TOPIC_RADAR_FEATURE) {
+    return MARKETING_WRITER_MODEL_PREFERENCES;
+  }
   return {};
 }
 

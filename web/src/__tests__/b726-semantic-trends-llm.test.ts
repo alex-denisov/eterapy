@@ -13,7 +13,11 @@ import {
   extractSemanticTrendsWithLLM,
   telegramChannelTrends,
 } from "@/lib/marketing/trend-telegram";
-import { PUBLIC_MARKETING_AI_FEATURES } from "@/lib/marketing/model-pool";
+import {
+  MARKETING_TOPIC_RADAR_FEATURE,
+  PUBLIC_MARKETING_AI_FEATURES,
+  marketingModelPreferences,
+} from "@/lib/marketing/model-pool";
 
 jest.mock("@/lib/ai", () => ({ aiComplete: jest.fn() }));
 jest.mock("@/lib/marketing/platform-settings", () => ({
@@ -74,6 +78,13 @@ describe("B726/B727: радар тем через шлюз моделей", () =
     // Незарегистрированный ключ получает отказ ПОЛИТИКИ, а не отказ модели:
     // именно так радар и мог бы снова «работать» только в тестах.
     expect(PUBLIC_MARKETING_AI_FEATURES).toContain("marketing-topic-radar");
+  });
+
+  it("у радара есть имена моделей — иначе он дошёл бы только до Gemini", () => {
+    // У NVIDIA, Kilo, OpenCode Zen, SambaNova и Hugging Face каталог моделей
+    // пуст: без карты предпочтений обход встал бы на первом же 429 Gemini.
+    const preferences = marketingModelPreferences(MARKETING_TOPIC_RADAR_FEATURE);
+    expect(Object.keys(preferences).length).toBeGreaterThan(1);
   });
 
   it("зовёт шлюз со своим ключом возможности и разбирает ответ", async () => {
