@@ -54,6 +54,7 @@ import {
   linkLabelFromBody,
   toPlatformMarkup,
 } from "@/lib/marketing/link-presentation";
+import { stripHiddenMarkers } from "@/lib/marketing/text-hygiene";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -654,8 +655,7 @@ export async function publishToInstagram(
       // улучшение, а условие работы: без `image_url` площадка не публикуется
       // вовсе, а российское имя её скачиватель не берёт.
       image_url: metaFetchableMediaUrl(publication.mediaUrl),
-      caption: publication.body,
-      is_ai_generated: "true",
+      caption: stripHiddenMarkers(publication.body),
     }),
   });
   const created = await create.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
@@ -929,7 +929,8 @@ export async function publishScheduledMarketing(input: {
      * засчитывается: тема и план ни при чём, судить их не за что (B695).
      * Проверка идёт ДО claim именно поэтому — claim увеличивает `attemptCount`.
      */
-    const notAPost = rejectNonPostWriterOutput(publication.body ?? "");
+    const sanitizedBody = stripHiddenMarkers(publication.body ?? "");
+    const notAPost = rejectNonPostWriterOutput(sanitizedBody);
     if (notAPost) {
       await db.externalPublication.updateMany({
         where: { id: publication.id, status: "SCHEDULED" },
@@ -971,7 +972,7 @@ export async function publishScheduledMarketing(input: {
        * `null`, если переводить нечего: тогда уходит ровно то, что уходило
        * раньше.
        */
-      const compacted = compactOwnLinkInBody(publication.body, publication.destinationUrl);
+      const compacted = compactOwnLinkInBody(sanitizedBody, publication.destinationUrl);
       const markup = toPlatformMarkup({
         markup: platformPlaybook(publication.platform).contract.inlineLinkMarkup,
         body: compacted,
@@ -984,7 +985,7 @@ export async function publishScheduledMarketing(input: {
         id: publication.id,
         key: publication.key,
         title: publication.title,
-        body: markup?.text ?? compacted,
+        body: stripHiddenMarkers(markup?.text ?? compacted),
         parseMode: markup?.parseMode ?? null,
         platform: publication.platform,
         contentType: publication.contentType,

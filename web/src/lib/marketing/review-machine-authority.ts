@@ -31,7 +31,7 @@ export interface MachineJudgedReview {
   scores: Record<string, number>;
   issues: string[];
   revisionBrief: string[];
-  revisedText: string;
+  revisedText?: string;
   summary: string;
 }
 

@@ -53,6 +53,103 @@ export interface DraftUnderInspection {
   mediaBrief?: string | null;
   /** Ссылка, которую план обязал поставить: она не считается «лишней». */
   destinationUrl?: string | null;
+  /** B724: текст после точечной правки редактором (revisedText). */
+  revisedText?: string | null;
+}
+
+export interface EditorReviewContract {
+  decision: "APPROVE" | "REVISE" | "REJECT";
+  scores: Record<string, number>;
+  issues: string[];
+  revisionBrief: string[];
+  revisedText?: string;
+  summary: string;
+}
+
+export const CRITICAL_SCORE_CRITERIA = ["safety", "relevance", "authenticity"] as const;
+
+export interface ScorecardResult {
+  total: number;
+  maxTotal: number;
+  passed: boolean;
+  criticalPassed: boolean;
+  failedCriticalCriteria: string[];
+}
+
+export const DEFAULT_SCORE_KEYS = [
+  "relevance",
+  "value",
+  "authenticity",
+  "safety",
+  "platformFit",
+  "completeness",
+  "language",
+  "cta",
+  "visual",
+  "antiSlop",
+] as const;
+
+/**
+ * B724 — взвешенный гейт допуска:
+ * Заменяет жесткое требование «>=4 по всем 10 критериям» на взвешенную сумму >=35 из 50
+ * при условии, что критические критерии (safety, authenticity/factualAccuracy, relevance) >= 4.
+ */
+export function calculateWeightedScore(
+  scores: Record<string, unknown> | null | undefined,
+  scoreKeys: readonly string[] = DEFAULT_SCORE_KEYS,
+  threshold = 35,
+): ScorecardResult {
+  const maxTotal = scoreKeys.length * 5;
+  if (!scores || typeof scores !== "object") {
+    return {
+      total: 0,
+      maxTotal,
+      passed: false,
+      criticalPassed: false,
+      failedCriticalCriteria: [...CRITICAL_SCORE_CRITERIA],
+    };
+  }
+
+  let total = 0;
+  for (const key of scoreKeys) {
+    const rawVal = scores[key];
+    const scoreVal = rawVal !== undefined
+      ? Number(rawVal)
+      : (key === "authenticity" ? Number(scores.factualAccuracy) : 0);
+    const score = Number.isFinite(scoreVal) && scoreVal > 0 ? scoreVal : 0;
+    total += score;
+  }
+
+  const failedCriticalCriteria: string[] = [];
+
+  const safetyScore = Number(scores.safety);
+  if (!Number.isFinite(safetyScore) || safetyScore < 4) {
+    failedCriticalCriteria.push("safety");
+  }
+
+  const relevanceScore = Number(scores.relevance);
+  if (!Number.isFinite(relevanceScore) || relevanceScore < 4) {
+    failedCriticalCriteria.push("relevance");
+  }
+
+  const authScore = Number(scores.authenticity ?? scores.factualAccuracy);
+  if (!Number.isFinite(authScore) || authScore < 4) {
+    failedCriticalCriteria.push("authenticity");
+  }
+
+  const criticalPassed = failedCriticalCriteria.length === 0;
+  const targetThreshold = scoreKeys.length === 10
+    ? threshold
+    : Math.ceil(scoreKeys.length * 5 * 0.7);
+  const passed = criticalPassed && total >= targetThreshold;
+
+  return {
+    total,
+    maxTotal,
+    passed,
+    criticalPassed,
+    failedCriticalCriteria,
+  };
 }
 
 const EMOJI = /\p{Extended_Pictographic}/gu;

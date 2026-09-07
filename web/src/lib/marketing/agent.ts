@@ -73,11 +73,11 @@ import {
   trimToLimit,
   type LimitViolation,
 } from "@/lib/marketing/platform-limits";
-import { inspectDraft } from "@/lib/marketing/draft-inspection";
+import { calculateWeightedScore, inspectDraft } from "@/lib/marketing/draft-inspection";
 import { reconcileReviewWithMachine } from "@/lib/marketing/review-machine-authority";
 import { rejectNonPostWriterOutput } from "@/lib/marketing/writer-output-guard";
 import { pickBestDraft } from "@/lib/marketing/best-draft";
-import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
+import { platformContract, platformPlaybook, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
@@ -430,7 +430,7 @@ type ReviewerOutput = {
   scores: Record<string, number>;
   issues: string[];
   revisionBrief: string[];
-  revisedText: string;
+  revisedText?: string;
   summary: string;
 };
 
@@ -438,7 +438,11 @@ type AICompletion = Awaited<ReturnType<typeof aiComplete>>;
 type StructuredCompletion<T> = { response: AICompletion; value: T };
 
 const LOOP_LIMIT = 3;
-const EDITORIAL_ROUND_LIMIT = 3;
+/**
+ * B724 — лимит раундов доработки между автором и редактором ограничен 1 циклом
+ * (вместо бесконечного пинг-понга и выжигания до 94 вызовов LLM на пост).
+ */
+const EDITORIAL_ROUND_LIMIT = 1;
 
 /**
  * B700 фаза 6 (страховка) — сколько кругов правки материал получает за всю
@@ -636,7 +640,7 @@ export function writerObject(raw: string, fallbackTitle: string): WriterOutput {
   }
 }
 
-function reviewerObject(raw: string, scoreKeys: readonly string[] = REVIEW_SCORE_KEYS): ReviewerOutput {
+export function reviewerObject(raw: string, scoreKeys: readonly string[] = REVIEW_SCORE_KEYS): ReviewerOutput {
   const value = jsonObject<ReviewerOutput>(raw);
   if (!["APPROVE", "REVISE", "REJECT"].includes(value.decision)) {
     throw new Error("reviewer returned an unknown decision");
@@ -653,14 +657,12 @@ function reviewerObject(raw: string, scoreKeys: readonly string[] = REVIEW_SCORE
   if (!Array.isArray(value.issues) || !Array.isArray(value.revisionBrief)) {
     throw new Error("reviewer omitted issues or revision brief");
   }
-  if (value.revisedText?.trim()) {
-    throw new Error("reviewer must not rewrite the writer's text");
-  }
+  const revisedText = typeof value.revisedText === "string" ? value.revisedText.trim() : "";
   return {
     ...value,
     issues: value.issues.map(String).filter(Boolean),
     revisionBrief: value.revisionBrief.map(String).filter(Boolean),
-    revisedText: "",
+    revisedText,
     summary: String(value.summary ?? ""),
   };
 }
@@ -955,13 +957,32 @@ export function repairPublishableDraft(input: {
   };
 }
 
-function approvedByScorecard(
+/**
+ * B724 — взвешенный гейт допуска.
+ * Заменяет требование «>= 4 по всем 10 критериям» на взвешенную сумму >= 35 из 50
+ * при условии, что критические критерии (safety, authenticity, relevance) >= 4.
+ * Субъективная тройка (например antiSlop: 3 или cta: 3) больше не блокирует публикацию.
+ */
+export function approvedByScorecard(
   review: ReviewerOutput,
   scoreKeys: readonly string[] = REVIEW_SCORE_KEYS,
-) {
-  return review.decision === "APPROVE"
-    && review.issues.length === 0
-    && scoreKeys.every((key) => Number(review.scores[key]) >= 4);
+): boolean {
+  if (review.decision === "REJECT") return false;
+  const evaluation = calculateWeightedScore(review.scores, scoreKeys);
+
+  // Если редактор дал revisedText и критические критерии выполнены —
+  // пост одобряется в однопроходном режиме без повторного вызова автора.
+  if (review.revisedText?.trim() && evaluation.criticalPassed) {
+    return true;
+  }
+
+  if (!evaluation.passed) return false;
+
+  if (review.decision === "APPROVE") {
+    return true;
+  }
+
+  return false;
 }
 
 type MarketingAgentFeature =
@@ -1657,7 +1678,8 @@ export async function processMarketingDraft(publicationId: string) {
         finalRound: round === EDITORIAL_ROUND_LIMIT,
       });
       }
-      const { draft, repairs, violations, contractDefects } = repaired;
+      let { draft } = repaired;
+      const { repairs, violations, contractDefects } = repaired;
 
       // B640: перебор по длине и пустой mediaBrief — исполнимое замечание, а не
       // приговор. Раньше здесь материал выбрасывался (`throw` → FAILED), и
@@ -1769,6 +1791,9 @@ export async function processMarketingDraft(publicationId: string) {
               // B705: то, что уже посчитала машина. Редактор не ищет это
               // заново и не выдаёт своими словами третий круг подряд.
               machineFindings: contractDefects,
+              // B724: площадки без ссылок и CTA (Threads, Reddit)
+              allowNoCta: platformPlaybook(platform).contract.ctaPolicy === "discouraged"
+                || platformPlaybook(platform).contract.maxLinks === 0,
             })),
           },
         ],
@@ -1824,6 +1849,25 @@ export async function processMarketingDraft(publicationId: string) {
       lastWriter = writer;
       lastReviewer = reviewer;
 
+      // B724: однопроходный инлайн-редактор. Если редактор вернул revisedText
+      // и критические дефекты отсутствуют — принимаем исправленный текст сразу,
+      // не сжигая раунды доработки между автором и редактором.
+      if (review.revisedText?.trim()) {
+        const guarded = rejectNonPostWriterOutput(review.revisedText.trim());
+        if (!guarded) {
+          const repairedRevised = repairPublishableDraft({
+            draft: { ...draft, text: review.revisedText.trim() },
+            isConversational,
+            destinationUrl: publication.destinationUrl,
+            platform,
+            topic: publication.targetQuery ?? publication.title,
+            finalRound: true,
+          });
+          draft = repairedRevised.draft;
+          repairs.push(...repairedRevised.repairs);
+        }
+      }
+
       if (approvedByScorecard(review, scoreKeys)) {
         approvedDraft = draft;
         break;
@@ -1837,8 +1881,8 @@ export async function processMarketingDraft(publicationId: string) {
         ? {
           ...review,
           decision: "REVISE",
-          issues: ["Формальная оценка ниже 4 — материал не может быть утверждён."],
-          revisionBrief: ["Исправить параметры, получившие оценку ниже 4, и вернуть полный новый материал."],
+          issues: ["Взвешенная оценка ниже 35 или критический критерий ниже 4 — материал не может быть утверждён."],
+          revisionBrief: ["Исправить критические параметры и вернуть полный материал."],
         }
         : review;
     }
