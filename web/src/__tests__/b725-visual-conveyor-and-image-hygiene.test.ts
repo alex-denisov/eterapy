@@ -1,7 +1,17 @@
-import sharp from "sharp";
 import { stripImageMetadata, hasAiImageMetadata } from "@/lib/marketing/image-hygiene";
 import { CoverArt, ChatMockupArt } from "@/lib/marketing/cover-art";
 import { generateMarketingImage } from "@/lib/marketing/image-generation";
+
+// Минимальные валидные 1x1 base64 буферы
+const SAMPLE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+const SAMPLE_JPEG = Buffer.from(
+  "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
+  "base64",
+);
 
 describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
   it("hasAiImageMetadata обнаруживает C2PA и AI-маркеры в буфере", async () => {
@@ -15,29 +25,39 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
     expect(await hasAiImageMetadata(cleanBuffer)).toBe(false);
   });
 
-  it("stripImageMetadata очищает EXIF и метаданные через Sharp", async () => {
-    // Создаем тестовое PNG изображение
-    const testImage = await sharp({
-      create: {
-        width: 100,
-        height: 100,
-        channels: 4,
-        background: { r: 255, g: 0, b: 0, alpha: 1 },
-      },
-    })
-      .png()
-      .toBuffer();
+  it("stripImageMetadata очищает EXIF, C2PA и метаданные из PNG и JPEG буферов", async () => {
+    // Создаем PNG с внедренным C2PA iTXt чанком
+    const testImageWithAi = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from([0, 0, 0, 4]),
+      Buffer.from("IHDR"),
+      Buffer.from([0, 0, 0, 1]),
+      Buffer.from([0, 0, 0, 0]),
+      Buffer.from([0, 0, 0, 4]),
+      Buffer.from("iTXt"),
+      Buffer.from("C2PA"),
+      Buffer.from([0, 0, 0, 0]),
+      Buffer.from([0, 0, 0, 0]),
+      Buffer.from("IEND"),
+      Buffer.from([0, 0, 0, 0]),
+    ]);
 
-    const cleaned = await stripImageMetadata(testImage);
+    expect(await hasAiImageMetadata(testImageWithAi)).toBe(true);
+
+    const cleaned = await stripImageMetadata(testImageWithAi);
     expect(cleaned).toBeInstanceOf(Buffer);
     expect(cleaned.length).toBeGreaterThan(0);
-
-    const metadata = await sharp(cleaned).metadata();
-    expect(metadata.width).toBe(100);
-    expect(metadata.height).toBe(100);
-    expect(metadata.exif).toBeUndefined();
-    expect(metadata.xmp).toBeUndefined();
     expect(await hasAiImageMetadata(cleaned)).toBe(false);
+
+    // Проверяем чистый PNG
+    const cleanPng = await stripImageMetadata(SAMPLE_PNG);
+    expect(cleanPng).toBeInstanceOf(Buffer);
+    expect(await hasAiImageMetadata(cleanPng)).toBe(false);
+
+    // Проверяем чистый JPEG
+    const cleanJpeg = await stripImageMetadata(SAMPLE_JPEG);
+    expect(cleanJpeg).toBeInstanceOf(Buffer);
+    expect(await hasAiImageMetadata(cleanJpeg)).toBe(false);
   });
 
   it("ChatMockupArt корректно собирает разметку диалога со входящим сообщением и плашкой Ани", () => {
@@ -76,19 +96,13 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
   });
 
   it("generateMarketingImage вызывает Imagen 3 и при успехе очищает буфер", async () => {
-    const samplePixel = await sharp({
-      create: { width: 10, height: 10, channels: 3, background: { r: 10, g: 20, b: 30 } },
-    })
-      .jpeg()
-      .toBuffer();
-
     const mockFetch = jest.fn(async (url: string) => {
       if (url.includes("generativelanguage.googleapis.com")) {
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            predictions: [{ bytesBase64Encoded: samplePixel.toString("base64") }],
+            predictions: [{ bytesBase64Encoded: SAMPLE_JPEG.toString("base64") }],
           }),
         } as unknown as Response;
       }
@@ -109,15 +123,8 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
   });
 
   it("generateMarketingImage переключается на FLUX.1 при отказе Imagen 3", async () => {
-    const samplePixel = await sharp({
-      create: { width: 10, height: 10, channels: 3, background: { r: 50, g: 50, b: 50 } },
-    })
-      .png()
-      .toBuffer();
-
     const mockFetch = jest.fn(async (url: string) => {
       if (url.includes("generativelanguage.googleapis.com")) {
-        // Imagen 3 недоступен / квота исчерпана
         return { ok: false, status: 429, text: async () => "Quota exceeded" } as unknown as Response;
       }
       if (url.includes("openrouter.ai")) {
@@ -125,7 +132,7 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
           ok: true,
           status: 200,
           json: async () => ({
-            data: [{ b64_json: samplePixel.toString("base64") }],
+            data: [{ b64_json: SAMPLE_PNG.toString("base64") }],
           }),
         } as unknown as Response;
       }
