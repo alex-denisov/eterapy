@@ -317,6 +317,7 @@ export function ChatMockupArt(input: CoverInput) {
   const rawMsg = input.messageText || input.title;
   const quoteMatch = /[«"]([^»"]+)[»"]/u.exec(rawMsg);
   const quote = quoteMatch ? quoteMatch[1] : rawMsg;
+  const quoteDisplay = `«${quote}»`;
 
   return (
     <div
@@ -342,6 +343,7 @@ export function ChatMockupArt(input: CoverInput) {
           width: `${Math.round(width * 0.7)}px`,
           height: `${Math.round(width * 0.7)}px`,
           borderRadius: "999px",
+          display: "flex",
           background: `radial-gradient(circle, rgba(${theme.warm}, 0.25) 0%, rgba(15, 23, 42, 0) 70%)`,
         }}
       />
@@ -353,6 +355,7 @@ export function ChatMockupArt(input: CoverInput) {
           width: `${Math.round(width * 0.8)}px`,
           height: `${Math.round(width * 0.8)}px`,
           borderRadius: "999px",
+          display: "flex",
           background: `radial-gradient(circle, rgba(${theme.cool}, 0.2) 0%, rgba(15, 23, 42, 0) 70%)`,
         }}
       />
@@ -365,7 +368,6 @@ export function ChatMockupArt(input: CoverInput) {
           width: "100%",
           paddingBottom: `${Math.round(height * 0.02)}px`,
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-          zIndex: 2,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -386,10 +388,10 @@ export function ChatMockupArt(input: CoverInput) {
             Он
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: `${Math.round(height * 0.028)}px`, fontWeight: 700, color: "#FFFFFF" }}>
+            <div style={{ display: "flex", fontSize: `${Math.round(height * 0.028)}px`, fontWeight: 700, color: "#FFFFFF" }}>
               Диалог в 01:42
             </div>
-            <div style={{ fontSize: `${Math.round(height * 0.02)}px`, color: "#94A3B8" }}>
+            <div style={{ display: "flex", fontSize: `${Math.round(height * 0.02)}px`, color: "#94A3B8" }}>
               был(а) только что
             </div>
           </div>
@@ -412,6 +414,7 @@ export function ChatMockupArt(input: CoverInput) {
               width: "10px",
               height: "10px",
               borderRadius: "999px",
+              display: "flex",
               backgroundColor: "#22C55E",
             }}
           />
@@ -425,7 +428,6 @@ export function ChatMockupArt(input: CoverInput) {
           flexDirection: "column",
           gap: `${Math.round(height * 0.03)}px`,
           margin: `${Math.round(height * 0.04)}px 0`,
-          zIndex: 2,
         }}
       >
         <div
@@ -443,16 +445,18 @@ export function ChatMockupArt(input: CoverInput) {
         >
           <div
             style={{
+              display: "flex",
               fontSize: `${Math.round(height * (quote.length > 80 ? 0.036 : 0.042))}px`,
               lineHeight: 1.3,
               fontWeight: 600,
               color: "#F8FAFC",
             }}
           >
-            «{quote}»
+            {quoteDisplay}
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: `${Math.round(height * 0.018)}px`,
               color: "#64748B",
               alignSelf: "flex-end",
@@ -477,6 +481,7 @@ export function ChatMockupArt(input: CoverInput) {
         >
           <div
             style={{
+              display: "flex",
               fontSize: `${Math.round(height * 0.028)}px`,
               fontWeight: 500,
               color: "#E2E8F0",
@@ -486,13 +491,20 @@ export function ChatMockupArt(input: CoverInput) {
           </div>
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
               fontSize: `${Math.round(height * 0.018)}px`,
               color: "rgba(255, 255, 255, 0.6)",
               alignSelf: "flex-end",
               marginTop: "8px",
             }}
           >
-            01:45 · Прочитано ✓✓
+            <span style={{ display: "flex" }}>01:45 · Прочитано</span>
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ display: "flex" }}>
+              <path d="M1 6.5L4.5 10L11 2" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M5 6.5L8.5 10L15 2" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
         </div>
       </div>
@@ -506,7 +518,6 @@ export function ChatMockupArt(input: CoverInput) {
           border: `1px solid rgba(${theme.warm}, 0.5)`,
           borderRadius: "20px",
           padding: `${Math.round(height * 0.03)}px ${Math.round(width * 0.04)}px`,
-          zIndex: 2,
         }}
       >
         <div
@@ -526,6 +537,7 @@ export function ChatMockupArt(input: CoverInput) {
               width: "8px",
               height: "8px",
               borderRadius: "999px",
+              display: "flex",
               backgroundColor: `rgb(${theme.warm})`,
             }}
           />
@@ -533,6 +545,7 @@ export function ChatMockupArt(input: CoverInput) {
         </div>
         <div
           style={{
+            display: "flex",
             fontSize: `${Math.round(height * 0.03)}px`,
             fontWeight: 700,
             color: "#FFFFFF",
