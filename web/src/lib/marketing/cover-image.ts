@@ -33,6 +33,8 @@ import { AIProvider, Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { aiBudgetPeriod } from "@/lib/ai-gateway/domain";
 import { pickCredentialForProvider, type DecryptedAICredential } from "@/lib/ai-gateway/credentials";
+import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
+import { controlledGatewayUrlForProvider } from "@/lib/ai-gateway/provider-runtime";
 import { log, serializeError } from "@/lib/logger";
 import { coverCanvas } from "@/lib/marketing/cover-art";
 import { stripImageMetadata } from "@/lib/marketing/image-hygiene";
@@ -46,21 +48,47 @@ import { stripImageMetadata } from "@/lib/marketing/image-hygiene";
  */
 export const PAID_COVER_PLATFORMS = ["dzen", "instagram"] as const;
 
-/** Модель — та, что владелец одобрил по цене. */
-export const PAID_COVER_MODEL = "gemini-2.5-flash-image";
+/**
+ * Модель — решение владельца 2026-09-08 по итогам живого замера.
+ *
+ * Сравнение на НАШЕМ промте обложки (Дзен 16:9 и Instagram 4:5), цены и время
+ * сняты с фактических ответов, а не из прайса:
+ *
+ * | модель | Elo* | факт. цена | время | пропорция кадра |
+ * |---|---|---|---|---|
+ * | `google/gemini-3.1-flash-lite-image` | 1089 | $0,0336 | 4,2–4,4 с | **соблюдает** |
+ * | `bytedance-seed/seedream-4.5` | 1006 | $0,040 | 7,2–7,7 с | игнорирует, всегда 2048×2048 |
+ * | `black-forest-labs/flux.2-klein-4b` | 945 | $0,014 | 2,4–2,8 с | игнорирует, 1024×768 |
+ * | `google/gemini-2.5-flash-image` (прежний выбор) | 991 | $0,039 | — | — |
+ *
+ * *Elo — слепые голосования Image Arena (Artificial Analysis, сентябрь 2026).
+ *
+ * То есть выбранная модель одновременно ЛУЧШЕ и ДЕШЕВЛЕ той, что стояла здесь
+ * раньше, и единственная из трёх отдаёт кадр в запрошенной пропорции —
+ * остальным пришлось бы кадрировать квадрат, теряя композицию.
+ *
+ * `meta/muse-image` ($0,01 при Elo 1116) в замер не попал: OpenRouter требует
+ * одноразового подтверждения 18+ в настройках аккаунта владельца. Если
+ * подтверждение появится, он кандидат номер один — втрое дешевле нынешней.
+ */
+export const PAID_COVER_MODEL = "google/gemini-3.1-flash-lite-image";
 
-/** $0,039 за картинку — цена, по которой считался одобренный расход. */
-export const PAID_COVER_COST_MICROS = 39;
+/**
+ * $0,0336 за картинку — ФАКТ из ответа провайдера (`usage.cost`), а не прайс.
+ * Хранится в тысячных долях доллара, как весь `ai_budget_ledger`; округление
+ * вверх намеренное — потолок обязан срабатывать раньше настоящего рубежа, а не
+ * позже.
+ */
+export const PAID_COVER_COST_MICROS = 34;
 
 /**
  * Сколько картинок в сутки максимум.
  *
  * Такт даёт 29 постов Дзена и Instagram в месяц — около одной картинки в сутки.
- * Потолок в две штуки оставляет запас на догоняющий слот и при этом жёстко
- * ограничивает худший случай ~$2,3/мес: даже если конвейер сойдёт с ума, счёт
- * не уедет на порядок. Потолок задан ЧИСЛОМ КАРТИНОК, а не долларами, потому
- * что цена фиксированная, а «сколько картинок в день» владелец может проверить
- * глазами.
+ * Потолок в две штуки оставляет запас на догоняющий слот и жёстко ограничивает
+ * худший случай ~$2,0/мес: даже если конвейер сойдёт с ума, счёт не уедет на
+ * порядок. Потолок задан ЧИСЛОМ КАРТИНОК, а не долларами, потому что цена
+ * фиксированная, а «сколько картинок в день» владелец проверяет глазами.
  */
 export const PAID_COVER_DAILY_LIMIT = Number(
   process.env.MARKETING_PAID_COVER_DAILY_LIMIT || 2,
@@ -137,10 +165,18 @@ export function paidCoverPrompt(input: {
   ].filter(Boolean).join(" ");
 }
 
-interface GeminiImageResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> };
+/**
+ * Ответ OpenRouter: картинка приезжает НЕ в `content`, а отдельным полем
+ * `message.images[]` в виде data-URI. Текстовая часть при этом пустая, и
+ * искать байты в `content` — верный способ решить, что модель не ответила.
+ */
+interface OpenRouterImageResponse {
+  choices?: Array<{
+    message?: {
+      images?: Array<{ image_url?: { url?: string } }>;
+    };
   }>;
+  usage?: { cost?: number };
   error?: { message?: string };
 }
 
@@ -185,7 +221,7 @@ export async function generatePaidCover(input: {
     }
 
     const pick = input.pickCredentialImpl ?? pickCredentialForProvider;
-    credential = await pick({ provider: AIProvider.GEMINI });
+    credential = await pick({ provider: AIProvider.OPENROUTER });
     if (!credential?.apiKey) {
       log.warn("marketing.cover_image.no_credential", { key: input.key, platform });
       return null;
@@ -194,22 +230,45 @@ export async function generatePaidCover(input: {
     const prompt = paidCoverPrompt({
       platform, title: input.title, cluster: input.cluster, mediaBrief: input.mediaBrief,
     });
-    const baseUrl = credential.baseUrlOverride?.replace(/\/+$/u, "")
-      || "https://generativelanguage.googleapis.com/v1beta";
+
+    /**
+     * ⚠ АДРЕС БЕРЁТСЯ У КОНТРОЛИРУЕМОГО ШЛЮЗА, А НЕ У УЧЁТКИ.
+     *
+     * Замер 2026-09-08 с боевой ноды: `openrouter.ai` напрямую и через шлюз
+     * Cloudflare отвечает `403 "Access denied by security policy"` — и на
+     * платные модели, и на бесплатные. Cloudflare географию не скрывает
+     * ([[reference_controlled_gateway_not_cloudflare]]), а в `baseUrlOverride`
+     * учётки как раз лежит его адрес. Через НАШ шлюз на зарубежной ноде (B634)
+     * тот же запрос отдаёт 200 и картинку — этим путём и ходим, как ходят все
+     * остальные вызовы моделей.
+     */
+    const gateway = controlledGatewayUrlForProvider(AIProvider.OPENROUTER);
+    const baseUrl = (gateway.url ?? "https://openrouter.ai/api/v1").replace(/\/+$/u, "");
     const fetchImpl = input.fetchImpl ?? fetch;
     const response = await fetchImpl(
-      `${baseUrl}/models/${PAID_COVER_MODEL}:generateContent`,
+      `${baseUrl}/chat/completions`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Ключ уходит ЗАГОЛОВКОМ, а не параметром адреса: строка запроса
-          // попадает в журналы прокси целиком.
-          "x-goog-api-key": credential.apiKey,
+          Authorization: `Bearer ${credential.apiKey}`,
+          // Секрет нашего шлюза (или токен Cloudflare, если свой не настроен).
+          // Одна функция на все адаптеры: развести её по файлам значило бы
+          // однажды забыть заголовок и получить 403 без объяснения.
+          ...cloudflareGatewayAuthHeaders(baseUrl),
         },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ["IMAGE"] },
+          model: PAID_COVER_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          // Без `modalities` OpenRouter отвечает текстом: 404 «No endpoints
+          // found that support the requested output modalities» приходит,
+          // наоборот, когда просишь текст у модели, которая умеет только
+          // картинку. Пара `image, text` подходит выбранной модели — проверено
+          // живым вызовом.
+          modalities: ["image", "text"],
+          // Фактическая стоимость ответа — она пишется в лог рядом с картинкой,
+          // чтобы счёт можно было сверить, а не поверить прайсу.
+          usage: { include: true },
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
@@ -223,10 +282,10 @@ export async function generatePaidCover(input: {
       return null;
     }
 
-    const payload = await response.json() as GeminiImageResponse;
-    const part = payload.candidates?.[0]?.content?.parts?.find((item) => item.inlineData?.data);
-    const data = part?.inlineData?.data;
-    if (!data) {
+    const payload = await response.json() as OpenRouterImageResponse;
+    const dataUri = payload.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const parsed = dataUri ? /^data:(image\/[a-z+.-]+);base64,([\s\S]+)$/i.exec(dataUri) : null;
+    if (!parsed) {
       // Модель вправе ответить текстом вместо картинки — например, отказом
       // модерации. Это не сбой сети, и путать их в логе нельзя.
       log.warn("marketing.cover_image.no_image_in_response", {
@@ -234,12 +293,14 @@ export async function generatePaidCover(input: {
       });
       return null;
     }
+    const mimeType = parsed[1];
+    const data = parsed[2];
+    const reportedCost = payload.usage?.cost;
 
     // Расход записывается СРАЗУ после получения файла: картинка уже оплачена,
     // что бы с ней ни случилось дальше.
     await recordPaidCoverSpend(period, client);
 
-    const mimeType = part?.inlineData?.mimeType || "image/png";
     // C2PA и EXIF снимаются ДО записи в базу: наружу отдаётся ровно то, что
     // лежит, и второго места для очистки не существует.
     const bytes = await stripImageMetadata(Buffer.from(data, "base64"));
@@ -259,6 +320,9 @@ export async function generatePaidCover(input: {
 
     log.info("marketing.cover_image.generated", {
       key: input.key, platform, model: PAID_COVER_MODEL, bytes: bytes.length,
+      // Названная провайдером цена рядом с нашей константой: разойдутся —
+      // будет видно в логе, а не в счёте в конце месяца.
+      reportedCost, assumedCostMicros: PAID_COVER_COST_MICROS,
     });
     return { mimeType, bytes, model: PAID_COVER_MODEL };
   } catch (error) {

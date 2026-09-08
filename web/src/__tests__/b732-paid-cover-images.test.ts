@@ -10,6 +10,7 @@
  */
 
 import {
+  PAID_COVER_COST_MICROS,
   PAID_COVER_DAILY_LIMIT,
   PAID_COVER_MODEL,
   generatePaidCover,
@@ -22,9 +23,9 @@ const SAMPLE_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 const CREDENTIAL = {
-  id: "cred-gemini",
-  provider: "GEMINI",
-  label: "Gemini",
+  id: "cred-openrouter",
+  provider: "OPENROUTER",
+  label: "OpenRouter",
   apiKey: "key-from-gateway-store",
   baseUrlOverride: null,
   modelOverride: null,
@@ -36,11 +37,17 @@ const CREDENTIAL = {
 } as never;
 
 function imageResponse(data = SAMPLE_PNG) {
+  // Картинка у OpenRouter приезжает НЕ в `content`, а отдельным полем
+  // `message.images[]` в виде data-URI: искать байты в `content` — верный
+  // способ решить, что модель не ответила.
   return {
     ok: true,
     status: 200,
     json: async () => ({
-      candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data } }] } }],
+      choices: [{
+        message: { content: "", images: [{ image_url: { url: `data:image/png;base64,${data}` } }] },
+      }],
+      usage: { cost: 0.03361475 },
     }),
   } as unknown as Response;
 }
@@ -62,6 +69,13 @@ function fakeClient(options: { drawnToday?: number } = {}) {
 }
 
 describe("B732 — платная обложка для Дзена и Instagram", () => {
+  it("модель — та, что выиграла живой замер: лучше и дешевле прежней", () => {
+    // Решение владельца 2026-09-08 после сравнения на нашем промте обложки:
+    // Elo 1089 против 991 у `gemini-2.5-flash-image` при $0,0336 против $0,039.
+    expect(PAID_COVER_MODEL).toBe("google/gemini-3.1-flash-lite-image");
+    expect(PAID_COVER_COST_MICROS).toBe(34);
+  });
+
   it("рисуется только там, где её одобрил владелец", () => {
     expect(isPaidCoverPlatform("dzen")).toBe(true);
     expect(isPaidCoverPlatform("Instagram")).toBe(true);
@@ -75,6 +89,7 @@ describe("B732 — платная обложка для Дзена и Instagram"
     // Ровно этим прошлый модуль и был мёртв: `process.env.GEMINI_API_KEY` в
     // контейнере нет и не было ([[reference_llm_host_differs_from_key_name]]).
     delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const seen: Array<{ url: string; init: RequestInit }> = [];
     const { client, upserts, spends } = fakeClient();
 
@@ -94,11 +109,16 @@ describe("B732 — платная обложка для Дзена и Instagram"
 
     expect(result).not.toBeNull();
     expect(result?.model).toBe(PAID_COVER_MODEL);
-    expect(seen[0].url).toContain(`models/${PAID_COVER_MODEL}:generateContent`);
+    expect(seen[0].url).toMatch(/\/chat\/completions$/);
+    expect(JSON.parse(String(seen[0].init.body)).model).toBe(PAID_COVER_MODEL);
     // Ключ уходит заголовком: строка запроса попадает в журналы прокси целиком.
-    expect((seen[0].init.headers as Record<string, string>)["x-goog-api-key"])
-      .toBe("key-from-gateway-store");
+    expect((seen[0].init.headers as Record<string, string>).Authorization)
+      .toBe("Bearer key-from-gateway-store");
     expect(seen[0].url).not.toContain("key-from-gateway-store");
+    // ⚠ Адрес — НЕ `openrouter.ai` напрямую и не шлюз Cloudflare: с боевой
+    // ноды оба отвечают 403 «Access denied by security policy». Путь только
+    // через контролируемый шлюз, если он настроен.
+    expect(seen[0].url).not.toContain("gateway.ai.cloudflare.com");
     // Картинка сохранена под ключом материала и расход записан.
     expect(upserts).toHaveLength(1);
     expect(spends).toHaveLength(1);
@@ -132,7 +152,7 @@ describe("B732 — платная обложка для Дзена и Instagram"
       ["ответ без картинки", async () => ({
         ok: true,
         status: 200,
-        json: async () => ({ candidates: [{ content: { parts: [{ text: "не могу" }] } }] }),
+        json: async () => ({ choices: [{ message: { content: "не могу" } }] }),
       } as unknown as Response)],
       ["сеть молчит", async () => { throw new Error("ETIMEDOUT"); }],
     ];
