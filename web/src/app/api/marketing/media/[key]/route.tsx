@@ -101,6 +101,8 @@ export async function GET(
    */
   const topic = isChat
     ? chatTopicFor({
+      // Реплика из тела — сильнейший сигнал: она и стоит в пузыре.
+      quote: decided.messageText,
       title: publication.title,
       cluster: publication.cluster,
       body: publication.body,
