@@ -18,7 +18,7 @@ import {
   type ThreadLine,
 } from "@/lib/marketing/chat-thread";
 import { ogEmoji } from "@/lib/marketing/cover-emoji";
-import { framingFor } from "@/lib/marketing/cover-art";
+import { framingFor, TAIL_DP } from "@/lib/marketing/cover-art";
 import { ogFonts, OG_FONT_FAMILY } from "@/lib/marketing/cover-fonts";
 
 type Node = ReactElement<{ children?: unknown; style?: Record<string, unknown> }>;
@@ -72,14 +72,22 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     expect(text).not.toContain(BASE.title);
   });
 
-  it("нарисованы обязательные части интерфейса: строка состояния, шапка, поле ввода", () => {
-    // Шапка есть только в полном кадре: в обрезанном она осталась выше среза.
-    const text = textOf(
-      ChatMockupArt({ ...BASE, framing: "full", messageText: "Ты стала какой-то чужой" }),
+  it("нарисованы обязательные части интерфейса — каждая в своём кадре", () => {
+    // Шапка живёт в верхнем кадре, поле ввода — в нижнем. Вместе они стоят
+    // только на целом экране, а целого экрана у нас нет: полей у скриншота не
+    // бывает, а холста с пропорцией телефона (0,45) нет ни у одной площадки.
+    const top = textOf(
+      ChatMockupArt({ ...BASE, framing: "top", messageText: "Ты стала какой-то чужой" }),
     );
-    expect(text).toMatch(/\d{2}:\d{2}/); // часы в строке состояния и время сообщений
-    expect(text).toMatch(/в сети|был\(а\)|печатает/); // подпись присутствия в шапке
-    expect(text).toContain("Сообщение"); // подсказка поля ввода
+    expect(top).toMatch(/\d{2}:\d{2}/); // часы в строке состояния и время сообщений
+    expect(top).toMatch(/в сети|был\(а\)|печатает/); // подпись присутствия в шапке
+    expect(top).not.toContain("Сообщение"); // поле ввода осталось ниже среза
+
+    const bottom = textOf(
+      ChatMockupArt({ ...BASE, framing: "bottom", messageText: "Ты стала какой-то чужой" }),
+    );
+    expect(bottom).toContain("Сообщение"); // подсказка поля ввода
+    expect(bottom).not.toMatch(/в сети|был\(а\)/); // шапка осталась выше среза
   });
 
   it("собеседник не всегда один и тот же — имя и заливка аватара меняются", () => {
@@ -89,7 +97,7 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     for (let index = 0; index < 24; index += 1) {
       const element = ChatMockupArt({
         ...BASE,
-        framing: "full",
+        framing: "top",
         slotKey: `b610-2w-telegram-2026090${index % 9}-0${index % 7}`,
         messageText: "Ты стала какой-то чужой",
       });
@@ -157,39 +165,38 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     expect(text).not.toContain("»");
   });
 
-  it("экран — размера настоящего телефона, а не подогнан под холст", () => {
-    // Замечание владельца: «высота скриншота не соответствует ни одному экрану
-    // мобильного устройства в мире». Шапка и поле ввода могут стоять на одной
-    // картинке ТОЛЬКО если показан весь экран целиком.
+  it("кадр занимает холст целиком — полей у скриншота не бывает", () => {
+    // Дефект приёмки 2026-09-08 дословно: «Черных полей у скриншотов не бывает,
+    // скриншот делает снимок только экрана, а значит и полей не бывает».
     const DEVICES = [[393, 873], [390, 844], [412, 915], [375, 812], [360, 800]];
     for (const platform of ["telegram", "vk", "dzen", "instagram", "threads", "reddit"]) {
       const canvas = coverCanvas(platform);
-      const metrics = screenMetrics(canvas.width, canvas.height, `b610-2w-${platform}-20260909-01`);
-
-      if (metrics.framing === "full") {
-        // Пропорции кадра совпадают с пропорциями реального устройства.
-        const ratio = metrics.screen.height / metrics.screen.width;
-        const deviceRatio = metrics.device[1] / metrics.device[0];
-        expect(Math.abs(ratio - deviceRatio)).toBeLessThan(0.02);
-        expect(DEVICES).toContainEqual(metrics.device);
-        // Целый экран влезает только в вертикальный или квадратный холст.
-        expect(canvas.width).toBeLessThan(canvas.height + 1);
-      } else {
-        // Обрезанный кадр — во всю ширину экрана, шапки в нём нет.
+      for (const framing of ["top", "bottom"] as const) {
+        const metrics = screenMetrics(canvas.width, canvas.height, `b610-2w-${platform}-20260909-01`, framing);
+        // Кадр во всю площадь холста: ни подложки, ни полей.
         expect(metrics.screen.width).toBe(canvas.width);
+        expect(metrics.screen.height).toBe(canvas.height);
+        // Масштаб снят с настоящего устройства, а не подогнан под холст.
+        expect(DEVICES).toContainEqual(metrics.device);
+        expect(metrics.dp).toBeCloseTo(canvas.width / metrics.device[0], 5);
+        // Ленте остаётся место после среза.
         expect(metrics.chatDp).toBeGreaterThan(60);
       }
     }
+
+    // И в разметке верхнего уровня чёрного фона больше нет — только обои чата.
+    for (const framing of ["top", "bottom"] as const) {
+      const element = ChatMockupArt({ ...BASE, framing, messageText: "Ты стала какой-то чужой" });
+      expect(element.props.style?.backgroundColor).toBe("#0f0f10");
+    }
   });
 
-  it("широкий холст не показывает экран целиком — телефон в него не помещается", () => {
-    for (const platform of ["telegram", "vk", "dzen", "reddit"]) {
-      const canvas = coverCanvas(platform);
-      for (let index = 0; index < 12; index += 1) {
-        const metrics = screenMetrics(canvas.width, canvas.height, `k-${platform}-${index}`);
-        expect(metrics.framing).toBe("cropped");
-      }
-    }
+  it("хвостик пузыря рисуется в боксе 11×20 — как в Telegram, а не 6×17", () => {
+    // Дефект приёмки 2026-09-08: хвостик смотрел вверх, потому что бокс пути из
+    // веб-клиента (6×17, отношение 0,35) был принят за размер в dp, а Telegram
+    // рисует ту же фигуру в 11×20 (0,55).
+    expect(TAIL_DP).toEqual({ width: 11, height: 20 });
+    expect(TAIL_DP.width / TAIL_DP.height).toBeCloseTo(0.55, 2);
   });
 
   it("шрифт вшит в репозиторий и читается с диска, а не из сети", async () => {
@@ -253,19 +260,28 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     expect(segmentEmoji("ок \u{1F600}", undefined).filter((part) => part.kind === "emoji")).toHaveLength(0);
   });
 
-  it("кадр бывает и полным, и обрезанным сверху — как решает автор скриншота", () => {
+  it("кадр бывает верхним и нижним — как решает автор скриншота", () => {
     const framings = new Set<string>();
     for (let index = 0; index < 30; index += 1) {
       framings.add(framingFor(`b610-2w-telegram-2026090${index % 9}-0${index % 7}`));
     }
-    expect(framings).toEqual(new Set(["full", "cropped"]));
+    expect(framings).toEqual(new Set(["top", "bottom"]));
 
-    // Обрезанный кадр не показывает шапку: ни имени, ни подписи присутствия.
-    const cropped = textOf(
-      ChatMockupArt({ ...BASE, framing: "cropped", messageText: "Ты стала какой-то чужой" }),
-    );
-    expect(cropped).not.toMatch(/в сети|был\(а\)/);
-    // Поле ввода остаётся: снизу его обрезать нельзя, оно на экране всегда.
-    expect(cropped).toContain("Сообщение");
+    // В верхнем кадре пара «реплика поста → наш ответ» стоит НАВЕРХУ ленты:
+    // иначе за нижний срез ушло бы ровно то, ради чего картинка рисуется.
+    const thread = buildThread({
+      seed: "b610-2w-instagram-20260909-01",
+      topic: "relationships",
+      quote: "Ты стала какой-то чужой, я не понимаю, что происходит",
+      reply: "Не знаю, что на это ответить",
+      chatDp: 300,
+      maxBubbleDp: 268,
+      anchor: "top",
+    });
+    const quoteAt = thread.findIndex((line: ThreadLine) => line.text.startsWith("Ты стала"));
+    expect(quoteAt).toBeGreaterThanOrEqual(0);
+    expect(quoteAt).toBeLessThanOrEqual(2);
+    expect(thread[quoteAt + 1].side).toBe("out");
+    expect(thread.length).toBeGreaterThan(quoteAt + 2);
   });
 });

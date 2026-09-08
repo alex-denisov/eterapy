@@ -386,13 +386,20 @@ const BAR_DP = { status: 24, header: 56, panel: 48 } as const;
  * Теперь наоборот: экран — фиксированный, из списка НАСТОЯЩИХ размеров, а под
  * холст подгоняется КАДР. Отсюда ровно два честных варианта:
  *
- *  • `cropped` — кадр во всю ширину экрана и по высоте холста, прижатый к низу.
- *    Это обрезанный скриншот: шапки в нём нет, потому что она осталась выше
- *    среза. Единственный вариант для широких холстов (Telegram 4:3, Дзен 16:9):
- *    целиком экран телефона в них не помещается ни при каком масштабе.
- *  • `full` — весь экран целиком, вписанный по высоте холста, с полями по бокам.
- *    Так скриншот и выглядит, когда его публикуют как есть. Возможен только на
- *    вертикальных и квадратных холстах (Instagram 4:5, Threads 1:1).
+ *  • `bottom` — низ экрана: последние реплики и поле ввода, шапка осталась
+ *    ВЫШЕ среза.
+ *  • `top` — верх экрана: строка состояния, шапка с именем собеседника и
+ *    начало видимой переписки, поле ввода осталось НИЖЕ среза.
+ *
+ * ПОЛЕЙ У СКРИНШОТА НЕ БЫВАЕТ. Дефект приёмки 2026-09-08 дословно: «Черных
+ * полей у скриншотов не бывает, скриншот делает снимок только экрана, а значит
+ * и полей не бывает». Прежний вариант `full` вписывал экран целиком по высоте
+ * холста и добивал бока чёрным — то есть рисовал не скриншот, а скриншот НА
+ * подложке. Экран целиком честно помещается только на холст с пропорцией
+ * устройства (0,45), а у нас таких нет: Telegram 1,33, Дзен 1,78,
+ * Instagram 0,8, Threads 1,0. Поэтому `full` убран, а кадр всегда занимает всю
+ * площадь холста: ширина холста = ширина экрана, по высоте — обрезка сверху
+ * или снизу, ровно как это делает человек перед публикацией.
  */
 const DEVICES: [number, number][] = [
   [393, 873], // Pixel 7 / 8
@@ -421,29 +428,15 @@ export function screenMetrics(
   requested?: ScreenshotFraming,
 ): ScreenMetrics {
   const device = DEVICES[pick(seed, "device", DEVICES.length)];
-  // Широкий холст не вмещает телефон целиком — там кадр только обрезанный.
-  const framing: ScreenshotFraming = requested
-    ?? (width >= height ? "cropped" : framingFor(seed));
-
-  if (framing === "full") {
-    const dp = height / device[1];
-    return {
-      dp,
-      device,
-      screen: { width: Math.round(device[0] * dp), height },
-      framing,
-      chatDp: device[1] - (BAR_DP.status + BAR_DP.header + BAR_DP.panel),
-    };
-  }
-
+  const framing: ScreenshotFraming = requested ?? framingFor(seed);
+  // Ширина холста = ширина экрана в любом кадре: полей у скриншота не бывает.
   const dp = width / device[0];
-  return {
-    dp,
-    device,
-    screen: { width, height },
-    framing,
-    chatDp: height / dp - BAR_DP.panel,
-  };
+  // Верхний кадр отдаёт ленте всё, что осталось под строкой состояния и
+  // шапкой; нижний — всё, что осталось над полем ввода.
+  const chatDp = height / dp
+    - (framing === "top" ? BAR_DP.status + BAR_DP.header : BAR_DP.panel);
+
+  return { dp, device, screen: { width, height }, framing, chatDp };
 }
 
 /**
@@ -458,33 +451,55 @@ function bubbleText(raw: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
 }
 
-/** Хвостик пузыря — путь из веб-клиента Telegram, 6×17 dp. */
+/**
+ * Хвостик пузыря — путь из веб-клиента Telegram, ПЕРЕСЧИТАННЫЙ В БОКС 11×20 dp.
+ *
+ * Дефект приёмки 2026-09-08: «хвостик исходящего пузыря смотрит вверх». Причина
+ * не в рисунке, а в боксе. Путь взят из веб-клиента с его собственным
+ * `viewBox 0 0 6 17` (отношение ширины к высоте 0,35), а Telegram рисует ту же
+ * фигуру в боксе 11×20 (0,55). Бокс пути был принят за размер в dp — фигура
+ * вышла в 1,6 раза уже и читалась как шип вверх, а не как хук у нижнего угла.
+ *
+ * Координаты пересчитаны ЧИСЛАМИ (x × 11/6, y × 20/17), а не растянуты
+ * `preserveAspectRatio="none"`: у Satori свой разбор SVG, и полагаться на
+ * тонкость масштабирования там, где уже молча пропадал хвостик от слитных
+ * флагов дуги, незачем. Радиусы дуги пересчитаны теми же множителями.
+ *
+ * ⚠ Флаги дуги записаны через пробелы (`0 0 1`), а не слитно (`016`): слитную
+ * сокращённую запись из веб-клиента разбирает браузер, но не Satori — хвостик
+ * исходящего пузыря от неё пропадал молча, без ошибки в прогоне.
+ */
+export const TAIL_DP = { width: 11, height: 20 } as const;
 //
-// ⚠ Флаги дуги записаны через пробелы (`0 0 1`), а не слитно (`016`): слитную
-// сокращённую запись из веб-клиента разбирает браузер, но не Satori — хвостик
-// исходящего пузыря от неё пропадал молча, без ошибки в прогоне.
-const TAIL_IN =
-  "M6 17H0V0c.193 2.84.876 5.767 2.05 8.782.904 2.325 2.446 4.485 4.625 6.48A1 1 0 0 1 6 17z";
-const TAIL_OUT =
-  "M0 17h6V0c-.193 2.84-.876 5.767-2.05 8.782-.904 2.325-2.446 4.485-4.625 6.48A1 1 0 0 0 0 17z";
+// ⚠ И ВТОРАЯ ПОЛОВИНА ТОГО ЖЕ ДЕФЕКТА: фигуры стояли зеркально наоборот.
+// Хвостик прирастает к пузырю ВДОЛЬ его боковой грани — то есть прямая
+// вертикальная сторона фигуры смотрит В ПУЗЫРЬ, а наружу уходит вогнутая дуга.
+// В прежней редакции прямая сторона стояла снаружи, и фигура читалась как
+// отдельный шип вверх, приклеенный к пузырю одной нижней точкой. Имена теперь
+// по СТОРОНЕ ЭКРАНА (`LEFT`/`RIGHT`), а не по типу сообщения: именно подмена
+// «входящий ↔ левый» и позволила перепутать их молча.
+const TAIL_RIGHT =
+  "M11 20H0V0c.354 3.341 1.606 6.784 3.758 10.332 1.657 2.735 4.484 5.276 8.479 7.624A1.83 1.18 0 0 1 11 20z";
+const TAIL_LEFT =
+  "M0 20h11V0c-.354 3.341-1.606 6.784-3.758 10.332-1.657 2.735-4.484 5.276-8.479 7.624A1.83 1.18 0 0 0 0 20z";
 
 /**
- * Полный экран или обрезанный сверху.
+ * Какой край экрана попал в кадр.
  *
  * Владелец 2026-09-08: «Представь что ты — пользователь, который делает
  * скриншот реальной переписки — ты делаешь скриншот, а затем принимаешь решение
- * "обрезать его" или "не обрезать" […] Если требуется показать только часть
- * диалога, то показывается обычно только последняя (нижняя) часть диалога,
- * соответственно шапка обрезана».
+ * "обрезать его" или "не обрезать"». Обрезают всегда по краю: либо оставляют
+ * низ с последними репликами и полем ввода (`bottom`), либо верх с шапкой и
+ * началом видимой переписки (`top`). Оба кадра — настоящие куски экрана и оба
+ * занимают холст целиком.
  *
- * Поэтому вариантов ровно два, и оба — настоящие: либо экран целиком (строка
- * состояния, шапка, лента, поле ввода), либо кадр без верха — лента и поле
- * ввода. Обрезать низ нельзя: снизу поле ввода, оно на экране всегда.
+ * Верхний кадр нужен не для разнообразия: только в нём видно имя собеседника и
+ * подпись присутствия — то, ради чего шапка и рисовалась.
  */
-export type ScreenshotFraming = "full" | "cropped";
+export type ScreenshotFraming = "top" | "bottom";
 
 export function framingFor(seed: string): ScreenshotFraming {
-  return pick(seed, "framing", 10) < 4 ? "cropped" : "full";
+  return pick(seed, "framing", 10) < 4 ? "top" : "bottom";
 }
 
 export function ChatMockupArt(input: CoverInput) {
@@ -504,6 +519,9 @@ export function ChatMockupArt(input: CoverInput) {
     reply: bubbleText(input.responsePreview || replyFor(input.slotKey, topic), 60),
     chatDp,
     maxBubbleDp,
+    // В верхнем кадре реплика поста стоит НАВЕРХУ ленты: за нижний срез уходит
+    // хвост переписки, а не то, ради чего картинка рисуется.
+    anchor: framing === "top" ? "top" : "bottom",
   });
   const last = thread[thread.length - 1].time;
   const statusClock = formatClock(
@@ -673,30 +691,20 @@ export function ChatMockupArt(input: CoverInput) {
         width: "100%",
         height: "100%",
         display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+        flexDirection: "column",
         overflow: "hidden",
-        // Поля вокруг целого экрана — чёрные: так скриншот и лежит в ленте,
-        // когда его публикуют как есть, а не подгоняют под формат площадки.
-        backgroundColor: framing === "full" ? "#000000" : TG.wallpaper,
+        // Полей у скриншота не бывает: экран занимает холст целиком, а лишнее
+        // уходит за срез — сверху или снизу, смотря какой кадр.
+        backgroundColor: TG.wallpaper,
         fontFamily: "Roboto",
         color: TG.inText,
       }}
     >
-    <div
-      style={{
-        width: `${metrics.screen.width}px`,
-        height: `${metrics.screen.height}px`,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        backgroundColor: TG.wallpaper,
-      }}
-    >
-      {framing === "full" ? statusBar : null}
-      {framing === "full" ? header : null}
+      {framing === "top" ? statusBar : null}
+      {framing === "top" ? header : null}
 
-      {/* Лента. Прижата книзу и обрезана сверху — как прокрученный чат. */}
+      {/* Лента. В нижнем кадре прижата книзу и обрезана сверху, в верхнем —
+          начинается под шапкой и уходит за нижний срез. */}
       <div
         style={{
           display: "flex",
@@ -707,7 +715,7 @@ export function ChatMockupArt(input: CoverInput) {
           flexGrow: 1,
           flexShrink: 1,
           minHeight: 0,
-          justifyContent: "flex-end",
+          justifyContent: framing === "top" ? "flex-start" : "flex-end",
           overflow: "hidden",
           padding: `${px(8)}px ${px(9)}px`,
         }}
@@ -725,7 +733,10 @@ export function ChatMockupArt(input: CoverInput) {
               style={{
                 display: "flex",
                 justifyContent: isIn ? "flex-start" : "flex-end",
-                padding: `0 ${px(6)}px`,
+                // 11 dp — ширина хвостика: он рисуется ЗА гранью пузыря, и без
+                // этого запаса его кончик упирался в край экрана, чего в
+                // Telegram не бывает (там от кончика до края те же ~9 dp).
+                padding: `0 ${px(TAIL_DP.width)}px`,
                 // Отступ задаёт ПРЕДЫДУЩЕЕ сообщение: серия с одной стороны в
                 // Telegram стоит плотно (2 dp), смена стороны — с воздухом.
                 marginTop: index === 0 ? 0 : px(thread[index - 1].side === line.side ? 2 : 6),
@@ -756,18 +767,20 @@ export function ChatMockupArt(input: CoverInput) {
               >
                 {tailed ? (
                   <svg
-                    width={px(6)}
-                    height={px(17)}
-                    viewBox="0 0 6 17"
+                    width={px(TAIL_DP.width)}
+                    height={px(TAIL_DP.height)}
+                    viewBox={`0 0 ${TAIL_DP.width} ${TAIL_DP.height}`}
                     fill="none"
                     style={{
                       position: "absolute",
-                      ...(isIn ? { left: `${-px(6)}px` } : { right: `${-px(6)}px` }),
+                      ...(isIn
+                        ? { left: `${-px(TAIL_DP.width)}px` }
+                        : { right: `${-px(TAIL_DP.width)}px` }),
                       bottom: 0,
                       display: "flex",
                     }}
                   >
-                    <path d={isIn ? TAIL_IN : TAIL_OUT} fill={isIn ? TG.inBubble : TG.outBubbleTop} />
+                    <path d={isIn ? TAIL_LEFT : TAIL_RIGHT} fill={isIn ? TG.inBubble : TG.outBubbleTop} />
                   </svg>
                 ) : null}
                 <div
@@ -805,7 +818,9 @@ export function ChatMockupArt(input: CoverInput) {
         })}
       </div>
 
-      {/* Поле ввода — 48 dp: смайл, подсказка, скрепка, микрофон. */}
+      {/* Поле ввода — 48 dp: смайл, подсказка, скрепка, микрофон. В верхнем
+          кадре его нет: оно осталось ниже среза. */}
+      {framing === "bottom" ? (
       <div
         style={{
           display: "flex",
@@ -830,7 +845,7 @@ export function ChatMockupArt(input: CoverInput) {
           <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" stroke={TG.panelIcon} strokeWidth={1.8} strokeLinecap="round" />
         </svg>
       </div>
-    </div>
+      ) : null}
     </div>
   );
 }

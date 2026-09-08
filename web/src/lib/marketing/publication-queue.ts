@@ -517,6 +517,11 @@ export async function generateMarketingDrafts(input: {
             // B700 фазы 9–10: структурированный бриф и ключевые тезисы
             outline: slot.outline,
             keyPoints: slot.keyPoints,
+            // B733: требования формата сильнее общей рубрики. Держатся в
+            // строке материала, а не вычисляются при редактуре: формат мог
+            // измениться в библиотеке, а материал уже написан под прежний.
+            formatRules: slot.formatRules,
+            formatMedia: slot.formatMedia,
           }),
           source: "CRON_B589",
           autoPublish: false,

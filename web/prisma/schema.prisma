@@ -1440,6 +1440,34 @@ model MarketingDailySnapshot {
   @@map("marketing_daily_snapshots")
 }
 
+/// B732 — ПЛАТНАЯ ОБЛОЖКА, СГЕНЕРИРОВАННАЯ МОДЕЛЬЮ.
+///
+/// Байты лежат в базе, а не на диске ноды: флот — четыре ноды за балансировщиком
+/// ([[project_b473_container_deploy]]), контейнер эфемерен, и картинка, записанная
+/// на диск одной ноды, отдавалась бы 404 с трёх остальных.
+///
+/// Строка на материал (`key` уникален): картинка стоит денег, и повторная
+/// генерация при каждом обращении к обложке превратила бы одобренный владельцем
+/// $1,13/мес в счёт, зависящий от того, сколько раз Meta сходила за файлом.
+model MarketingCoverImage {
+  id        String   @id @default(cuid())
+  /// Ключ материала (`ExternalPublication.key`). Связи нет намеренно: картинка
+  /// переживает архивацию строки и остаётся доказательством расхода.
+  key       String   @unique
+  platform  String
+  mimeType  String   @map("mime_type")
+  bytes     Bytes
+  /// Какая модель нарисовала — для приёмки глазами и для разбора счёта.
+  model     String
+  /// Во что обошлась картинка, в тысячных долях доллара (как в ai_budget_ledger).
+  costMicros Int     @default(0) @map("cost_micros")
+  prompt    String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([platform, createdAt])
+  @@map("marketing_cover_images")
+}
+
 model MarketingAutomationSignal {
   id              String   @id @default(cuid())
   key             String   @unique

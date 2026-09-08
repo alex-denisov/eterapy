@@ -1,6 +1,5 @@
 import { stripImageMetadata, hasAiImageMetadata } from "@/lib/marketing/image-hygiene";
 import { CoverArt, ChatMockupArt } from "@/lib/marketing/cover-art";
-import { generateMarketingImage } from "@/lib/marketing/image-generation";
 
 // Минимальные валидные 1x1 base64 буферы
 const SAMPLE_PNG = Buffer.from(
@@ -98,59 +97,14 @@ describe("B725: Visual Conveyor, Chat Mockup & Image Hygiene", () => {
     expect(chat).toBeDefined();
   });
 
-  it("generateMarketingImage вызывает Imagen 3 и при успехе очищает буфер", async () => {
-    const mockFetch = jest.fn(async (url: string) => {
-      if (url.includes("generativelanguage.googleapis.com")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            predictions: [{ bytesBase64Encoded: SAMPLE_JPEG.toString("base64") }],
-          }),
-        } as unknown as Response;
-      }
-      return { ok: false, status: 500 } as unknown as Response;
-    });
-
-    process.env.GEMINI_API_KEY = "test-gemini-key";
-    const result = await generateMarketingImage({
-      prompt: "Anya curator working with laptop, warm ambient lighting",
-      aspectRatio: "1:1",
-      fetchImpl: mockFetch as unknown as typeof fetch,
-    });
-
-    expect(result).not.toBeNull();
-    expect(result?.provider).toBe("imagen-3");
-    expect(result?.buffer).toBeInstanceOf(Buffer);
-    expect(await hasAiImageMetadata(result!.buffer)).toBe(false);
-  });
-
-  it("generateMarketingImage переключается на FLUX.1 при отказе Imagen 3", async () => {
-    const mockFetch = jest.fn(async (url: string) => {
-      if (url.includes("generativelanguage.googleapis.com")) {
-        return { ok: false, status: 429, text: async () => "Quota exceeded" } as unknown as Response;
-      }
-      if (url.includes("openrouter.ai")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            data: [{ b64_json: SAMPLE_PNG.toString("base64") }],
-          }),
-        } as unknown as Response;
-      }
-      return { ok: false, status: 500 } as unknown as Response;
-    });
-
-    process.env.OPENROUTER_API_KEY = "test-openrouter-key";
-    const result = await generateMarketingImage({
-      prompt: "Lifestyle photo of coffee cup and notebook",
-      aspectRatio: "1:1",
-      fetchImpl: mockFetch as unknown as typeof fetch,
-    });
-
-    expect(result).not.toBeNull();
-    expect(result?.provider).toBe("flux-1");
-    expect(result?.buffer).toBeInstanceOf(Buffer);
-  });
+  /**
+   * B732 — два прогона «generateMarketingImage» удалены вместе с модулем.
+   *
+   * Они были зелёными всё время, пока механизм был мёртв: мок отвечал за
+   * `generativelanguage.googleapis.com`, ключ подставлялся в `process.env`
+   * прямо в тесте, а на проде ни этой переменной, ни модели
+   * `imagen-3.0-generate-002` (выключена Google) не существовало. Проверка
+   * платной обложки живёт теперь в `b732-paid-cover-images.test.ts` и меряет
+   * учётку из ХРАНИЛИЩА ШЛЮЗА, а не из окружения.
+   */
 });

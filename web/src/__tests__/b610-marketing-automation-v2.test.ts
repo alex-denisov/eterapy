@@ -27,13 +27,15 @@ describe("B610 · rolling marketing automation", () => {
 
     // B713: у Telegram три слота в сутки вместо двух — вечерний вернулся в
     // план вслед за окнами публикации, отсюда 54 → 61 и 14 → 21 у telegram.
-    expect(plan).toHaveLength(61);
+    // B733: у Threads расписание перестало быть ровным (каждые третьи сутки —
+    // один пост вместо двух), отсюда 61 → 59 и 14 → 12 у threads.
+    expect(plan).toHaveLength(59);
     // 14 суток Дзена покрывают каждую дату своего горизонта; дальше стоят
     // только даты Reddit — отсюда пятнадцать дат, а не двадцать одна.
     expect(dates.size).toBe(15);
     expect(counts).toEqual({
       telegram: 21,
-      threads: 14,
+      threads: 12,
       instagram: 3,
       vk: 7,
       dzen: 14,

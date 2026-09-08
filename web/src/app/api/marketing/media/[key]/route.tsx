@@ -5,6 +5,7 @@ import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 import { ogFonts } from "@/lib/marketing/cover-fonts";
 import { ogEmoji } from "@/lib/marketing/cover-emoji";
 import { chatTopicFor } from "@/lib/marketing/chat-thread";
+import { storedPaidCover } from "@/lib/marketing/cover-image";
 
 export const runtime = "nodejs";
 
@@ -56,6 +57,25 @@ export async function GET(
    */
   const url = new URL(_request.url);
   const requestedLayout = url.searchParams.get("layout");
+
+  /**
+   * B732 — платная обложка отдаётся БАЙТАМИ из базы, а не рисуется заново.
+   *
+   * Отсутствие строки не 404: материал мог быть утверждён до выкатки платных
+   * обложек или откатиться на шаблон при исчерпанном потолке. В обоих случаях
+   * честный ответ — шаблон Satori, а не битая картинка в чужой ленте.
+   */
+  if (requestedLayout === "paid") {
+    const stored = await storedPaidCover(key);
+    if (stored) {
+      return new Response(new Uint8Array(stored.bytes), {
+        headers: {
+          "Content-Type": stored.mimeType,
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+  }
   const decided = coverLayoutFor({
     title: publication.title,
     body: publication.body,

@@ -12,6 +12,7 @@
  * него ищется час, когда его аудитория к нему готова, — а не наоборот.
  */
 
+import { threadsFormatFor } from "@/lib/marketing/post-formats";
 import {
   publishWindow,
   type ContentClass,
@@ -49,6 +50,20 @@ export interface ContentPlanSlot {
   outline?: readonly string[];
   /** B700 фазы 9–10: ключевые тезисы для раскрытия в материале. */
   keyPoints?: readonly string[];
+  /**
+   * B733 — ТРЕБОВАНИЯ ФОРМАТА, которые сильнее общей рубрики.
+   *
+   * Пост-шутка не обязан нести пользу и призыв. Без явной строки об этом в
+   * задаче редактор режет его по своей рубрике — и ровно это делало ленту
+   * ровной. Правила уходят И автору, И редактору одной строкой реестра.
+   */
+  formatRules?: readonly string[];
+  /**
+   * B733 — нужна ли формату картинка. `none` означает, что материал выходит
+   * ТЕКСТОМ: владелец 2026-09-08 — «посты в Threads не обязательно вообще
+   * должны иметь скриншоты».
+   */
+  formatMedia?: "none" | "chat_mockup" | "art";
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -175,10 +190,11 @@ const TELEGRAM_FORMATS: readonly FormatSpec[] = [
   ["дневная мини-практика", "один наблюдаемый жизненный вопрос и действие на 2 минуты", "practice"],
   ["вечерняя мистическая история", "короткая история с открытым вопросом, а не готовой моралью", "story"],
 ];
-const THREADS_FORMATS: readonly FormatSpec[] = [
-  ["короткое наблюдение", "узнаваемая бытовая сцена с сухой самоиронией", "card"],
-  ["вопрос для разговора", "неоднозначный, но безопасный тезис, на который хочется ответить", "discussion"],
-];
+// B733 — форматы Threads переехали в `post-formats.ts`: там у каждого своя
+// конструкция, свой вес и СВОИ требования (пост-шутке не нужны польза и CTA).
+// Двух форматов «короткое наблюдение» и «вопрос для разговора» на всю ленту и
+// давали тот самый один сценарий, из-за которого лучший пост за 30 суток
+// набрал 66 просмотров.
 const INSTAGRAM_FORMATS: readonly FormatSpec[] = [
   ["визуальная карточка", "одна сильная мысль, сохраняемый вывод и предметный caption", "card"],
   ["мини-разбор", "сцена, объяснение и один применимый шаг без псевдонаучных обещаний", "explainer"],
@@ -311,7 +327,19 @@ function slotsPerDay(channel: PlanChannel, date: string): number {
     // очереди («слот снят из контент-плана») — 72 таких снятия за две недели,
     // больше, чем по любой другой причине. Решение владельца 2026-08-17.
     case "telegram": return 3;
-    case "threads": return 2;
+    /**
+     * B733 — РАСПИСАНИЕ THREADS НЕРОВНОЕ.
+     *
+     * Требование владельца 2026-09-08: пост не должен выходить «по одному и
+     * тому же расписанию». Живой аккаунт пишет то дважды за день, то один раз,
+     * и ровная сетка «две штуки каждые сутки» сама по себе читается как бот.
+     *
+     * ⚠ Больше двух в сутки поставить НЕЛЬЗЯ: у Threads в `publish-windows.ts`
+     * объявлены два времени суток (день и вечер), и третий слот молча
+     * исчезал бы в `publishWindow → null`. Ровно этот разрыв между таблицей
+     * окон и планом B713 нашёл у Telegram — 72 снятия слота за две недели.
+     */
+    case "threads": return (((day % 3) + 3) % 3) === 0 ? 1 : 2;
     case "vk": return 1;
     case "dzen": return 1;
     case "instagram": return every(2);
@@ -361,6 +389,9 @@ function slot(input: {
   daypart: Daypart;
   toleranceMs: number;
   order: number;
+  /** B733 — требования формата, которые сильнее общей рубрики редактора. */
+  formatRules?: readonly string[];
+  formatMedia?: "none" | "chat_mockup" | "art";
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
@@ -378,6 +409,8 @@ function slot(input: {
     toleranceMs: input.toleranceMs,
     outline: defaultSlotOutline(input.topic.cluster, input.format),
     keyPoints: defaultSlotKeyPoints(input.topic.cluster, input.topic.targetQuery),
+    ...(input.formatRules ? { formatRules: input.formatRules } : {}),
+    ...(input.formatMedia ? { formatMedia: input.formatMedia } : {}),
   };
 }
 
@@ -447,16 +480,17 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   datesFor("threads").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("threads", date); sequence++) {
-      const [format, editorialAngle, contentClass] =
-        THREADS_FORMATS[(((day + sequence) % THREADS_FORMATS.length) + THREADS_FORMATS.length) % THREADS_FORMATS.length];
+      const chosen = threadsFormatFor(day, sequence);
       push({
         channel: "threads",
         date,
         topic: topicAt(day * 2 + sequence, 5),
         sequence: sequence + 1,
-        format,
-        editorialAngle,
-        contentClass,
+        format: chosen.label,
+        editorialAngle: chosen.construction,
+        contentClass: chosen.contentClass,
+        formatRules: chosen.rules,
+        formatMedia: chosen.media,
       });
     }
   });

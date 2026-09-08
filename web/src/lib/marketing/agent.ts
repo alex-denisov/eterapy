@@ -80,6 +80,7 @@ import { pickBestDraft } from "@/lib/marketing/best-draft";
 import { platformContract, type PlatformContract } from "@/lib/marketing/platform-playbook";
 import { resolvePlatformContract } from "@/lib/marketing/playbook-settings";
 import { coverLayoutFor } from "@/lib/marketing/cover-layout";
+import { generatePaidCover, isPaidCoverPlatform } from "@/lib/marketing/cover-image";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
@@ -1425,6 +1426,9 @@ export async function processMarketingDraft(publicationId: string) {
     editorialAngle?: string;
     outline?: string[];
     keyPoints?: string[];
+    /** B733 — требования формата: они сильнее общей рубрики редактора. */
+    formatRules?: string[];
+    formatMedia?: "none" | "chat_mockup" | "art";
   } | null = null;
   if (publication.notes) {
     try {
@@ -1467,6 +1471,10 @@ export async function processMarketingDraft(publicationId: string) {
     editorialAngle: parsedNotes?.editorialAngle ?? null,
     outline: parsedNotes?.outline ?? null,
     keyPoints: parsedNotes?.keyPoints ?? null,
+    // B733: требования ФОРМАТА уходят и автору, и редактору одним полем.
+    // Пост-шутка не обязан нести пользу и призыв, и без этой строки редактор
+    // режет его по общей рубрике — ровно это и делало ленту ровной.
+    formatRules: parsedNotes?.formatRules ?? null,
     destinationUrl: isConversational ? null : publication.destinationUrl,
     // Для ответа на входящее это НАШ разговор: человек написал нам сам, и его
     // текст — адресат ответа, а не свидетельство спроса.
@@ -2039,15 +2047,42 @@ export async function processMarketingDraft(publicationId: string) {
     const nextStatus = isConversational
       ? "REVIEW"
       : approvedStatusForPlatform(platform);
+    /**
+     * B732 — платная обложка рисуется ОДИН раз, при утверждении материала.
+     *
+     * Здесь, а не в маршруте отдачи файла: за обложкой ходят Meta, Дзен и кто
+     * угодно ещё, сколько угодно раз, и генерация «по обращению» превратила бы
+     * одобренный владельцем $1,13/мес в счёт, зависящий от числа скачиваний.
+     *
+     * Только Дзен и Instagram (`isPaidCoverPlatform`). Отказ по любой причине —
+     * потолок, нет учётки, отказ модели — возвращает `null`, и материал уходит
+     * с 0-токенным шаблоном Satori; причина остаётся в логе.
+     */
+    const paidCover = !isConversational && isPaidCoverPlatform(platform)
+      ? await generatePaidCover({
+        key: publication.key,
+        platform,
+        title: approvedDraft.title?.trim() || publication.title,
+        cluster: publication.cluster,
+        mediaBrief: approvedDraft.mediaBrief,
+      })
+      : null;
+
     const updated = await db.externalPublication.update({
       where: { id: publication.id },
       data: {
         title: approvedDraft.title?.trim() || publication.title,
         body: approvedDraft.text.trim(),
-        mediaUrl: isConversational
+        mediaUrl: isConversational || parsedNotes?.formatMedia === "none"
+          // B733: формат вправе выйти ТЕКСТОМ. Владелец 2026-09-08: «посты в
+          // Threads не обязательно вообще должны иметь скриншоты». Обложка,
+          // прицепленная к однострочной шутке, выдаёт заготовку.
           ? null
           : (() => {
               const baseUrl = `https://eterapy.com/api/marketing/media/${encodeURIComponent(publication.key)}`;
+              // Нарисованная модель лежит в базе под ключом материала — маршрут
+              // отдаёт её байтами, ничего не пересчитывая.
+              if (paidCover) return `${baseUrl}?layout=paid`;
               /**
                * B727 — раскладку выбирает общее правило по ТЕЛУ материала.
                * Прежняя проверка спрашивала заголовок и не сработала ни разу:

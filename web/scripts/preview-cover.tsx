@@ -41,7 +41,7 @@ async function main() {
         messageText={arg("message", "Ты стала какой-то чужой, я не понимаю, что происходит")}
         responsePreview={arg("response", "") || undefined}
         topic={(arg("topic", "") || undefined) as ChatTopic | undefined}
-        framing={(arg("framing", "") || undefined) as "full" | "cropped" | undefined}
+        framing={(arg("framing", "") || undefined) as "top" | "bottom" | undefined}
         emoji={emoji}
       />
     ),

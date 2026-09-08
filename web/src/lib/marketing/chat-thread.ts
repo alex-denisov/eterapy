@@ -411,30 +411,61 @@ export function buildThread(input: {
   reply: string;
   chatDp: number;
   maxBubbleDp: number;
+  /**
+   * Где в кадре стоит пара «реплика поста → наш ответ».
+   *
+   * `bottom` — у нижнего среза: кадр показывает конец переписки, и всё
+   * лишнее уходит за верхний край. `top` — у верхнего среза: кадр показывает
+   * шапку и начало видимой переписки, поэтому пара обязана быть ВВЕРХУ, иначе
+   * за нижний срез уйдёт ровно то, ради чего картинка рисуется.
+   */
+  anchor?: "top" | "bottom";
 }): ThreadLine[] {
-  const { seed, topic, quote, reply, chatDp, maxBubbleDp } = input;
+  const { seed, topic, quote, reply, chatDp, maxBubbleDp, anchor = "bottom" } = input;
   const lines: { side: "in" | "out"; text: string }[] = [
     { side: "in", text: quote },
     { side: "out", text: reply },
   ];
   let height = bubbleHeightDp(quote, maxBubbleDp) + bubbleHeightDp(reply, maxBubbleDp);
 
-  const depth = chatDp + 30 + pick(seed, "depth", 50);
-  for (let index = 0; index < 18 && height < depth; index += 1) {
-    const previous = lines[0].side;
-    const wasRun = lines[0] && lines[1] && lines[0].side === lines[1].side;
+  const flip = (side: "in" | "out"): "in" | "out" => (side === "in" ? "out" : "in");
+  const filler = (index: number, previous: "in" | "out", wasRun: boolean) => {
     // Серия из трёх подряд с одной стороны выглядит неестественно чаще, чем
     // встречается, поэтому третью подряд запрещаем.
     const side: "in" | "out" = wasRun
-      ? previous === "in" ? "out" : "in"
+      ? flip(previous)
       : pick(seed, `side${index}`, 10) < 6
-        ? previous === "in" ? "out" : "in"
+        ? flip(previous)
         : previous;
     const profane = pick(seed, `mat${index}`, 100) < PROFANITY_CHANCE;
     const pool = profane ? PROFANE[side] : LINES[topic][side];
-    const text = pool[pick(seed, `filler${index}`, pool.length)];
-    lines.unshift({ side, text });
-    height += bubbleHeightDp(text, maxBubbleDp);
+    return { side, text: pool[pick(seed, `filler${index}`, pool.length)] };
+  };
+
+  const depth = chatDp + 30 + pick(seed, "depth", 50);
+
+  if (anchor === "top") {
+    // Пара стоит почти у самого верха: одна-две реплики выше неё показывают,
+    // что переписка шла и раньше, а всё остальное дописывается ПОД ней и
+    // уходит за нижний срез.
+    const lead = pick(seed, "lead", 3);
+    for (let index = 0; index < lead; index += 1) {
+      const line = filler(index, lines[0].side, lines[0].side === lines[1].side);
+      lines.unshift(line);
+      height += bubbleHeightDp(line.text, maxBubbleDp);
+    }
+    for (let index = lead; index < 18 && height < depth; index += 1) {
+      const last = lines[lines.length - 1];
+      const line = filler(index, last.side, lines[lines.length - 2]?.side === last.side);
+      lines.push(line);
+      height += bubbleHeightDp(line.text, maxBubbleDp);
+    }
+  } else {
+    for (let index = 0; index < 18 && height < depth; index += 1) {
+      const line = filler(index, lines[0].side, lines[0].side === lines[1].side);
+      lines.unshift(line);
+      height += bubbleHeightDp(line.text, maxBubbleDp);
+    }
   }
 
   // Время идёт по возрастанию к низу: последняя пара — «только что».
