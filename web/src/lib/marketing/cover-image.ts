@@ -2,7 +2,8 @@
  * B732 — ПЛАТНАЯ ОБЛОЖКА ДЛЯ ДЗЕНА И INSTAGRAM.
  *
  * Решение владельца 2026-09-07 дословно: «да, картинки для Дзена и Instagram
- * одобряю, $1,13 нормально». Это 29 постов в месяц по $0,039 за картинку.
+ * одобряю, $1,13 нормально». Это 29 постов в месяц; на выбранной модели
+ * (замер 2026-09-09) выходит $0,29/мес — вчетверо ниже одобренного рубежа.
  * Остальные площадки остаются на 0-токенных шаблонах Satori (B718, B731) — не
  * ради экономии, а потому что шаблон повторяем, мгновенен и не выдумывает лиц.
  *
@@ -49,44 +50,51 @@ import { stripImageMetadata } from "@/lib/marketing/image-hygiene";
 export const PAID_COVER_PLATFORMS = ["dzen", "instagram"] as const;
 
 /**
- * Модель — решение владельца 2026-09-08 по итогам живого замера.
+ * Модель — живой замер с боевой ноды, два захода.
  *
  * Сравнение на НАШЕМ промте обложки (Дзен 16:9 и Instagram 4:5), цены и время
  * сняты с фактических ответов, а не из прайса:
  *
  * | модель | Elo* | факт. цена | время | пропорция кадра |
  * |---|---|---|---|---|
- * | `google/gemini-3.1-flash-lite-image` | 1089 | $0,0336 | 4,2–4,4 с | **соблюдает** |
+ * | `meta/muse-image` | 1116 | **$0,01** | 14–18 с | **соблюдает** |
+ * | `google/gemini-3.1-flash-lite-image` (прежний выбор) | 1089 | $0,0336 | 4,2–4,4 с | соблюдает |
  * | `bytedance-seed/seedream-4.5` | 1006 | $0,040 | 7,2–7,7 с | игнорирует, всегда 2048×2048 |
  * | `black-forest-labs/flux.2-klein-4b` | 945 | $0,014 | 2,4–2,8 с | игнорирует, 1024×768 |
- * | `google/gemini-2.5-flash-image` (прежний выбор) | 991 | $0,039 | — | — |
+ * | `google/gemini-2.5-flash-image` (первый выбор) | 991 | $0,039 | — | — |
  *
  * *Elo — слепые голосования Image Arena (Artificial Analysis, сентябрь 2026).
  *
- * То есть выбранная модель одновременно ЛУЧШЕ и ДЕШЕВЛЕ той, что стояла здесь
- * раньше, и единственная из трёх отдаёт кадр в запрошенной пропорции —
- * остальным пришлось бы кадрировать квадрат, теряя композицию.
- *
- * `meta/muse-image` ($0,01 при Elo 1116) в замер не попал: OpenRouter требует
- * одноразового подтверждения 18+ в настройках аккаунта владельца. Если
- * подтверждение появится, он кандидат номер один — втрое дешевле нынешней.
+ * 2026-09-09 владелец подтвердил 18+ в настройках аккаунта OpenRouter — до
+ * этого `meta/muse-image` отвечала отказом и в замер не попадала вовсе.
+ * Она одновременно выше по Elo и втрое дешевле: $0,29/мес против $0,97 при
+ * том же такте. Медленнее в четыре раза, и это ничего не стоит: обложку рисует
+ * фоновый воркер за сутки до выпуска, а не человек в ожидании ответа.
  */
-export const PAID_COVER_MODEL = "google/gemini-3.1-flash-lite-image";
+export const PAID_COVER_MODEL = "meta/muse-image";
 
 /**
- * $0,0336 за картинку — ФАКТ из ответа провайдера (`usage.cost`), а не прайс.
- * Хранится в тысячных долях доллара, как весь `ai_budget_ledger`; округление
- * вверх намеренное — потолок обязан срабатывать раньше настоящего рубежа, а не
- * позже.
+ * $0,01 за картинку — ФАКТ из ответа провайдера (`usage.cost`), а не прайс.
+ * Хранится в тысячных долях доллара, как весь `ai_budget_ledger`.
  */
-export const PAID_COVER_COST_MICROS = 34;
+export const PAID_COVER_COST_MICROS = 10;
+
+/**
+ * Формат картинки задаётся ЯВНО, и это не вкус.
+ *
+ * По умолчанию модель отдаёт WebP, а Instagram принимает от Meta только JPEG:
+ * обложка в WebP означала бы отказ публикации на витрине, то есть ровно на той
+ * площадке, ради которой платная картинка и заводилась. JPEG вдобавок в разы
+ * легче PNG того же кадра (замер: 0,3 МБ против 2,8 МБ).
+ */
+export const PAID_COVER_OUTPUT_FORMAT = "jpeg";
 
 /**
  * Сколько картинок в сутки максимум.
  *
  * Такт даёт 29 постов Дзена и Instagram в месяц — около одной картинки в сутки.
  * Потолок в две штуки оставляет запас на догоняющий слот и жёстко ограничивает
- * худший случай ~$2,0/мес: даже если конвейер сойдёт с ума, счёт не уедет на
+ * худший случай ~$0,6/мес: даже если конвейер сойдёт с ума, счёт не уедет на
  * порядок. Потолок задан ЧИСЛОМ КАРТИНОК, а не долларами, потому что цена
  * фиксированная, а «сколько картинок в день» владелец проверяет глазами.
  */
@@ -95,8 +103,18 @@ export const PAID_COVER_DAILY_LIMIT = Number(
 );
 
 const LEDGER_SCOPE_TYPE = "marketing-cover-image";
+/**
+ * Ключ строки расхода. Имя историческое (первой моделью была Gemini) и
+ * намеренно не переименовано: ключ адресует СЧЁТЧИК суток, и смена имени
+ * посреди суток обнулила бы потолок ровно тогда, когда он нужнее всего.
+ */
 const LEDGER_SCOPE_KEY = "gemini-image";
-const REQUEST_TIMEOUT_MS = 45_000;
+/**
+ * Рубеж ожидания. Выбранная модель отвечает 14–18 с — вчетверо медленнее
+ * прежней, поэтому прежние 45 с оставляли на разброс всего два ответа подряд.
+ * Ожидание ничего не стоит: обложку рисует фоновый воркер за сутки до выпуска.
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
 
 export function isPaidCoverPlatform(platform: string): boolean {
   return (PAID_COVER_PLATFORMS as readonly string[]).includes(platform.trim().toLowerCase());
@@ -166,16 +184,14 @@ export function paidCoverPrompt(input: {
 }
 
 /**
- * Ответ OpenRouter: картинка приезжает НЕ в `content`, а отдельным полем
- * `message.images[]` в виде data-URI. Текстовая часть при этом пустая, и
- * искать байты в `content` — верный способ решить, что модель не ответила.
+ * Ответ `/images`: байты лежат в `data[0].b64_json` ГОЛЫМ base64, без
+ * префикса `data:`, а тип файла назван отдельным полем `media_type`. Это не то
+ * же самое, что у `chat/completions`, где картинка приезжает data-URI внутри
+ * `message.images[]`, — перепутать форматы значит решить, что модель не
+ * ответила.
  */
-interface OpenRouterImageResponse {
-  choices?: Array<{
-    message?: {
-      images?: Array<{ image_url?: { url?: string } }>;
-    };
-  }>;
+interface OpenRouterImagesResponse {
+  data?: Array<{ b64_json?: string; media_type?: string }>;
   usage?: { cost?: number };
   error?: { message?: string };
 }
@@ -244,9 +260,20 @@ export async function generatePaidCover(input: {
      */
     const gateway = controlledGatewayUrlForProvider(AIProvider.OPENROUTER);
     const baseUrl = (gateway.url ?? "https://openrouter.ai/api/v1").replace(/\/+$/u, "");
+    const canvas = coverCanvas(platform);
     const fetchImpl = input.fetchImpl ?? fetch;
+    /**
+     * ⚠ КОНЕЧНАЯ ТОЧКА — `/images`, А НЕ `/chat/completions`.
+     *
+     * Выбранная модель рисует и только рисует: на `chat/completions` OpenRouter
+     * отвечает `404 "meta/muse-image is an image generation model and cannot be
+     * used with the chat/completions endpoint"`, а при `modalities: [image,
+     * text]` — «No endpoints found that support the requested output
+     * modalities». Обе строки читаются как «модель недоступна», хотя недоступна
+     * ровно та дверь, в которую стучались.
+     */
     const response = await fetchImpl(
-      `${baseUrl}/chat/completions`,
+      `${baseUrl}/images`,
       {
         method: "POST",
         headers: {
@@ -259,13 +286,14 @@ export async function generatePaidCover(input: {
         },
         body: JSON.stringify({
           model: PAID_COVER_MODEL,
-          messages: [{ role: "user", content: prompt }],
-          // Без `modalities` OpenRouter отвечает текстом: 404 «No endpoints
-          // found that support the requested output modalities» приходит,
-          // наоборот, когда просишь текст у модели, которая умеет только
-          // картинку. Пара `image, text` подходит выбранной модели — проверено
-          // живым вызовом.
-          modalities: ["image", "text"],
+          prompt,
+          // Пропорция задаётся ЧИСЛАМИ, а не только словами промта: с этим
+          // полем модель отдала ровно 16:9 и 4:5 (2048×1152 и 1408×1760),
+          // а промт «пропорция кадра» модели соблюдают в лучшем случае.
+          size: `${canvas.width}x${canvas.height}`,
+          n: 1,
+          output_format: PAID_COVER_OUTPUT_FORMAT,
+          response_format: "b64_json",
           // Фактическая стоимость ответа — она пишется в лог рядом с картинкой,
           // чтобы счёт можно было сверить, а не поверить прайсу.
           usage: { include: true },
@@ -282,19 +310,19 @@ export async function generatePaidCover(input: {
       return null;
     }
 
-    const payload = await response.json() as OpenRouterImageResponse;
-    const dataUri = payload.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    const parsed = dataUri ? /^data:(image\/[a-z+.-]+);base64,([\s\S]+)$/i.exec(dataUri) : null;
-    if (!parsed) {
-      // Модель вправе ответить текстом вместо картинки — например, отказом
-      // модерации. Это не сбой сети, и путать их в логе нельзя.
+    const payload = await response.json() as OpenRouterImagesResponse;
+    const data = payload.data?.[0]?.b64_json;
+    if (!data) {
+      // Модель вправе ответить отказом модерации вместо картинки. Это не сбой
+      // сети, и путать их в логе нельзя.
       log.warn("marketing.cover_image.no_image_in_response", {
         key: input.key, platform, error: payload.error?.message?.slice(0, 200),
       });
       return null;
     }
-    const mimeType = parsed[1];
-    const data = parsed[2];
+    // Тип берётся из ответа, а не из запрошенного формата: разойдутся — в базе
+    // окажется файл, чей заголовок врёт о содержимом, и наружу он уедет таким.
+    const mimeType = payload.data?.[0]?.media_type ?? `image/${PAID_COVER_OUTPUT_FORMAT}`;
     const reportedCost = payload.usage?.cost;
 
     // Расход записывается СРАЗУ после получения файла: картинка уже оплачена,

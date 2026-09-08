@@ -37,17 +37,15 @@ const CREDENTIAL = {
 } as never;
 
 function imageResponse(data = SAMPLE_PNG) {
-  // Картинка у OpenRouter приезжает НЕ в `content`, а отдельным полем
-  // `message.images[]` в виде data-URI: искать байты в `content` — верный
-  // способ решить, что модель не ответила.
+  // Ответ `/images`: голый base64 в `data[0].b64_json` и тип файла отдельным
+  // полем `media_type`. Data-URI, как у `chat/completions`, здесь НЕ приходит,
+  // и искать его — верный способ решить, что модель не ответила.
   return {
     ok: true,
     status: 200,
     json: async () => ({
-      choices: [{
-        message: { content: "", images: [{ image_url: { url: `data:image/png;base64,${data}` } }] },
-      }],
-      usage: { cost: 0.03361475 },
+      data: [{ b64_json: data, media_type: "image/png" }],
+      usage: { cost: 0.01 },
     }),
   } as unknown as Response;
 }
@@ -70,10 +68,11 @@ function fakeClient(options: { drawnToday?: number } = {}) {
 
 describe("B732 — платная обложка для Дзена и Instagram", () => {
   it("модель — та, что выиграла живой замер: лучше и дешевле прежней", () => {
-    // Решение владельца 2026-09-08 после сравнения на нашем промте обложки:
-    // Elo 1089 против 991 у `gemini-2.5-flash-image` при $0,0336 против $0,039.
-    expect(PAID_COVER_MODEL).toBe("google/gemini-3.1-flash-lite-image");
-    expect(PAID_COVER_COST_MICROS).toBe(34);
+    // Живой замер 2026-09-09, после подтверждения 18+ в аккаунте OpenRouter:
+    // Elo 1116 против 1089 у `gemini-3.1-flash-lite-image` при $0,01 против
+    // $0,0336 — выше и втрое дешевле, кадр в запрошенной пропорции.
+    expect(PAID_COVER_MODEL).toBe("meta/muse-image");
+    expect(PAID_COVER_COST_MICROS).toBe(10);
   });
 
   it("рисуется только там, где её одобрил владелец", () => {
@@ -109,8 +108,16 @@ describe("B732 — платная обложка для Дзена и Instagram"
 
     expect(result).not.toBeNull();
     expect(result?.model).toBe(PAID_COVER_MODEL);
-    expect(seen[0].url).toMatch(/\/chat\/completions$/);
-    expect(JSON.parse(String(seen[0].init.body)).model).toBe(PAID_COVER_MODEL);
+    // ⚠ Конечная точка — `/images`: на `chat/completions` выбранная модель
+    // отвечает 404 «is an image generation model and cannot be used with the
+    // chat/completions endpoint», а это читается как «модель недоступна».
+    expect(seen[0].url).toMatch(/\/images$/);
+    const body = JSON.parse(String(seen[0].init.body));
+    expect(body.model).toBe(PAID_COVER_MODEL);
+    // Пропорция уходит числами, а не только словами промта.
+    expect(body.size).toBe("1200x675");
+    // JPEG, а не WebP по умолчанию: Instagram принимает от Meta только JPEG.
+    expect(body.output_format).toBe("jpeg");
     // Ключ уходит заголовком: строка запроса попадает в журналы прокси целиком.
     expect((seen[0].init.headers as Record<string, string>).Authorization)
       .toBe("Bearer key-from-gateway-store");
@@ -152,7 +159,7 @@ describe("B732 — платная обложка для Дзена и Instagram"
       ["ответ без картинки", async () => ({
         ok: true,
         status: 200,
-        json: async () => ({ choices: [{ message: { content: "не могу" } }] }),
+        json: async () => ({ data: [], error: { message: "не могу" } }),
       } as unknown as Response)],
       ["сеть молчит", async () => { throw new Error("ETIMEDOUT"); }],
     ];
