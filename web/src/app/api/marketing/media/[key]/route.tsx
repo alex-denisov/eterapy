@@ -81,8 +81,16 @@ export async function GET(
     body: publication.body,
     cluster: publication.cluster,
   });
-  const isChat = requestedLayout === "chat_mockup"
-    || (!requestedLayout && decided.layout === "chat_mockup");
+  /**
+   * ⚠ B731 (стенд 2026-09-08): мокап РИСУЕТСЯ ТОЛЬКО ПРИ НАЛИЧИИ РЕПЛИКИ, и
+   * это сильнее параметра `?layout=`. Без реплики в пузырь вставал заголовок
+   * статьи, присланный «в 14:08», — так не пишет ни один живой человек.
+   * Параметр ставит агент в момент утверждения; если текст позже переписали и
+   * прямая речь из него ушла, честнее отдать графику, чем поддельный пузырь.
+   */
+  const isChat = Boolean(decided.messageText)
+    && (requestedLayout === "chat_mockup"
+      || (!requestedLayout && decided.layout === "chat_mockup"));
 
   /**
    * B731 — Roboto передаётся ТОЛЬКО мокапу переписки.
