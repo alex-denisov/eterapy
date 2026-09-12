@@ -22,6 +22,10 @@ import {
   describeDirective,
   type OrchestratorDirective,
 } from "@/lib/marketing/orchestrator-actions";
+import {
+  stripAmendment,
+  withAmendment,
+} from "@/lib/marketing/orchestrator-prompt-amendment";
 import type { OrchestratorState } from "@/lib/marketing/orchestrator-state";
 
 const NOW = new Date("2026-09-12T09:00:00Z");
@@ -69,6 +73,7 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
       searchablePages: 43,
       previousImpressions: 110,
     },
+    causes: [],
     stalledIds: [],
     ...overrides,
   };
@@ -119,6 +124,23 @@ describe("B740 — диагноз ставится кодом и воспрои�
       search: { impressions: 40, clicks: 1, averagePosition: 30, searchablePages: 43, previousImpressions: 200 },
     });
     expect(diagnose(state).some((finding) => finding.code === "search.impressions_drop")).toBe(true);
+  });
+
+  it("одна причина на три материала — это дефект промта, и правку строит не диагноз", () => {
+    const findings = diagnose(stateWith({
+      causes: [{ reason: "раунды редактуры не сошлись", count: 4 }],
+      stalledIds: ["a", "b", "c", "d"],
+    }));
+    const recurring = findings.find((finding) => finding.code === "smm.recurring_cause");
+    expect(recurring?.title).toContain("раунды редактуры не сошлись");
+    // Правка промта требует обращения к модели, а диагноз обязан остаться
+    // чистой функцией — директиву достраивает проход оркестратора.
+    expect(recurring?.directive).toBeUndefined();
+  });
+
+  it("две встречи одной причины поводом ещё не являются", () => {
+    const findings = diagnose(stateWith({ causes: [{ reason: "превышен лимит площадки", count: 2 }] }));
+    expect(findings.some((finding) => finding.code === "smm.recurring_cause")).toBe(false);
   });
 
   it("остановившийся SEO-агент виден, и причина различает сбор от выпуска", () => {
@@ -200,6 +222,26 @@ describe("B740 — спокойный проход молчит, но раз в 
       now: NOW,
       lastReportAt: new Date(NOW.getTime() - 60_000),
     }).report).toBe(true);
+  });
+});
+
+describe("B740 — правка промта дописывает, а не переписывает", () => {
+  const BASE = "Базовый текст роли.\nВторая строка правил.";
+
+  it("прошлый автоматический блок заменяется, а не накапливается", () => {
+    const once = withAmendment(BASE, "Первое правило.");
+    const twice = withAmendment(once, "Второе правило.");
+    expect(twice).toContain("Второе правило.");
+    expect(twice).not.toContain("Первое правило.");
+    expect(twice.match(/orchestrator-amendment/g)?.length).toBe(2);
+  });
+
+  it("базовый текст роли остаётся нетронутым", () => {
+    expect(stripAmendment(withAmendment(BASE, "Правило."))).toBe(BASE);
+  });
+
+  it("промт без блока срезается без потерь", () => {
+    expect(stripAmendment(BASE)).toBe(BASE);
   });
 });
 

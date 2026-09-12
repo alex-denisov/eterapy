@@ -11,6 +11,7 @@ import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 import { conveyorSnapshot, type ConveyorSnapshot } from "@/lib/marketing/conveyor-snapshot";
 import { MARKETING_ACTIVE_PROVIDERS } from "@/lib/marketing/model-pool";
+import { humanCause } from "@/lib/marketing/shortfall-notification";
 import { SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import { moscowDayBounds, seoPagesPerDay } from "@/lib/seo/page-agent";
 
@@ -48,6 +49,12 @@ export interface SeoState {
   lastPublishedAt: Date | null;
 }
 
+/** Причина, по которой материалы вставали, и сколько раз за сутки. */
+export interface CauseTally {
+  reason: string;
+  count: number;
+}
+
 export interface SearchState {
   impressions: number | null;
   clicks: number | null;
@@ -64,6 +71,15 @@ export interface OrchestratorState {
   signals: SignalState[];
   seo: SeoState;
   search: SearchState;
+  /**
+   * Причины отказов за сутки, сведённые по ВСЕМУ контуру.
+   *
+   * Отдельно от разбивки по площадкам намеренно: одна и та же причина,
+   * размазанная по шести площадкам, в каждой выглядит единичной, а в сумме
+   * это системный дефект промта. Именно такую и надо чинить правилом, а не
+   * перезапуском материалов.
+   */
+  causes: CauseTally[];
   /** Материалы, вставшие насмерть за сутки — кандидаты на возврат в работу. */
   stalledIds: string[];
 }
@@ -177,6 +193,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
   }
 
   const byPlatform = new Map<string, { published: number; stalled: number; reasons: string[] }>();
+  const causeTally = new Map<string, number>();
   const stalledIds: string[] = [];
   for (const row of publications) {
     const platform = row.platform.trim().toLowerCase();
@@ -186,6 +203,11 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       bucket.stalled += 1;
       const reason = (row.archiveReason ?? row.lastError ?? "").trim();
       if (reason) bucket.reasons.push(reason.slice(0, 120));
+      // Причина нормализуется тем же переводчиком, что и суточная сводка
+      // владельцу: два разных текста одной болезни обязаны считаться вместе,
+      // иначе ни один не дорастёт до порога.
+      const human = humanCause(row.archiveReason ?? row.lastError);
+      if (human) causeTally.set(human, (causeTally.get(human) ?? 0) + 1);
       stalledIds.push(row.id);
     }
     byPlatform.set(platform, bucket);
@@ -218,6 +240,9 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       searchablePages: snapshots[0]?.searchablePages ?? null,
       previousImpressions: snapshots[1]?.impressions ?? null,
     },
+    causes: [...causeTally.entries()]
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((left, right) => right.count - left.count),
     stalledIds,
   };
 }

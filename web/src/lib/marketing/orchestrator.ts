@@ -33,6 +33,7 @@ import {
 } from "@/lib/marketing/orchestrator-actions";
 import { diagnose, directivesFrom } from "@/lib/marketing/orchestrator-diagnosis";
 import { collectOrchestratorState } from "@/lib/marketing/orchestrator-state";
+import { promptAmendmentDirective } from "@/lib/marketing/orchestrator-prompt-amendment";
 import {
   buildOrchestratorReport,
   narrativeFor,
@@ -161,6 +162,30 @@ export async function runOrchestratorCycle(
   const incidents = findings.filter((finding) => finding.severity === "incident").length;
 
   const candidates = directivesFrom(findings);
+
+  /**
+   * B740 — правка промта достраивается ЗДЕСЬ, а не в диагнозе.
+   *
+   * Ей нужен вызов модели за формулировкой правила, а диагноз обязан
+   * оставаться чистой функцией: иначе он перестанет быть воспроизводимым, и
+   * проверить его прогоном станет нечем.
+   *
+   * Строится только когда правки вообще применяются: на удержании тратить
+   * обращение к модели ради текста, который никуда не поедет, незачем.
+   */
+  if (!onHold && findings.some((finding) => finding.code === "smm.recurring_cause")) {
+    const cause = state.causes[0];
+    if (cause) {
+      const amendment = await promptAmendmentDirective({
+        feature: "marketing-agent-writer",
+        role: "автор материалов SMM",
+        cause: cause.reason,
+        occurrences: cause.count,
+        dayKey: now.toISOString().slice(0, 10),
+      }).catch(() => null);
+      if (amendment) candidates.push(amendment);
+    }
+  }
   const handled = await alreadyHandled(candidates.map((directive) => directive.key));
   const directives = onHold
     ? []
