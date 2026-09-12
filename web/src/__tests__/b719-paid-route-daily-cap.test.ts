@@ -34,10 +34,24 @@ describe("B719 — потолки названы в валюте счёта пр
   });
 
   it("бесплатный провайдер потолка не имеет и денег не считает", () => {
-    expect(paidRouteCap(AIProvider.GEMINI)).toBeNull();
+    // B741: роль «бесплатного провайдера» в этом прогоне играет GROQ. Раньше
+    // здесь стоял Gemini, но 2026-09-12 владелец привязал к его ключу биллинг,
+    // и провайдер перестал быть бесплатным. Оставить прогон как был значило бы
+    // держать в наборе проверку, утверждающую обратное тому, что происходит.
+    expect(paidRouteCap(AIProvider.GROQ)).toBeNull();
     expect(paidRouteSpend({
-      provider: AIProvider.GEMINI, promptTokens: 100_000, completionTokens: 100_000,
+      provider: AIProvider.GROQ, promptTokens: 100_000, completionTokens: 100_000,
     })).toBe(0);
+  });
+
+  it("B741 — у Gemini потолок есть, и он двойной: сутки и месяц", () => {
+    const cap = paidRouteCap(AIProvider.GEMINI);
+    expect(cap?.currency).toBe("USD");
+    expect(cap?.limit).toBe(1);
+    // Месячный равен бонусному кредиту Google AI Pro. Без него тридцать
+    // суточных потолков дали бы $30 при кредите в $10, и две трети расхода
+    // ушли бы с карты владельца, а не с бонуса.
+    expect(cap?.monthlyLimit).toBe(10);
   });
 });
 
@@ -149,7 +163,19 @@ describe("B719 — одно обращение не может перескоч�
 
   it("бесплатный провайдер потолка вывода не теряет", () => {
     expect(paidRouteMaxOutputTokens({
+      provider: AIProvider.GROQ, remaining: 0, promptTokens: 5_400, ceiling: 16_000,
+    })).toBe(16_000);
+  });
+
+  it("B741 — у Gemini остаток режет потолок вывода так же, как у хвоста", () => {
+    expect(paidRouteMaxOutputTokens({
       provider: AIProvider.GEMINI, remaining: 0, promptTokens: 5_400, ceiling: 16_000,
+    })).toBe(0);
+    // $1 остатка при промте в 5 400 токенов ($0,00162) покрывает заметно
+    // больше нашего потолка вывода — значит обычный материал упирается в
+    // потолок вывода, а не в деньги, и это правильный порядок ограничителей.
+    expect(paidRouteMaxOutputTokens({
+      provider: AIProvider.GEMINI, remaining: 1, promptTokens: 5_400, ceiling: 16_000,
     })).toBe(16_000);
   });
 });

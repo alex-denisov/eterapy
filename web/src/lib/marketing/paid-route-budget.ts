@@ -23,6 +23,18 @@ export interface PaidRouteCap {
   currency: PaidRouteCurrency;
   /** Потолок в единицах валюты за сутки UTC. */
   limit: number;
+  /**
+   * B741 — ПОТОЛОК ЗА КАЛЕНДАРНЫЙ МЕСЯЦ. Необязательный.
+   *
+   * ⚠ ЗАЧЕМ ВТОРОЙ ПОТОЛОК, ЕСЛИ ЕСТЬ СУТОЧНЫЙ. Суточный отвечает на вопрос
+   * «сколько мы готовы потерять за один плохой день», месячный — «сколько у
+   * нас вообще есть». У Gemini это разные числа и разной природы: суточный
+   * назвал владелец ($1), месячный равен размеру бонусного кредита Google
+   * Developer Program ($10 в месяц по подписке Google AI Pro). Тридцать
+   * суточных потолков дают $30, то есть втрое больше кредита — без месячного
+   * ограничителя две трети расхода ушли бы с карты, а не с бонуса.
+   */
+  monthlyLimit?: number;
   /** Цена входного токена, за 1 000 токенов, в той же валюте. */
   inputPerThousand: number;
   /** Цена выходного токена, за 1 000 токенов, в той же валюте. */
@@ -47,6 +59,34 @@ export interface PaidRouteCap {
  * молча.
  */
 export const MARKETING_PAID_ROUTE_CAPS: Record<string, PaidRouteCap> = {
+  /**
+   * B741 — GEMINI СТАЛ ПЛАТНЫМ, НЕ ПЕРЕСТАВ БЫТЬ ГОЛОВОЙ.
+   *
+   * Владелец 2026-09-12 привязал к ключу AI Studio биллинг и подписку Google
+   * AI Pro. С этого момента обращения сверх бесплатной квоты оплачиваются, а
+   * Gemini у нас — голова ОБЕИХ ролей, то есть самый нагруженный маршрут
+   * контура. До этой записи у него не было ни потолка, ни учёта расхода:
+   * пул считал его бесплатным по остаточному признаку «не в списке платных».
+   *
+   * ⚠ ПОТОЛОК ТЕПЕРЬ НЕ РАВЕН «ПЛАТНОМУ ХВОСТУ». Раньше эти понятия совпадали,
+   * и `paidRouteBudgetStates` ходил по `MARKETING_PAID_PROVIDERS`. Совпадение
+   * было случайным: потолок нужен там, где ИДУТ ДЕНЬГИ, а хвост — это про
+   * место в очереди. Gemini платный и при этом первый, поэтому реестр
+   * потолков стал самостоятельным списком (`marketingMeteredProviders`).
+   *
+   * Цены — официальный прайс Gemini Developer API на 3.8-flash, тот же
+   * порядок, что в `model-pricing-reference.ts` ($0,30 вход / $2,50 выход за
+   * миллион токенов). Оценка по выходу завышена относительно flash-класса
+   * намеренно: потолок обязан срабатывать раньше настоящего рубежа.
+   */
+  [AIProvider.GEMINI]: {
+    currency: "USD",
+    limit: 1,
+    monthlyLimit: 10,
+    inputPerThousand: 0.0003,
+    outputPerThousand: 0.0025,
+    priceSource: "model-pricing-reference/GEMINI $0,30/$2,50 за 1M; месячный потолок = кредит Google AI Pro $10/мес",
+  },
   [AIProvider.OPENAI]: {
     currency: "USD",
     limit: 0.03,
@@ -96,6 +136,34 @@ export function paidRouteScopeKey(provider: AIProvider): string {
  * целые, а десятые копейки терять нельзя): 10 ₽ = 10 000, $0,03 = 30.
  */
 export const PAID_ROUTE_SCALE = 1000;
+
+/** Календарный месяц по UTC — префикс `YYYY-MM` суточных периодов. */
+export function paidRouteMonthPrefix(date = new Date()): string {
+  return date.toISOString().slice(0, 7);
+}
+
+/**
+ * Сколько потрачено на маршрут за календарный месяц.
+ *
+ * Складывается из тех же суточных строк: отдельного месячного счётчика нет
+ * намеренно. Два счётчика одного расхода однажды разойдутся — и выяснится это
+ * по счёту, а не по логу.
+ */
+export async function paidRouteSpentThisMonth(input: {
+  provider: AIProvider;
+  month?: string;
+}, client = db): Promise<number> {
+  const month = input.month ?? paidRouteMonthPrefix();
+  const rows = await client.$queryRaw<Array<{ total: unknown }>>(Prisma.sql`
+    SELECT COALESCE(SUM(cost_micros), 0) AS total FROM ai_budget_ledger
+    WHERE scope_type = 'marketing-paid-route'
+      AND scope_key = ${paidRouteScopeKey(input.provider)}
+      AND period LIKE ${`${month}-%`}
+  `);
+  const raw = rows[0]?.total;
+  const value = typeof raw === "bigint" ? Number(raw) : Number(raw ?? 0);
+  return Number.isFinite(value) ? value / PAID_ROUTE_SCALE : 0;
+}
 
 export async function paidRouteSpentToday(input: {
   provider: AIProvider;
@@ -151,8 +219,23 @@ export interface PaidRouteBudgetState {
   provider: AIProvider;
   cap: PaidRouteCap;
   spentToday: number;
+  spentThisMonth: number;
+  /** Остаток по САМОМУ ЖЁСТКОМУ из двух потолков. */
   remaining: number;
   exhausted: boolean;
+  /** Какой именно потолок выбран, если выбран. Нужно словами в отчёте. */
+  exhaustedBy: "day" | "month" | null;
+}
+
+/**
+ * B741 — провайдеры, у которых расход СЧИТАЕТСЯ.
+ *
+ * Это не то же самое, что платный хвост: хвост — про место в очереди, а
+ * счётчик — про деньги. Gemini стоит головой и при этом платный, поэтому
+ * реестр берётся из самих потолков, а не из списка хвоста.
+ */
+export function marketingMeteredProviders(): AIProvider[] {
+  return Object.keys(MARKETING_PAID_ROUTE_CAPS) as AIProvider[];
 }
 
 /**
@@ -216,18 +299,37 @@ export function paidRouteMaxOutputTokens(input: {
   return Math.max(0, Math.min(input.ceiling, affordable));
 }
 
-export async function paidRouteBudgetStates(input: { period?: string } = {}, client = db): Promise<PaidRouteBudgetState[]> {
+/**
+ * Состояние потолков по ВСЕМ маршрутам со счётчиком.
+ *
+ * ⚠ ОТКАЗ ЧТЕНИЯ СЧИТАЕТСЯ ИСЧЕРПАНИЕМ — то же правило, что у
+ * `paidRoutesWithBudgetLeft`, и по той же причине: ценой ошибки здесь стали бы
+ * деньги владельца, а не лишний бесплатный вызов.
+ */
+export async function paidRouteBudgetStates(input: { period?: string; month?: string } = {}, client = db): Promise<PaidRouteBudgetState[]> {
   const states: PaidRouteBudgetState[] = [];
-  for (const provider of MARKETING_PAID_PROVIDERS) {
+  for (const provider of marketingMeteredProviders()) {
     const cap = paidRouteCap(provider);
     if (!cap) continue;
-    const spentToday = await paidRouteSpentToday({ provider, period: input.period }, client).catch(() => cap.limit);
+    const spentToday = await paidRouteSpentToday({ provider, period: input.period }, client)
+      .catch(() => cap.limit);
+    const spentThisMonth = cap.monthlyLimit === undefined
+      ? 0
+      : await paidRouteSpentThisMonth({ provider, month: input.month }, client)
+        .catch(() => cap.monthlyLimit ?? 0);
+    const dayLeft = Math.max(0, cap.limit - spentToday);
+    const monthLeft = cap.monthlyLimit === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, cap.monthlyLimit - spentThisMonth);
+    const remaining = Math.min(dayLeft, monthLeft);
     states.push({
       provider,
       cap,
       spentToday,
-      remaining: Math.max(0, cap.limit - spentToday),
-      exhausted: spentToday >= cap.limit,
+      spentThisMonth,
+      remaining,
+      exhausted: remaining <= 0,
+      exhaustedBy: remaining > 0 ? null : (monthLeft <= 0 ? "month" : "day"),
     });
   }
   return states;

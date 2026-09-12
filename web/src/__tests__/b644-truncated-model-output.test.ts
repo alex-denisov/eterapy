@@ -50,6 +50,13 @@ jest.mock("@/lib/ai", () => ({
 jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
+    // B741: счётчик расхода платных маршрутов читается на каждом материале —
+    // у Gemini появился потолок, а он голова обеих ролей. Отказ чтения
+    // намеренно трактуется как «потолок выбран» (деньги дороже вызова),
+    // поэтому мок обязан отдавать пустой счётчик: иначе прогон проверял бы не
+    // обход очереди, а поведение при недоступной базе.
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(0),
     externalPublication: {
       findUnique: (...args: unknown[]) => findUnique(...args),
       update: (...args: unknown[]) => update(...args),

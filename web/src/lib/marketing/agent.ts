@@ -26,7 +26,6 @@ import {
 } from "@/lib/marketing/perimeter";
 import {
   MARKETING_ACTIVE_PROVIDERS,
-  MARKETING_PAID_PROVIDERS,
   MARKETING_REPLY_REVIEWER_FEATURE,
   MARKETING_REPLY_WRITER_FEATURE,
   marketingModelFreshness,
@@ -1565,15 +1564,26 @@ export async function processMarketingDraft(publicationId: string) {
      * Пусто, когда платный хвост выключен вовсе: считать потолки маршрута,
      * которого нет в очереди, незачем.
      */
+    /**
+     * B741 — ПОТОЛОК СЧИТАЕТСЯ ВСЕГДА, А НЕ ТОЛЬКО ПРИ ВКЛЮЧЁННОМ ХВОСТЕ.
+     *
+     * Прежнее условие выходило из допущения, что платный маршрут — это всегда
+     * хвост очереди, и значит при выключенном хвосте денег не тратится вовсе.
+     * Допущение перестало быть верным 2026-09-12, когда владелец привязал
+     * биллинг к ключу Gemini: Gemini — ГОЛОВА обеих ролей, его спрашивают
+     * первым на каждом материале, и выключатель хвоста к нему не относится.
+     *
+     * То есть при старом условии контур тратил бы деньги, не считая их вовсе,
+     * а `MARKETING_PAID_FALLBACK_ENABLED` продолжал бы выглядеть как «платных
+     * маршрутов нет».
+     */
     const paidBudget = await (async () => {
-      if (!marketingPaidFallbackEnabled()) {
-        return { over: [] as AIProvider[], remaining: new Map<AIProvider, number>() };
-      }
       const states = await paidRouteBudgetStates().catch(() => []);
       const remaining = new Map(states.map((state) => [state.provider, state.remaining]));
       return {
-        over: MARKETING_PAID_PROVIDERS.filter((provider) => (remaining.get(provider) ?? 0) <= 0),
+        over: states.filter((state) => state.exhausted).map((state) => state.provider),
         remaining,
+        states,
       };
     })();
     const paidRoutesOverBudget = paidBudget.over;
@@ -1667,10 +1677,14 @@ export async function processMarketingDraft(publicationId: string) {
             // материале, второй раз не спрашиваем.
             [
               ...capacityRefused,
-              // B719: платный маршрут, выбравший суточный потолок расхода,
-              // исключается ровно так же, как исчерпавший квоту бесплатный —
-              // через `excluded`. Отдельной ветки он не заслуживает: для
-              // очереди это одно и то же состояние «сегодня уже нельзя».
+              // B719: маршрут, выбравший потолок расхода, исключается ровно так
+              // же, как исчерпавший квоту бесплатный — через `excluded`.
+              // Отдельной ветки он не заслуживает: для очереди это одно и то же
+              // состояние «сегодня уже нельзя».
+              //
+              // B741: сюда же попадает Gemini, выбравший суточный или месячный
+              // потолок. Очередь тогда идёт дальше по голове и пулу, то есть
+              // линия не встаёт, а переходит на бесплатные маршруты.
               ...paidRoutesOverBudget,
             ],
             availability.providers,
@@ -1779,11 +1793,15 @@ export async function processMarketingDraft(publicationId: string) {
       const writerProvider = marketingProviderFromLabel(writer.provider);
       const rotated = marketingProviderOrder(
         `reviewer:${cycleSeed}`,
-        [...capacityRefused],
+        // B741: маршрут, выбравший потолок расхода, исключается и у редактора.
+        // Раньше этого не требовалось — платного хвоста у редактора нет. Но
+        // голова редактора теперь Gemini, а он платный: без этой строки
+        // редактор продолжал бы тратить после того, как автору уже запрещено.
+        [...capacityRefused, ...paidRoutesOverBudget],
         availability.providers,
-        // B719: у редактора своя голова очереди — самая немногословная модель
-        // пула. Платного хвоста у редактора нет и не было: платить за
-        // суждение владелец не просил.
+        // B719: у редактора своя голова очереди. B740: теперь это Gemini, за
+        // ним Mistral. Платный ХВОСТ у редактора по-прежнему выключен —
+        // `paidFallback` не передаётся, — но голова считается по деньгам.
         { role: "reviewer" },
       );
       const reviewerProviderOrder = [
@@ -1796,6 +1814,8 @@ export async function processMarketingDraft(publicationId: string) {
         excludeModel: writer.model,
         maxTokens: MARKETING_REVIEWER_MAX_TOKENS,
         temperature: 0.05,
+        // B741: остаток денег нужен и редактору — его голова платная.
+        paidRemaining: paidBudget.remaining,
         attempts,
         capacityRefused,
         requestId: `marketing-reviewer:${publication.id}:${publication.attemptCount + 1}:${round}`,

@@ -35,7 +35,22 @@ import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import { marketingProviderOrder } from "@/lib/marketing/model-pool";
 import { ctaProductForService, topicForService, SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import {
+  SEO_PAGE_KIND,
+  backfilledInWindow,
+  nextCardToBackfill,
+  seoBackfillPerDay,
+} from "@/lib/seo/backfill";
+import { buildCorpusIndex, checkUniqueness, type CorpusEntry } from "@/lib/seo/uniqueness";
+import { approvedLibraryEntries } from "@/data/anonymous-library";
+import { libraryEntriesWithBackfill } from "@/lib/seo/library-store";
+import {
+  SEO_LIBRARY_BACKFILL_SYSTEM_PROMPT,
+  seoLibraryBackfillPrompt,
+  type SeoBackfillBrief,
+} from "@/lib/seo/page-prompt";
+import {
   blockingViolations,
+  draftText,
   inspectSeoPageDraft,
   ownWordCount,
   type SeoPageDraft,
@@ -359,11 +374,12 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
   });
 
   const attempts = { used: 0 };
-  const brief = await briefFor(candidate);
+  const [brief, corpus] = await Promise.all([briefFor(candidate), corpusIndex()]);
   let draft: SeoPageDraft | null = null;
   let writer: ModelCall | null = null;
   let reviewer: ModelCall | null = null;
   let verdict: SeoEditorVerdict | null = null;
+  let uniquenessVerdict: ReturnType<typeof checkUniqueness> | null = null;
   let notes: string[] = [];
   let round = 0;
 
@@ -385,6 +401,22 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
 
       const violations = inspectSeoPageDraft({ draft, targetQuery: brief.targetQuery });
       const blocking = blockingViolations(violations);
+
+      /**
+       * B741 — УНИКАЛЬНОСТЬ ПРОВЕРЯЕТСЯ МАШИНОЙ, А НЕ РЕДАКТОРОМ.
+       *
+       * Редактор корпуса не помнит и помнить не может: ему на вход идёт один
+       * материал. Заметить, что абзац почти дословно повторяет страницу
+       * трёхнедельной давности, способен только счёт по шинглам.
+       *
+       * Проверка стоит ЗДЕСЬ, вместе с остальным машинным гейтом, а не после
+       * вердикта: неуникальный текст не выпустится в любом случае, и платить
+       * за суждение о нём незачем.
+       */
+      uniquenessVerdict = checkUniqueness({ text: draftText(draft), corpus });
+      if (!uniquenessVerdict.unique && uniquenessVerdict.reason) {
+        blocking.push({ kind: "blocking", message: uniquenessVerdict.reason });
+      }
 
       // ⚠ РЕДАКТОРА НЕ ЗОВЁМ, ПОКА МАШИНА НЕ ДОВОЛЬНА. Вердикт по материалу,
       // который заведомо не выпустится, — это оплаченное обращение за
@@ -447,6 +479,7 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
     await db.seoLibraryPage.create({
       data: {
         slug,
+        kind: SEO_PAGE_KIND.page,
         topic: brief.topic,
         status: SEO_PAGE_STATUS.published,
         question: draft.question,
@@ -469,6 +502,11 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
         reviewerProvider: reviewer?.provider ?? null,
         reviewerModel: reviewer?.model ?? null,
         review: { verdict: verdict.verdict, reason: verdict.reason, notes: verdict.notes },
+        uniqueness: {
+          worstContainment: uniquenessVerdict?.worstContainment ?? 0,
+          worstAgainst: uniquenessVerdict?.worstAgainst ?? null,
+          selfRepeat: uniquenessVerdict?.selfRepeat ?? 0,
+        },
         reviewRounds: round,
         publishedAt: now,
         reviewedAt: now,
@@ -525,7 +563,297 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
   }
 }
 
+/**
+ * B741 — ИНДЕКС КОРПУСА ДЛЯ ПРОВЕРКИ УНИКАЛЬНОСТИ.
+ *
+ * Строится один раз на заход и включает ВСЁ, что уже опубликовано: и
+ * редакционные карточки с дописанными телами, и самостоятельные страницы
+ * агента. Проверять только по своим страницам значило бы разрешить агенту
+ * пересказать редакционную карточку — то есть ровно тот дубль, из-за которого
+ * и заводился гейт.
+ */
+async function corpusIndex(): Promise<CorpusEntry[]> {
+  const [withBackfill, agentPages] = await Promise.all([
+    libraryEntriesWithBackfill().catch(() => approvedLibraryEntries()),
+    db.seoLibraryPage
+      .findMany({
+        where: { status: SEO_PAGE_STATUS.published, kind: SEO_PAGE_KIND.page },
+        select: { slug: true, summary: true, body: true, faqs: true },
+      })
+      .catch(() => [] as Array<{ slug: string; summary: string; body: unknown; faqs: unknown }>),
+  ]);
+
+  const entries: Array<{ slug: string; text: string }> = withBackfill.map((entry) => ({
+    slug: entry.slug,
+    text: [
+      entry.question,
+      entry.summary,
+      ...(entry.body ?? []).flatMap((section) => [section.heading, ...section.paragraphs]),
+      ...(entry.faqs ?? []).flatMap((faq) => [faq.question, faq.answer]),
+      ...entry.perspectives,
+    ].join("\n"),
+  }));
+
+  for (const page of agentPages) {
+    const body = Array.isArray(page.body) ? page.body : [];
+    const faqs = Array.isArray(page.faqs) ? page.faqs : [];
+    entries.push({
+      slug: page.slug,
+      text: [
+        page.summary,
+        ...body.flatMap((raw) => {
+          const section = (raw ?? {}) as { heading?: unknown; paragraphs?: unknown };
+          return [
+            typeof section.heading === "string" ? section.heading : "",
+            ...(Array.isArray(section.paragraphs) ? section.paragraphs.filter((x): x is string => typeof x === "string") : []),
+          ];
+        }),
+        ...faqs.flatMap((raw) => {
+          const faq = (raw ?? {}) as { question?: unknown; answer?: unknown };
+          return [
+            typeof faq.question === "string" ? faq.question : "",
+            typeof faq.answer === "string" ? faq.answer : "",
+          ];
+        }),
+      ].filter(Boolean).join("\n"),
+    });
+  }
+  return buildCorpusIndex(entries);
+}
+
 /** Адрес выпущенной страницы — для отчёта и для переобхода. */
 export function seoPageUrl(slug: string): string {
   return new URL(`/library/${slug}`, APP_URL).toString();
+}
+
+export interface SeoBackfillCycleResult {
+  enabled: boolean;
+  idleReason: string | null;
+  backfilled: string | null;
+  attempts: number;
+  backfilledToday: number;
+}
+
+/**
+ * B741 — ЗАХОД ДОПИСЫВАНИЯ. ОДНА КАРТОЧКА ЗА РАЗ.
+ *
+ * Отдельный цикл, а не ветка внутри выпуска новых страниц, и это не про
+ * аккуратность кода: у двух работ разные потолки, разные промты и разная цена
+ * ошибки. Плохая новая страница — это один лишний адрес. Плохое дописывание
+ * портит адрес, который УЖЕ стоит в индексе и уже приносит заходы.
+ *
+ * Поэтому здесь тот же порядок проверок, что у новых страниц, плюс одна своя:
+ * дописанное сверяется на уникальность вместе с собственным вопросом и
+ * коротким ответом карточки, но САМА карточка из сверки исключается — иначе
+ * всякое дописывание браковалось бы за совпадение с тем, что дописывают.
+ */
+export async function runSeoBackfillCycle(
+  input: { now?: Date } = {},
+): Promise<SeoBackfillCycleResult> {
+  const idle: SeoBackfillCycleResult = {
+    enabled: false,
+    idleReason: null,
+    backfilled: null,
+    attempts: 0,
+    backfilledToday: 0,
+  };
+  if (!await seoPageAgentEnabled()) return idle;
+  const now = input.now ?? new Date();
+  const { start, end } = moscowDayBounds(now);
+
+  const [backfilledToday, dailyCap] = await Promise.all([
+    backfilledInWindow(start, end),
+    seoBackfillPerDay(),
+  ]);
+  if (backfilledToday >= dailyCap) {
+    return {
+      ...idle,
+      enabled: true,
+      backfilledToday,
+      idleReason: `суточный потолок дописывания выбран: ${backfilledToday} из ${dailyCap}`,
+    };
+  }
+
+  const card = await nextCardToBackfill();
+  if (!card) {
+    return { ...idle, enabled: true, backfilledToday, idleReason: "тонких карточек не осталось" };
+  }
+
+  const availability = await marketingPoolAvailability(now).catch(() => null);
+  const available = availability?.providers ?? [];
+  if (available.length === 0) {
+    return {
+      ...idle,
+      enabled: true,
+      backfilledToday,
+      idleReason: "ни один провайдер пула не доступен",
+    };
+  }
+
+  const entry = card.entry;
+  const cta = resolveLibraryCta({ topic: entry.topic, ctaProduct: entry.ctaProduct });
+  const product = getV5Product(cta.slug as never);
+  const brief: SeoBackfillBrief = {
+    question: entry.question,
+    summary: entry.summary,
+    topic: entry.topic,
+    ctaProduct: cta.product,
+    ctaPromise: product?.summary ?? "разбор вашего вопроса специалистами платформы",
+    ctaPath: `/products/${cta.slug}`,
+    existingPoints: [
+      ...entry.perspectives,
+      ...(entry.mainFork?.title ? [entry.mainFork.title] : []),
+    ],
+  };
+
+  const attempts = { used: 0 };
+  const corpus = await corpusIndex();
+  let notes: string[] = [];
+  let round = 0;
+
+  try {
+    while (round < SEO_MAX_REVIEW_ROUNDS + 1) {
+      round += 1;
+      const writer = await completeStructured({
+        feature: SEO_LIBRARY_WRITER_FEATURE,
+        systemPrompt: SEO_LIBRARY_BACKFILL_SYSTEM_PROMPT,
+        userPrompt: seoLibraryBackfillPrompt(brief, notes),
+        maxTokens: SEO_WRITER_MAX_TOKENS,
+        temperature: 0.7,
+        seed: `backfill:${entry.slug}:${round}`,
+        role: "writer",
+        attempts,
+        available,
+      });
+      const payload = parseModelJson(writer.text);
+
+      // Вопрос и короткий ответ берутся у карточки, а не у модели: их менять
+      // нельзя, а просить модель повторить их значило бы дать ей шанс изменить.
+      const draft = writerDraftFrom({
+        ...payload,
+        question: entry.question,
+        summary: entry.summary,
+      });
+
+      const violations = inspectSeoPageDraft({ draft, targetQuery: entry.question });
+      const blocking = blockingViolations(violations);
+      const uniqueness = checkUniqueness({
+        text: draftText(draft),
+        corpus,
+        // Сама карточка из сверки исключена: её вопрос и короткий ответ входят
+        // в проверяемый текст по построению.
+        excludeSlug: entry.slug,
+      });
+      if (!uniqueness.unique && uniqueness.reason) {
+        blocking.push({ kind: "blocking", message: uniqueness.reason });
+      }
+
+      if (blocking.length > 0 && round <= SEO_MAX_REVIEW_ROUNDS) {
+        notes = blocking.map((violation) => violation.message);
+        continue;
+      }
+      if (blocking.length > 0) {
+        throw new Error(`дописывание не проходит гейт: ${blocking.map((v) => v.message).join("; ")}`);
+      }
+
+      const reviewer = await completeStructured({
+        feature: SEO_LIBRARY_EDITOR_FEATURE,
+        systemPrompt: SEO_LIBRARY_EDITOR_SYSTEM_PROMPT,
+        userPrompt: seoLibraryEditorPrompt({
+          brief: {
+            targetQuery: entry.question,
+            monthlyDemand: null,
+            growth: null,
+            topic: entry.topic,
+            ctaProduct: brief.ctaProduct,
+            ctaPromise: brief.ctaPromise,
+            ctaPath: brief.ctaPath,
+            recentTitles: [],
+          },
+          draftJson: JSON.stringify(draft),
+          machineFindings: violations.map((violation) => violation.message),
+          round,
+          previousNotes: notes,
+        }),
+        maxTokens: SEO_EDITOR_MAX_TOKENS,
+        temperature: 0.2,
+        seed: `backfill:${entry.slug}:review:${round}`,
+        role: "reviewer",
+        excludeModel: writer.model,
+        attempts,
+        available,
+      });
+      const verdict = editorVerdictFrom(parseModelJson(reviewer.text));
+
+      if (verdict.verdict === "REVISE" && round <= SEO_MAX_REVIEW_ROUNDS) {
+        notes = verdict.notes;
+        continue;
+      }
+      if (verdict.verdict !== "APPROVE") {
+        throw new Error(`редактор не одобрил дописывание: ${verdict.reason || verdict.verdict}`);
+      }
+
+      await db.seoLibraryPage.create({
+        data: {
+          slug: entry.slug,
+          kind: SEO_PAGE_KIND.backfill,
+          topic: entry.topic,
+          status: SEO_PAGE_STATUS.published,
+          question: entry.question,
+          summary: entry.summary,
+          metaTitle: draft.metaTitle,
+          metaDescription: draft.metaDescription,
+          body: draft.body,
+          perspectives: draft.perspectives,
+          faqs: draft.faqs,
+          mainForkTitle: draft.mainForkTitle || null,
+          mainForkNote: draft.mainForkNote || null,
+          firstStep: draft.firstStep || null,
+          ctaProduct: brief.ctaProduct,
+          targetQuery: entry.question,
+          targetDemand: null,
+          demandSource: "backfill",
+          cluster: entry.topic,
+          writerProvider: writer.provider,
+          writerModel: writer.model,
+          reviewerProvider: reviewer.provider,
+          reviewerModel: reviewer.model,
+          review: { verdict: verdict.verdict, reason: verdict.reason, notes: verdict.notes },
+          uniqueness: {
+            worstContainment: uniqueness.worstContainment,
+            worstAgainst: uniqueness.worstAgainst,
+            selfRepeat: uniqueness.selfRepeat,
+          },
+          reviewRounds: round,
+          publishedAt: now,
+          reviewedAt: now,
+        },
+      });
+
+      log.info("seo-backfill.published", {
+        slug: entry.slug,
+        wordsBefore: card.ownWords,
+        rounds: round,
+        attempts: attempts.used,
+      });
+      return {
+        enabled: true,
+        idleReason: null,
+        backfilled: entry.slug,
+        attempts: attempts.used,
+        backfilledToday: backfilledToday + 1,
+      };
+    }
+    throw new Error("раунды дописывания не сошлись");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error("seo-backfill.failed", { slug: entry.slug, error: serializeError(error) });
+    return {
+      enabled: true,
+      idleReason: message,
+      backfilled: null,
+      attempts: attempts.used,
+      backfilledToday,
+    };
+  }
 }

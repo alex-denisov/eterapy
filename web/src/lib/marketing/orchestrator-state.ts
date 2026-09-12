@@ -14,6 +14,8 @@ import { MARKETING_ACTIVE_PROVIDERS } from "@/lib/marketing/model-pool";
 import { humanCause } from "@/lib/marketing/shortfall-notification";
 import { SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import { moscowDayBounds, seoPagesPerDay } from "@/lib/seo/page-agent";
+import { readSearchSources, type SearchSourcesState } from "@/lib/marketing/orchestrator-search-sources";
+import { thinCards } from "@/lib/seo/backfill";
 
 export interface ProviderState {
   provider: string;
@@ -82,6 +84,16 @@ export interface OrchestratorState {
   causes: CauseTally[];
   /** Материалы, вставшие насмерть за сутки — кандидаты на возврат в работу. */
   stalledIds: string[];
+  /**
+   * B741 — живые ответы Вебмастера и Search Console.
+   *
+   * Отдельно от `search`, который читает суточный срез: срез отвечает на
+   * вопрос «как менялось», источники — на вопрос «как есть прямо сейчас и
+   * отвечают ли они вообще». Молчащий источник виден только здесь.
+   */
+  sources: SearchSourcesState;
+  /** Сколько карточек корпуса всё ещё не проходят гейт глубины. */
+  thinCards: number;
 }
 
 /** Самая частая причина в наборе. `null`, если причин нет вовсе. */
@@ -111,6 +123,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     neverSubmitted,
     snapshots,
     dailyCap,
+    sources,
   ] = await Promise.all([
     conveyorSnapshot({ now }),
     db.aIProviderConfig.findMany({
@@ -154,6 +167,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       },
     }).catch(() => []),
     seoPagesPerDay(),
+    readSearchSources(now),
   ]);
 
   // Состояние ключей берётся из самих credential'ов: именно их двигает
@@ -240,6 +254,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       searchablePages: snapshots[0]?.searchablePages ?? null,
       previousImpressions: snapshots[1]?.impressions ?? null,
     },
+    sources,
+    thinCards: thinCards().length,
     causes: [...causeTally.entries()]
       .map(([reason, count]) => ({ reason, count }))
       .sort((left, right) => right.count - left.count),

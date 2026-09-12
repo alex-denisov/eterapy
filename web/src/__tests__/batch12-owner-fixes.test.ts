@@ -194,7 +194,18 @@ describe("B596 · библиотека — один список, темы — �
   it("переключателя разделов нет", () => {
     const page = read("src/app/library/page.tsx");
     expect(page).not.toContain("Направление библиотеки");
-    expect(page).toContain("approvedLibraryEntries()");
+    /**
+     * B741 — источник списка сменился, намерение B596 осталось.
+     *
+     * Здесь стояло `approvedLibraryEntries()` — как признак того, что каталог
+     * показывает ВЕСЬ корпус одним списком, без деления на разделы. Корпус с
+     * тех пор перестал быть только статическим: у карточек появились
+     * дописанные тела, у агента — свои страницы, и обе части обязаны стоять в
+     * том же одном списке. `libraryEntriesWithBackfill()` возвращает первый,
+     * `publishedSeoLibraryEntries()` — второй.
+     */
+    expect(page).toContain("libraryEntriesWithBackfill()");
+    expect(page).toContain("publishedSeoLibraryEntries()");
     expect(page).toContain("libraryTopics()");
   });
 

@@ -11,19 +11,21 @@
  * Шаблон не знает и не должен знать, откуда пришла запись.
  */
 
-import type {
-  AnonymousLibraryEntry,
-  LibraryBodySection,
+import {
+  approvedLibraryEntries,
+  getApprovedLibraryEntry,
+  type AnonymousLibraryEntry,
+  type LibraryBodySection,
 } from "@/data/anonymous-library";
+import { mergeBackfill } from "@/lib/seo/backfill";
+import { SEO_PAGE_KIND, SEO_PAGE_STATUS } from "@/lib/seo/page-kinds";
 import { isLibraryTopic, type LibraryCtaProduct, type LibraryTopic } from "@/lib/library-cta";
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 
-export const SEO_PAGE_STATUS = {
-  draft: "DRAFT",
-  published: "PUBLISHED",
-  retired: "RETIRED",
-} as const;
+// Словарь состояний живёт в `page-kinds.ts` — он общий с `backfill.ts`, и
+// круговой импорт между ними обошёлся бы дороже одного файла.
+export { SEO_PAGE_KIND, SEO_PAGE_STATUS } from "@/lib/seo/page-kinds";
 
 /**
  * Услуга кластера → услуга, в которую конвертирует страница.
@@ -211,4 +213,79 @@ export async function getPublishedSeoLibraryEntry(slug: string): Promise<Anonymo
       return null;
     });
   return row ? seoPageToLibraryEntry(row) : null;
+}
+
+/**
+ * B741 — ДОПИСАННЫЕ ТЕЛА ДЛЯ КАРТОЧЕК РЕДАКЦИОННОГО КОРПУСА.
+ *
+ * Отдельный запрос, а не часть `publishedSeoLibraryEntries`: там строки —
+ * самостоятельные страницы, здесь — надстройка над чужим слагом. Смешать их
+ * значило бы получить каталог, в котором одна и та же карточка стоит дважды.
+ */
+const BACKFILL_SELECT = {
+  slug: true,
+  body: true,
+  faqs: true,
+  perspectives: true,
+  mainForkTitle: true,
+  mainForkNote: true,
+  metaTitle: true,
+  metaDescription: true,
+  publishedAt: true,
+} as const;
+
+export type BackfillRow = {
+  slug: string;
+  body: unknown;
+  faqs: unknown;
+  perspectives: string[];
+  mainForkTitle: string | null;
+  mainForkNote: string | null;
+  metaTitle: string;
+  metaDescription: string;
+  publishedAt: Date | null;
+};
+
+export async function publishedBackfills(): Promise<Map<string, BackfillRow>> {
+  const rows = await db.seoLibraryPage
+    .findMany({
+      where: { kind: SEO_PAGE_KIND.backfill, status: SEO_PAGE_STATUS.published },
+      select: BACKFILL_SELECT,
+    })
+    .catch((error: unknown) => {
+      log.warn("seo-library.backfill_list_failed", { error: serializeError(error) });
+      return [] as BackfillRow[];
+    });
+  return new Map(rows.map((row) => [row.slug, row]));
+}
+
+/**
+ * Редакционный корпус с наложенными дописываниями.
+ *
+ * ⚠ ОДИН ЗАПРОС НА ВЫЗОВ, А НЕ ПО ЗАПРОСУ НА КАРТОЧКУ. Двести карточек ×
+ * отдельный `findUnique` — это двести запросов на сборку каталога и карты
+ * сайта. Заход выглядел бы рабочим ровно до первого дня с живым трафиком.
+ */
+export async function libraryEntriesWithBackfill(): Promise<AnonymousLibraryEntry[]> {
+  const [entries, backfills] = await Promise.all([
+    Promise.resolve(approvedLibraryEntries()),
+    publishedBackfills(),
+  ]);
+  return entries.map((entry) => {
+    const backfill = backfills.get(entry.slug);
+    return backfill ? mergeBackfill(entry, backfill) : entry;
+  });
+}
+
+/** Одна карточка корпуса с дописыванием, если оно есть. */
+export async function getLibraryEntryWithBackfill(slug: string): Promise<AnonymousLibraryEntry | null> {
+  const entry = getApprovedLibraryEntry(slug);
+  if (!entry) return null;
+  const row = await db.seoLibraryPage
+    .findFirst({
+      where: { slug, kind: SEO_PAGE_KIND.backfill, status: SEO_PAGE_STATUS.published },
+      select: BACKFILL_SELECT,
+    })
+    .catch(() => null);
+  return row ? mergeBackfill(entry, row) : entry;
 }

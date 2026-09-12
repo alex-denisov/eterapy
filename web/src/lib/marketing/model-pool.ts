@@ -294,7 +294,19 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
   // 89/0 — сильнейшая живая модель пула. Вторая модель OpenRouter в замере
   // мертва (0/1), поэтому провайдер становится одномодельным.
   [AIProvider.OPENROUTER]: "nvidia/nemotron-3-super-120b-a12b:free",
-  [AIProvider.GEMINI]: "gemini-3.6-flash",
+  /**
+   * B741 — АВТОР ПЕРЕВЕДЁН НА `gemini-3.8-flash`.
+   *
+   * Имя НЕ выдумано: модель вышла в общий доступ 2026-09-02 и объявлена
+   * рабочей лошадью семейства. Это ровно та проверка, которой требует правило
+   * этого файла — «выдуманное имя модели это 404 в бою» (B703).
+   *
+   * Перевод стал возможен и осмыслен после того, как владелец привязал к ключу
+   * биллинг: на бесплатном тарифе упор шёл в 429 (замер B712: 15 отказов в
+   * сутки при 60 успехах), и голова пула регулярно уступала место вращению.
+   * Расход при этом ограничен потолком — см. `paid-route-budget.ts`.
+   */
+  [AIProvider.GEMINI]: "gemini-3.8-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
   // 41/0 против 3/0 у small: обе живы, роли меняются местами.
@@ -344,7 +356,15 @@ export const MARKETING_REVIEWER_MODEL_PREFERENCES: Partial<Record<AIProvider, st
   // B713: обе роли смотрят в одну модель — вторая (gemma-4-31b-it:free) в
   // замере 14–17.08 дала 0 успехов. Провайдер одномодельный, и это объявлено.
   [AIProvider.OPENROUTER]: "nvidia/nemotron-3-super-120b-a12b:free",
-  [AIProvider.GEMINI]: "gemini-3.5-flash",
+  /**
+   * B741 — редактору достаётся `gemini-3.6-flash`, освободившаяся у автора.
+   *
+   * ⚠ РАЗНЫЕ МОДЕЛИ У РОЛЕЙ — ЭТО НЕ ВКУС, А УСЛОВИЕ НЕЗАВИСИМОСТИ ПРОВЕРКИ.
+   * `completeWithValidStructure` сверяет именно модель (B623): совпади они,
+   * редактор судил бы собственный текст. Поэтому при смене модели автора
+   * модель редактора обязана сдвинуться следом, а не остаться на месте.
+   */
+  [AIProvider.GEMINI]: "gemini-3.6-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
   [AIProvider.GROQ]: "qwen/qwen3.6-27b",
   [AIProvider.MISTRAL]: "mistral-small-2603",
@@ -364,6 +384,8 @@ export const MARKETING_REVIEWER_MODEL_PREFERENCES: Partial<Record<AIProvider, st
 const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {
   "google/gemma-4-31b-it:free": "2026-04-03",
   "nvidia/nemotron-3-super-120b-a12b:free": "2026-03-11",
+  // B741 — дата общего доступа `gemini-3.8-flash`, объявленная Google.
+  "gemini-3.8-flash": "2026-09-02",
   "gemini-3.6-flash": "2026-07-21",
   "gemini-3.5-flash": "2026-05-19",
   "gemma-4-31b": "2026-04-03",

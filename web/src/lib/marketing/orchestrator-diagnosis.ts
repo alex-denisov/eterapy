@@ -271,6 +271,94 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
     });
   }
 
+  /**
+   * ── Живые источники поиска ────────────────────────────────────────────────
+   *
+   * ⚠ МОЛЧАНИЕ ИСТОЧНИКА — ЭТО НАХОДКА, А НЕ ОТСУТСТВИЕ НАХОДОК. Пока
+   * оркестратор судил только по суточному срезу, переставший сниматься срез
+   * выглядел как «ничего не изменилось». Здесь это различимо: источник либо
+   * ответил, либо назвал причину.
+   */
+  if (!state.sources.webmaster) {
+    findings.push({
+      code: "source.webmaster_silent",
+      severity: "warning",
+      title: `Яндекс.Вебмастер не ответил: ${state.sources.webmasterError ?? "причина не названа"}`,
+      detail:
+        "Без него неизвестно, сколько страниц в поиске и сколько исключено, а это "
+        + "единственный источник, по которому видно индексацию. Переобход при этом "
+        + "тоже не работает: он ходит тем же ключом.",
+    });
+  } else {
+    const { searchablePages, excludedPages, sitemapUrls } = state.sources.webmaster;
+    const coverage = sitemapUrls > 0 ? searchablePages / sitemapUrls : 0;
+    if (sitemapUrls > 0 && coverage < 0.5) {
+      findings.push({
+        code: "search.coverage",
+        severity: searchablePages === 0 ? "incident" : "warning",
+        title: `В поиске Яндекса ${searchablePages} страниц из ${sitemapUrls} в карте сайта`,
+        detail: excludedPages > searchablePages
+          ? `Исключено ${excludedPages} — это НЕ «не дошёл обход», это отказ по качеству. `
+            + "Переобход здесь не поможет: чинить надо содержание страниц."
+          : `Исключено ${excludedPages}. Обход просто не дошёл — расходуем квоту переобхода `
+            + "на недостающие адреса.",
+      });
+    }
+    if (searchablePages > 0 && excludedPages > searchablePages * 2) {
+      findings.push({
+        code: "search.excluded",
+        severity: "incident",
+        title: `Исключено ${excludedPages} страниц против ${searchablePages} в поиске`,
+        detail:
+          "Хост профилируется как малоценный. Единственное, что это меняет, — глубина "
+          + "страниц: тонкие карточки надо дописывать, а не подавать на переобход снова.",
+      });
+    }
+  }
+
+  if (!state.sources.gsc) {
+    findings.push({
+      code: "source.gsc_silent",
+      severity: "warning",
+      title: `Google Search Console не ответила: ${state.sources.gscError ?? "причина не названа"}`,
+      detail:
+        "Половина поискового контура наблюдается вслепую: показы, позиции и то, какими "
+        + "запросами нас находят в Google, неизвестны.",
+    });
+  } else if (
+    state.sources.gsc.totals.impressions === 0
+    && (state.sources.webmaster?.searchablePages ?? 0) > 0
+  ) {
+    findings.push({
+      code: "search.google_silent",
+      severity: "warning",
+      title: "Google: ноль показов за неделю при непустом индексе Яндекса",
+      detail:
+        "Страницы существуют и обходятся, но Google их не показывает. Это не про обход, "
+        + "а про то, что по этим запросам мы не входим даже в конец выдачи.",
+    });
+  }
+
+  /**
+   * ⚠ ГЛАВНАЯ ПРИЧИНА ОТСУТСТВИЯ РОСТА, НАЗВАННАЯ ЧИСЛОМ.
+   *
+   * Замер корпуса 2026-09-12: 199 карточек, гейт глубины проходят 27, медиана
+   * собственных слов — 65. То есть ранжировать нечего, и это не чинится ни
+   * запросами, ни скоростью, ни разметкой.
+   */
+  if (state.thinCards > 0) {
+    findings.push({
+      code: "seo.thin_corpus",
+      severity: state.thinCards > 100 ? "warning" : "observation",
+      title: `Карточек без глубины: ${state.thinCards} — они не попадают в карту сайта`,
+      detail:
+        "Это и есть потолок роста: у страницы ниже рубежа в 450 собственных слов нет "
+        + "шанса ранжироваться, сколько её ни подавай на переобход. Агент дописывает их "
+        + "по расписанию; выпускать пачкой нельзя — корпус, выросший за ночь, читается "
+        + "как ферма.",
+    });
+  }
+
   // ── Поисковая динамика ────────────────────────────────────────────────────
   if (
     state.search.impressions !== null

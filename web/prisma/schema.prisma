@@ -2601,6 +2601,16 @@ model SeoKeywordCandidate {
 model SeoLibraryPage {
   id               String    @id @default(cuid())
   slug             String    @unique
+  /// B741 — PAGE: новая страница по снятому спросу. BACKFILL: дописанное тело
+  /// для карточки, которая уже есть в редакционном корпусе.
+  ///
+  /// Различие не косметическое. У дописывания слаг ЧУЖОЙ — он принадлежит
+  /// статической записи, и маршрут накладывает тело поверх неё, а не заменяет
+  /// её целиком. Без признака первый же взгляд на таблицу принял бы дописанную
+  /// карточку за новую страницу, а суточный потолок считал бы их вместе —
+  /// хотя владелец просил разный темп: новые выпускаются, старые дописываются
+  /// осторожно.
+  kind             String    @default("PAGE")
   /// Тема каталога (`LibraryTopic`) — по ней строится CTA в услугу.
   topic            String
   /// DRAFT — написана, но не выпущена; PUBLISHED — видна людям и поисковику;
@@ -2636,6 +2646,11 @@ model SeoLibraryPage {
   reviewerModel    String?   @map("reviewer_model")
   review           Json?
   reviewRounds     Int       @default(0) @map("review_rounds")
+  /// B741 — во что обошлась проверка уникальности: наибольшее пересечение с
+  /// корпусом и с какой страницей. Хранится у выпущенной страницы, а не только
+  /// в логе: вопрос «почему мы решили, что текст свой» задаётся уже ПОСЛЕ того,
+  /// как страница вышла.
+  uniqueness       Json?
   publishedAt      DateTime? @map("published_at")
   reviewedAt       DateTime? @map("reviewed_at")
   /// Когда адрес отдан в IndexNow и в переобход Вебмастера.
@@ -2646,6 +2661,7 @@ model SeoLibraryPage {
 
   @@index([status, publishedAt])
   @@index([topic, status])
+  @@index([kind, publishedAt])
   @@map("seo_library_pages")
 }
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
-import { approvedLibraryEntries, libraryTopics } from "@/data/anonymous-library";
+import { libraryTopics } from "@/data/anonymous-library";
 import { LibrarySearch } from "@/components/library/library-search";
-import { publishedSeoLibraryEntries } from "@/lib/seo/library-store";
+import { libraryEntriesWithBackfill, publishedSeoLibraryEntries } from "@/lib/seo/library-store";
 
 export const metadata = createPublicPageMetadata("/library");
 
@@ -59,7 +59,13 @@ export default async function LibraryPage() {
   // `?section=` принимается молча ради уже разосланных ссылок: раздел просто
   // больше ничего не сужает.
   const topics = libraryTopics();
-  const entries = [...approvedLibraryEntries(), ...await publishedSeoLibraryEntries()];
+  // B741: карточки корпуса идут с наложенными дописываниями — иначе в каталоге
+  // дописанная страница выглядела бы такой же тонкой, какой была.
+  const [corpusEntries, seoEntries] = await Promise.all([
+    libraryEntriesWithBackfill(),
+    publishedSeoLibraryEntries(),
+  ]);
+  const entries = [...corpusEntries, ...seoEntries];
   const symbolicFaqJsonLd = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "FAQPage",

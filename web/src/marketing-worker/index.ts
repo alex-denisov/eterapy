@@ -20,7 +20,7 @@ import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
 import { runSeoCoverageCycle, submitUrlsForRecrawl } from "@/lib/marketing/seo-coverage";
 import { harvestSearchDemand } from "@/lib/seo/demand/harvest";
-import { runSeoPageCycle, seoPageUrl } from "@/lib/seo/page-agent";
+import { runSeoBackfillCycle, runSeoPageCycle, seoPageUrl } from "@/lib/seo/page-agent";
 import { runOrchestratorCycle, ORCHESTRATOR_CYCLE_MS } from "@/lib/marketing/orchestrator";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
 import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
@@ -103,10 +103,13 @@ let lastSnapshotCheck = 0;
 let lastSeoDemand = 0;
 let lastSeoPage = 0;
 let lastOrchestrator = 0;
+let lastSeoBackfill = 0;
 const seoCycleMs = Math.max(
   60 * 60_000,
   Number(process.env.SEO_AGENT_CYCLE_MS || 6 * 60 * 60_000),
 );
+/** Дописывание идёт вдвое реже выпуска: два захода в сутки при потолке в две карточки. */
+const seoBackfillCycleMs = Math.max(seoCycleMs, 12 * 60 * 60_000);
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -263,6 +266,33 @@ async function main() {
             if (submitted.length > 0) {
               await db.seoLibraryPage.update({
                 where: { slug: result.published },
+                data: { submittedAt: new Date(now) },
+              }).catch(() => undefined);
+            }
+          }
+          return result;
+        });
+      }
+      /**
+       * B741 — ДОПИСЫВАНИЕ ТОНКИХ КАРТОЧЕК.
+       *
+       * Свой такт и свой потолок: у корпуса 172 карточки по медиане в 65
+       * собственных слов, и это главная причина отсутствия роста — ранжировать
+       * нечего. Но оживить их пачкой нельзя: корпус, выросший за ночь, — это
+       * ровно тот сигнал, за который его и сняли с индекса 2026-08-17.
+       *
+       * Шаг вдвое реже выпуска новых страниц: дописанная карточка меняет адрес,
+       * который УЖЕ в индексе, и цена ошибки здесь выше, чем у нового адреса.
+       */
+      if (now - lastSeoBackfill >= seoBackfillCycleMs) {
+        lastSeoBackfill = now;
+        await guarded("seo-backfill", async () => {
+          const result = await runSeoBackfillCycle({ now: new Date(now) });
+          if (result.backfilled) {
+            const submitted = await submitUrlsForRecrawl([seoPageUrl(result.backfilled)]);
+            if (submitted.length > 0) {
+              await db.seoLibraryPage.updateMany({
+                where: { slug: result.backfilled, kind: "BACKFILL" },
                 data: { submittedAt: new Date(now) },
               }).catch(() => undefined);
             }

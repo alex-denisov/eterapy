@@ -1,7 +1,8 @@
 import { canonicalUrl, hostKind, publicSeoRoutes } from "@/lib/seo";
-import { indexableLibraryEntries } from "@/data/anonymous-library";
+// B741: `indexableLibraryEntries` больше не нужна — гейт глубины считается по
+// карточке с дописанным телом, а не по статической записи.
 import { libraryDepth } from "@/lib/library-depth";
-import { publishedSeoLibraryEntries } from "@/lib/seo/library-store";
+import { libraryEntriesWithBackfill, publishedSeoLibraryEntries } from "@/lib/seo/library-store";
 import { resolvedCells } from "@/lib/astro/cells";
 import db from "@/lib/db";
 
@@ -23,12 +24,13 @@ export async function GET(request: Request) {
     return xmlResponse('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" />', "no-store");
   }
 
-  const [activePractitioners, seoPages] = await Promise.all([
+  const [activePractitioners, seoPages, corpusEntries] = await Promise.all([
     db.practitioner.findMany({
       where: { status: "ACTIVE" },
       select: { slug: true },
     }).catch(() => [] as Array<{ slug: string | null }>),
     publishedSeoLibraryEntries(),
+    libraryEntriesWithBackfill(),
   ]);
 
   const sitemapRoutes = [
@@ -43,7 +45,15 @@ export async function GET(request: Request) {
      * хост как ферму шаблонов: 199 адресов из 251 по ≈60 уникальных слов.
      * Люди по-прежнему видят весь каталог — `approvedLibraryEntries()`.
      */
-    ...indexableLibraryEntries().map((entry) => `/library/${entry.slug}`),
+    /**
+     * B741 — гейт глубины считается по карточке С ДОПИСАННЫМ ТЕЛОМ.
+     *
+     * `indexableLibraryEntries()` смотрит только в статический корпус и потому
+     * вечно возвращала бы те же 27 адресов из 199: дописанное тело живёт в
+     * базе и в статику не попадает. Дописывание без этой строки не давало бы
+     * поисковику ничего — страница углублялась бы, а в карту сайта не входила.
+     */
+    ...corpusEntries.filter((entry) => libraryDepth(entry).indexable).map((entry) => `/library/${entry.slug}`),
     /**
      * B740 — страницы SEO-агента проходят ТОТ ЖЕ гейт глубины, что и корпус.
      *

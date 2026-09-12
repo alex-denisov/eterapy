@@ -5,8 +5,13 @@ import { ArrowRight, ChevronLeft, CircleHelp, Compass, ShieldCheck } from "lucid
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { mainUrl } from "@/lib/subdomain";
-import { approvedLibraryEntries, getApprovedLibraryEntry, librarySection } from "@/data/anonymous-library";
-import { getPublishedSeoLibraryEntry, publishedSeoLibraryEntries } from "@/lib/seo/library-store";
+import { approvedLibraryEntries, librarySection } from "@/data/anonymous-library";
+import {
+  getLibraryEntryWithBackfill,
+  getPublishedSeoLibraryEntry,
+  libraryEntriesWithBackfill,
+  publishedSeoLibraryEntries,
+} from "@/lib/seo/library-store";
 import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 import { ogImageUrl } from "@/lib/share";
@@ -57,7 +62,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const entry = getApprovedLibraryEntry(slug) ?? await getPublishedSeoLibraryEntry(slug);
+  // B741: у карточки корпуса может быть дописанное тело — оно меняет и
+  // мета-описание, поэтому берётся до сборки метаданных, а не после.
+  const entry = await getLibraryEntryWithBackfill(slug) ?? await getPublishedSeoLibraryEntry(slug);
   if (!entry) return {};
 
   const title = libraryMetaTitle(entry);
@@ -108,9 +115,10 @@ export default async function LibraryEntryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  // Порядок важен: редакционный корпус известен без похода в базу, и страница,
-  // которая есть в коде, не обязана ждать запроса к ней.
-  const entry = getApprovedLibraryEntry(slug) ?? await getPublishedSeoLibraryEntry(slug);
+  // B741: сначала редакционная карточка с наложенным дописыванием, затем
+  // самостоятельная страница агента. Порядок повторяет метаданные выше —
+  // разойдись они, страница показывала бы одно, а в выдаче обещала другое.
+  const entry = await getLibraryEntryWithBackfill(slug) ?? await getPublishedSeoLibraryEntry(slug);
   if (!entry) notFound();
   const section = librarySection(entry);
   /**
@@ -121,8 +129,11 @@ export default async function LibraryEntryPage({
    * обходится последней и взвешивается ниже всех. Поэтому соседи считаются по
    * ОБЪЕДИНЁННОМУ корпусу, а не только по редакционному.
    */
-  const seoEntries = await publishedSeoLibraryEntries();
-  const relatedEntries = [...approvedLibraryEntries(), ...seoEntries]
+  const [seoEntries, corpusEntries] = await Promise.all([
+    publishedSeoLibraryEntries(),
+    libraryEntriesWithBackfill(),
+  ]);
+  const relatedEntries = [...corpusEntries, ...seoEntries]
     .filter((item) => librarySection(item) === section && item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
     .slice(0, 4);
   // v2 single-canvas content with graceful fallback to legacy perspectives[].

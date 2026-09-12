@@ -57,6 +57,25 @@ export function stateBlock(state: OrchestratorState): string[] {
   } else {
     lines.push("Вышло за сутки: ничего");
   }
+  // B741: живые источники — отдельной строкой от суточного среза. Молчащий
+  // источник обязан быть виден словом «не ответил», а не отсутствием числа.
+  const webmaster = state.sources.webmaster;
+  lines.push(
+    webmaster
+      ? `Яндекс: в поиске ${webmaster.searchablePages} из ${webmaster.sitemapUrls} в карте сайта, `
+        + `исключено ${webmaster.excludedPages}`
+      : `Яндекс.Вебмастер: не ответил (${state.sources.webmasterError ?? "причина не названа"})`,
+  );
+  const gsc = state.sources.gsc;
+  lines.push(
+    gsc
+      ? `Google за неделю: показов ${gsc.totals.impressions}, кликов ${gsc.totals.clicks}, `
+        + `средняя позиция ${gsc.totals.averagePosition.toFixed(1)}, запросов ${gsc.queryCount}`
+      : `Google Search Console: не ответила (${state.sources.gscError ?? "причина не названа"})`,
+  );
+  if (state.thinCards > 0) {
+    lines.push(`Карточек без глубины: ${state.thinCards} — дописываются по расписанию`);
+  }
   if (state.search.impressions !== null) {
     lines.push(
       `Поиск: показов ${state.search.impressions}, кликов ${state.search.clicks ?? 0}`
