@@ -6,6 +6,7 @@ import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { mainUrl } from "@/lib/subdomain";
 import { approvedLibraryEntries, getApprovedLibraryEntry, librarySection } from "@/data/anonymous-library";
+import { getPublishedSeoLibraryEntry, publishedSeoLibraryEntries } from "@/lib/seo/library-store";
 import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 import { ogImageUrl } from "@/lib/share";
@@ -26,10 +27,25 @@ import { ServiceGuideSections } from "@/components/library/service-guide-section
 import { ArcanaGuideSections } from "@/components/library/arcana-guide-sections";
 import { libraryDepth } from "@/lib/library-depth";
 
-// The library corpus is editorial and fully known at build time. Keep the
-// route contract closed as well as the proxy allowlist; the proxy performs the
-// pre-stream 404 because the root loading boundary can commit HTTP 200 first.
-export const dynamicParams = false;
+/**
+ * B740 — МАРШРУТ ОТКРЫТ ДЛЯ СТРАНИЦ, ВЫПУЩЕННЫХ SEO-АГЕНТОМ.
+ *
+ * Было `dynamicParams = false`: корпус редакционный, известен на сборке, и
+ * всё, чего нет в нём, не существовало. Агент выпускает страницы в базу между
+ * выкатками, и закрытый контракт маршрута означал бы, что выпущенная страница
+ * недоступна до следующей пересборки образа — то есть ровно тот цикл в
+ * двенадцать минут, ради ухода от которого всё и делалось.
+ *
+ * Редакционный корпус при этом ОСТАЁТСЯ предсобранным: `generateStaticParams`
+ * не тронут, и его двести адресов по-прежнему рисуются на сборке, а не на
+ * запросе. Открылся только хвост — слаги, которых на сборке не было.
+ *
+ * `revalidate` = 5 минут: страница агента правится редко, а живой запрос в
+ * базу на каждый обход краулера означал бы, что скорость публичной страницы
+ * зависит от нагрузки на базу.
+ */
+export const dynamicParams = true;
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return approvedLibraryEntries().map((entry) => ({ slug: entry.slug }));
@@ -41,7 +57,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const entry = getApprovedLibraryEntry(slug);
+  const entry = getApprovedLibraryEntry(slug) ?? await getPublishedSeoLibraryEntry(slug);
   if (!entry) return {};
 
   const title = libraryMetaTitle(entry);
@@ -92,10 +108,21 @@ export default async function LibraryEntryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const entry = getApprovedLibraryEntry(slug);
+  // Порядок важен: редакционный корпус известен без похода в базу, и страница,
+  // которая есть в коде, не обязана ждать запроса к ней.
+  const entry = getApprovedLibraryEntry(slug) ?? await getPublishedSeoLibraryEntry(slug);
   if (!entry) notFound();
   const section = librarySection(entry);
-  const relatedEntries = approvedLibraryEntries()
+  /**
+   * B740 — СТРАНИЦА АГЕНТА НЕ ИМЕЕТ ПРАВА БЫТЬ СИРОТОЙ.
+   *
+   * Перелинковка здесь — не украшение: у выпущенной в базу страницы нет
+   * входящих ссылок вообще, кроме карты сайта, а страница без входящих ссылок
+   * обходится последней и взвешивается ниже всех. Поэтому соседи считаются по
+   * ОБЪЕДИНЁННОМУ корпусу, а не только по редакционному.
+   */
+  const seoEntries = await publishedSeoLibraryEntries();
+  const relatedEntries = [...approvedLibraryEntries(), ...seoEntries]
     .filter((item) => librarySection(item) === section && item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
     .slice(0, 4);
   // v2 single-canvas content with graceful fallback to legacy perspectives[].

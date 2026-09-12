@@ -56,23 +56,46 @@ describe("B719 — мёртвые провайдеры выведены из а�
   });
 });
 
-describe("B719 — редактор спрашивает самую немногословную модель первой", () => {
-  it("голова редактора отличается от головы автора", () => {
-    expect(MARKETING_REVIEWER_PRIORITY_HEAD).toEqual([AIProvider.MISTRAL]);
+describe("B740 — голова редактора передана Gemini, Mistral остался вторым", () => {
+  /**
+   * ⚠ ЭТОТ ПРОГОН ЗАМЕНИЛ ПРОВЕРКУ B719, И ЭТО НЕ ОСЛАБЛЕНИЕ КОНТРАКТА.
+   *
+   * B719 требовал, чтобы голова редактора ОТЛИЧАЛАСЬ от головы автора: замер
+   * показывал у Mistral вывод в 18 раз короче и время в 26 раз меньше, чем у
+   * думающих моделей пула. Владелец 2026-09-12 назвал другое предпочтение —
+   * «поставь этого провайдера на место писателя и редактора».
+   *
+   * Что проверяется теперь: предпочтение владельца соблюдается на КАЖДОМ
+   * материале (голова не вращается), Mistral стоит сразу за ним и ловит отказы
+   * Gemini по квоте, а роли по-прежнему разделены МОДЕЛЬЮ — иначе независимая
+   * проверка проверяла бы саму себя.
+   */
+  it("голова редактора — Gemini, как и у автора", () => {
+    expect(MARKETING_REVIEWER_PRIORITY_HEAD).toEqual([AIProvider.GEMINI, AIProvider.MISTRAL]);
     expect(marketingProviderOrder("pub-1", [], [], { role: "reviewer" })[0])
-      .toBe(AIProvider.MISTRAL);
+      .toBe(AIProvider.GEMINI);
     expect(marketingProviderOrder("pub-1", [], [], { role: "writer" })[0])
       .toBe(AIProvider.GEMINI);
+  });
+
+  it("Mistral стоит сразу за головой: отказ Gemini по квоте не уводит вердикт к думающим моделям", () => {
+    expect(marketingProviderOrder("pub-1", [], [], { role: "reviewer" })[1])
+      .toBe(AIProvider.MISTRAL);
+  });
+
+  it("у Gemini автор и редактор смотрят в разные модели", () => {
+    expect(MARKETING_WRITER_MODEL_PREFERENCES[AIProvider.GEMINI])
+      .not.toBe(MARKETING_REVIEWER_MODEL_PREFERENCES[AIProvider.GEMINI]);
   });
 
   it("голова редактора постоянна между материалами, как и у автора", () => {
     for (const seed of ["a", "b", "c", "d", "e"]) {
       expect(marketingProviderOrder(seed, [], [], { role: "reviewer" })[0])
-        .toBe(AIProvider.MISTRAL);
+        .toBe(AIProvider.GEMINI);
     }
   });
 
-  it("это предпочтение, а не запрет: без Mistral обход продолжается", () => {
+  it("это предпочтение, а не запрет: без Gemini и Mistral обход продолжается", () => {
     const available = [AIProvider.GROQ, AIProvider.NVIDIA, AIProvider.OPENROUTER];
     const order = marketingProviderOrder("pub-1", [], available, { role: "reviewer" });
     expect(order).not.toContain(AIProvider.MISTRAL);

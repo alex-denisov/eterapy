@@ -11,12 +11,30 @@ describe("B205 Library and esoteric service pages", () => {
       expect(fs.existsSync(path.join(root, `src/app/library/${route}/route.ts`))).toBe(false);
     }
 
+    /**
+     * B740 — КОНТРАКТ МАРШРУТА ИЗМЕНЁН РЕШЕНИЕМ ВЛАДЕЛЬЦА, А НЕ СЛОМАН.
+     *
+     * Прежде здесь проверялось, что маршрут Библиотеки ЗАКРЫТ
+     * (`dynamicParams = false`), а прокси держит список слагов корпуса и
+     * хоронит всё остальное. Оба утверждения были верны ровно до тех пор, пока
+     * корпус был только редакционным.
+     *
+     * SEO-агент выпускает страницы в базу между выкатками. Закрытый маршрут
+     * означал бы, что выпущенная страница недоступна до следующей пересборки
+     * образа, а список в прокси — что она отдаёт 404 даже после неё, пока
+     * процесс не перезапущен.
+     *
+     * Проверка остаётся, но проверяет теперь ДРУГОЕ: маршрут открыт, а
+     * редакционный корпус по-прежнему предсобирается — то есть двести
+     * известных адресов не стали рисоваться на запросе.
+     */
     const detail = source("src/app/library/[slug]/page.tsx");
-    expect(detail).toContain("export const dynamicParams = false");
+    expect(detail).toContain("export const dynamicParams = true");
+    expect(detail).toContain("generateStaticParams");
+    expect(detail).toContain("getPublishedSeoLibraryEntry");
 
     const proxy = source("src/proxy.ts");
-    expect(proxy).toContain("function unknownLibrarySlug");
-    expect(proxy).toContain("unknownLibrarySlug(pathname)");
+    expect(proxy).not.toContain("VALID_LIBRARY_SLUGS");
   });
 
   it("keeps legacy esoteric URLs as redirects to canonical /products pages", () => {

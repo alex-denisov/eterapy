@@ -912,30 +912,27 @@ enum ComplaintReason {
 // Какие уведомления получать и через какой канал
 /**
  * B599 · Журнал маркетинговых отправок.
- *
  * Владелец: «где будет видно кому, когда, куда и что было отправлено… и чтобы я
  * видел текст, который ушел пользователю».
- *
  * Тело хранится СНИМКОМ на момент отправки, а не собирается заново при
  * просмотре: шаблон правится, а вопрос «что ушло» — про прошлое. Пересборка при
  * открытии показывала бы сегодняшний текст под вчерашней датой.
- *
  * Заблокированные попытки пишутся сюда ТОЖЕ, с причиной. «Не ушло» без записи —
  * это молчание, из-за которого полгода не замечали неработающий cron.
  */
 model MarketingDispatch {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventKey  String   @map("event_key") // ключ из lib/marketing/events.ts
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey  String    @map("event_key") // ключ из lib/marketing/events.ts
   category  String // категория оттуда же — по ней владелец фильтрует
   channel   String // email / telegram / push
   status    String // sent | blocked | failed
-  blockedBy String?  @map("blocked_by") // причина отказа, если status = blocked
+  blockedBy String?   @map("blocked_by") // причина отказа, если status = blocked
   subject   String?
   body      String? // отрендеренное тело КАК ОНО УШЛО
   error     String?
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
   sentAt    DateTime? @map("sent_at")
 
   @@index([userId, createdAt])
@@ -1309,55 +1306,55 @@ model ExternalPublication {
 
   // B589 фаза 1: реестр стал очередью. PLANNED → DRAFT → SCHEDULED → PUBLISHED
   // | FAILED. `autoPublish` по умолчанию false — черновик наружу сам не идёт.
-  body             String?                     @db.Text
-  scheduledFor     DateTime?                   @map("scheduled_for")
-  autoPublish      Boolean                     @default(false) @map("auto_publish")
-  attemptCount     Int                         @default(0) @map("attempt_count")
-  lastError        String?                     @map("last_error")
-  externalPostId   String?                     @map("external_post_id")
+  body                    String?                  @db.Text
+  scheduledFor            DateTime?                @map("scheduled_for")
+  autoPublish             Boolean                  @default(false) @map("auto_publish")
+  attemptCount            Int                      @default(0) @map("attempt_count")
+  lastError               String?                  @map("last_error")
+  externalPostId          String?                  @map("external_post_id")
   /// Слот контент-плана. Уникален: генератор не должен занимать слот дважды.
-  planSlot         String?                     @unique @map("plan_slot")
+  planSlot                String?                  @unique @map("plan_slot")
   /// B610: for an engagement draft, where and in reply to what it is intended.
   /// Public third-party post context supplied verbatim to the marketing writer.
   /// It must never contain internal ETerapy client or practitioner data.
-  engagementTargetUrl String?                  @map("engagement_target_url")
-  engagementTargetId String?                   @map("engagement_target_id")
-  engagementTargetLabel String?                @map("engagement_target_label")
-  engagementExcerpt String?                    @db.Text @map("engagement_excerpt")
+  engagementTargetUrl     String?                  @map("engagement_target_url")
+  engagementTargetId      String?                  @map("engagement_target_id")
+  engagementTargetLabel   String?                  @map("engagement_target_label")
+  engagementExcerpt       String?                  @map("engagement_excerpt") @db.Text
   /// B616: conversational register chosen for this reply (см. engagement-tone).
-  engagementTone   String?                     @map("engagement_tone")
-  telegramReviewMessageId Int?                 @map("telegram_review_message_id")
-  agentWriterProvider String?                  @map("agent_writer_provider")
-  agentWriterModel String?                     @map("agent_writer_model")
-  agentReviewerProvider String?                @map("agent_reviewer_provider")
-  agentReviewerModel String?                   @map("agent_reviewer_model")
-  agentReview         Json?                    @map("agent_review")
-  agentReviewedAt     DateTime?                @map("agent_reviewed_at")
+  engagementTone          String?                  @map("engagement_tone")
+  telegramReviewMessageId Int?                     @map("telegram_review_message_id")
+  agentWriterProvider     String?                  @map("agent_writer_provider")
+  agentWriterModel        String?                  @map("agent_writer_model")
+  agentReviewerProvider   String?                  @map("agent_reviewer_provider")
+  agentReviewerModel      String?                  @map("agent_reviewer_model")
+  agentReview             Json?                    @map("agent_review")
+  agentReviewedAt         DateTime?                @map("agent_reviewed_at")
   /// B700: незавершённая стадия автора. Автор и редактор — две операции
   /// конвейера, а не одна: готовый текст автора ложится сюда ДО вызова
   /// редактора. Отказ редактора по 429 стоит одного вызова редактора, а не
   /// повторной оплаты уже написанного материала.
-  agentWriterDraft    Json?                    @map("agent_writer_draft")
-  agentWrittenAt      DateTime?                @map("agent_written_at")
-  moderationDecisionBy String?                 @map("moderation_decision_by")
-  moderationDecisionAt DateTime?               @map("moderation_decision_at")
+  agentWriterDraft        Json?                    @map("agent_writer_draft")
+  agentWrittenAt          DateTime?                @map("agent_written_at")
+  moderationDecisionBy    String?                  @map("moderation_decision_by")
+  moderationDecisionAt    DateTime?                @map("moderation_decision_at")
   /// B618: строка — ответ на конкретное входящее. Уникальность в базе, а не в
   /// коде: повторная доставка того же webhook не может создать вторую реплику.
-  inboundReplyToId String?                     @unique @map("inbound_reply_to_id")
-  inboundReplyTo   MarketingInboundMessage?    @relation("MarketingInboundReply", fields: [inboundReplyToId], references: [id], onDelete: SetNull)
+  inboundReplyToId        String?                  @unique @map("inbound_reply_to_id")
+  inboundReplyTo          MarketingInboundMessage? @relation("MarketingInboundReply", fields: [inboundReplyToId], references: [id], onDelete: SetNull)
   /// B626: почему строка ушла в архив. Раньше причина пряталась в `lastError`
   /// машинным кодом (`SUPERSEDED_BY_B610_TWO_WEEK_PLAN`), и владелец видел
   /// «Архив» без объяснения. Отдельное поле не смешивает «почему архив» с
   /// «на чём упала последняя попытка».
-  archiveReason    String?                     @map("archive_reason")
+  archiveReason           String?                  @map("archive_reason")
   /// B626: сколько раз строку возвращали в работу после технического отказа.
   /// Ограничитель: бесконечный автоперезапуск сжёг бы ёмкость на материале,
   /// который не чинится.
-  recoveryCount    Int                         @default(0) @map("recovery_count")
+  recoveryCount           Int                      @default(0) @map("recovery_count")
   /// B645: сколько раз материал переносили в следующий слот, не выпустив.
   /// Отдельно от `recoveryCount`: тот отвечает на вопрос «сколько раз материал
   /// переписывали», этот — «сколько раз ему двигали время».
-  deferralCount    Int                         @default(0) @map("deferral_count")
+  deferralCount           Int                      @default(0) @map("deferral_count")
 
   @@index([status, scheduledFor])
   @@index([status, publishedAt])
@@ -1377,26 +1374,26 @@ model ExternalPublication {
 /// одно входящее» — уникальным `ExternalPublication.inboundReplyToId`, то есть
 /// базой, а не последовательностью вызовов.
 model MarketingInboundMessage {
-  id           String    @id @default(cuid())
-  platform     String
+  id          String               @id @default(cuid())
+  platform    String
   /// COMMENT — комментарий к нашей публикации, MENTION — упоминание бренда,
   /// DIRECT — сообщение сообществу.
-  kind         String
-  externalId   String    @map("external_id")
+  kind        String
+  externalId  String               @map("external_id")
   /// Наш пост/медиа/чат, внутри которого пришло входящее.
-  threadId     String?   @map("thread_id")
-  authorLabel  String?   @map("author_label")
-  text         String    @db.Text
-  permalink    String?
-  status       String    @default("RECEIVED")
+  threadId    String?              @map("thread_id")
+  authorLabel String?              @map("author_label")
+  text        String               @db.Text
+  permalink   String?
+  status      String               @default("RECEIVED")
   /// Балл риска вреда по общей шкале платформы (`dialogue-safety`).
-  harmScore    Int?      @map("harm_score")
-  receivedAt   DateTime  @default(now()) @map("received_at")
-  answeredAt   DateTime? @map("answered_at")
-  lastError    String?   @map("last_error")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  reply        ExternalPublication? @relation("MarketingInboundReply")
+  harmScore   Int?                 @map("harm_score")
+  receivedAt  DateTime             @default(now()) @map("received_at")
+  answeredAt  DateTime?            @map("answered_at")
+  lastError   String?              @map("last_error")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  reply       ExternalPublication? @relation("MarketingInboundReply")
 
   @@unique([platform, externalId])
   @@index([status, receivedAt])
@@ -1416,25 +1413,25 @@ model MarketingInboundMessage {
 /// Суточный срез делает движение наблюдаемым: у каждого дня есть отметка
 /// времени, значения и разница с предыдущим днём.
 model MarketingDailySnapshot {
-  id          String   @id @default(cuid())
+  id              String   @id @default(cuid())
   /// Московская дата среза, `YYYY-MM-DD`. Один срез в сутки — уникальность в
   /// базе, а не в порядке вызовов: воркер тикает часто.
-  dayKey      String   @unique @map("day_key")
-  capturedAt  DateTime @default(now()) @map("captured_at")
-  impressions Int      @default(0)
-  clicks      Int      @default(0)
+  dayKey          String   @unique @map("day_key")
+  capturedAt      DateTime @default(now()) @map("captured_at")
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
   /// Средняя позиция взвешена по показам. `null` — замера не было вовсе, и это
   /// не то же самое, что «позиция ноль».
-  averagePosition Float? @map("average_position")
+  averagePosition Float?   @map("average_position")
   /// B697: уровень известен только за сутки, когда срез действительно снимался.
   /// Хвост окна переснимается посуточным рядом источника — там есть поток, но
   /// нет состояния индексации на тот день, и `0` вместо него был бы неправдой.
-  searchablePages Int?  @map("searchable_pages")
-  organicVisits   Int   @default(0) @map("organic_visits")
-  observedQueries Int?  @map("observed_queries")
+  searchablePages Int?     @map("searchable_pages")
+  organicVisits   Int      @default(0) @map("organic_visits")
+  observedQueries Int?     @map("observed_queries")
   /// Состояние каждого источника на момент среза: живой замер это или отказ.
-  sources     Json?
-  createdAt   DateTime @default(now()) @map("created_at")
+  sources         Json?
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@index([dayKey])
   @@map("marketing_daily_snapshots")
@@ -1450,39 +1447,39 @@ model MarketingDailySnapshot {
 /// генерация при каждом обращении к обложке превратила бы одобренный владельцем
 /// $1,13/мес в счёт, зависящий от того, сколько раз Meta сходила за файлом.
 model MarketingCoverImage {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// Ключ материала (`ExternalPublication.key`). Связи нет намеренно: картинка
   /// переживает архивацию строки и остаётся доказательством расхода.
-  key       String   @unique
-  platform  String
-  mimeType  String   @map("mime_type")
-  bytes     Bytes
+  key        String   @unique
+  platform   String
+  mimeType   String   @map("mime_type")
+  bytes      Bytes
   /// Какая модель нарисовала — для приёмки глазами и для разбора счёта.
-  model     String
+  model      String
   /// Во что обошлась картинка, в тысячных долях доллара (как в ai_budget_ledger).
-  costMicros Int     @default(0) @map("cost_micros")
-  prompt    String   @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
+  costMicros Int      @default(0) @map("cost_micros")
+  prompt     String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([platform, createdAt])
   @@map("marketing_cover_images")
 }
 
 model MarketingAutomationSignal {
-  id              String   @id @default(cuid())
-  key             String   @unique
+  id              String    @id @default(cuid())
+  key             String    @unique
   kind            String
   severity        String
-  status          String   @default("OPEN")
+  status          String    @default("OPEN")
   title           String
-  summary         String   @db.Text
+  summary         String    @db.Text
   evidence        Json?
-  suggestedTicket String?  @map("suggested_ticket")
-  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
-  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+  suggestedTicket String?   @map("suggested_ticket")
+  firstSeenAt     DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
   resolvedAt      DateTime? @map("resolved_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@index([status, severity, lastSeenAt])
   @@map("marketing_automation_signals")
@@ -2180,33 +2177,33 @@ model SavedCard {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 model Transaction {
-  id                   String            @id @default(cuid())
-  userId               String
-  amount               Int // positive = top-up, negative = charge
-  currency             String            @default("RUB")
-  status               TransactionStatus @default(PENDING)
-  provider             String            @default("yookassa") // "robokassa", "yookassa", "internal", "manual"
-  providerPaymentId    String? // provider-side payment id (Robokassa: the InvId as text)
+  id                     String            @id @default(cuid())
+  userId                 String
+  amount                 Int // positive = top-up, negative = charge
+  currency               String            @default("RUB")
+  status                 TransactionStatus @default(PENDING)
+  provider               String            @default("yookassa") // "robokassa", "yookassa", "internal", "manual"
+  providerPaymentId      String? // provider-side payment id (Robokassa: the InvId as text)
   /// Robokassa `InvId`: a positive integer unique per shop. Allocated when the
   /// transaction row is created, BEFORE the payment link is signed, so a retry
   /// of the same checkout reuses it and Robokassa collapses the duplicate.
-  invoiceId            Int               @unique @default(autoincrement()) @map("invoice_id")
-  description          String?
+  invoiceId              Int               @unique @default(autoincrement()) @map("invoice_id")
+  description            String?
   /// B571: каким комплектом ключей Robokassa подписан ЭТОТ платёж.
   /// ResultURL приходит подписанным паролем #2 того же комплекта, поэтому
   /// режим обязан жить на транзакции: признак у пользователя могут снять между
   /// оплатой и колбэком, и тогда проверка подписи пошла бы не той парой.
-  testMode             Boolean           @default(false) @map("test_mode")
-  paymentDeclineReason String?           @map("payment_decline_reason")
-  offerVersion         String?           @map("offer_version")
-  termsVersion         String?           @map("terms_version")
-  consentVersion       String?           @map("consent_version")
-  metadata             Json?
-  fiscalReceiptStatus  String?           @map("fiscal_receipt_status")
-  fiscalReceiptRef     String?           @map("fiscal_receipt_ref")
-  fiscalReceiptCheckedAt DateTime?       @map("fiscal_receipt_checked_at")
-  fiscalReceiptError   String?           @map("fiscal_receipt_error")
-  createdAt            DateTime          @default(now())
+  testMode               Boolean           @default(false) @map("test_mode")
+  paymentDeclineReason   String?           @map("payment_decline_reason")
+  offerVersion           String?           @map("offer_version")
+  termsVersion           String?           @map("terms_version")
+  consentVersion         String?           @map("consent_version")
+  metadata               Json?
+  fiscalReceiptStatus    String?           @map("fiscal_receipt_status")
+  fiscalReceiptRef       String?           @map("fiscal_receipt_ref")
+  fiscalReceiptCheckedAt DateTime?         @map("fiscal_receipt_checked_at")
+  fiscalReceiptError     String?           @map("fiscal_receipt_error")
+  createdAt              DateTime          @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2545,4 +2542,148 @@ model IpLedgerEntry {
   @@index([occurredAt])
   @@index([direction, occurredAt])
   @@map("ip_ledger_entries")
+}
+
+// ─── B740 · Автономный SEO-агент и оркестратор ────────────────────────────────
+
+/// B740 — СПРОС, СНЯТЫЙ ЖИВЬЁМ. Фраза, которую люди действительно ищут.
+///
+/// Строка живёт ДОЛЬШЕ одного прохода намеренно. Сбор идёт несколько раз в
+/// сутки, а страница пишется не на каждую фразу: без памяти агент выбирал бы
+/// заново из той же выдачи и писал бы по второму разу то, что уже вышло.
+/// Поэтому «использована» — это состояние фразы, а не поиск по корпусу.
+model SeoKeywordCandidate {
+  id            String   @id @default(cuid())
+  /// Нормализованная фраза (нижний регистр, схлопнутые пробелы). Уникальна:
+  /// два источника обязаны сойтись в одну строку, а не в две.
+  phrase        String   @unique
+  /// Исходная форма из источника — её показываем человеку в отчёте.
+  displayPhrase String   @map("display_phrase")
+  /// wordstat | google-trends. Оба — если фраза пришла из обоих.
+  source        String
+  /// Показов в месяц по Wordstat. `null` — источник молчал, это не ноль.
+  monthlyDemand Int?     @map("monthly_demand")
+  /// Рост частотности за последние недели (доля, 0.15 = +15 %).
+  growth        Float?
+  /// Головная фраза кластера семантического ядра, к которому фраза отнесена.
+  cluster       String?
+  /// Услуга, в которую страница должна конвертировать (`SEMANTIC_CORE.service`).
+  service       String?
+  /// NEW → PLANNED → USED | REJECTED
+  status        String   @default("NEW")
+  /// Почему отклонена: вне сферы, дубль корпуса, небезопасная тема.
+  rejectReason  String?  @map("reject_reason") @db.Text
+  /// Слаг страницы, которая закрыла эту фразу.
+  pageSlug      String?  @map("page_slug")
+  firstSeenAt   DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt    DateTime @default(now()) @map("last_seen_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([status, monthlyDemand])
+  @@index([status, lastSeenAt])
+  @@map("seo_keyword_candidates")
+}
+
+/// B740 — СТРАНИЦА БИБЛИОТЕКИ, ВЫПУЩЕННАЯ АГЕНТОМ.
+///
+/// ⚠ ПОЧЕМУ В БАЗЕ, А НЕ В КОДЕ. Статический корпус (`anonymous-library.ts`)
+/// требует коммита и полной пересборки образа на каждую страницу — это не
+/// «простейший цикл», а двенадцать минут выкатки на один текст. База даёт
+/// выпуск за секунду.
+///
+/// ⚠ ПОЧЕМУ ПЕРЕВЫКАТКА ЕЁ НЕ УДАЛИТ. Контейнер эфемерен, Postgres — нет: он
+/// отдельная служба с томом, и `docker compose up` подменяет образ веба, не
+/// трогая данные. Восстановление после сбоя идёт из шифрованного дампа
+/// (`deploy/backup/offhost-backup.sh`), где эта таблица лежит наравне с
+/// заказами. Сверх того каждая строка хранит ВСЁ, из чего она получена —
+/// фразу, бриф и вердикт, — поэтому страница восстановима и без дампа.
+model SeoLibraryPage {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  /// Тема каталога (`LibraryTopic`) — по ней строится CTA в услугу.
+  topic            String
+  /// DRAFT — написана, но не выпущена; PUBLISHED — видна людям и поисковику;
+  /// RETIRED — снята с выдачи, но не удалена (история выпуска дороже строки).
+  status           String    @default("DRAFT")
+  /// Заголовок H1 страницы — вопрос от первого лица.
+  question         String    @db.Text
+  /// Короткий ответ — первый абзац.
+  summary          String    @db.Text
+  metaTitle        String    @map("meta_title")
+  metaDescription  String    @map("meta_description") @db.Text
+  /// `LibraryBodySection[]` — развёрнутый разбор. Без него страница не
+  /// выпускается: ровно тонкие карточки Яндекс снял с индекса в B714.
+  body             Json
+  /// Три коротких наблюдения для блока «что можно проверить».
+  perspectives     String[]
+  /// `Array<{question, answer}>` — FAQ, он же FAQPage в разметке.
+  faqs             Json
+  mainForkTitle    String?   @map("main_fork_title") @db.Text
+  mainForkNote     String?   @map("main_fork_note") @db.Text
+  firstStep        String?   @map("first_step") @db.Text
+  /// Услуга, в которую конвертирует страница (`LibraryCtaProduct`).
+  ctaProduct       String    @map("cta_product")
+  /// Запрос, под который страница написана, и его частотность на момент выпуска.
+  targetQuery      String    @map("target_query")
+  targetDemand     Int?      @map("target_demand")
+  demandSource     String    @map("demand_source")
+  cluster          String?
+  /// Кто написал и кто вынес вердикт — для разбора качества и счёта.
+  writerProvider   String?   @map("writer_provider")
+  writerModel      String?   @map("writer_model")
+  reviewerProvider String?   @map("reviewer_provider")
+  reviewerModel    String?   @map("reviewer_model")
+  review           Json?
+  reviewRounds     Int       @default(0) @map("review_rounds")
+  publishedAt      DateTime? @map("published_at")
+  reviewedAt       DateTime? @map("reviewed_at")
+  /// Когда адрес отдан в IndexNow и в переобход Вебмастера.
+  submittedAt      DateTime? @map("submitted_at")
+  lastError        String?   @map("last_error") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, publishedAt])
+  @@index([topic, status])
+  @@map("seo_library_pages")
+}
+
+/// B740 — РЕШЕНИЕ ОРКЕСТРАТОРА И ЕГО СЛЕД.
+///
+/// Владелец 2026-09-12: «полная автономия, но он должен сам мне писать перед
+/// тем как внедрить изменения». Значит у каждого изменения обязаны быть три
+/// вещи: что именно меняется, что было ДО (иначе откат невозможен) и отметка,
+/// что отчёт ушёл человеку РАНЬШЕ применения. Строка пишется до отправки,
+/// поэтому недоставленный отчёт виден как строка без `reportedAt`, а не как
+/// молчание.
+model AgentDirective {
+  id           String    @id @default(cuid())
+  /// Ключ идемпотентности: одна и та же правка в одном окне не применяется дважды.
+  key          String    @unique
+  /// Кому адресована правка: smm | seo | pool | conveyor | platform.
+  target       String
+  /// Что делать — из закрытого словаря действий (`orchestrator-actions.ts`).
+  action       String
+  /// Параметры действия.
+  payload      Json
+  /// Состояние до применения — из него делается откат.
+  previous     Json?
+  /// PLANNED → REPORTED → APPLIED | FAILED | SKIPPED | ROLLED_BACK
+  status       String    @default("PLANNED")
+  /// Проблема, ради которой правка делается, словами эксперта.
+  problem      String    @db.Text
+  /// Что изменится и почему это поможет.
+  rationale    String    @db.Text
+  /// Насколько правка обратима: reversible | monetary | irreversible.
+  risk         String    @default("reversible")
+  reportedAt   DateTime? @map("reported_at")
+  appliedAt    DateTime? @map("applied_at")
+  failedReason String?   @map("failed_reason") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([target, createdAt])
+  @@map("agent_directives")
 }

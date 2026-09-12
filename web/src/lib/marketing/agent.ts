@@ -50,7 +50,6 @@ import {
   conveyorTact,
   marketingLinePauseUntil,
   orderByUrgency,
-  MARKETING_MAX_AWAITING_REVIEW,
   type ConveyorBottleneck,
 } from "@/lib/marketing/conveyor-tact";
 import {
@@ -60,6 +59,7 @@ import {
   plannedFilter,
   readyForWorkFilter,
 } from "@/lib/marketing/conveyor-queues";
+import { marketingMaxAwaitingReview } from "@/lib/marketing/conveyor-settings";
 import { contentPlanFor } from "@/lib/marketing/content-plan";
 import { dzenFeedNeedsTopUp } from "@/lib/marketing/dzen-feed";
 import {
@@ -2425,6 +2425,10 @@ export async function runMarketingAgentCycle(
   const demandFilter = { AND: [readyForWork, dueNow, plannedFilter] };
 
   const hourAgo = new Date(now.getTime() - 60 * 60_000);
+  // B740 — потолок очереди редактора спрашивается у настроек, а не берётся из
+  // окружения, прочитанного на старте процесса: правка оркестратора обязана
+  // менять поведение, а не только строку в таблице.
+  const maxAwaitingReview = await marketingMaxAwaitingReview();
   const [writtenThisHour, deferred, awaitingReview, demand, ready] = await Promise.all([
     /**
      * B700 фаза 2 — норма часа считается по СДЕЛАННОМУ, а не по дошедшему до конца.
@@ -2506,7 +2510,7 @@ export async function runMarketingAgentCycle(
     hoursToHorizon: Math.ceil(MARKETING_GENERATION_LEAD_MS / 3_600_000),
     capacityPerHour: capacity.perHour,
     awaitingReview,
-    maxAwaitingReview: MARKETING_MAX_AWAITING_REVIEW,
+    maxAwaitingReview,
     writtenThisHour,
   });
 

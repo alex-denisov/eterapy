@@ -79,6 +79,13 @@ services:
       ETERAPY_CONTOUR: staging
       MARKETING_AGENT_ENABLED: "false"
       MARKETING_FOREIGN_LLM_ENABLED: "false"
+      # B740 — на стенде SEO-агент и оркестратор выключены ЯВНО, а не по
+      # умолчанию. Умолчание у обоих «включено», и молчание здесь означало бы,
+      # что стенд начнёт писать страницы в свою базу и слать отчёты владельцу
+      # в тот же Telegram-канал, что прод. Отличить их по тексту было бы
+      # нельзя — ровно та неразличимость, из-за которой стенд и отделён.
+      SEO_PAGE_AGENT_ENABLED: "false"
+      MARKETING_ORCHESTRATOR_ENABLED: "false"
       # Тот же гейт, что у web: контейнеры не должны расходиться в поведении,
       # если агент на стенде когда-нибудь включат.
       MARKETING_PLANNER_ENABLED: "true"

@@ -7,7 +7,6 @@ import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
 import { v5Products } from "@/lib/v5-products";
-import { approvedLibraryEntries } from "@/data/anonymous-library";
 import { homeAgentMarkdown } from "@/lib/agent-readiness";
 import { cspHeaders, cspValue } from "@/lib/security-headers";
 
@@ -175,7 +174,6 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
 // поверхность). Добавляем её слаг вручную — иначе middleware пометит путь как
 // неизвестный (→ 404) и не распознает его как публичную страницу услуги.
 const VALID_PRODUCT_SLUGS = new Set<string>([...v5Products.map((product) => product.slug), "chat"]);
-const VALID_LIBRARY_SLUGS = new Set(approvedLibraryEntries().map((entry) => entry.slug));
 
 // B373 (M26): любой слаг, которого нет в v5Products, отдаёт честный 404 (без
 // редиректа). Выпиленные услуги и «Круг» (закрыт в B385) убраны из v5Products/
@@ -187,15 +185,24 @@ function unknownProductSlug(pathname: string): boolean {
   return !VALID_PRODUCT_SLUGS.has(match[1]);
 }
 
-// INC-076: notFound() inside the streamed /library/[slug] page renders the
-// correct UI but Next has already committed HTTP 200. Resolve the static
-// editorial allowlist in middleware so crawlers receive a real 404 without an
-// external redirect or a duplicate section hub.
-function unknownLibrarySlug(pathname: string): boolean {
-  const match = pathname.match(/^\/library\/([^/]+)\/?$/);
-  if (!match) return false;
-  return !VALID_LIBRARY_SLUGS.has(match[1]);
-}
+// INC-076 / B740 — ПОЧЕМУ ЗДЕСЬ БОЛЬШЕ НЕТ СПИСКА АДРЕСОВ БИБЛИОТЕКИ.
+//
+// Прокси держал статический список слагов корпуса и отдавал 404 всему, чего в
+// нём нет: `notFound()` внутри стримящейся страницы рисовал правильный экран,
+// но HTTP 200 был уже отправлен, и краулер видел двухсотку.
+//
+// SEO-агент (B740) выпускает страницы в базу, и их слаги появляются МЕЖДУ
+// выкатками — то есть после того, как этот модуль загрузился. Список,
+// собранный на старте процесса, хоронил бы каждую такую страницу, и выглядело
+// бы это как «агент выпустил, а страницы нет».
+//
+// Спрашивать базу здесь нельзя: прокси исполняется на каждый запрос и вне
+// доступа к ней. Поэтому решение отдано маршруту, и честность 404 держится не
+// списком, а устройством ветки: над листом `/library/[slug]` НЕТ границы
+// Suspense (в ветке нет `loading.tsx`), поэтому ответ не начинает уходить
+// раньше, чем лист решил свою судьбу. Проверено прогоном боевой сборки —
+// `src/__tests__/b740-library-route-has-no-suspense-boundary.test.ts`
+// сторожит именно это условие, а не факт 404 в момент правки.
 
 // M26/B369: выпиленные кабинетные роуты (без редиректов). Покрываем и
 // «голые» пути app-поддомена, и их /cabinet-формы на основном домене.
@@ -264,7 +271,7 @@ export default async function proxy(request: NextRequest) {
     );
   }
 
-  if (unknownProductSlug(pathname) || unknownLibrarySlug(pathname) || isRemovedPath(pathname)) {
+  if (unknownProductSlug(pathname) || isRemovedPath(pathname)) {
     return applyRobotsPolicy(
       rewriteWithContext(internalRewriteUrl(request, "/__product-not-found"), requestHeaders, context),
       host,

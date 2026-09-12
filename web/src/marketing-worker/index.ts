@@ -18,7 +18,10 @@ import { sweepOwnPublicationComments } from "@/lib/marketing/engagement-sweep";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
-import { runSeoCoverageCycle } from "@/lib/marketing/seo-coverage";
+import { runSeoCoverageCycle, submitUrlsForRecrawl } from "@/lib/marketing/seo-coverage";
+import { harvestSearchDemand } from "@/lib/seo/demand/harvest";
+import { runSeoPageCycle, seoPageUrl } from "@/lib/seo/page-agent";
+import { runOrchestratorCycle, ORCHESTRATOR_CYCLE_MS } from "@/lib/marketing/orchestrator";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
 import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
@@ -36,6 +39,7 @@ import {
   collectConveyorShortfall,
   notifyShortfall,
 } from "@/lib/marketing/shortfall-notification";
+import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
@@ -86,6 +90,23 @@ let lastInboundAudit = 0;
 let lastCommentSweep = 0;
 let lastRegistryRecovery = 0;
 let lastSnapshotCheck = 0;
+/**
+ * B740 — у SEO-агента и оркестратора СВОЙ такт, и он не шестичасовой «как у
+ * всех остальных» по совпадению.
+ *
+ * Владелец просил «каждый день, как минимум несколько раз в день». Шесть часов
+ * дают четыре захода в сутки при суточном потолке в четыре страницы: заход и
+ * страница сходятся один к одному, и агенту не приходится ни копить очередь,
+ * ни простаивать. Сбор спроса идёт тем же тактом, но ПЕРЕД выпуском — иначе
+ * первый заход суток выбирал бы из вчерашней выдачи.
+ */
+let lastSeoDemand = 0;
+let lastSeoPage = 0;
+let lastOrchestrator = 0;
+const seoCycleMs = Math.max(
+  60 * 60_000,
+  Number(process.env.SEO_AGENT_CYCLE_MS || 6 * 60 * 60_000),
+);
 
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
@@ -215,6 +236,48 @@ async function main() {
             await notifyShortfall(await collectConveyorShortfall(new Date(now)));
           });
         }
+      }
+      /**
+       * B740 — SEO-АГЕНТ. Сбор спроса и выпуск страницы идут одним блоком и в
+       * этом порядке: страница пишется по фразе, снятой только что, а не по
+       * той, что лежала в очереди со вчера.
+       *
+       * ⚠ ВЫПУСК СТОИТ ПОСЛЕ СБОРА, НО НЕ ЗАВИСИТ ОТ ЕГО УСПЕХА. Оба источника
+       * спроса внешние и оба умеют молчать: у Wordstat кончается квота, Google
+       * Trends отвечает 429 без предупреждения. Очередь фраз переживает такое
+       * молчание — ради этого она и заведена таблицей, а не переменной.
+       */
+      if (now - lastSeoDemand >= seoCycleMs) {
+        lastSeoDemand = now;
+        await guarded("seo-demand", () => harvestSearchDemand({ now: new Date(now) }));
+      }
+      if (now - lastSeoPage >= seoCycleMs) {
+        lastSeoPage = now;
+        await guarded("seo-page", async () => {
+          const result = await runSeoPageCycle({ now: new Date(now) });
+          // Адресная подача на переобход — сразу за выпуском. Для страницы,
+          // вышедшей минуту назад, это разница между «в поиске завтра» и «в
+          // поиске через неделю».
+          if (result.published) {
+            const submitted = await submitUrlsForRecrawl([seoPageUrl(result.published)]);
+            if (submitted.length > 0) {
+              await db.seoLibraryPage.update({
+                where: { slug: result.published },
+                data: { submittedAt: new Date(now) },
+              }).catch(() => undefined);
+            }
+          }
+          return result;
+        });
+      }
+      /**
+       * B740 — ОРКЕСТРАТОР. Ходит последним в проходе намеренно: он судит о
+       * состоянии контура, и судить он должен по тому, что этот проход уже
+       * сделал, а не по тому, что было до него.
+       */
+      if (now - lastOrchestrator >= ORCHESTRATOR_CYCLE_MS) {
+        lastOrchestrator = now;
+        await guarded("orchestrator", () => runOrchestratorCycle({ now: new Date(now) }));
       }
       if (now - lastUrlAudit >= 6 * 60 * 60_000) {
         lastUrlAudit = now;

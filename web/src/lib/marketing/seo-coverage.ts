@@ -151,6 +151,41 @@ async function rememberSubmitted(urls: string[], now: Date) {
   });
 }
 
+/**
+ * B740 — АДРЕСНЫЙ ПЕРЕОБХОД ТОЛЬКО ЧТО ВЫПУЩЕННОЙ СТРАНИЦЫ.
+ *
+ * Плановый цикл выше тратит квоту на карту сайта целиком и доходит до свежей
+ * страницы в порядке очереди — то есть через несколько заходов. Для страницы,
+ * выпущенной минуту назад, это разница между «в поиске завтра» и «в поиске
+ * через неделю»: у Яндекса свежесть подачи и есть весь смысл переобхода.
+ *
+ * ⚠ КВОТА ОДНА НА ОБА ПУТИ. Адресная подача расходует тот же суточный лимит,
+ * поэтому она берёт по одному адресу на выпуск, а не пачку: пачка съела бы
+ * квоту, которой плановый цикл закрывает отставание корпуса.
+ */
+export async function submitUrlsForRecrawl(urls: readonly string[]): Promise<string[]> {
+  const config = webmasterConfig();
+  if (!config || urls.length === 0) return [];
+  const submitted: string[] = [];
+  for (const url of urls) {
+    try {
+      await webmasterJson(`${config.base}/recrawl/queue/`, config.token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      submitted.push(url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Исчерпанная квота — штатный конец суток, а не сбой подачи.
+      if (/quota|429/i.test(message)) break;
+      log.warn("seo-coverage.direct-recrawl-failed", { url, error: serializeError(error) });
+    }
+  }
+  if (submitted.length > 0) await rememberSubmitted(submitted, new Date()).catch(() => undefined);
+  return submitted;
+}
+
 export async function runSeoCoverageCycle(
   input: { now?: Date; maxSubmissions?: number } = {},
 ): Promise<SeoCoverageSnapshot | { skipped: "not_configured" }> {

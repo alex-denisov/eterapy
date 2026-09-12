@@ -18,7 +18,7 @@ function transliterate(text: string): string {
     .join('');
 }
 
-function toSlug(text: string): string {
+export function toSlug(text: string): string {
   return transliterate(text)
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')

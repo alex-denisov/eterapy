@@ -3,6 +3,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { approvedLibraryEntries, libraryTopics } from "@/data/anonymous-library";
 import { LibrarySearch } from "@/components/library/library-search";
+import { publishedSeoLibraryEntries } from "@/lib/seo/library-store";
 
 export const metadata = createPublicPageMetadata("/library");
 
@@ -33,7 +34,21 @@ const SYMBOLIC_FAQS = [
 // сервере — единственное, что держало библиотеку в динамическом рендере; фильтр
 // по теме переехал в клиентский `LibrarySearch` (подробности там). Робот теперь
 // получает готовый HTML со ВСЕМИ карточками, а не пересобранный на каждый заход.
-export default function LibraryPage() {
+/**
+ * B740 — КАТАЛОГ ПОКАЗЫВАЕТ И СТРАНИЦЫ АГЕНТА.
+ *
+ * Страница, выпущенная в базу, без строки в каталоге остаётся сиротой: её
+ * видит только карта сайта, а внутренних ссылок на неё нет ни одной. Поэтому
+ * список собирается из двух источников, а страница получает `revalidate`
+ * вместо полной статики — иначе новая запись появлялась бы в каталоге только
+ * после следующей выкатки.
+ *
+ * INC-080 при этом не откатывается: страница по-прежнему не читает `searchParams`
+ * и не пересобирается на каждый заход — она пересобирается раз в пять минут.
+ */
+export const revalidate = 300;
+
+export default async function LibraryPage() {
   // B596 (владелец 2026-07-27): переключателя «Жизненные ситуации /
   // Символические практики» больше нет. Он делил библиотеку по НАШЕЙ
   // таксономии, а человек ищет свою ситуацию, а не раздел: пришедший за
@@ -44,7 +59,7 @@ export default function LibraryPage() {
   // `?section=` принимается молча ради уже разосланных ссылок: раздел просто
   // больше ничего не сужает.
   const topics = libraryTopics();
-  const entries = approvedLibraryEntries();
+  const entries = [...approvedLibraryEntries(), ...await publishedSeoLibraryEntries()];
   const symbolicFaqJsonLd = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "FAQPage",

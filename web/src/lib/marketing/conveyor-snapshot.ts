@@ -25,9 +25,9 @@
  */
 
 import db from "@/lib/db";
+import { marketingMaxAwaitingReview } from "@/lib/marketing/conveyor-settings";
 import {
   conveyorTact,
-  MARKETING_MAX_AWAITING_REVIEW,
   type ConveyorBottleneck,
 } from "@/lib/marketing/conveyor-tact";
 import {
@@ -174,6 +174,9 @@ export async function conveyorSnapshot(input: { now?: Date } = {}): Promise<Conv
     }));
 
   const buffer = marketingBufferTarget(now);
+  // B740: потолок очереди редактора переопределяется настройкой — иначе правка
+  // оркестратора была бы записью в таблицу, которую никто не читает.
+  const maxAwaitingReview = await marketingMaxAwaitingReview();
   const tact = conveyorTact({
     demand,
     buffer,
@@ -181,7 +184,7 @@ export async function conveyorSnapshot(input: { now?: Date } = {}): Promise<Conv
     hoursToHorizon: Math.ceil(MARKETING_GENERATION_LEAD_MS / 3_600_000),
     capacityPerHour: capacity.perHour,
     awaitingReview,
-    maxAwaitingReview: MARKETING_MAX_AWAITING_REVIEW,
+    maxAwaitingReview,
     writtenThisHour,
   });
 
@@ -190,7 +193,7 @@ export async function conveyorSnapshot(input: { now?: Date } = {}): Promise<Conv
     buffer,
     ready,
     awaitingReview,
-    maxAwaitingReview: MARKETING_MAX_AWAITING_REVIEW,
+    maxAwaitingReview,
     writtenThisHour,
     deferred,
     perHour: tact.perHour,
@@ -205,7 +208,7 @@ export async function conveyorSnapshot(input: { now?: Date } = {}): Promise<Conv
       writerBudget: pausedUntil ? 0 : tact.writerBudget,
       bottleneck: tact.bottleneck,
       awaitingReview,
-      maxAwaitingReview: MARKETING_MAX_AWAITING_REVIEW,
+      maxAwaitingReview,
       canSeparateRoles: Boolean(capacity.canSeparateRoles),
     }),
   };

@@ -1,5 +1,7 @@
 import { canonicalUrl, hostKind, publicSeoRoutes } from "@/lib/seo";
 import { indexableLibraryEntries } from "@/data/anonymous-library";
+import { libraryDepth } from "@/lib/library-depth";
+import { publishedSeoLibraryEntries } from "@/lib/seo/library-store";
 import { resolvedCells } from "@/lib/astro/cells";
 import db from "@/lib/db";
 
@@ -21,10 +23,13 @@ export async function GET(request: Request) {
     return xmlResponse('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" />', "no-store");
   }
 
-  const activePractitioners = await db.practitioner.findMany({
-    where: { status: "ACTIVE" },
-    select: { slug: true },
-  }).catch(() => [] as Array<{ slug: string | null }>);
+  const [activePractitioners, seoPages] = await Promise.all([
+    db.practitioner.findMany({
+      where: { status: "ACTIVE" },
+      select: { slug: true },
+    }).catch(() => [] as Array<{ slug: string | null }>),
+    publishedSeoLibraryEntries(),
+  ]);
 
   const sitemapRoutes = [
     ...publicSeoRoutes,
@@ -39,6 +44,15 @@ export async function GET(request: Request) {
      * Люди по-прежнему видят весь каталог — `approvedLibraryEntries()`.
      */
     ...indexableLibraryEntries().map((entry) => `/library/${entry.slug}`),
+    /**
+     * B740 — страницы SEO-агента проходят ТОТ ЖЕ гейт глубины, что и корпус.
+     *
+     * Исключения им не делается намеренно: рубеж в 450 собственных слов ввели
+     * после того, как Яндекс снял с индекса 199 тонких карточек, и страница,
+     * попавшая в карту сайта в обход рубежа, повторила бы ту же историю —
+     * только теперь её писала бы машина, то есть быстрее.
+     */
+    ...seoPages.filter((entry) => libraryDepth(entry).indexable).map((entry) => `/library/${entry.slug}`),
     // B711 · Ячейки расчётной сетки «планета × знак». Список растёт волнами и
     // берётся из корпуса, а не переписывается сюда руками: выложенная ячейка,
     // забытая в карте сайта, ждала бы обхода месяцами.

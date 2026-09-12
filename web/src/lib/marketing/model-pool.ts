@@ -137,7 +137,32 @@ export const MARKETING_PRIORITY_HEAD = [
  * модели взять неоткуда, а выдуманное имя это 404 в бою (B703). Их
  * размышление гасится директивой, см. `MARKETING_REVIEWER_REASONING_OFF`.
  */
+/**
+ * B740 — ГОЛОВА РЕДАКТОРА ПЕРЕДАНА GEMINI ПО РЕШЕНИЮ ВЛАДЕЛЬЦА 2026-09-12.
+ *
+ * Требование дословно: «давай поставим этого провайдера на место писателя и
+ * редактора». Автор уже стоял на Gemini (`MARKETING_PRIORITY_HEAD`), редактор
+ * — на Mistral по замеру B719.
+ *
+ * ⚠ ЧТО ЭТО СТОИТ, ЧЕСТНО. Замер B719 остаётся верным: на одном и том же
+ * черновике Mistral отвечал 0,69–5,3 с и 63 токенами вывода, и по латентности
+ * он был лучшим в пуле. Смена головы означает, что вердикт станет медленнее и
+ * дороже по токенам. Владелец принял это решение, зная замер; здесь оно
+ * записано порядком, а не спрятано.
+ *
+ * ⚠ ПОЧЕМУ MISTRAL ОСТАЁТСЯ ВТОРЫМ, А НЕ УБРАН. У Gemini на боевых ключах 15
+ * отказов 429 в сутки при 60 успехах (замер B712). Голова из одного провайдера
+ * означала бы, что каждый четвёртый вердикт уходит в общее вращение пула — то
+ * есть к думающим моделям с латентностью 17–36 с. Mistral сразу за головой
+ * ловит ровно эти случаи и стоит 5 секунд вместо тридцати.
+ *
+ * ⚠ РОЛИ ПО-ПРЕЖНЕМУ РАЗДЕЛЕНЫ МОДЕЛЬЮ, А НЕ ПРОВАЙДЕРОМ. У Gemini автор
+ * пишет на `gemini-3.6-flash`, редактор судит на `gemini-3.5-flash` — это
+ * разные строки каталога, и `completeWithValidStructure` сверяет именно
+ * модель (B623). Общий провайдер независимость проверки не отменяет.
+ */
 export const MARKETING_REVIEWER_PRIORITY_HEAD = [
+  AIProvider.GEMINI,
   AIProvider.MISTRAL,
 ] as const;
 
@@ -175,8 +200,11 @@ export function marketingReasoningSuppression(input: {
   feature: string;
   provider: AIProvider;
 }): string | null {
+  // B740: у SEO-редактора работа та же — один вердикт и список замечаний,
+  // поэтому выключатель размышления распространяется и на него.
   const isReviewer = input.feature === "marketing-agent-reviewer"
-    || input.feature === MARKETING_REPLY_REVIEWER_FEATURE;
+    || input.feature === MARKETING_REPLY_REVIEWER_FEATURE
+    || input.feature === SEO_LIBRARY_EDITOR_FEATURE;
   if (!isReviewer) return null;
   return MARKETING_REVIEWER_REASONING_OFF[input.provider] ?? null;
 }
@@ -551,12 +579,27 @@ export const MARKETING_REPLY_REVIEWER_FEATURE = "marketing-reply-reviewer";
  */
 export const MARKETING_TOPIC_RADAR_FEATURE = "marketing-topic-radar";
 
+/**
+ * B740 — SEO-агент пишет ПУБЛИЧНЫЕ страницы Библиотеки и данных клиента не
+ * видит: на вход идут поисковая фраза, тема каталога и название услуги.
+ * Поэтому класс данных у него тот же, что у SMM, — `PUBLIC_MARKETING`.
+ *
+ * Ключи ОБЯЗАНЫ стоять здесь: трансграничный гейт пускает публичный контур
+ * ровно по этому списку, и вызов с незарегистрированным ключом получает отказ
+ * политики (`PUBLIC_MARKETING_ROUTE_FORBIDDEN`), а не отказ модели — то есть
+ * выглядит как поломка провайдера, которой нет.
+ */
+export const SEO_LIBRARY_WRITER_FEATURE = "seo-library-writer";
+export const SEO_LIBRARY_EDITOR_FEATURE = "seo-library-editor";
+
 export const PUBLIC_MARKETING_AI_FEATURES = [
   "marketing-agent-writer",
   "marketing-agent-reviewer",
   MARKETING_REPLY_WRITER_FEATURE,
   MARKETING_REPLY_REVIEWER_FEATURE,
   MARKETING_TOPIC_RADAR_FEATURE,
+  SEO_LIBRARY_WRITER_FEATURE,
+  SEO_LIBRARY_EDITOR_FEATURE,
 ] as const;
 
 export type PublicMarketingAIFeature = typeof PUBLIC_MARKETING_AI_FEATURES[number];
