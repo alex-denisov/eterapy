@@ -23,6 +23,7 @@ import { MARKETING_ORCHESTRATOR_REPORT_FEATURE } from "@/lib/marketing/model-poo
 import { describeDirective, type OrchestratorDirective } from "@/lib/marketing/orchestrator-actions";
 import type { OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
 import type { OrchestratorState } from "@/lib/marketing/orchestrator-state";
+import { humanRegistrationTargets } from "@/lib/seo/backlink-targets";
 
 const SEVERITY_MARK: Record<OrchestratorFinding["severity"], string> = {
   incident: "🔴",
@@ -152,6 +153,39 @@ export function ownerActionsBlock(findings: readonly OrchestratorFinding[]): str
 }
 
 /**
+ * B742 §4 — ПУЛ ПЛОЩАДОК, ГДЕ РЕГИСТРИРУЕТСЯ ТОЛЬКО ЧЕЛОВЕК.
+ *
+ * Владелец просил этот список прямым текстом, и он же — вторая половина
+ * честного ответа про внешние ссылки: первая половина в
+ * `seo/backlink-targets.ts` объясняет, почему одноразовые аккаунты ради ссылок
+ * мы не заводим.
+ *
+ * ⚠ БЛОК ПОКАЗЫВАЕТСЯ РАЗ В НЕДЕЛЮ, А НЕ КАЖДЫЙ ПРОХОД. Список не меняется
+ * сам: он про шаги, которые владелец делает один раз. Ежедневное повторение
+ * превратило бы его в шум и научило бы пролистывать весь отчёт.
+ */
+export function backlinkPoolBlock(now: Date): string[] {
+  // Понедельник по Москве — один раз в неделю, в начале рабочей недели.
+  const moscow = new Date(now.getTime() + 3 * 60 * 60_000);
+  if (moscow.getUTCDay() !== 1) return [];
+  const targets = humanRegistrationTargets();
+  if (targets.length === 0) return [];
+  const lines = ["🔗 <b>Внешние ссылки: где нужна ваша регистрация</b>"];
+  lines.push(
+    "<i>Одноразовые аккаунты ради ссылок не завожу: это дословное определение "
+    + "ссылочной схемы у обеих систем, а домен уже переживал снятие страниц с "
+    + "индекса. Ниже — площадки, где ссылка законна и полезна, но регистрацию "
+    + "проходит только человек.</i>",
+  );
+  for (const target of targets) {
+    lines.push(`• <b>${target.title}</b> — ${target.url}`);
+    lines.push(`  Шаг: ${target.humanStep}`);
+    lines.push(`  Зачем: ${target.why}`);
+  }
+  return lines;
+}
+
+/**
  * B742 — ЧТО СТАЛО С ПРОШЛЫМИ ПРАВКАМИ.
  *
  * Оркестратор оценивает собственные действия, а не только контур. Владелец
@@ -262,6 +296,7 @@ export function buildOrchestratorReport(input: {
     : "🧭 <b>Отчёт оркестратора</b>";
   const ownerActions = ownerActionsBlock(input.findings);
   const selfReview = selfReviewBlock(input.state);
+  const backlinks = backlinkPoolBlock(input.state.now);
   const blocks = [
     `${header}\n<i>${moscowTime(input.state.now)} МСК</i>`,
     ...(input.narrative ? [input.narrative] : []),
@@ -270,6 +305,7 @@ export function buildOrchestratorReport(input: {
     directivesBlock(input.directives, ownerActions.length > 0).join("\n"),
     ...(ownerActions.length > 0 ? [ownerActions.join("\n")] : []),
     ...(selfReview.length > 0 ? [selfReview.join("\n")] : []),
+    ...(backlinks.length > 0 ? [backlinks.join("\n")] : []),
   ];
   return blocks.join("\n\n");
 }

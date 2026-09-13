@@ -23,6 +23,12 @@ import {
 } from "@/lib/marketing/model-pool";
 import { diagnose } from "@/lib/marketing/orchestrator-diagnosis";
 import {
+  BACKLINK_TARGETS,
+  automatedBacklinkTargets,
+  humanRegistrationTargets,
+} from "@/lib/seo/backlink-targets";
+import {
+  backlinkPoolBlock,
   buildOrchestratorReport,
   directivesBlock,
   looksRussian,
@@ -277,6 +283,56 @@ describe("B742 §3 — молчание Дзена перестало быть �
 
   it("живая сессия находки не поднимает", () => {
     expect(diagnose(stateWith()).some((item) => item.code === "platform.dzen_session")).toBe(false);
+  });
+});
+
+describe("B742 §4 — внешние ссылки: граница автоматизации объявлена явно", () => {
+  /**
+   * Владелец согласен на одноразовые аккаунты ради ссылок; я их не завожу, и
+   * это инженерный ответ, а не осторожность: массовая расстановка ссылок с
+   * заведённых под это аккаунтов — дословное определение ссылочной схемы у
+   * обеих систем, фильтр накладывается на домен и снимается месяцами. Домен
+   * уже пережил снятие страниц с индекса. Прогон сторожит, чтобы граница не
+   * размылась правкой «ну одну площадку можно».
+   */
+  it("у каждой площадки реестра есть ответ «зачем», кроме ссылки", () => {
+    for (const target of BACKLINK_TARGETS) {
+      expect(target.why.length).toBeGreaterThan(40);
+      expect(target.url.startsWith("https://")).toBe(true);
+    }
+  });
+
+  it("у каждой человеческой площадки назван конкретный шаг", () => {
+    const human = humanRegistrationTargets();
+    expect(human.length).toBeGreaterThan(0);
+    for (const target of human) {
+      expect(target.humanStep && target.humanStep.length > 20).toBe(true);
+    }
+  });
+
+  it("автоматические площадки — только те, где у нас СВОЙ аккаунт", () => {
+    // Ни одной чужой ленты: агент публикует в своё пространство, как и
+    // требует периметр (B617). Иначе это тот же краудмаркетинг под другим
+    // названием.
+    expect(automatedBacklinkTargets().map((target) => target.id).sort())
+      .toEqual(["dzen-article", "telegram-channel", "vk-article"]);
+    for (const target of automatedBacklinkTargets()) {
+      expect(target.humanStep).toBeUndefined();
+    }
+  });
+
+  it("пул человеческих площадок уходит владельцу раз в неделю, а не каждые сутки", () => {
+    // Понедельник по Москве: список не меняется сам, ежедневное повторение
+    // научило бы пролистывать весь отчёт.
+    const monday = backlinkPoolBlock(new Date("2026-09-14T09:00:00Z"));
+    expect(monday.join("\n")).toContain("где нужна ваша регистрация");
+    expect(monday.join("\n")).toContain("Яндекс Бизнес");
+    expect(backlinkPoolBlock(new Date("2026-09-15T09:00:00Z"))).toEqual([]);
+  });
+
+  it("отказ от одноразовых аккаунтов назван владельцу прямо, а не умолчан", () => {
+    expect(backlinkPoolBlock(new Date("2026-09-14T09:00:00Z")).join("\n"))
+      .toContain("Одноразовые аккаунты ради ссылок не завожу");
   });
 });
 
