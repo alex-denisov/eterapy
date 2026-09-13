@@ -71,6 +71,9 @@ jest.mock("@/lib/db", () => ({
 jest.mock("@/lib/marketing/research", () => ({
   __esModule: true,
   buildMarketingResearchBrief: jest.fn().mockResolvedValue({ facts: [] }),
+  // B743: мера однотипности читает недавние материалы площадки тем же
+  // запросом, что и сводка автору. Здесь сравнивать не с чем — пусто.
+  recentOwnMaterials: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/marketing/moderation", () => ({

@@ -19,13 +19,24 @@
  * Ровно тот «признак is vertex», о котором спрашивал владелец, только живёт он
  * в самом ключе и не требует второй настройки, которую можно забыть.
  *
- * ⚠ РЕГИОН. Vertex адресуется регионом в хосте И в пути. `global` — то, что
- * Google советует по умолчанию для моделей Gemini: он не привязывает нас к
- * одной площадке и не требует угадывать, где модель уже выкачена.
+ * ⚠ РЕГИОН — НЕ ВКУС, А УСЛОВИЕ РАБОТЫ. Vertex адресуется регионом в хосте И
+ * в пути, и у семейства Gemini 3.x региональный адрес отдаёт 404: эти модели
+ * обслуживаются ТОЛЬКО глобальным адресом. Проверено по разбору живых отказов
+ * в чужих клиентах (gemini-cli #19055, goose #6186, vercel/ai #6811): запрос
+ * на `us-central1-aiplatform.googleapis.com/.../gemini-3-…` возвращает
+ * `Publisher Model … was not found`. Наш автор стоит на 3.8-flash, поэтому
+ * умолчание `global` — не удобство, а единственный рабочий вариант, и уход с
+ * него проверяется явно (`vertexLocationSupports` ниже).
+ *
+ * ⚠ И ВТОРАЯ ГРАБЛЯ ИЗ ТОГО ЖЕ РАЗБОРА: `global` НЕ подставляется в хост
+ * префиксом. Именно на этом сломались все три перечисленных клиента — они
+ * собирали `https://global-aiplatform.googleapis.com`, хоста с таким именем не
+ * существует. Правильный адрес — `https://aiplatform.googleapis.com` с
+ * `locations/global` в пути, и прогон сторожит ровно это.
  */
 
 import { AIProvider } from "@prisma/client";
-import type { AIGatewayAdapter } from "@/lib/ai-gateway/adapters";
+import { AIProviderError, type AIGatewayAdapter } from "@/lib/ai-gateway/adapters";
 import { createGeminiAdapter, type GeminiTransport } from "@/lib/ai-gateway/gemini-adapter";
 import {
   parseServiceAccount,
@@ -73,6 +84,18 @@ export function vertexModelUrl(input: {
   return `${host}/${path}`;
 }
 
+/**
+ * Обслуживает ли регион эту модель.
+ *
+ * Единственное известное жёсткое правило: семейство Gemini 3.x живёт только на
+ * глобальном адресе. Остальные сочетания не проверяем — гадать, где какая
+ * модель выкачена, бессмысленно, это меняется чаще, чем наш код.
+ */
+export function vertexLocationSupports(model: string, location: string): boolean {
+  if (!/^gemini-3(\.|-)/.test(model)) return true;
+  return location === "global";
+}
+
 export function createVertexAdapter(options: VertexAdapterOptions = {}): AIGatewayAdapter {
   const account = options.account ?? parseServiceAccount(options.serviceAccountJson);
   const location = options.location?.trim() || VERTEX_DEFAULT_LOCATION;
@@ -84,6 +107,19 @@ export function createVertexAdapter(options: VertexAdapterOptions = {}): AIGatew
     missingConfigMessage:
       "Vertex service account is not configured (нужен JSON сервисного аккаунта Google Cloud)",
     url(model) {
+      /**
+       * ⚠ ОТКАЗ ЗДЕСЬ ЛУЧШЕ, ЧЕМ 404 В БОЮ. У 404 от Vertex текст
+       * «Publisher Model … was not found» — он читается как «модель не
+       * существует», и разбирательство уходит в каталог моделей, а причина в
+       * регионе. Говорим причину сразу.
+       */
+      if (!vertexLocationSupports(model, location)) {
+        throw new AIProviderError(
+          `Модель ${model} на Vertex обслуживается только глобальным адресом, `
+          + `а VERTEX_LOCATION=${location}. Уберите переменную или поставьте global.`,
+          { provider: AIProvider.GEMINI, code: "MISSING_CONFIG", retryable: false },
+        );
+      }
       // Проверка `configured` уже прошла в адаптере — здесь аккаунт есть.
       return vertexModelUrl({
         projectId: account!.projectId,

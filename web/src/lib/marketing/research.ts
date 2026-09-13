@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
+import { shapeDigest } from "@/lib/marketing/sameness";
 import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 export type MarketingResearchItem = {
@@ -21,11 +22,32 @@ export type MarketingResearchBrief = {
   };
   currentSignals: MarketingResearchItem[];
   competitorSignals: MarketingResearchItem[];
+  /**
+   * B743 — недавние материалы площадки, и теперь ВИДНО, КАК ОНИ УСТРОЕНЫ.
+   *
+   * ⚠ ЧТО БЫЛО НЕ ТАК. Системный промт автора требует дословно: «Не повторяй у
+   * недавних материалов ETerapy ни хук, ни композицию, ни метафору». Сюда же
+   * ехало поле `bodyExcerpt` длиной СТО символов — первое предложение статьи
+   * Дзена. Композиции в ста символах не видно, то есть автора просили не
+   * повторять то, чего ему не показали, и он честно повторял. Владелец
+   * 2026-09-13 описал результат словами «много статей повторяющихся,
+   * одинаковых и однотипных».
+   *
+   * Вместо более длинного куска текста едет ОПИСАНИЕ ФОРМЫ: длинный текст
+   * целиком вырастил бы промт вчетверо и подорожал бы, а на вопрос «как этот
+   * материал устроен» отвечает именно структура.
+   */
   recentOwnMaterials: Array<{
     platform: string;
     title: string;
     bodyExcerpt: string;
     publishedAt: string | null;
+    shape: {
+      opening: string;
+      paragraphs: number;
+      endsWithQuestion: boolean;
+      outline: string[];
+    };
   }>;
   limitations: string[];
 };
@@ -162,6 +184,41 @@ async function competitorPages(fetchImpl: typeof fetch) {
   return items;
 }
 
+/**
+ * B743 — недавние материалы этой площадки, ОДИН запрос на две задачи.
+ *
+ * Их читают двое: сводка для автора (ей нужно описание формы) и мера
+ * однотипности (ей нужен полный текст). Запрос вынесен сюда, а не написан
+ * дважды, именно потому, что иначе у вопроса «что у нас недавно выходило»
+ * появилось бы два ответа — и однажды автора просили бы не повторять одно, а
+ * мера считала бы другое.
+ */
+export async function recentOwnMaterials(
+  publication: { id: string; platform: string },
+  now = new Date(),
+): Promise<Array<{ platform: string; title: string; body: string; publishedAt: Date | null }>> {
+  const since = new Date(now.getTime() - 21 * 86_400_000);
+  const rows = await db.externalPublication.findMany({
+    where: {
+      id: { not: publication.id },
+      platform: publication.platform,
+      OR: [
+        { publishedAt: { gte: since } },
+        { scheduledFor: { gte: since } },
+      ],
+    },
+    select: { platform: true, title: true, body: true, publishedAt: true },
+    orderBy: [{ publishedAt: "desc" }, { scheduledFor: "desc" }],
+    take: 5,
+  }).catch(() => []);
+  return rows.map((row) => ({
+    platform: row.platform,
+    title: row.title,
+    body: row.body ?? "",
+    publishedAt: row.publishedAt,
+  }));
+}
+
 export async function buildMarketingResearchBrief(
   publication: ResearchPublication,
   input: { fetchImpl?: typeof fetch; now?: Date } = {},
@@ -171,21 +228,8 @@ export async function buildMarketingResearchBrief(
   const query = publication.targetQuery?.trim()
     || publication.cluster?.trim()
     || publication.title.trim();
-  const since = new Date(now.getTime() - 21 * 86_400_000);
-  const [recentOwnMaterials, newsResult, competitorResult] = await Promise.all([
-    db.externalPublication.findMany({
-      where: {
-        id: { not: publication.id },
-        platform: publication.platform,
-        OR: [
-          { publishedAt: { gte: since } },
-          { scheduledFor: { gte: since } },
-        ],
-      },
-      select: { platform: true, title: true, body: true, publishedAt: true },
-      orderBy: [{ publishedAt: "desc" }, { scheduledFor: "desc" }],
-      take: 5,
-    }).catch(() => []),
+  const [recent, newsResult, competitorResult] = await Promise.all([
+    recentOwnMaterials(publication, now),
     currentNews(query, fetchImpl).catch((error) => {
       log.warn("marketing-research.news-fetch-failed", {
         query,
@@ -216,11 +260,12 @@ export async function buildMarketingResearchBrief(
     scheduledContext: moscowSchedule(publication.scheduledFor),
     currentSignals: currentSignals.slice(0, 6),
     competitorSignals: competitorResult.slice(0, 6),
-    recentOwnMaterials: recentOwnMaterials.map((row) => ({
+    recentOwnMaterials: recent.map((row) => ({
       platform: row.platform,
       title: row.title,
-      bodyExcerpt: plain(row.body ?? "", 100),
+      bodyExcerpt: plain(row.body, 100),
       publishedAt: row.publishedAt?.toISOString() ?? null,
+      shape: shapeDigest(row.body),
     })),
     limitations,
   };

@@ -23,6 +23,8 @@
  */
 
 import db from "@/lib/db";
+import { kpiPressure, type KpiVerdict } from "@/lib/marketing/kpi";
+import { readKpiVerdicts } from "@/lib/marketing/kpi-readings";
 import { log, serializeError } from "@/lib/logger";
 import { sendTelegram } from "@/lib/telegram";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
@@ -186,6 +188,41 @@ export async function runOrchestratorCycle(
       if (amendment) candidates.push(amendment);
     }
   }
+  /**
+   * B743 — РАЗРЫВ ПО KPI ПРЕВРАЩАЕТСЯ В ПРАВКУ, А НЕ В АБЗАЦ.
+   *
+   * Владелец просил, чтобы метрики «подстёгивали агентов работать лучше».
+   * Подстегнуть текстом нельзя: модель согласится и напишет то же самое.
+   * Меняются УСЛОВИЯ работы — норма выпуска страниц, и меняются они числом,
+   * внутри того же белого списка границ, что и прочие правки.
+   *
+   * Правило ограничителя живёт в `kpiPressure`: при просевшем качестве темп
+   * не поднимается, даже когда по количеству мы отстаём. Иначе KPI «больше
+   * страниц» выполнялся бы выпуском мусора — так и набрался корпус из 199
+   * карточек с медианой 65 слов.
+   */
+  const kpiVerdicts = await readKpiVerdicts({ period: "month", now }).catch((error: unknown) => {
+    log.warn("orchestrator.kpi_read_failed", { error: serializeError(error) });
+    return [] as KpiVerdict[];
+  });
+  const dayKey = now.toISOString().slice(0, 10);
+  for (const move of kpiPressure({ verdicts: kpiVerdicts, seoPagesPerDay: state.seo.dailyCap })) {
+    // Правка не заводится, если настройка уже стоит на этом значении: отчёт
+    // «изменил на то же самое» — это шум, за который владелец уже выговаривал.
+    if (move.setting === "seo.pages_per_day" && move.value === state.seo.dailyCap) continue;
+    candidates.push({
+      key: `${dayKey}:kpi.${move.setting}`,
+      target: "seo",
+      action: "set_setting",
+      payload: { key: move.setting, value: move.value },
+      problem: `разрыв по KPI: ${move.because}`,
+      rationale: `Ставлю ${move.value} — это то же правило, по которому метрика и заведена: `
+        + "разрыв меняет условия работы, а не формулировку задачи. Значение внутри "
+        + "объявленных границ и откатывается одной командой.",
+      risk: "reversible",
+    });
+  }
+
   const handled = await alreadyHandled(candidates.map((directive) => directive.key));
   const directives = onHold
     ? []
@@ -249,7 +286,16 @@ export async function runOrchestratorCycle(
   }
 
   const narrative = await narrativeFor({ findings, directives: stored });
-  const message = buildOrchestratorReport({ state, findings, directives: stored, narrative });
+  const message = buildOrchestratorReport({
+    state,
+    findings,
+    directives: stored,
+    narrative,
+    // Месяц — единственный горизонт суточного отчёта: на суточном шаге
+    // годовая цифра не меняется вовсе, и три горизонта каждый день значат
+    // ноль горизонтов.
+    ...(kpiVerdicts.length > 0 ? { kpi: { verdicts: kpiVerdicts, period: "month" as const } } : {}),
+  });
   const delivered = await deliver(
     onHold && candidates.length > 0
       ? `${message}\n\n⏸ <b>Правки на удержании</b>\nНастройка <code>${ORCHESTRATOR_HOLD_KEY}</code> = true: диагноз собран, но ничего не меняю.`

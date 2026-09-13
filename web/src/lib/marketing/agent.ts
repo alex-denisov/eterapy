@@ -80,7 +80,8 @@ import { platformContract, type PlatformContract } from "@/lib/marketing/platfor
 import { resolvePlatformContract } from "@/lib/marketing/playbook-settings";
 import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 import { generatePaidCover, isPaidCoverPlatform } from "@/lib/marketing/cover-image";
-import { buildMarketingResearchBrief } from "@/lib/marketing/research";
+import { buildMarketingResearchBrief, recentOwnMaterials } from "@/lib/marketing/research";
+import { samenessFindings } from "@/lib/marketing/sameness";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
 /**
@@ -731,6 +732,14 @@ export function repairPublishableDraft(input: {
    * `platform_settings`. Не передан — берётся значение из кода.
    */
   contract?: PlatformContract;
+  /**
+   * B743 — недавние материалы этой же площадки, чтобы измерить однотипность.
+   *
+   * Приезжают из уже собранного `research`, а не читаются заново: второй поход
+   * в базу за тем же значило бы два источника правды про «что недавно вышло».
+   * Пусто — мера не считается, и это честно: сравнивать не с чем.
+   */
+  recentMaterials?: readonly { title: string; text: string }[];
 }): {
   draft: WriterOutput;
   repairs: DraftRepair[];
@@ -894,6 +903,20 @@ export function repairPublishableDraft(input: {
     .filter((defect) => !inspectionExcluded.has(defect.rule))
     .map((defect) => ({ kind: "contract" as const, rule: defect.rule, issue: defect.issue, brief: defect.brief }));
 
+  /**
+   * B743 — ОДИНАКОВОСТЬ И ОДНОТИПНОСТЬ СЧИТАЮТСЯ, А НЕ ПРОСЯТСЯ ПРОМТОМ.
+   *
+   * Замечанием контракта, а не нарушением: `violations` отменяют раунд
+   * редактора и возвращают материал автору, и для «похоже на прошлую статью»
+   * это было бы слишком дорого — материал оценим, его надо править, а не
+   * выбрасывать. Цена жёсткого гейта уже измерена: 27 смертей за две недели
+   * (B713), когда круги кончались раньше, чем текст доходил до выпуска.
+   */
+  const samenessViolations = samenessFindings({
+    text: repairedText,
+    recent: input.recentMaterials ?? [],
+  });
+
   const violations = [
     ...(input.finalRound ? [] : ctaViolations),
     ...draftLimitViolations({
@@ -909,7 +932,7 @@ export function repairPublishableDraft(input: {
       draft: { ...input.draft, text: repairedText, cta, mediaBrief },
       repairs,
       violations,
-      contractDefects: contractViolations,
+      contractDefects: [...contractViolations, ...samenessViolations],
     };
   }
 
@@ -1592,6 +1615,19 @@ export async function processMarketingDraft(publicationId: string) {
     // автор, а не свежесобранный по тем же исходным данным.
     const carried = carriedWriterStage(publication.agentWriterDraft);
     const research = carried?.research ?? await buildMarketingResearchBrief(publication);
+    /**
+     * B743 — полный текст недавних материалов площадки для меры однотипности.
+     *
+     * ⚠ ОТДЕЛЬНО ОТ `research`, И ЭТО НЕ ДУБЛЬ. В сводку автору полный текст
+     * класть нельзя: пять статей Дзена раздули бы промт вчетверо и подорожали
+     * бы каждый раунд. Но и мерить по обрезанному описанию нельзя — она
+     * считала бы совпадение с оглавлением вместо совпадения с текстом. Запрос
+     * при этом ОДИН и тот же (`recentOwnMaterials`), поэтому расхождению
+     * «автор видит одно, мера считает другое» взяться неоткуда.
+     */
+    const recentTexts = (await recentOwnMaterials(publication).catch(() => []))
+      .map((row) => ({ title: row.title, text: row.body }))
+      .filter((row) => row.text.trim().length > 0);
     const iterationHistory: EditorialIteration[] = carried ? [...carried.iterationHistory] : [];
     let approvedDraft: WriterOutput | null = null;
     /**
@@ -1722,6 +1758,11 @@ export async function processMarketingDraft(publicationId: string) {
         topic: publication.cluster ?? publication.targetQuery,
         finalRound: round === EDITORIAL_ROUND_LIMIT,
         contract,
+        // B743: те же материалы, что видит автор в `research`, но здесь
+        // берётся ПОЛНЫЙ текст — мера считает по нему, а не по описанию
+        // формы. Один запрос (`recentOwnMaterials`), две проекции: просьба
+        // автору и проверка машиной.
+        recentMaterials: recentTexts,
       });
       }
       let { draft } = repaired;

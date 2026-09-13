@@ -22,6 +22,7 @@ import {
 import {
   createVertexAdapter,
   credentialUsesVertex,
+  vertexLocationSupports,
   vertexModelUrl,
 } from "@/lib/ai-gateway/vertex-adapter";
 
@@ -118,6 +119,41 @@ describe("B742 — подпись и обмен на токен", () => {
   });
 });
 
+describe("B743 — регион у Vertex это условие работы, а не вкус", () => {
+  /**
+   * Разбор живых отказов в чужих клиентах (gemini-cli #19055, goose #6186,
+   * vercel/ai #6811): семейство Gemini 3.x на региональном адресе отдаёт
+   * `Publisher Model … was not found`. Наш автор стоит на 3.8-flash.
+   */
+  it("Gemini 3.x обслуживается только глобальным адресом", () => {
+    expect(vertexLocationSupports("gemini-3.8-flash", "global")).toBe(true);
+    expect(vertexLocationSupports("gemini-3.8-flash", "us-central1")).toBe(false);
+    expect(vertexLocationSupports("gemini-3-flash-preview", "europe-west4")).toBe(false);
+  });
+
+  it("про остальные модели не гадаем: где что выкачено, меняется чаще нашего кода", () => {
+    expect(vertexLocationSupports("gemini-2.5-flash", "us-central1")).toBe(true);
+  });
+
+  it("несовместимый регион отбивается понятной причиной, а не 404 в бою", async () => {
+    const adapter = createVertexAdapter({
+      serviceAccountJson: serviceAccountJson(),
+      defaultModel: "gemini-3.8-flash",
+      location: "us-central1",
+      fetchImpl: (async () => {
+        throw new Error("до сети дойти не должно");
+      }) as unknown as typeof fetch,
+    });
+    // У 404 от Vertex текст «модель не найдена» — разбирательство ушло бы в
+    // каталог моделей, а причина в регионе.
+    await expect(adapter.complete({
+      feature: "marketing-agent-writer",
+      messages: [{ role: "user", content: "ping" }],
+      maxTokens: 10,
+    })).rejects.toThrow(/только глобальным адресом/);
+  });
+});
+
 describe("B742 — адрес модели у Vertex", () => {
   it("регион стоит и в хосте, и в пути: несовпадение даёт 404", () => {
     expect(vertexModelUrl({ projectId: "p", location: "europe-west4", model: "gemini-3.8-flash" }))
@@ -126,6 +162,8 @@ describe("B742 — адрес модели у Vertex", () => {
   });
 
   it("global адресуется без префикса региона в хосте", () => {
+    // ⚠ Ровно на этом сломались три чужих клиента: они собирали
+    // `https://global-aiplatform.googleapis.com`, хоста с таким именем нет.
     expect(vertexModelUrl({ projectId: "p", location: "global", model: "m" }))
       .toBe("https://aiplatform.googleapis.com/v1/projects/p/locations/global"
         + "/publishers/google/models/m:generateContent");

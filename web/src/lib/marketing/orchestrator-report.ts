@@ -24,6 +24,7 @@ import { describeDirective, type OrchestratorDirective } from "@/lib/marketing/o
 import type { OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
 import type { OrchestratorState } from "@/lib/marketing/orchestrator-state";
 import { humanRegistrationTargets } from "@/lib/seo/backlink-targets";
+import { KPI_PERIOD_TITLES, type KpiPeriod, type KpiVerdict } from "@/lib/marketing/kpi";
 
 const SEVERITY_MARK: Record<OrchestratorFinding["severity"], string> = {
   incident: "🔴",
@@ -151,6 +152,54 @@ export function ownerActionsBlock(findings: readonly OrchestratorFinding[]): str
   }
   return lines;
 }
+
+/**
+ * B743 — ОТЧЁТ ПО KPI: ПЛАН, ФАКТ, РАЗРЫВ.
+ *
+ * Требование владельца 2026-09-13: агенты обязаны отчитываться по метрикам, и
+ * это должно подстёгивать их работать лучше.
+ *
+ * ⚠ МЕТРИКА БЕЗ ЗАМЕРА НАЗЫВАЕТСЯ ТАК И ЕСТЬ. Ноль и «не измерили» — разные
+ * утверждения; поставь мы ноль, отчёт показывал бы провал там, где просто нет
+ * числа, и владелец пошёл бы чинить работающее. Неизмеренные перечисляются
+ * отдельной строкой — это не украшение, а признание долга.
+ *
+ * ⚠ ПЕРИОД В ОТЧЁТЕ ОДИН — МЕСЯЦ. Квартал и год объявлены и считаются теми же
+ * функциями, но каждые сутки показывать три горизонта значит не показывать ни
+ * одного: на суточном шаге годовая цифра не меняется вовсе. Квартал и год
+ * уходят в отчёт первого числа — там они и становятся новостью.
+ */
+export function kpiBlock(verdicts: readonly KpiVerdict[], period: KpiPeriod): string[] {
+  if (verdicts.length === 0) return [];
+  const lines = [`📊 <b>KPI за ${KPI_PERIOD_TITLES[period]}</b>`];
+  for (const agent of ["seo", "smm", "orchestrator"] as const) {
+    const own = verdicts.filter((verdict) => verdict.definition.agent === agent);
+    if (own.length === 0) continue;
+    lines.push(`<b>${AGENT_TITLES[agent]}</b>`);
+    for (const verdict of own) {
+      if (verdict.actual === null) continue;
+      const mark = verdict.onTrack ? "🟢" : "🔴";
+      lines.push(
+        `${mark} ${verdict.definition.title}: <b>${verdict.actual}</b> ${verdict.definition.unit} `
+        + `при цели ${verdict.target}`,
+      );
+    }
+  }
+  const blind = verdicts.filter((verdict) => verdict.actual === null);
+  if (blind.length > 0) {
+    lines.push(
+      `<i>Без замера ${blind.length}: ${blind.map((verdict) => verdict.definition.title).join("; ")}. `
+      + "В выполнение не засчитываю ни в какую сторону — ноль и «не измерили» это разное.</i>",
+    );
+  }
+  return lines;
+}
+
+const AGENT_TITLES = {
+  seo: "SEO-агент",
+  smm: "SMM-агент",
+  orchestrator: "Оркестратор",
+} as const;
 
 /**
  * B742 §4 — ПУЛ ПЛОЩАДОК, ГДЕ РЕГИСТРИРУЕТСЯ ТОЛЬКО ЧЕЛОВЕК.
@@ -285,6 +334,8 @@ export async function narrativeFor(input: {
 
 /** Полный текст отчёта. Чистая функция — проверяется прогоном, а не отправкой. */
 export function buildOrchestratorReport(input: {
+  /** B743: факт по метрикам за период. Пусто — блока KPI в отчёте нет. */
+  kpi?: { verdicts: readonly KpiVerdict[]; period: KpiPeriod };
   state: OrchestratorState;
   findings: readonly OrchestratorFinding[];
   directives: readonly OrchestratorDirective[];
@@ -297,10 +348,12 @@ export function buildOrchestratorReport(input: {
   const ownerActions = ownerActionsBlock(input.findings);
   const selfReview = selfReviewBlock(input.state);
   const backlinks = backlinkPoolBlock(input.state.now);
+  const kpi = input.kpi ? kpiBlock(input.kpi.verdicts, input.kpi.period) : [];
   const blocks = [
     `${header}\n<i>${moscowTime(input.state.now)} МСК</i>`,
     ...(input.narrative ? [input.narrative] : []),
     stateBlock(input.state).join("\n"),
+    ...(kpi.length > 0 ? [kpi.join("\n")] : []),
     findingsBlock(input.findings).join("\n"),
     directivesBlock(input.directives, ownerActions.length > 0).join("\n"),
     ...(ownerActions.length > 0 ? [ownerActions.join("\n")] : []),

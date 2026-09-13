@@ -383,6 +383,14 @@ jobs:
           # ТЕ ЖЕ модели. Значение кладётся как `base64 -w0` от файла ключа:
           # секреты доезжают построчно, а сырой JSON многострочный и приехал
           # бы обрезанным по первому переводу строки.
+          # B743: коннектор MAX показывался «не настроен» при живых кредах —
+          # его поля были заявлены в суперадминке, а дороги на прод у них не
+          # было вовсе. Механизм с ручным шагом это невыполненный механизм.
+          MAX_BOT_TOKEN: ${{ secrets.MAX_BOT_TOKEN }}
+          MAX_BOT_ID: ${{ secrets.MAX_BOT_ID }}
+          MAX_CHANNEL_ID: ${{ secrets.MAX_CHANNEL_ID }}
+          # Адрес канала Дзена — тем же заходом и по той же причине.
+          DZEN_CHANNEL_URL: ${{ secrets.DZEN_CHANNEL_URL }}
           GEMINI_VERTEX_SERVICE_ACCOUNT: ${{ secrets.GEMINI_VERTEX_SERVICE_ACCOUNT }}
           # Регион Vertex: он часть адреса, а не свойство ключа. `global` —
           # умолчание Google для моделей Gemini, и менять его без причины не
@@ -842,7 +850,8 @@ jobs:
                      GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
                      GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY \
                      GEMINI_VERTEX_SERVICE_ACCOUNT VERTEX_LOCATION \
-                     MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN \
+                     MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN DZEN_CHANNEL_URL \
+                     MAX_BOT_TOKEN MAX_BOT_ID MAX_CHANNEL_ID \
                      KILO_CODE_AI_API_KEY NVIDIA_NIM_API_KEY \
                      OPENCODE_ZEN_AI_API_KEY TOKENROUTER_API_KEY \
                      SAMBANOVA_CLOUD_API_KEY POLLINATIONS_AI_API_KEY \

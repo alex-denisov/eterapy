@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "marketing:register-publication": "tsx scripts/register-external-publication.ts",
-    "marketing:capture-session": "tsx scripts/capture-marketing-browser-session.ts"
+    "marketing:capture-session": "tsx scripts/capture-marketing-browser-session.ts",
+    "kpi:table": "tsx scripts/print-kpi-table.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1096.0",
