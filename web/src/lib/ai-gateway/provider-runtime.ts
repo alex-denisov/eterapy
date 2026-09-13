@@ -15,6 +15,7 @@ import {
 import type { DecryptedAICredential } from "@/lib/ai-gateway/credentials";
 import { createFireworksAdapter } from "@/lib/ai-gateway/fireworks-adapter";
 import { createGeminiAdapter } from "@/lib/ai-gateway/gemini-adapter";
+import { createVertexAdapter, credentialUsesVertex } from "@/lib/ai-gateway/vertex-adapter";
 import { createOpenAICompatibleAdapter } from "@/lib/ai-gateway/openai-compatible-adapter";
 import { createOpenAIAdapter } from "@/lib/ai-gateway/openai-adapter";
 import { createOpenRouterAdapter } from "@/lib/ai-gateway/openrouter-adapter";
@@ -243,8 +244,33 @@ export function buildAdapterForCredential(
       return createAnthropicAdapter(opts);
     case AIProvider.FIREWORKS:
       return createFireworksAdapter(opts);
-    case AIProvider.GEMINI:
+    case AIProvider.GEMINI: {
+      /**
+       * B742 — КЛЮЧ САМ ГОВОРИТ, ЧЕРЕЗ КАКУЮ ДВЕРЬ ИДТИ.
+       *
+       * Обычный ключ AI Studio — строка `AIza…`; ключ Vertex — JSON сервисного
+       * аккаунта Google Cloud. Различить их можно без второй настройки, и это
+       * важнее, чем кажется: настройка, которую надо не забыть выставить рядом
+       * с ключом, однажды не выставляется, и маршрут молча уходит не туда.
+       *
+       * Смысл маршрута для владельца — кошелёк: бонусные $300 Google Cloud на
+       * Gemini API в AI Studio не распространяются и покрывают Vertex.
+       */
+      if (credentialUsesVertex(credential.apiKey)) {
+        return createVertexAdapter({
+          serviceAccountJson: credential.apiKey,
+          // Регион приезжает окружением: у Vertex он часть адреса, а не
+          // свойство ключа, и меняется без перевыпуска аккаунта.
+          ...(process.env.VERTEX_LOCATION?.trim() ? { location: process.env.VERTEX_LOCATION.trim() } : {}),
+          // Через шлюз Vertex ходит по своему пути — общий адрес AI Studio
+          // ему не подходит, поэтому берём только явный override.
+          ...(credential.baseUrlOverride ? { baseURL: credential.baseUrlOverride } : {}),
+          ...(opts.defaultModel ? { defaultModel: opts.defaultModel } : {}),
+          ...(providerConfig?.timeoutMs ? { timeoutMs: providerConfig.timeoutMs } : {}),
+        });
+      }
       return createGeminiAdapter(opts);
+    }
     case AIProvider.YANDEX: {
       const yandexEnv = getYandexAIStudioEnv();
       const yandexBaseURL = opts.baseURL && !isCloudflareAIGatewayUrl(opts.baseURL)

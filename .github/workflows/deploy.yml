@@ -377,6 +377,17 @@ jobs:
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
           GSC_PROPERTY: ${{ secrets.GSC_PROPERTY }}
+          # B742: сервисный аккаунт Google Cloud для маршрута Vertex AI.
+          # Смысл маршрута — кошелёк: бонусные $300 пробного периода на Gemini
+          # API в AI Studio не распространяются и покрывают Vertex, где живут
+          # ТЕ ЖЕ модели. Значение кладётся как `base64 -w0` от файла ключа:
+          # секреты доезжают построчно, а сырой JSON многострочный и приехал
+          # бы обрезанным по первому переводу строки.
+          GEMINI_VERTEX_SERVICE_ACCOUNT: ${{ secrets.GEMINI_VERTEX_SERVICE_ACCOUNT }}
+          # Регион Vertex: он часть адреса, а не свойство ключа. `global` —
+          # умолчание Google для моделей Gemini, и менять его без причины не
+          # надо. Пусто → берётся `global`.
+          VERTEX_LOCATION: ${{ secrets.VERTEX_LOCATION }}
           # B616/INC-093: маркетинговые коннекторы читают значение из настроек
           # суперадминки, а при её пустоте — из окружения. Раньше ID канала жил
           # только на машине владельца, поэтому Telegram-коннектор в панели
@@ -830,6 +841,7 @@ jobs:
                      YANDEX_OAUTH_TOKEN YANDEX_WORDSTAT_API_KEY YANDEX_CLOUD_FOLDER_ID \
                      GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
                      GOOGLE_OAUTH_REFRESH_TOKEN GSC_PROPERTY \
+                     GEMINI_VERTEX_SERVICE_ACCOUNT VERTEX_LOCATION \
                      MARKETING_BROWSER_TOKEN DZEN_BROWSER_TOKEN \
                      KILO_CODE_AI_API_KEY NVIDIA_NIM_API_KEY \
                      OPENCODE_ZEN_AI_API_KEY TOKENROUTER_API_KEY \

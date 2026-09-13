@@ -17,6 +17,7 @@ import { moscowDayBounds, seoPagesPerDay } from "@/lib/seo/page-agent";
 import { readSearchSources, type SearchSourcesState } from "@/lib/marketing/orchestrator-search-sources";
 import { thinCards } from "@/lib/seo/backfill";
 import { dzenBrowserHealth, type BrowserSessionHealth } from "@/lib/marketing/browser-publisher";
+import { VERTEX_CREDENTIAL_LABEL } from "@/lib/ai-gateway/free-tier-bootstrap";
 
 export interface ProviderState {
   provider: string;
@@ -115,6 +116,16 @@ export interface OrchestratorState {
    * контура: правка, которая не помогла, должна быть названа, иначе она будет
    * предлагаться снова каждые сутки.
    */
+  /**
+   * B742 — поднят ли маршрут Vertex.
+   *
+   * ⚠ ЭТО ВОПРОС ПРО ДЕНЬГИ, А НЕ ПРО ТЕХНИКУ. Бонусные $300 пробного периода
+   * Google Cloud на Gemini API в AI Studio не распространяются и покрывают
+   * Vertex, где живут те же модели. Пока маршрут не поднят, контур платит
+   * картой владельца там, где мог бы тратить бонус, — и об этом никто не
+   * узнает, потому что снаружи всё работает.
+   */
+  vertexConfigured: boolean;
   recentDirectives: Array<{
     key: string;
     action: string;
@@ -153,6 +164,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     dailyCap,
     sources,
     dzen,
+    vertexCredentials,
     recentDirectives,
   ] = await Promise.all([
     conveyorSnapshot({ now }),
@@ -201,6 +213,9 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     // Проба сессии, а не заполненности полей: «настроено» и «площадка нас
     // узнаёт» — разные утверждения (урок Meta, B685).
     dzenBrowserHealth().catch(() => null),
+    db.aIProviderCredential.count({
+      where: { provider: "GEMINI", label: VERTEX_CREDENTIAL_LABEL, enabled: true },
+    }).catch(() => 0),
     db.agentDirective.findMany({
       where: { createdAt: { gte: weekAgo } },
       orderBy: { createdAt: "desc" },
@@ -296,6 +311,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     sources,
     thinCards: thinCards().length,
     dzen,
+    vertexConfigured: vertexCredentials > 0,
     recentDirectives,
     causes: [...causeTally.entries()]
       .map(([reason, count]) => ({ reason, count }))

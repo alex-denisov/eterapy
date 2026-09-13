@@ -90,6 +90,9 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
     },
     thinCards: 0,
     dzen: { reachable: true, authorized: true, reason: null, account: "eterapy" },
+    // B742: маршрут Vertex поднят — иначе здоровый контур поднимал бы находку
+    // про неиспользуемый бонус на каждом прогоне, где её не проверяют.
+    vertexConfigured: true,
     recentDirectives: [],
     ...overrides,
   };
@@ -222,6 +225,32 @@ describe("B742 §5 — отчёт оркестратора отвечает вл
     expect(PUBLIC_MARKETING_AI_FEATURES as readonly string[])
       .toContain(MARKETING_ORCHESTRATOR_REPORT_FEATURE);
     expect(MARKETING_ORCHESTRATOR_REPORT_FEATURE).not.toBe("marketing-topic-radar");
+  });
+});
+
+describe("B742 §7 — неиспользуемый бонус Google виден владельцу, а не молчит", () => {
+  /**
+   * Снаружи неподнятый маршрут выглядит нормально: материалы выходят, ошибок
+   * нет. Именно поэтому находка и нужна — деньги тратятся с карты там, где
+   * лежит бонус, а у пробного периода срок девяносто суток.
+   */
+  it("маршрут не поднят — находка со своим шагом и числом", () => {
+    const finding = diagnose(stateWith({ vertexConfigured: false }))
+      .find((item) => item.code === "billing.vertex_unused");
+    expect(finding).toBeDefined();
+    expect(finding!.severity).toBe("observation");
+    expect(finding!.ownerAction?.what).toContain("GEMINI_VERTEX_SERVICE_ACCOUNT");
+    expect(finding!.ownerAction?.expected).toContain("своих денег не понадобится");
+  });
+
+  it("поднятый маршрут находки не поднимает", () => {
+    expect(diagnose(stateWith()).some((item) => item.code === "billing.vertex_unused")).toBe(false);
+  });
+
+  it("находка не несёт директиву: сервисный аккаунт код себе не выпишет", () => {
+    const finding = diagnose(stateWith({ vertexConfigured: false }))
+      .find((item) => item.code === "billing.vertex_unused");
+    expect(finding!.directive).toBeUndefined();
   });
 });
 

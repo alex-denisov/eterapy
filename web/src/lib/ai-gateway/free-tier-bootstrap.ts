@@ -32,6 +32,7 @@ import {
   FREE_TIER_LLM_PROVIDERS,
 } from "@/lib/ai-gateway/provider-runtime";
 import { MARKETING_RETIRED_PROVIDERS } from "@/lib/marketing/model-pool";
+import { parseServiceAccount } from "@/lib/ai-gateway/google-service-account";
 import { log, serializeError } from "@/lib/logger";
 
 /** Метка строки, которой владеет бутстрап. Чужие метки он не трогает. */
@@ -39,6 +40,27 @@ export const FREE_TIER_CREDENTIAL_LABEL = "env:b703";
 
 /** Метка, которой помечен провайдер, выключенный за отсутствие живых ответов. */
 export const RETIRED_MARKER = "b742-no-successful-calls";
+
+/**
+ * B742 — метка ключа Vertex.
+ *
+ * Отдельная строка credential'а, а не подмена существующей: ключ AI Studio
+ * остаётся на месте и работает как запасной путь. Если сервисный аккаунт
+ * отзовут или кредиты кончатся, голова пула не встанет — она упадёт на
+ * соседний ключ того же провайдера, как и задумано ротацией.
+ */
+export const VERTEX_CREDENTIAL_LABEL = "env:b742-vertex";
+
+/**
+ * Имя переменной с JSON сервисного аккаунта Google Cloud.
+ *
+ * ⚠ ПОЧЕМУ ЧЕРЕЗ ОКРУЖЕНИЕ, А НЕ ВВОДОМ В ПАНЕЛИ. Владелец не правит секреты
+ * руками — они доезжают выкаткой; механизм с ручным шагом это невыполненный
+ * механизм. От владельца нужен ровно один шаг, которого никто за него сделать
+ * не может: выпустить сервисный аккаунт в своём проекте Google Cloud и
+ * положить его JSON в секрет репозитория. Дальше ключ поднимается сам.
+ */
+export const VERTEX_ENV_KEY = "GEMINI_VERTEX_SERVICE_ACCOUNT";
 
 /**
  * Имя переменной окружения — то самое, что владелец назвал в
@@ -58,6 +80,8 @@ export const FREE_TIER_ENV_KEYS: Record<string, string> = {
 
 export interface FreeTierBootstrapResult {
   configured: AIProvider[];
+  /** Поднят ли ключ Vertex этим заходом (B742). */
+  vertex: "configured" | "invalid" | "absent";
   missingKey: AIProvider[];
   /** Провайдеры, физически выключенные этим заходом (B742). */
   retired: AIProvider[];
@@ -84,7 +108,13 @@ export async function bootstrapFreeTierLLMProviders(): Promise<FreeTierBootstrap
     // Без ключа шифрования запись секрета невозможна. Это не повод падать:
     // остальной контур работает, а коннекторы просто не поднимутся.
     log.warn("ai-free-tier-bootstrap.skipped", { reason: "encryption-not-configured" });
-    return { configured: [], missingKey: [], retired: [], skipped: "encryption-not-configured" };
+    return {
+      configured: [],
+      missingKey: [],
+      retired: [],
+      vertex: "absent",
+      skipped: "encryption-not-configured",
+    };
   }
 
   const configured: AIProvider[] = [];
@@ -193,10 +223,52 @@ export async function bootstrapFreeTierLLMProviders(): Promise<FreeTierBootstrap
   }
   if (retired.length > 0) log.info("ai-free-tier-bootstrap.retired", { retired });
 
+  /**
+   * B742 — КЛЮЧ VERTEX ПОДНИМАЕТСЯ ТЕМ ЖЕ ЗАХОДОМ.
+   *
+   * Смысл маршрута — кошелёк: бонусные $300 Google Cloud на Gemini API в
+   * AI Studio не распространяются и покрывают Vertex, где живут те же модели.
+   * Провайдер остаётся GEMINI (Vertex — дверь, а не поставщик), поэтому
+   * потолок расхода, очередь и предпочтения моделей не раздваиваются.
+   *
+   * Приоритет 10 против 100 у ключа AI Studio: меньше число — раньше очередь.
+   * Пока бонусы живы, тратятся они; кончатся или отзовут аккаунт — ротация
+   * сама перейдёт на соседний ключ, и контур этого не заметит.
+   */
+  let vertex: FreeTierBootstrapResult["vertex"] = "absent";
+  const vertexSecret = process.env[VERTEX_ENV_KEY]?.trim();
+  if (vertexSecret) {
+    if (!parseServiceAccount(vertexSecret)) {
+      // ⚠ Неразбираемый секрет НЕ пишется. Строка-ключ, которая не является
+      // сервисным аккаунтом, ушла бы в ротацию и отбивалась бы 401 на каждом
+      // материале — отказ, который выглядит как поломка провайдера.
+      vertex = "invalid";
+      log.error("ai-free-tier-bootstrap.vertex_invalid", { envKey: VERTEX_ENV_KEY });
+    } else {
+      try {
+        await db.aIProviderCredential.upsert({
+          where: { provider_label: { provider: AIProvider.GEMINI, label: VERTEX_CREDENTIAL_LABEL } },
+          create: {
+            provider: AIProvider.GEMINI,
+            label: VERTEX_CREDENTIAL_LABEL,
+            encryptedKey: encryptSecret(vertexSecret),
+            enabled: true,
+            priority: 10,
+          },
+          update: { encryptedKey: encryptSecret(vertexSecret), enabled: true, priority: 10 },
+        });
+        vertex = "configured";
+      } catch (error) {
+        log.error("ai-free-tier-bootstrap.vertex_failed", { error: serializeError(error) });
+      }
+    }
+  }
+
   log.info("ai-free-tier-bootstrap.done", {
     configured: configured.length,
     missingKey,
+    vertex,
   });
 
-  return { configured, missingKey, retired, skipped: null };
+  return { configured, missingKey, retired, vertex, skipped: null };
 }

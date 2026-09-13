@@ -39,12 +39,37 @@ interface GeminiResponse {
   };
 }
 
+/**
+ * B742 — СМЕННЫЙ ТРАНСПОРТ: ТОТ ЖЕ ЗАПРОС, ДРУГАЯ ДВЕРЬ.
+ *
+ * У Gemini два маршрута к одним и тем же моделям — AI Studio и Vertex AI.
+ * Тело запроса, разбор ответа, подсчёт токенов, классификация отказа и проба
+ * живости у них совпадают ДОСЛОВНО; различаются только адрес и способ
+ * авторизации. Второй адаптер копией означал бы два места, где живёт одна
+ * правда про `generationConfig`, — и однажды они разошлись бы молча (ровно
+ * так уже разошлись две таблицы пределов площадок, B705).
+ *
+ * Поэтому маршрут — это параметр, а не файл.
+ */
+export interface GeminiTransport {
+  /** Полный адрес `:generateContent` для модели. */
+  url(model: string): string | Promise<string>;
+  /** Заголовки запроса вместе с авторизацией. */
+  headers(): Record<string, string> | Promise<Record<string, string>>;
+  /** Настроен ли маршрут: без этого отказ выглядел бы сетевым. */
+  configured: boolean;
+  /** Что сказать, когда не настроен. */
+  missingConfigMessage: string;
+}
+
 interface GeminiAdapterOptions {
   apiKey?: string;
   baseURL?: string;
   defaultModel?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** B742: маршрут Vertex вместо AI Studio. Без него всё как раньше. */
+  transport?: GeminiTransport;
 }
 
 function contentToText(content: AIGatewayMessageContent) {
@@ -139,7 +164,8 @@ function joinBaseUrl(baseURL: string, path: string) {
 
 export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatewayAdapter {
   const apiKey = options.apiKey ?? "";
-  const configured = Boolean(apiKey);
+  const transport = options.transport;
+  const configured = transport ? transport.configured : Boolean(apiKey);
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
   const defaultModel = options.defaultModel ?? DEFAULT_GEMINI_MODEL;
@@ -147,7 +173,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
 
   function requireConfigured() {
     if (!configured) {
-      throw new AIProviderError("Gemini API key is not configured", {
+      throw new AIProviderError(transport?.missingConfigMessage ?? "Gemini API key is not configured", {
         provider: AIProvider.GEMINI,
         code: "MISSING_CONFIG",
         retryable: false,
@@ -155,12 +181,18 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
     }
   }
 
-  function headers() {
+  async function headers() {
+    if (transport) return { "content-type": "application/json", ...await transport.headers() };
     return {
       "content-type": "application/json",
       "x-goog-api-key": apiKey,
       ...cloudflareGatewayAuthHeaders(baseURL),
     };
+  }
+
+  async function endpoint(model: string) {
+    if (transport) return transport.url(model);
+    return joinBaseUrl(baseURL, `models/${model}:generateContent`);
   }
 
   const adapter: AIGatewayAdapter = {
@@ -173,9 +205,9 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
       const geminiMessages = splitSystem(request.messages, isCloudflareAIGatewayUrl(baseURL));
 
       try {
-        const response = await fetchWithTimeout(fetchImpl, joinBaseUrl(baseURL, `models/${model}:generateContent`), {
+        const response = await fetchWithTimeout(fetchImpl, await endpoint(model), {
           method: "POST",
-          headers: headers(),
+          headers: await headers(),
           body: JSON.stringify({
             ...geminiMessages,
             generationConfig: {
@@ -268,7 +300,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
           provider: AIProvider.GEMINI,
           status: "missing_config",
           model,
-          message: "Gemini API key is not configured",
+          message: transport?.missingConfigMessage ?? "Gemini API key is not configured",
         };
       }
 

@@ -29,7 +29,11 @@ export type CloudflareGatewayProvider =
   | "cerebras"
   | "cohere"
   | "azure-openai"
-  | "google-ai-studio";
+  | "google-ai-studio"
+  // B742: у Gemini через шлюз два разных маршрута — AI Studio и Vertex. Это
+  // не синонимы: у них разные пути, разная авторизация и, главное, разные
+  // кошельки (бонусы Google Cloud покрывают только второй).
+  | "google-vertex-ai";
 
 export interface CloudflareGatewayConfig {
   accountId: string;

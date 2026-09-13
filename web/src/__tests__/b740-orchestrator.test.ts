@@ -88,6 +88,9 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
     },
     thinCards: 0,
     dzen: { reachable: true, authorized: true, reason: null, account: "eterapy" },
+    // B742: маршрут Vertex поднят — иначе здоровый контур поднимал бы находку
+    // про неиспользуемый бонус на каждом прогоне, где её не проверяют.
+    vertexConfigured: true,
     recentDirectives: [],
     ...overrides,
   };
