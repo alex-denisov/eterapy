@@ -384,7 +384,6 @@ async function reportBlockedScheduledPlatforms(
   const { marketingPlatformEnabled } = await import("@/lib/marketing/platform-settings");
   const connectorNames = {
     vk: "VK",
-    reddit: "Reddit",
     threads: "Threads",
     instagram: "Instagram",
     telegram: "Telegram",

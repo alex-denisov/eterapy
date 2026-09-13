@@ -3,11 +3,7 @@ import { auth } from "@/lib/auth";
 import { AUDIT_ACTIONS, logAudit } from "@/lib/audit";
 import { marketingAgentEnabled, runMarketingAgentCycle } from "@/lib/marketing/agent";
 import { runEngagementDiscovery } from "@/lib/marketing/discovery";
-import {
-  auditUnansweredInbound,
-  pollInboundSources,
-  queueInboundReplies,
-} from "@/lib/marketing/inbound";
+import { auditUnansweredInbound, queueInboundReplies } from "@/lib/marketing/inbound";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
@@ -26,7 +22,8 @@ export async function POST() {
   const generate = await generateMarketingDrafts();
   // B618: ручной прогон обязан покрывать и входящее — иначе «прогнать сейчас»
   // проверяет не тот же путь, что воркер, и расхождение обнаружится на проде.
-  const inboundPoll = await pollInboundSources();
+  // B742: опроса больше нет — входящее у всех оставшихся площадок приходит
+  // событием, поэтому здесь остаётся только разбор очереди.
   const inboundQueue = await queueInboundReplies();
   const agent = await runMarketingAgentCycle();
   const publish = await publishScheduledMarketing();
@@ -38,7 +35,6 @@ export async function POST() {
   const metaTokens = await refreshMetaMarketingTokens();
   const result = {
     generate,
-    inboundPoll,
     inboundQueue,
     agent,
     publish,

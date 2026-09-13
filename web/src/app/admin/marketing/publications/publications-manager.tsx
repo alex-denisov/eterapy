@@ -29,6 +29,8 @@ const platformLabels: Record<string, string> = {
   DZEN: "Дзен",
   VK: "VK",
   TELEGRAM: "Telegram",
+  // B742: Reddit убран из площадок, но подпись остаётся ради СТАРЫХ строк
+  // реестра: без неё прошлые публикации показывали бы сырой код площадки.
   REDDIT: "Reddit",
   THREADS: "Threads",
   INSTAGRAM: "Instagram",

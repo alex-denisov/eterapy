@@ -22,9 +22,10 @@ import {
 import { repairPublishableDraft } from "@/lib/marketing/agent";
 
 describe("B705: Canonical Platform Profiles", () => {
-  const platforms = ["telegram", "instagram", "threads", "vk", "max", "dzen", "reddit"] as const;
+  // B742: Reddit удалён из площадок целиком по решению владельца 2026-09-12.
+  const platforms = ["telegram", "instagram", "threads", "vk", "max", "dzen"] as const;
 
-  test("defines canonical profiles for all 7 platforms", () => {
+  test("defines canonical profiles for all live platforms (B742: Reddit убран)", () => {
     for (const p of platforms) {
       const profile = platformProfile(p);
       expect(profile).toBeDefined();

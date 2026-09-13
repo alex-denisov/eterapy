@@ -383,7 +383,7 @@ export const MARKETING_REVIEWER_SYSTEM_PROMPT = [
    опыт не выдуман и не раздут сверх research.
 6. CTA: ПРИЗЫВ НАЗВАН СЛОВАМИ и обещает конкретную пользу, если площадка требует
    или допускает CTA. ВНИМАНИЕ: если контракт площадки пессимизирует призывы
-   или ссылки (ctaPolicy: discouraged, Threads, Reddit) либо maxLinks = 0, то
+   или ссылки (ctaPolicy: discouraged, Threads) либо maxLinks = 0, то
    отсутствие ссылки и CTA в материале оценивается на 5 («требования нет —
    соблюдено»), а рекламный призыв или навязчивая ссылка являются дефектом
    (снижай оценку). Для площадок с обязательным CTA: голая ссылка в конце
@@ -655,7 +655,7 @@ export function marketingReviewerPrompt(input: {
    * чего регулярка не умеет: угол, польза, живой голос, честность.
    */
   machineFindings?: { rule?: string; issue: string; brief: string }[];
-  /** B724: площадка пессимизирует CTA или запрещает ссылки (Threads, Reddit) */
+  /** B724: площадка пессимизирует CTA или запрещает ссылки (Threads) */
   allowNoCta?: boolean;
 }): Record<string, unknown> {
   const base = {

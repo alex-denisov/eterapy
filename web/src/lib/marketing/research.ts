@@ -44,8 +44,6 @@ type ResearchPublication = {
 const ALLOWED_COMPETITOR_HOSTS = new Set([
   "t.me",
   "vk.com",
-  "www.reddit.com",
-  "reddit.com",
   "dzen.ru",
   "www.instagram.com",
   "www.threads.net",

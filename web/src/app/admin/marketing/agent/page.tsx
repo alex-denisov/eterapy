@@ -38,7 +38,6 @@ import {
   marketingModelFreshness,
 } from "@/lib/marketing/model-pool";
 import { auditMetaBrandAccounts } from "@/lib/marketing/meta-brand-account";
-import { redditOAuthConnected } from "@/lib/marketing/reddit-oauth";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
@@ -76,7 +75,6 @@ export default async function MarketingAgentPage() {
     recent,
     modelCredentials,
     modelConfigs,
-    redditConnected,
     connectors,
     platformConfigs,
     inboundCounts,
@@ -118,7 +116,6 @@ export default async function MarketingAgentPage() {
       where: { provider: { in: [...MARKETING_FREE_PROVIDERS] } },
       select: { provider: true, defaultModel: true },
     }),
-    redditOAuthConnected().catch(() => false),
     marketingConnectorStates(),
     listMarketingPlatformAdminConfigs(),
     // B618: очередь входящего. Группировка по статусу — это и есть машина
@@ -159,8 +156,6 @@ export default async function MarketingAgentPage() {
     conveyorSnapshot().catch(() => null),
     resolvePlatformContracts(),
   ]);
-  // B617: у Reddit больше нет отдельного режима комментирования, который надо
-  // было доуточнять состоянием OAuth — остались только свои посты и входящее.
   const effectiveConnectors = connectors;
   // B613/B626: ссылка выдачи VK user token жила прямо в кокпите. Владелец
   // 2026-07-30: это инструкция для одного человека, а не элемент интерфейса
@@ -268,13 +263,11 @@ export default async function MarketingAgentPage() {
     // B698: у Дзена нет OAuth — «подключение» поднимает окно живого браузера,
     // в котором владелец входит под своим аккаунтом Яндекса. Кнопка та же, но
     // ведёт не на обмен токена, а на окно входа.
-    const oauthHref = connector.platform === "Reddit"
-      ? "/api/admin/marketing/reddit/connect"
-      : connector.platform === "Threads" || connector.platform === "Instagram"
-        ? `/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`
-        : connector.platform === "Dzen"
-          ? "/api/admin/marketing/dzen/connect"
-          : null;
+    const oauthHref = connector.platform === "Threads" || connector.platform === "Instagram"
+      ? `/api/admin/marketing/meta/${connector.platform.toLowerCase()}/connect`
+      : connector.platform === "Dzen"
+        ? "/api/admin/marketing/dzen/connect"
+        : null;
     return {
       id: connector.platform,
       cells: {
@@ -334,11 +327,9 @@ export default async function MarketingAgentPage() {
           ? {
             kind: "actions" as const,
             actions: [{
-              label: connector.platform === "Reddit" && redditConnected
-                ? "Переподключить Reddit"
-                : connector.platform === "Dzen"
-                  ? "Открыть окно входа в Дзен"
-                  : `Подключить ${connector.platform}`,
+              label: connector.platform === "Dzen"
+                ? "Открыть окно входа в Дзен"
+                : `Подключить ${connector.platform}`,
               href: oauthHref,
               // B624: без внешней цели Next префетчит ссылку и вызывает
               // эндпоинт без нажатия (класс INC-070).
@@ -652,8 +643,8 @@ export default async function MarketingAgentPage() {
       <AnalyticsSection title="Входящее: комментарии, упоминания, сообщения">
         <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
           Единственный разговорный канал после B617. Комментарии к нашим
-          публикациям и сообщения сообщества приходят webhook&apos;ами, Reddit и
-          упоминания в VK опрашиваются. Ответ пишет тот же конвейер
+          публикациям и сообщения сообщества приходят webhook&apos;ами — опроса
+          после B742 не осталось ни у одной площадки. Ответ пишет тот же конвейер
           writer&nbsp;→&nbsp;независимый редактор и уходит только после
           премодерации в Telegram. Сообщение с кризисной формулировкой агент не
           отвечает вовсе — оно уходит человеку со статусом ESCALATED.
@@ -704,7 +695,7 @@ export default async function MarketingAgentPage() {
 
       <AnalyticsSection title="План присутствия на сегодня">
         <p className="mb-3 text-xs text-[var(--soft-ink-soft)]">
-          Два разных механизма в одной таблице. Где есть чужая лента (VK, Reddit,
+          Два разных механизма в одной таблице. Где есть чужая лента (VK,
           Threads) — заходы несколькими сессиями в день, а не ровным
           расписанием; минимум по решению владельца — {ENGAGEMENT_DAILY_MINIMUM}{" "}
           материалов в сутки на площадку, каждый уходит на премодерацию в

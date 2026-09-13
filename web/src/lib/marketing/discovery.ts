@@ -1,6 +1,5 @@
 import { createHash } from "crypto";
 import db from "@/lib/db";
-import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { log, serializeError } from "@/lib/logger";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import {
@@ -20,7 +19,7 @@ import { pickEngagementTone } from "@/lib/marketing/engagement-tone";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
 
 export type MarketingConnectorState = {
-  platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max";
+  platform: "VK" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max";
   ownedPublishing: boolean;
   discovery: boolean;
   /** B617: ответы на ВХОДЯЩЕЕ (комментарии к своим постам, упоминания). Комментариев под чужими публикациями больше нет ни на одной площадке. */
@@ -32,7 +31,6 @@ export type MarketingConnectorState = {
 export async function marketingConnectorStates(): Promise<MarketingConnectorState[]> {
   const keys = [
     "VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION",
-    "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT",
     "THREADS_APP_ID", "THREADS_APP_SECRET", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID",
     "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID", "TELEGRAM_DISCUSSION_CHAT_ID",
@@ -63,7 +61,7 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
     return requirement === "required";
   });
   const enabled = new Map(await Promise.all(
-    (["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen", "Max"] as const)
+    (["VK", "Threads", "Instagram", "Telegram", "Dzen", "Max"] as const)
       .map(async (platform) => [platform, await marketingPlatformEnabled(platform)] as const),
   ));
   return [
@@ -84,17 +82,6 @@ export async function marketingConnectorStates(): Promise<MarketingConnectorStat
         && has("VK_COMMUNITY_ID") && has("VK_CALLBACK_SECRET"),
       missing: missing("VK_COMMUNITY_TOKEN", "VK_COMMUNITY_ID", "VK_CALLBACK_SECRET", "VK_CALLBACK_CONFIRMATION"),
       note: "Официальный VK API: токен сообщества — wall.post и ответы на входящее; Callback API сообщества приносит комментарии к нашим постам и сообщения. Поиск упоминаний бренда по чужим стенам снят решением владельца (B637) — пользовательский токен больше не нужен.",
-    },
-    {
-      platform: "Reddit",
-      ownedPublishing: Boolean(enabled.get("Reddit")) && has("REDDIT_POST_SUBREDDIT")
-        && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
-      discovery: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET") && has("REDDIT_SUBREDDITS"),
-      // B617 снял комментарии под чужими постами; B618 включил ответы на
-      // входящее — это ящик бренд-аккаунта, официальный Data API, свой периметр.
-      inboundReplies: Boolean(enabled.get("Reddit")) && has("REDDIT_CLIENT_ID") && has("REDDIT_CLIENT_SECRET"),
-      missing: missing("REDDIT_POST_SUBREDDIT", "REDDIT_SUBREDDITS", "REDDIT_USER_AGENT", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"),
-      note: "Только официальный OAuth Data API: собственные посты в свой сабреддит и ответы на входящее. Браузерная сессия убрана (B617) — вход по сохранённой сессии правила площадок называют нарушением.",
     },
     {
       platform: "Threads",
@@ -213,45 +200,6 @@ export function normalizePublicPostExcerpt(value: string) {
     .slice(0, 1_200);
 }
 
-function matchingTopic(value: string) {
-  const text = value.toLocaleLowerCase("ru-RU");
-  return TOPICS.find((topic) => text.includes(topic)) ?? null;
-}
-
-async function discoverReddit(): Promise<Candidate[]> {
-  const token = await redditAccessToken().catch(() => null);
-  const subreddits = (await marketingPlatformValue("REDDIT_SUBREDDITS"))?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
-  if (!token || subreddits.length === 0) return [];
-  const result: Candidate[] = [];
-  for (const subreddit of subreddits.slice(0, 10)) {
-    const response = await fetch(`https://oauth.reddit.com/r/${encodeURIComponent(subreddit)}/new?limit=25`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-      },
-    });
-    if (!response.ok) throw new Error(`Reddit discovery HTTP ${response.status}`);
-    const payload = await response.json() as {
-      data?: { children?: Array<{ data?: { name?: string; permalink?: string; title?: string; selftext?: string } }> };
-    };
-    for (const child of payload.data?.children ?? []) {
-      const post = child.data;
-      const combined = `${post?.title ?? ""} ${post?.selftext ?? ""}`;
-      const topic = matchingTopic(combined);
-      if (!post?.name || !post.permalink || !topic) continue;
-      result.push({
-        platform: "reddit",
-        targetId: post.name,
-        targetUrl: `https://www.reddit.com${post.permalink}`,
-        targetLabel: `r/${subreddit}: ${normalizePublicPostExcerpt(post.title ?? "публикация")}`,
-        excerpt: normalizePublicPostExcerpt(combined),
-        topic,
-      });
-    }
-  }
-  return result;
-}
-
 /**
  * B637 · поиск по чужим стенам VK снят.
  *
@@ -366,7 +314,6 @@ export async function ingestEngagementCandidate(
 }
 
 const DISCOVERERS: Record<EngagementPlatform, () => Promise<Candidate[]>> = {
-  reddit: discoverReddit,
   vk: discoverVk,
   threads: discoverThreads,
 };
@@ -494,6 +441,5 @@ export async function runEngagementDiscovery(
 
 export const discoveryTestables = {
   discoverThreads,
-  discoverReddit,
   discoverVk,
 };

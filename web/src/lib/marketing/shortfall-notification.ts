@@ -10,16 +10,16 @@
  * другой стороны: тогда не было видно успеха, теперь не видно отказа.
  *
  * Требование владельца 2026-08-17 дословно: «нужно чтобы в канал шли
- * уведомления о публикациях на всех площадках (кроме reddit который не
- * подключен), а также сообщения о том что нет материалов для выпуска
- * (исчерпание емкости, ошибки которые препятствуют готовящемуся выпуску
- * материала)».
+ * уведомления о публикациях на всех площадках <...>, а также сообщения о том
+ * что нет материалов для выпуска (исчерпание емкости, ошибки которые
+ * препятствуют готовящемуся выпуску материала)».
  *
- * ⚠ ПЛОЩАДКА, ПРО КОТОРУЮ ВЛАДЕЛЕЦ УЖЕ ЗНАЕТ, НЕ ШУМИТ. Reddit не подключён
- * осознанно (`Reddit OAuth is not connected`), и его отказ повторяется в
- * КАЖДОМ проходе публикатора — раз в минуту. Уведомление о нём было бы не
- * сигналом, а фоном, в котором тонут остальные. Список молчащих площадок
- * закрытый и явный: он сократится решением, а не молча.
+ * ⚠ B742 — СПИСКА МОЛЧАЩИХ ПЛОЩАДОК БОЛЬШЕ НЕТ. Он существовал ради одного
+ * Reddit: площадка не была подключена осознанно, её отказ повторялся в КАЖДОМ
+ * проходе публикатора, и уведомление о нём было бы не сигналом, а фоном.
+ * Reddit убран решением владельца 2026-09-12, и фильтр, который теперь не
+ * отсеивает ничего, удалён вместе с ним: пустой список молча превратился бы в
+ * приглашение занести туда живую площадку и перестать слышать её отказы.
  *
  * ⚠ ПОЧЕМУ СВОДКА, А НЕ СТРОКА НА КАЖДУЮ СМЕРТЬ. 10–14 смертей в сутки — это
  * 10–14 сообщений, и на третий день их перестают читать. Одно сообщение с
@@ -33,16 +33,6 @@ import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { sendTelegram } from "@/lib/telegram";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
-
-/**
- * Площадки, про отказы которых владелец уже знает и решения ждать не от нас.
- * Пока Reddit не подключён, его отказ — не новость, а фон.
- */
-export const SILENT_PLATFORMS = ["reddit"] as const;
-
-export function platformIsSilent(platform: string): boolean {
-  return (SILENT_PLATFORMS as readonly string[]).includes(platform.trim().toLowerCase());
-}
 
 export interface ShortfallCause {
   /** Человеческая причина: она и попадёт в канал. */
@@ -84,9 +74,7 @@ function moscow(value: Date) {
  * сообщение было бы шумом — про успех уже пришли карточки «Опубликовано».
  */
 export function shortfallWorthReporting(input: ShortfallInput): boolean {
-  const causes = input.causes.filter((cause) => !platformIsSilent(cause.platform));
-  const capacity = input.capacityExhausted.filter((platform) => !platformIsSilent(platform));
-  if (causes.length === 0 && capacity.length === 0) return false;
+  if (input.causes.length === 0 && input.capacityExhausted.length === 0) return false;
   return input.published < input.plannedSlots;
 }
 
@@ -95,10 +83,8 @@ export function shortfallWorthReporting(input: ShortfallInput): boolean {
  * и почему — по убыванию числа задетых материалов.
  */
 export function buildShortfallNotification(input: ShortfallInput): string {
-  const causes = [...input.causes]
-    .filter((cause) => !platformIsSilent(cause.platform))
-    .sort((left, right) => right.count - left.count);
-  const capacity = input.capacityExhausted.filter((platform) => !platformIsSilent(platform));
+  const causes = [...input.causes].sort((left, right) => right.count - left.count);
+  const capacity = input.capacityExhausted;
   const missed = Math.max(input.plannedSlots - input.published, 0);
 
   const lines: string[] = [
@@ -123,10 +109,6 @@ export function buildShortfallNotification(input: ShortfallInput): string {
     for (const cause of causes) {
       lines.push(`• ${html(cause.platform)} — ${html(cause.reason)} (${cause.count})`);
     }
-  }
-
-  if (platformIsSilent("reddit")) {
-    lines.push("", "<i>Reddit в сводку не входит: площадка не подключена.</i>");
   }
 
   return lines.join("\n");

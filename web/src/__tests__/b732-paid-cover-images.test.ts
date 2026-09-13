@@ -79,7 +79,7 @@ describe("B732 — платная обложка для Дзена и Instagram"
     expect(isPaidCoverPlatform("dzen")).toBe(true);
     expect(isPaidCoverPlatform("Instagram")).toBe(true);
     // Остальные площадки остаются на 0-токенных шаблонах Satori (B718, B731).
-    for (const platform of ["telegram", "vk", "threads", "reddit"]) {
+    for (const platform of ["telegram", "vk", "threads"]) {
       expect(isPaidCoverPlatform(platform)).toBe(false);
     }
   });

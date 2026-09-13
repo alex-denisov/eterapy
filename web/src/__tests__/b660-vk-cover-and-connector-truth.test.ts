@@ -41,12 +41,6 @@ jest.mock("@/lib/marketing/browser-publisher", () => ({
   publishToDzenBrowser: jest.fn(),
 }));
 
-jest.mock("@/lib/marketing/reddit-oauth", () => ({
-  __esModule: true,
-  redditAccessToken: async () => null,
-  redditOAuthConnected: async () => false,
-}));
-
 jest.mock("@/lib/telegram", () => ({ callTelegramApi: jest.fn() }));
 
 import { publishToVk } from "@/lib/marketing/publish";

@@ -2,9 +2,15 @@
  * B713 §5 — «выпускать нечего» обязано быть слышно в маркетинговом канале.
  *
  * Требование владельца 2026-08-17: в канал идут уведомления о публикациях на
- * всех площадках, «кроме reddit который не подключен», плюс «сообщения о том
- * что нет материалов для выпуска (исчерпание емкости, ошибки которые
- * препятствуют готовящемуся выпуску материала)».
+ * всех площадках, плюс «сообщения о том что нет материалов для выпуска
+ * (исчерпание емкости, ошибки которые препятствуют готовящемуся выпуску
+ * материала)».
+ *
+ * ⚠ B742 — ИСКЛЮЧЕНИЯ БОЛЬШЕ НЕТ. В требовании стояло «кроме reddit который не
+ * подключен», и под него завёлся список молчащих площадок. Reddit убран из
+ * контура решением владельца 2026-09-12; список опустел и удалён вместе с ним,
+ * поэтому теперь в сводку попадает КАЖДАЯ причина — ровно то, что прогон ниже
+ * и сторожит.
  *
  * Проверяется ЧИСТАЯ функция: содержимое карточки — предмет прогона, а не
  * живой отправки в Telegram.
@@ -12,7 +18,6 @@
 
 import {
   buildShortfallNotification,
-  platformIsSilent,
   shortfallWorthReporting,
   type ShortfallInput,
 } from "@/lib/marketing/shortfall-notification";
@@ -52,29 +57,23 @@ describe("B713 — сводка «нет материала для выпуск�
   });
 });
 
-describe("B713 — Reddit не шумит: площадка не подключена", () => {
-  it("объявлен молчащим", () => {
-    expect(platformIsSilent("reddit")).toBe(true);
-    expect(platformIsSilent("Reddit")).toBe(true);
-    expect(platformIsSilent("telegram")).toBe(false);
-  });
-
-  it("отказ Reddit не попадает в сводку", () => {
+describe("B742 — молчащих площадок больше нет: слышно каждый отказ", () => {
+  it("ни одна причина не отсеивается по имени площадки", () => {
     const text = buildShortfallNotification(input({
       causes: [
-        { platform: "reddit", reason: "Reddit OAuth is not connected", count: 9 },
+        { platform: "dzen", reason: "браузерная сессия не авторизована", count: 9 },
         { platform: "telegram", reason: "раунды редактуры не сошлись", count: 2 },
       ],
     }));
-    expect(text).not.toContain("OAuth");
+    expect(text).toContain("браузерная сессия не авторизована");
     expect(text).toContain("раунды редактуры");
   });
 
-  it("сводка не отправляется, если ВСЁ, что мешало, — это Reddit", () => {
+  it("одной причины на одной площадке хватает, чтобы сводка ушла", () => {
     expect(shortfallWorthReporting(input({
-      causes: [{ platform: "reddit", reason: "не подключено", count: 9 }],
-      capacityExhausted: ["reddit"],
-    }))).toBe(false);
+      causes: [{ platform: "dzen", reason: "сессия просрочена", count: 9 }],
+      capacityExhausted: ["dzen"],
+    }))).toBe(true);
   });
 });
 

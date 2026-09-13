@@ -68,7 +68,6 @@ const SHARED: Record<string, EngagementTone> = {
  */
 const PLATFORM_TONES: Record<EngagementPlatform, readonly EngagementTone[]> = {
   vk: [SHARED.warm, SHARED.direct, SHARED.story, SHARED.dry, SHARED.banter, SHARED.contrarian],
-  reddit: [SHARED.direct, SHARED.deadpan, SHARED.contrarian, SHARED.dry, SHARED.story, SHARED.sarcasm],
   threads: [SHARED.dry, SHARED.sarcasm, SHARED.banter, SHARED.deadpan, SHARED.direct, SHARED.story],
 };
 

@@ -133,13 +133,6 @@ const PLATFORM_AUDIENCE: Record<PlanChannel, AudienceProfile> = {
       midday: { weekday: "12:00", weekend: "13:00" },
     },
   },
-  reddit: {
-    rhythm: "обсуждение живёт вечером по МСК, когда просыпается англоязычная аудитория",
-    dayparts: {
-      midday: { weekday: "14:00", weekend: "15:00" },
-      evening: { weekday: "17:00", weekend: "18:00" },
-    },
-  },
 };
 
 /**

@@ -1,16 +1,16 @@
 /**
  * B713 §6 — просроченная строка перестаёт перебираться вечно.
  *
- * ЖИВОЙ СЛУЧАЙ. Строка Reddit со слотом 2026-08-10 в статусе SCHEDULED
- * перебиралась публикатором КАЖДУЮ МИНУТУ и каждую минуту отбивалась
- * `Reddit OAuth is not connected`. К 17.08 это неделя одинаковых строк в
- * журнале — фон, в котором тонет всё остальное.
+ * ЖИВОЙ СЛУЧАЙ. Строка неподключённой площадки со слотом 2026-08-10 в статусе
+ * SCHEDULED перебиралась публикатором КАЖДУЮ МИНУТУ и каждую минуту отбивалась
+ * «коннектор не настроен». К 17.08 это неделя одинаковых строк в журнале —
+ * фон, в котором тонет всё остальное.
  *
  * Почему её не убрал ни один из существующих сторожей:
  *
  *   `beyond`   ловит дату ДАЛЬШЕ горизонта, а эта в ПРОШЛОМ;
  *   `noDate`   ловит пустую дату, а эта заполнена;
- *   `slotGone` не сработал: слот в плане Reddit ещё числился;
+ *   `slotGone` не сработал: слот площадки в плане ещё числился;
  *   B645       переносит закрывшееся окно, но строка не доходит до переноса —
  *              её канал на паузе, и проход прекращается раньше.
  *
@@ -31,14 +31,14 @@ const NOW = new Date("2026-08-17T12:00:00Z");
 
 function row(over: Record<string, unknown> = {}) {
   return {
-    id: "stale-reddit",
-    platform: "reddit",
+    id: "stale-threads",
+    platform: "threads",
     status: "SCHEDULED",
     contentType: "POST",
     scheduledFor: new Date("2026-08-10T14:00:00Z"),
     publishedAt: null,
     createdAt: new Date("2026-08-03T00:00:00Z"),
-    planSlot: "b610-2w-reddit-20260810-01",
+    planSlot: "b610-2w-threads-20260810-01",
     hasDraftText: true,
     telegramReviewMessageId: null,
     moderationDecisionAt: null,
@@ -53,7 +53,7 @@ describe("B713 — просроченная строка снимается с �
       rows: [row()],
       plan: contentPlanFor(NOW),
     });
-    const touched = actions.find((action) => action.id === "stale-reddit");
+    const touched = actions.find((action) => action.id === "stale-threads");
     expect(touched).toBeDefined();
     expect(["retire", "schedule"]).toContain(touched?.kind);
   });
@@ -64,7 +64,7 @@ describe("B713 — просроченная строка снимается с �
       rows: [row()],
       plan: contentPlanFor(NOW),
     });
-    const touched = actions.find((action) => action.id === "stale-reddit");
+    const touched = actions.find((action) => action.id === "stale-threads");
     expect(touched?.reason).toMatch(/просроч|прошл/i);
   });
 

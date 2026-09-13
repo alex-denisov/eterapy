@@ -613,6 +613,14 @@ export const MARKETING_TOPIC_RADAR_FEATURE = "marketing-topic-radar";
  */
 export const SEO_LIBRARY_WRITER_FEATURE = "seo-library-writer";
 export const SEO_LIBRARY_EDITOR_FEATURE = "seo-library-editor";
+/**
+ * B742 — связующий абзац отчёта оркестратора.
+ *
+ * Свой ключ, а не общий с радаром тем: у них разный суточный кошелёк и разная
+ * строка в реестре промтов. Общий ключ означал бы, что правка промта радара
+ * молча меняет текст доклада владельцу.
+ */
+export const MARKETING_ORCHESTRATOR_REPORT_FEATURE = "marketing-orchestrator-report";
 
 export const PUBLIC_MARKETING_AI_FEATURES = [
   "marketing-agent-writer",
@@ -622,6 +630,7 @@ export const PUBLIC_MARKETING_AI_FEATURES = [
   MARKETING_TOPIC_RADAR_FEATURE,
   SEO_LIBRARY_WRITER_FEATURE,
   SEO_LIBRARY_EDITOR_FEATURE,
+  MARKETING_ORCHESTRATOR_REPORT_FEATURE,
 ] as const;
 
 export type PublicMarketingAIFeature = typeof PUBLIC_MARKETING_AI_FEATURES[number];

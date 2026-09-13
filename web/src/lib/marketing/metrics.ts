@@ -1,11 +1,7 @@
 import db from "@/lib/db";
-import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
-import {
-  marketingPlatformValue,
-  requiredMarketingPlatformValue,
-} from "@/lib/marketing/platform-settings";
+import { requiredMarketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 const DAY_MS = 86_400_000;
 const VK_API_VERSION = "5.199";
@@ -81,31 +77,6 @@ export const metricAdapters: Partial<Record<string, PublicationMetricAdapter>> =
       reactions: optionalInt((item.likes as { count?: unknown } | undefined)?.count),
       comments: optionalInt((item.comments as { count?: unknown } | undefined)?.count),
       shares: optionalInt((item.reposts as { count?: unknown } | undefined)?.count),
-    };
-  },
-  reddit: async (publication) => {
-    const token = await redditAccessToken();
-    const fullname = publication.externalPostId.startsWith("t")
-      ? publication.externalPostId
-      : `${publication.contentType === "COMMENT" ? "t1" : "t3"}_${publication.externalPostId}`;
-    const payload = await json(
-      `https://oauth.reddit.com/api/info?id=${encodeURIComponent(fullname)}&raw_json=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-        },
-      },
-    );
-    const child = ((payload.data as { children?: Array<{ data?: Record<string, unknown> }> } | undefined)
-      ?.children?.[0]?.data);
-    if (!child) throw new Error("Reddit metrics returned no item");
-    return {
-      reach: null,
-      views: optionalInt(child.view_count),
-      reactions: optionalInt(child.score),
-      comments: optionalInt(child.num_comments ?? child.num_replies),
-      shares: optionalInt(child.num_crossposts),
     };
   },
   instagram: async (publication) => {

@@ -146,10 +146,6 @@ jest.mock("@/lib/marketing/platform-settings", () => ({
   marketingPlatformValue: async () => null,
 }));
 
-jest.mock("@/lib/marketing/reddit-oauth", () => ({
-  redditAccessToken: async () => "token",
-}));
-
 import {
   auditUnansweredInbound,
   ingestInboundMessage,

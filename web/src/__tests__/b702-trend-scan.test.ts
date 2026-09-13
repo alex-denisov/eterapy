@@ -36,7 +36,7 @@ describe("B702 фаза 2 — сканер живых трендов", () => {
   });
 
   it("молчащий источник не держит проход конвейера", async () => {
-    // `discoverReddit` ходит в сеть последовательно и БЕЗ AbortSignal: без
+    // источники discovery ходят в сеть последовательно и БЕЗ AbortSignal: без
     // собственного срока сканер повесил бы крон-проход генерации целиком.
     const silent: TrendSource = () => new Promise(() => {});
     const healthy: TrendSource = async () => [candidate("живая тема")];

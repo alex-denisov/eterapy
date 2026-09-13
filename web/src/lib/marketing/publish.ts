@@ -10,8 +10,6 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { callTelegramApi, callTelegramApiWithPhoto } from "@/lib/telegram";
-import { devvitBridgeEnabled } from "@/lib/marketing/devvit-bridge";
-import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import {
   actionForPublication,
   CONVERSATIONAL_CONTENT_TYPES,
@@ -119,14 +117,14 @@ export type PublicationAdapter = (
      *
      * `null` или отсутствие значит «обычный текст», и площадка отправляет его
      * как раньше. Значение появляется только там, где площадка разметку
-     * действительно понимает: у Telegram это `parse_mode`, у Reddit — родной
-     * формат `selftext`.
+     * действительно понимает: у Telegram это `parse_mode`, у Дзена — HTML
+     * тела статьи.
      */
     parseMode?: "HTML" | "Markdown" | null;
   },
 ) => Promise<PublishedPost>;
 
-async function ensurePlatformEnabled(platform: "VK" | "Reddit" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max") {
+async function ensurePlatformEnabled(platform: "VK" | "Threads" | "Instagram" | "Telegram" | "Dzen" | "Max") {
   if (!await marketingPlatformEnabled(platform)) {
     throw new Error(`${platform} connector is disabled`);
   }
@@ -366,56 +364,6 @@ export async function publishToTelegram(
   };
 }
 
-async function publishRedditCommentApi(
-  publication: { body: string; engagementTargetId: string | null },
-): Promise<PublishedPost> {
-  await ensurePlatformEnabled("Reddit");
-  const token = await redditAccessToken();
-  const thingId = publication.engagementTargetId;
-  if (!thingId || !/^t[13]_[a-z0-9]+$/i.test(thingId)) {
-    throw new Error("Reddit target id is missing or invalid");
-  }
-  const response = await fetch("https://oauth.reddit.com/api/comment", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-    },
-    body: new URLSearchParams({ api_type: "json", thing_id: thingId, text: publication.body }),
-  });
-  const payload = await response.json().catch(() => null) as {
-    json?: {
-      errors?: unknown[];
-      data?: { things?: Array<{ data?: { id?: string; permalink?: string } }> };
-    };
-  } | null;
-  const errors = payload?.json?.errors ?? [];
-  const data = payload?.json?.data?.things?.[0]?.data;
-  if (!response.ok || errors.length > 0 || !data?.id) {
-    throw new Error(`Reddit api/comment failed: HTTP ${response.status}${errors.length ? ` ${JSON.stringify(errors).slice(0, 300)}` : ""}`);
-  }
-  return {
-    externalPostId: data.id,
-    publicUrl: data.permalink ? `https://www.reddit.com${data.permalink}` : "https://www.reddit.com",
-  };
-}
-
-export async function publishRedditComment(
-  publication: {
-    title?: string;
-    body: string;
-    mediaUrl?: string | null;
-    engagementTargetId: string | null;
-    engagementTargetUrl?: string | null;
-  },
-): Promise<PublishedPost> {
-  // B617: только официальный API. Браузерная сессия убрана вместе с режимом
-  // комментирования чужих постов; ответы на входящее (B618) пойдут тем же
-  // API-путём.
-  return publishRedditCommentApi(publication);
-}
-
 export async function publishVkComment(
   publication: { body: string; engagementTargetId: string | null; engagementTargetUrl: string | null },
 ): Promise<PublishedPost> {
@@ -527,56 +475,6 @@ export async function publishToThreads(
     externalPostId: published.id,
     publicUrl: `https://www.threads.com/post/${published.id}`,
   };
-}
-
-async function publishToRedditApi(
-  publication: { title: string; body: string },
-): Promise<PublishedPost> {
-  await ensurePlatformEnabled("Reddit");
-  const token = await redditAccessToken();
-  const subreddit = (await requiredMarketingPlatformValue("REDDIT_POST_SUBREDDIT")).replace(/^r\//i, "");
-  const response = await fetch("https://oauth.reddit.com/api/submit", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-    },
-    body: new URLSearchParams({
-      api_type: "json",
-      kind: "self",
-      sr: subreddit,
-      title: publication.title.slice(0, 300),
-      text: publication.body,
-      resubmit: "false",
-      sendreplies: "true",
-    }),
-  });
-  const payload = await response.json().catch(() => null) as {
-    json?: {
-      errors?: unknown[];
-      data?: { id?: string; name?: string; url?: string };
-    };
-  } | null;
-  const errors = payload?.json?.errors ?? [];
-  const data = payload?.json?.data;
-  if (!response.ok || errors.length > 0 || (!data?.id && !data?.name)) {
-    throw new Error(`Reddit api/submit failed: HTTP ${response.status}${errors.length ? ` ${JSON.stringify(errors).slice(0, 300)}` : ""}`);
-  }
-  const postId = data?.name ?? data?.id ?? "";
-  return {
-    externalPostId: postId.replace(/^t3_/, ""),
-    publicUrl: data?.url ?? `https://www.reddit.com/r/${subreddit}/`,
-  };
-}
-
-// B617: браузерный запасной путь у Reddit убран. Вход по сохранённой сессии —
-// ровно то, что правила площадок называют нарушением, а у Reddit есть OAuth:
-// обходить нечего. Нет доступа по API — публикация честно не выходит.
-export async function publishToReddit(
-  publication: { title: string; body: string; mediaUrl?: string | null },
-): Promise<PublishedPost> {
-  return publishToRedditApi(publication);
 }
 
 /**
@@ -704,7 +602,6 @@ function adapterFor(
     };
   }
   if (publication.contentType === "COMMENT") {
-    if (normalized === "reddit") return publishRedditComment;
     if (normalized === "vk") return publishVkComment;
     if (normalized === "threads") return publishThreadsReply;
     throw new Error(`Unsupported comment platform: ${publication.platform}`);
@@ -712,7 +609,6 @@ function adapterFor(
   if (normalized === "vk") return publishToVk;
   if (normalized === "telegram") return publishToTelegram;
   if (normalized === "threads") return publishToThreads;
-  if (normalized === "reddit") return publishToReddit;
   if (normalized === "instagram") return publishToInstagram;
   if (normalized === "dzen") return publishToDzen;
   if (normalized === "max") return publishToMax;
@@ -750,19 +646,9 @@ export async function publishScheduledMarketing(input: {
 } = {}): Promise<PublishScheduledResult> {
   const now = input.now ?? new Date();
   const enabled = input.enabled ?? marketingAutopublishEnabled();
-  const redditHandledByDevvit = devvitBridgeEnabled()
-    && !input.adapters?.reddit;
-
   const publications = await db.externalPublication.findMany({
     where: {
       status: "SCHEDULED",
-      // Мост Devvit забирает у нас ТОЛЬКО собственные посты Reddit. Ответы на
-      // входящее он не умеет, и исключать их вместе с постами значило бы
-      // оставить человека без ответа молча — ровно тот класс тишины, из-за
-      // которого появился сторож очереди (B618).
-      ...(redditHandledByDevvit
-        ? { NOT: { platform: { in: ["reddit", "Reddit", "REDDIT"] }, contentType: "POST" } }
-        : {}),
       // Премодерированный разговорный материал (комментарий и ответ на
       // входящее) выпускается независимо от общего выключателя автопубликации:
       // человек уже нажал «Принять» по конкретному тексту.
@@ -881,13 +767,12 @@ export async function publishScheduledMarketing(input: {
 
     const connectorPlatform = ({
       vk: "VK",
-      reddit: "Reddit",
       threads: "Threads",
       instagram: "Instagram",
       telegram: "Telegram",
       dzen: "Dzen",
       max: "Max",
-    } as const)[publication.platform.toLowerCase() as "vk" | "reddit" | "threads" | "instagram" | "telegram" | "dzen" | "max"];
+    } as const)[publication.platform.toLowerCase() as "vk" | "threads" | "instagram" | "telegram" | "dzen" | "max"];
     const normalizedPlatform = publication.platform.toLowerCase();
     if (
       connectorPlatform

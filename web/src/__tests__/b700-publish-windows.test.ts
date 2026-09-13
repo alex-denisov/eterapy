@@ -38,7 +38,6 @@ describe("B700 фаза 4 · окно выводится из класса и п
     expect(timeOf({ platform: "vk", contentClass: "discussion", weekday: WEDNESDAY })).toBe("19:15");
     expect(timeOf({ platform: "instagram", contentClass: "card", weekday: WEDNESDAY })).toBe("12:15");
     expect(timeOf({ platform: "dzen", contentClass: "article", weekday: WEDNESDAY })).toBe("09:30");
-    expect(timeOf({ platform: "reddit", contentClass: "discussion", weekday: WEDNESDAY })).toBe("17:00");
   });
 
   it("выходной ≠ будни: у одного и того же класса другой час", () => {
@@ -94,7 +93,7 @@ describe("B700 фаза 4 · план собирается из окон", () =>
   it("ни один слот не потерян при переходе на функцию окна", () => {
     // B705 §7: горизонт стал свойством ленты, а темп считается от календарных
     // суток. 7 дней × (3 telegram + 2 threads + 1 vk) + instagram через сутки
-    // + 14 дней Дзена + Reddit раз в две недели.
+    // + 14 дней Дзена.
     // B713: у Telegram стало три слота вместо двух — вечерний вернулся в план,
     // отсюда 54 → 61.
     // B733: у Threads расписание неровное — каждые третьи сутки один пост
@@ -105,7 +104,9 @@ describe("B700 фаза 4 · план собирается из окон", () =>
     // `publishWindow` молча уронил бы слот из плана.
     const expected = plan.filter((entry) => entry.daypart && entry.toleranceMs > 0).length;
     expect(plan.length).toBe(expected);
-    expect(plan.length).toBe(59);
+    // B742: Reddit удалён из площадок целиком — план лишился двух его слотов
+    // за две недели (выходил дважды за 21 день), поэтому 59 → 57.
+    expect(plan.length).toBe(57);
   });
 
   it("у каждого слота есть класс, время суток и своя ширина окна", () => {

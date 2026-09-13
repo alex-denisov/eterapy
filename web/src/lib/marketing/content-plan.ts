@@ -19,7 +19,20 @@ import {
   type Daypart,
 } from "@/lib/marketing/publish-windows";
 
-export type PlanChannel = "vk" | "telegram" | "threads" | "instagram" | "dzen" | "reddit";
+/**
+ * B742 — REDDIT УБРАН ИЗ ПЛОЩАДОК ЦЕЛИКОМ.
+ *
+ * Решение владельца 2026-09-12: «Reddit полностью исключи из площадок отовсюду,
+ * у нас не будет его больше».
+ *
+ * ⚠ ПОЧЕМУ УДАЛЕНИЕ, А НЕ ВЫКЛЮЧАТЕЛЬ. Reddit держали как «ручную площадку»
+ * (B654): материал писался, проходил редактора, вставал в состояние MANUAL и
+ * ждал человека. Человек не приходил — и каждый такой материал стоил полного
+ * цикла автора и редактора, то есть двух обращений к моделям, ради строки,
+ * которая никуда не выйдет. Выключатель это не лечит: план всё равно
+ * резервировал бы слоты, а планировщик — придумывал бы под них темы.
+ */
+export type PlanChannel = "vk" | "telegram" | "threads" | "instagram" | "dzen";
 
 export interface ContentPlanSlot {
   key: string;
@@ -262,7 +275,6 @@ export const PLAN_HORIZON_DAYS: Record<PlanChannel, number> = {
   vk: 7,
   instagram: 7,
   dzen: 14,
-  reddit: 21,
 };
 
 export const PLAN_MAX_HORIZON_DAYS = Math.max(...Object.values(PLAN_HORIZON_DAYS));
@@ -343,7 +355,6 @@ function slotsPerDay(channel: PlanChannel, date: string): number {
     case "vk": return 1;
     case "dzen": return 1;
     case "instagram": return every(2);
-    case "reddit": return every(14);
   }
 }
 
@@ -543,19 +554,6 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     }
   });
 
-  datesFor("reddit").forEach((date) => {
-    for (let sequence = 0; sequence < slotsPerDay("reddit", date); sequence++) {
-      push({
-        channel: "reddit",
-        date,
-        topic: topicAt(dayNumber(date), 6),
-        sequence: sequence + 1,
-        format: "community discussion",
-        editorialAngle: "полезная самостоятельная дискуссия без рекламного лида; ссылка только после полной пользы и с раскрытием аффилированности",
-        contentClass: "discussion",
-      });
-    }
-  });
 
   return result.sort((left, right) =>
     new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()

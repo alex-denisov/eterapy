@@ -29,7 +29,7 @@ import {
  * Список закрытый и совпадает с `PlanChannel` минус Дзен: новая площадка
  * обязана получить решение о повторах явно, а не унаследовать «можно всё».
  */
-const FAST_FEED_PLATFORMS = ["telegram", "threads", "vk", "instagram", "reddit"] as const;
+const FAST_FEED_PLATFORMS = ["telegram", "threads", "vk", "instagram"] as const;
 import { runQueueHygiene } from "@/lib/marketing/queue-hygiene";
 import {
   DZEN_FEED_POST_PREFIX,

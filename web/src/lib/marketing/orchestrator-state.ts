@@ -16,6 +16,7 @@ import { SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import { moscowDayBounds, seoPagesPerDay } from "@/lib/seo/page-agent";
 import { readSearchSources, type SearchSourcesState } from "@/lib/marketing/orchestrator-search-sources";
 import { thinCards } from "@/lib/seo/backfill";
+import { dzenBrowserHealth, type BrowserSessionHealth } from "@/lib/marketing/browser-publisher";
 
 export interface ProviderState {
   provider: string;
@@ -94,6 +95,33 @@ export interface OrchestratorState {
   sources: SearchSourcesState;
   /** Сколько карточек корпуса всё ещё не проходят гейт глубины. */
   thinCards: number;
+  /**
+   * B742 — состояние браузерной сессии Дзена.
+   *
+   * ⚠ ПОЧЕМУ ЭТО ОТДЕЛЬНАЯ ВЕЛИЧИНА, А НЕ «ПЛОЩАДКА НЕ ВЫПУСКАЕТ». У Дзена нет
+   * API, выпуск идёт живой браузерной сессией, и она стареет: профиль в томе
+   * сервиса, вход владельца — раз в несколько недель через VNC. Пока сессия
+   * мертва, материалы Дзена копятся в SCHEDULED и не жгут слот (B695) — то
+   * есть снаружи это выглядит как тишина, а не как поломка. Владелец
+   * 2026-09-12: «на Дзене агент должен был сам публиковать материалы, если
+   * этого нет, значит флоу сломан». Сломан не флоу — просрочен вход, и это
+   * ровно тот случай, когда молчание дороже сообщения.
+   */
+  dzen: BrowserSessionHealth | null;
+  /**
+   * B742 — применённые правки прошлых проходов.
+   *
+   * Оркестратор обязан оценивать собственные действия, а не только состояние
+   * контура: правка, которая не помогла, должна быть названа, иначе она будет
+   * предлагаться снова каждые сутки.
+   */
+  recentDirectives: Array<{
+    key: string;
+    action: string;
+    problem: string;
+    appliedAt: Date | null;
+    status: string;
+  }>;
 }
 
 /** Самая частая причина в наборе. `null`, если причин нет вовсе. */
@@ -124,6 +152,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     snapshots,
     dailyCap,
     sources,
+    dzen,
+    recentDirectives,
   ] = await Promise.all([
     conveyorSnapshot({ now }),
     db.aIProviderConfig.findMany({
@@ -168,6 +198,15 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     }).catch(() => []),
     seoPagesPerDay(),
     readSearchSources(now),
+    // Проба сессии, а не заполненности полей: «настроено» и «площадка нас
+    // узнаёт» — разные утверждения (урок Meta, B685).
+    dzenBrowserHealth().catch(() => null),
+    db.agentDirective.findMany({
+      where: { createdAt: { gte: weekAgo } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { key: true, action: true, problem: true, appliedAt: true, status: true },
+    }).catch(() => []),
   ]);
 
   // Состояние ключей берётся из самих credential'ов: именно их двигает
@@ -256,6 +295,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     },
     sources,
     thinCards: thinCards().length,
+    dzen,
+    recentDirectives,
     causes: [...causeTally.entries()]
       .map(([reason, count]) => ({ reason, count }))
       .sort((left, right) => right.count - left.count),

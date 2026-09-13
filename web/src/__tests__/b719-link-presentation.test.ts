@@ -6,7 +6,7 @@
  * можно скрывать под URL».
  *
  * Образец взят из реестра прода дословно — это то, что стояло в хвосте живых
- * материалов Telegram, Дзена и Reddit.
+ * материалов Telegram и Дзена.
  */
 
 import {
@@ -63,11 +63,11 @@ describe("B719 — адрес прячется под текст там, где 
     expect(out!.text.replace(/<a href="[^"]*">/u, "")).not.toContain("utm_source");
   });
 
-  it("Reddit получает markdown", () => {
-    const out = toPlatformMarkup({
-      markup: platformPlaybook("reddit").contract.inlineLinkMarkup,
-      body, url: LIVE, label: "Разбор целиком",
-    });
+  // B742: markdown был у Reddit, площадка убрана из контура целиком. Сам
+  // преобразователь разметки остаётся проверенным — его зовут по значению из
+  // плейбука, а не по имени площадки.
+  it("markdown собирается по контракту, а не по имени площадки", () => {
+    const out = toPlatformMarkup({ markup: "markdown", body, url: LIVE, label: "Разбор целиком" });
     expect(out?.parseMode).toBe("Markdown");
     expect(out?.text).toContain("[Разбор целиком](https://eterapy.com/library/");
   });

@@ -58,8 +58,7 @@ import type { EmojiMap } from "@/lib/marketing/cover-emoji";
  *
  * Числа — не вкус, а то, что показывает лента: Дзен режет обложку в 16:9,
  * Instagram отдаёт вертикали 4:5 больше экрана, Telegram и VK показывают
- * подпись под изображением и выигрывают от 4:3. Threads квадрат, Reddit —
- * широкая превьюшка ссылки.
+ * подпись под изображением и выигрывают от 4:3. Threads квадрат.
  */
 const CANVAS: Record<string, { width: number; height: number }> = {
   telegram: { width: 1200, height: 900 },
@@ -67,7 +66,6 @@ const CANVAS: Record<string, { width: number; height: number }> = {
   dzen: { width: 1200, height: 675 },
   instagram: { width: 1080, height: 1350 },
   threads: { width: 1200, height: 1200 },
-  reddit: { width: 1200, height: 675 },
 };
 
 export function coverCanvas(platform: string): { width: number; height: number } {
@@ -90,7 +88,6 @@ const MOTIF_PLATFORM_OFFSET: Record<string, number> = {
   vk: 2,
   instagram: 3,
   threads: 4,
-  reddit: 5,
 };
 
 /**

@@ -25,15 +25,10 @@ import { HARM_ELEVATED_THRESHOLD, scoreHarmRisk } from "@/lib/dialogue-safety";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import { pickInboundTone } from "@/lib/marketing/engagement-tone";
 import { INBOUND_REPLY_CONTENT_TYPE } from "@/lib/marketing/perimeter";
-import {
-  marketingPlatformEnabled,
-  marketingPlatformValue,
-} from "@/lib/marketing/platform-settings";
-import { REDDIT_NOT_CONNECTED, redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 
-export const INBOUND_PLATFORMS = ["vk", "threads", "instagram", "telegram", "reddit"] as const;
+export const INBOUND_PLATFORMS = ["vk", "threads", "instagram", "telegram"] as const;
 export type InboundPlatform = typeof INBOUND_PLATFORMS[number];
 
 export const INBOUND_KINDS = ["COMMENT", "MENTION", "DIRECT"] as const;
@@ -471,138 +466,16 @@ export async function auditUnansweredInbound(
 }
 
 /**
- * Термины, по которым узнаём упоминание бренда. Транслитерации нужны: люди пишут
- * «етерапи» латиницей и кириллицей примерно одинаково часто.
+ * B742 — ОПРОСА ВХОДЯЩЕГО БОЛЬШЕ НЕТ, И ЭТО НЕ ПОТЕРЯ.
+ *
+ * Опрашивать приходилось одну площадку — Reddit: личный ящик бренд-аккаунта
+ * webhook'ов не присылал. Reddit убран решением владельца 2026-09-12, и у всех
+ * оставшихся площадок входящее приходит событием: VK — Callback API, Threads и
+ * Instagram — вебхуками Meta, Telegram — обновлениями бота. Цикл опроса,
+ * оставленный «на всякий случай», раз в десять минут ходил бы по пустому
+ * списку и раз в час рапортовал бы об успешном ничегонеделании, поэтому он
+ * удалён вместе с площадкой, ради которой существовал.
+ *
+ * Если появится площадка без вебхуков, опрос вернётся вместе с ней — с живым
+ * источником, а не заготовкой.
  */
-export interface InboundPollOutcome {
-  platform: InboundPlatform;
-  found: number;
-  ingested: number;
-  error?: string;
-}
-
-/**
- * Reddit не присылает webhook: входящее забирается из личного ящика бренд-
- * аккаунта официальным API. Прочитанные помечаем прочитанными, но дедупликация
- * всё равно лежит в базе — потеря отметки не должна давать второй ответ.
- */
-async function pollRedditInbound(): Promise<{ found: number; ingested: number }> {
-  const token = await redditAccessToken();
-  const response = await fetch("https://oauth.reddit.com/message/unread?limit=25", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-    },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) throw new Error(`Reddit inbox HTTP ${response.status}`);
-  const payload = await response.json().catch(() => null) as {
-    data?: {
-      children?: Array<{
-        kind?: string;
-        data?: {
-          name?: string;
-          author?: string;
-          body?: string;
-          context?: string;
-          parent_id?: string;
-          subject?: string;
-        };
-      }>;
-    };
-  } | null;
-
-  const children = payload?.data?.children ?? [];
-  const names: string[] = [];
-  let ingested = 0;
-  for (const child of children) {
-    const item = child.data;
-    if (!item?.name || !item.body) continue;
-    const kind: InboundKind = /mention/i.test(item.subject ?? "") ? "MENTION" : "COMMENT";
-    const result = await ingestInboundMessage({
-      platform: "reddit",
-      kind,
-      externalId: item.name,
-      threadId: item.parent_id ?? null,
-      authorLabel: item.author ? `u/${item.author}` : null,
-      text: item.body,
-      permalink: item.context ? `https://www.reddit.com${item.context}` : null,
-    });
-    names.push(item.name);
-    if (result?.created) ingested += 1;
-  }
-  if (names.length > 0) {
-    await fetch("https://oauth.reddit.com/api/read_message", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-      },
-      body: new URLSearchParams({ id: names.join(",") }),
-    }).catch(() => undefined);
-  }
-  return { found: children.length, ingested };
-}
-
-/**
- * Опрос тех площадок, у которых нет webhook. Threads и Instagram присылают
- * события сами, поэтому здесь их нет — иначе один и тот же комментарий пришёл бы
- * дважды (дубль отсекла бы база, но лишний трафик и путаница остались бы).
- */
-export async function pollInboundSources(
-  input: { now?: Date } = {},
-): Promise<InboundPollOutcome[]> {
-  const outcomes: InboundPollOutcome[] = [];
-  const pollers: Array<{
-    platform: InboundPlatform;
-    connector: "Reddit" | "VK";
-    run: () => Promise<{ found: number; ingested: number }>;
-  }> = [
-    // B637: поиск упоминаний бренда в VK снят решением владельца 2026-07-31 —
-    // он требовал пользовательского токена, а сама возможность не нужна.
-    // Комментарии к нашим постам и сообщения сообщества это не затрагивает:
-    // они приходят Callback API и обходом собственных публикаций.
-    { platform: "reddit", connector: "Reddit", run: pollRedditInbound },
-  ];
-
-  for (const poller of pollers) {
-    if (!await marketingPlatformEnabled(poller.connector).catch(() => false)) {
-      outcomes.push({ platform: poller.platform, found: 0, ingested: 0 });
-      continue;
-    }
-    try {
-      const result = await poller.run();
-      await resolveMarketingSignal(`inbound:${poller.platform}`).catch(() => undefined);
-      outcomes.push({ platform: poller.platform, ...result });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      // B624: коннектор включён, но OAuth не пройден — это незаконченная
-      // настройка, а не поломка чтения. Инцидент здесь отправлял бы владельца
-      // чинить то, чего никто не подключал; состояние коннектора и без того
-      // видно в кокпите строкой «нужна настройка».
-      if (message.includes(REDDIT_NOT_CONNECTED)) {
-        await resolveMarketingSignal(`inbound:${poller.platform}`).catch(() => undefined);
-        outcomes.push({ platform: poller.platform, found: 0, ingested: 0 });
-        continue;
-      }
-      await upsertMarketingSignal({
-        key: `inbound:${poller.platform}`,
-        kind: "INBOUND",
-        severity: "WARNING",
-        title: `Не читается входящее: ${poller.platform}`,
-        summary: message,
-        evidence: { platform: poller.platform },
-      }).catch(() => undefined);
-      log.error("marketing-inbound.poll_failed", {
-        platform: poller.platform,
-        error: serializeError(error),
-      });
-      outcomes.push({ platform: poller.platform, found: 0, ingested: 0, error: message });
-    }
-  }
-  // Дата в input оставлена для симметрии с остальными циклами воркера и для
-  // прогонов с фиксированным временем.
-  void input.now;
-  return outcomes;
-}

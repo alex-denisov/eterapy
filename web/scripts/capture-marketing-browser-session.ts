@@ -5,14 +5,15 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { chromium } from "@playwright/test";
 
+// B742: браузерная сессия нужна ровно одной площадке. У Дзена нет публикующего
+// API, у остальных есть — и туда мы ходим официальным токеном, а не входом по
+// сохранённой сессии.
 const platform = process.argv[2]?.trim().toLowerCase();
-if (platform !== "dzen" && platform !== "reddit") {
-  throw new Error("Usage: npm run marketing:capture-session -- dzen|reddit");
+if (platform !== "dzen") {
+  throw new Error("Usage: npm run marketing:capture-session -- dzen");
 }
 
-const startUrl = platform === "dzen"
-  ? "https://dzen.ru/editor"
-  : "https://www.reddit.com/";
+const startUrl = "https://dzen.ru/editor";
 const directory = join(homedir(), ".eterapy", "browser-sessions");
 const outputPath = join(directory, `${platform}.storage-state.json`);
 
@@ -31,11 +32,7 @@ try {
   await context.storageState({ path: outputPath });
   await chmod(outputPath, 0o600);
   stdout.write(`Сессия сохранена локально: ${outputPath}\n`);
-  stdout.write(
-    `Скопируйте содержимое файла в поле ${
-      platform === "dzen" ? "DZEN_BROWSER_STORAGE_STATE" : "REDDIT_BROWSER_STORAGE_STATE"
-    } суперадминки.\n`,
-  );
+  stdout.write("Скопируйте содержимое файла в поле DZEN_BROWSER_STORAGE_STATE суперадминки.\n");
 } finally {
   prompt.close();
   await context.close();

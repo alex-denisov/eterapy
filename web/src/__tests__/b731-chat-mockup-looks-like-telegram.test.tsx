@@ -169,7 +169,7 @@ describe("B731: мокап переписки — скриншот Telegram, а 
     // Дефект приёмки 2026-09-08 дословно: «Черных полей у скриншотов не бывает,
     // скриншот делает снимок только экрана, а значит и полей не бывает».
     const DEVICES = [[393, 873], [390, 844], [412, 915], [375, 812], [360, 800]];
-    for (const platform of ["telegram", "vk", "dzen", "instagram", "threads", "reddit"]) {
+    for (const platform of ["telegram", "vk", "dzen", "instagram", "threads"]) {
       const canvas = coverCanvas(platform);
       for (const framing of ["top", "bottom"] as const) {
         const metrics = screenMetrics(canvas.width, canvas.height, `b610-2w-${platform}-20260909-01`, framing);

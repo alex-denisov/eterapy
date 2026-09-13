@@ -4,7 +4,6 @@ export const PUBLICATION_PLATFORMS = [
   "DZEN",
   "VK",
   "TELEGRAM",
-  "REDDIT",
   "THREADS",
   "INSTAGRAM",
   "YOUTUBE",

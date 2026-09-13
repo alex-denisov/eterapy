@@ -70,7 +70,6 @@ const COVER_PLATFORM_OFFSET: Record<string, number> = {
   vk: 2,
   instagram: 3,
   threads: 4,
-  reddit: 5,
 };
 
 export function coverThemeIndex(input: {

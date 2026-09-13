@@ -98,19 +98,6 @@ export const PLATFORM_PROFILES: Record<string, PlatformProfile> = {
       "Не допускать дублирования слагов и повтора тем в 14-дневном окне",
     ],
   },
-  reddit: {
-    platform: "reddit",
-    displayName: "eTerapy Community",
-    handleOrChannel: "u/eterapy",
-    tagline: "Honest communication breakdowns and relationship dynamics.",
-    bio: "Honest communication breakdowns, relationship dynamics, and projective decision-making tools by eTerapy.",
-    targetLink: "https://eterapy.com/s/reddit/pair",
-    formatSummary: "Развернутые посты 800-2500 знаков в тематических сабреддитах, Markdown",
-    guidelines: [
-      "Английский или русский язык в зависимости от сабреддита",
-      "Никакого спама ссылками: ctaPolicy discouraged",
-    ],
-  },
 };
 
 export function platformProfile(platform: string): PlatformProfile {

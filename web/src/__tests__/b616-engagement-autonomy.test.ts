@@ -50,8 +50,10 @@ describe("B616 · human-paced engagement plan", () => {
   });
 
   it("gives a different rhythm on a different day", () => {
-    const monday = engagementSlotsFor("reddit", new Date("2026-07-29T09:00:00.000Z"));
-    const tuesday = engagementSlotsFor("reddit", new Date("2026-07-30T09:00:00.000Z"));
+    // B742: площадка была reddit — её убрали из контура, ритм проверяется на
+    // любой оставшейся, смысл прогона от площадки не зависит.
+    const monday = engagementSlotsFor("threads", new Date("2026-07-29T09:00:00.000Z"));
+    const tuesday = engagementSlotsFor("threads", new Date("2026-07-30T09:00:00.000Z"));
     const shape = (slots: Date[]) => slots.map((slot) => slot.getUTCHours() * 60 + slot.getUTCMinutes());
     expect(shape(monday)).not.toEqual(shape(tuesday));
   });

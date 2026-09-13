@@ -87,6 +87,8 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
       gscError: null,
     },
     thinCards: 0,
+    dzen: { reachable: true, authorized: true, reason: null, account: "eterapy" },
+    recentDirectives: [],
     ...overrides,
   };
 }

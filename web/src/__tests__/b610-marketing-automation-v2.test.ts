@@ -15,8 +15,8 @@ import { MARKETING_PLATFORM_FIELDS } from "@/lib/marketing/platform-settings";
 
 describe("B610 · rolling marketing automation", () => {
   // B705 §7: план перестал быть общим двухнедельным окном. Горизонт —
-  // свойство ленты (неделя быстрым, две Дзену, три недели Reddit), а темп
-  // считается от календарных суток, а не от позиции дня в скользящем окне.
+  // свойство ленты (неделя быстрым, две Дзену), а темп считается от
+  // календарных суток, а не от позиции дня в скользящем окне.
   it("keeps a dated plan at the per-channel horizon and cadence", () => {
     const plan = contentPlanFor(new Date("2026-07-28T12:00:00.000Z"));
     const counts = plan.reduce<Record<string, number>>((result, entry) => {
@@ -29,27 +29,30 @@ describe("B610 · rolling marketing automation", () => {
     // план вслед за окнами публикации, отсюда 54 → 61 и 14 → 21 у telegram.
     // B733: у Threads расписание перестало быть ровным (каждые третьи сутки —
     // один пост вместо двух), отсюда 61 → 59 и 14 → 12 у threads.
-    expect(plan).toHaveLength(59);
-    // 14 суток Дзена покрывают каждую дату своего горизонта; дальше стоят
-    // только даты Reddit — отсюда пятнадцать дат, а не двадцать одна.
-    expect(dates.size).toBe(15);
+    // B742: Reddit удалён из площадок целиком — план лишился двух его слотов
+    // за две недели (выходил дважды за 21 день), поэтому 59 → 57.
+    expect(plan).toHaveLength(57);
+    // B742: Reddit удалён, и окно плана сузилось до самого дальнего из
+    // оставшихся горизонтов — четырнадцати суток Дзена. Пятнадцатая дата была
+    // его и ушла вместе с ним.
+    expect(dates.size).toBe(14);
     expect(counts).toEqual({
       telegram: 21,
       threads: 12,
       instagram: 3,
       vk: 7,
       dzen: 14,
-      reddit: 2,
     });
     expect(plan.every((entry) => Number.isFinite(plannedAtFor(entry).getTime()))).toBe(true);
     expect(new Set(plan.map((entry) => entry.key)).size).toBe(plan.length);
   });
 
   it("ships the initial calendar as a subset of the rolling window", () => {
-    // `CONTENT_PLAN` — начальный календарь тех же четырнадцати суток; окно
-    // теперь шире (три недели у Reddit), поэтому равенства больше нет. Общая
-    // часть обязана совпадать ключ в ключ, иначе строки реестра, заведённые по
-    // начальному календарю, потеряли бы свой слот.
+    // `CONTENT_PLAN` — начальный календарь тех же четырнадцати суток. Скользящее
+    // окно совпадает с ним по горизонту (B742: самый дальний горизонт — две
+    // недели Дзена), но пересчитывается от текущих суток. Общая часть обязана
+    // совпадать ключ в ключ, иначе строки реестра, заведённые по начальному
+    // календарю, потеряли бы свой слот.
     const rolling = contentPlanFor(new Date("2026-07-28T12:00:00.000Z"));
     const rollingKeys = new Set(rolling.map((entry) => entry.key));
     const shared = CONTENT_PLAN.filter((entry) => rollingKeys.has(entry.key));

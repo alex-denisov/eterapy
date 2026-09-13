@@ -10,15 +10,9 @@ export const MARKETING_PLATFORM_FIELDS = [
   // от постороннего запроса.
   { platform: "VK", key: "VK_CALLBACK_CONFIRMATION", label: "Строка подтверждения Callback API", secret: false, multiline: false, requirement: "optional" },
   { platform: "VK", key: "VK_CALLBACK_SECRET", label: "Секретный ключ Callback API", secret: true, multiline: false, requirement: "optional" },
-  { platform: "Reddit", key: "REDDIT_CLIENT_ID", label: "Client ID", secret: false, multiline: false },
-  { platform: "Reddit", key: "REDDIT_CLIENT_SECRET", label: "Client secret", secret: true, multiline: false },
-  { platform: "Reddit", key: "REDDIT_USER_AGENT", label: "User-Agent", secret: false, multiline: false },
-  { platform: "Reddit", key: "REDDIT_POST_SUBREDDIT", label: "Subreddit для своих постов", secret: false, multiline: false },
-  { platform: "Reddit", key: "REDDIT_SUBREDDITS", label: "Subreddit для поиска, через запятую", secret: false, multiline: false, requirement: "optional" },
-  // B617: браузерная сессия Reddit убрана. Вход по сохранённой сессии — ровно
-  // то, что правила площадок называют нарушением, и для Reddit он не нужен:
-  // там есть OAuth. Браузерный публикатор остаётся только у Дзена, где API
-  // не существует, и только для собственных публикаций.
+  // B742: полей Reddit здесь больше нет — площадка убрана из контура решением
+  // владельца 2026-09-12. Браузерный публикатор остаётся только у Дзена, где
+  // API не существует, и только для собственных публикаций.
   { platform: "Threads", key: "THREADS_APP_ID", label: "Threads App ID", secret: false, multiline: false },
   { platform: "Threads", key: "THREADS_APP_SECRET", label: "Threads App Secret", secret: true, multiline: false },
   { platform: "Threads", key: "THREADS_ACCESS_TOKEN", label: "Access token (заполняется OAuth автоматически)", secret: true, multiline: false, requirement: "oauth" },
@@ -83,8 +77,6 @@ const ENV_ALIASES: Partial<Record<MarketingPlatformFieldKey, readonly string[]>>
   // приезжает выкаткой, а не вводом руками: механизм с ручным шагом — это
   // невыполненный механизм (урок стенда, открытого в интернет полторы недели).
   TELEGRAM_DISCUSSION_CHAT_ID: ["TELEGRAM_ETERAPY_CHAT_ID"],
-  REDDIT_CLIENT_ID: ["REDDIT_OAUTH_APP_CLIENT_ID"],
-  REDDIT_CLIENT_SECRET: ["REDDIT_OAUTH_APP_CLIENT_SECRET"],
 };
 
 function settingKey(key: string) {

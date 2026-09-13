@@ -246,15 +246,13 @@ describe("B724 · approvedByScorecard & Single-Pass Inline Fixer", () => {
 });
 
 describe("B724 · reviewer prompt & CTA synchronization", () => {
-  it("threads и reddit имеют ctaPolicy = discouraged и maxLinks = 0", async () => {
+  it("threads имеет ctaPolicy = discouraged и maxLinks = 0", async () => {
     const { platformPlaybook } = await import("@/lib/marketing/platform-playbook");
+    // B742: вторая такая площадка была Reddit, её убрали из контура целиком.
     const threads = platformPlaybook("threads");
-    const reddit = platformPlaybook("reddit");
 
     expect(threads.contract.ctaPolicy).toBe("discouraged");
     expect(threads.contract.maxLinks).toBe(0);
-    expect(reddit.contract.ctaPolicy).toBe("discouraged");
-    expect(reddit.contract.maxLinks).toBe(0);
   });
 
   it("marketingReviewerPrompt включает allowNoCta, когда площадка не требует CTA", async () => {

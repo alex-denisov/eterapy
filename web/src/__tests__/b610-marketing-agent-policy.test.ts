@@ -60,7 +60,7 @@ describe("B610 · SMM-agent safety and routing contract", () => {
 
   it("missing credentials produce an honest connector state", async () => {
     const states = await marketingConnectorStates();
-    expect(states.map((state) => state.platform)).toEqual(["VK", "Reddit", "Threads", "Instagram", "Telegram", "Dzen", "Max"]);
+    expect(states.map((state) => state.platform)).toEqual(["VK", "Threads", "Instagram", "Telegram", "Dzen", "Max"]);
     expect(states.find((state) => state.platform === "Threads")?.discovery).toBe(false);
     expect(states.find((state) => state.platform === "Instagram")?.inboundReplies).toBe(false);
     expect(states.find((state) => state.platform === "Instagram")?.note).toContain(

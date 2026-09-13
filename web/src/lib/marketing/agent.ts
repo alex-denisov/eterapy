@@ -1264,7 +1264,7 @@ async function completeWithValidStructure<T>(input: {
 
 function safePlatform(value: string) {
   const normalized = value.trim().toLowerCase();
-  return ["vk", "telegram", "reddit", "threads", "instagram", "dzen"].includes(normalized)
+  return ["vk", "telegram", "threads", "instagram", "dzen"].includes(normalized)
     ? normalized
     : "other";
 }
@@ -1843,7 +1843,7 @@ export async function processMarketingDraft(publicationId: string) {
               // B705: то, что уже посчитала машина. Редактор не ищет это
               // заново и не выдаёт своими словами третий круг подряд.
               machineFindings: contractDefects,
-              // B724: площадки без ссылок и CTA (Threads, Reddit)
+              // B724: площадки без ссылок и CTA (Threads)
               allowNoCta: contract.ctaPolicy === "discouraged"
                 || contract.maxLinks === 0,
             })),

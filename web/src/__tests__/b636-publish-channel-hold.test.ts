@@ -98,7 +98,7 @@ describe("B636 · граница «отказ канала» и «дефект �
     for (const message of [
       "Publication body is empty",
       "Telegram media caption exceeds 1024 characters",
-      "Reddit target id is missing or invalid",
+      "Dzen article body is missing or invalid",
       "Unsupported publication platform: livejournal",
       "VK media exceeds the 15 MB upload limit",
     ]) {

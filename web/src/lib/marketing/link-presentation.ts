@@ -66,7 +66,7 @@ export function escapeHtmlText(value: string): string {
 /**
  * ПРИЁМ 2 — СПРЯТАТЬ АДРЕС ПОД ТЕКСТ ТАМ, ГДЕ ПЛОЩАДКА ЭТО УМЕЕТ.
  *
- * Telegram и Дзен принимают HTML, Reddit — Markdown. Читатель видит
+ * Telegram и Дзен принимают HTML, остальные — простой текст. Читатель видит
  * «Разбор целиком», а не строку из 130 символов.
  *
  * ⚠ ЭТО НЕ КОСМЕТИКА: В TELEGRAM ЭТО ЕЩЁ И ДЛИНА. Предел подписи считается по
@@ -179,7 +179,6 @@ const ALLOWED_SHORT_LINK_PLATFORMS = new Set([
   "telegram", "tg",
   "vk",
   "dzen",
-  "reddit",
   "threads",
   "instagram", "ig",
   "max",

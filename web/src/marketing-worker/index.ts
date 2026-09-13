@@ -11,7 +11,6 @@ import { runEngagementDiscovery } from "@/lib/marketing/discovery";
 import {
   auditInboundSla,
   auditUnansweredInbound,
-  pollInboundSources,
   queueInboundReplies,
 } from "@/lib/marketing/inbound";
 import { sweepOwnPublicationComments } from "@/lib/marketing/engagement-sweep";
@@ -85,7 +84,6 @@ let lastUrlAudit = 0;
 let lastMetaRefresh = 0;
 let lastPlanSync = 0;
 let lastProviderProbe = 0;
-let lastInboundPoll = 0;
 let lastInboundAudit = 0;
 let lastCommentSweep = 0;
 let lastRegistryRecovery = 0;
@@ -184,11 +182,6 @@ async function main() {
       if (now - lastDiscovery >= 35 * 60_000) {
         lastDiscovery = now;
         await guarded("discovery", () => runEngagementDiscovery({ now: new Date(now) }));
-      }
-      // Reddit и упоминания в VK webhook'ов не присылают — их надо забирать.
-      if (now - lastInboundPoll >= 10 * 60_000) {
-        lastInboundPoll = now;
-        await guarded("inbound-poll", () => pollInboundSources({ now: new Date(now) }));
       }
       // Сторож зависших входящих: INC-094 показал, что строка без исполнителя
       // живёт вечно и молча, поэтому у очереди есть собственный контроль.

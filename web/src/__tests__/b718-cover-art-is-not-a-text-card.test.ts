@@ -27,7 +27,7 @@ describe("B718 · обложка", () => {
     expect(coverMotifFor("k", "telegram", at)).toBe(coverMotifFor("k", "telegram", at));
     const seen = new Set<string>();
     for (let day = 1; day <= 28; day += 1) {
-      for (const platform of ["telegram", "vk", "dzen", "threads", "instagram", "reddit"]) {
+      for (const platform of ["telegram", "vk", "dzen", "threads", "instagram"]) {
         seen.add(coverMotifFor("k", platform, new Date(`2026-08-${String(day).padStart(2, "0")}T09:00:00Z`)));
       }
     }
@@ -37,7 +37,7 @@ describe("B718 · обложка", () => {
   it("соседние сутки канала НИКОГДА не получают один мотив", () => {
     // Не «редко», а никогда: шаг 5 взаимно прост с шестью мотивами. Владелец
     // смотрит ленту, и два одинаковых рисунка встык читаются как повтор поста.
-    for (const platform of ["telegram", "vk", "dzen", "threads", "instagram", "reddit"]) {
+    for (const platform of ["telegram", "vk", "dzen", "threads", "instagram"]) {
       const week = Array.from({ length: 7 }, (_, index) =>
         coverMotifFor("k", platform, new Date(`2026-08-${String(10 + index)}T09:00:00Z`)));
       for (let index = 1; index < week.length; index += 1) {
@@ -48,9 +48,12 @@ describe("B718 · обложка", () => {
 
   it("в одни сутки две площадки получают разные мотивы", () => {
     const at = new Date("2026-08-22T09:00:00Z");
-    const sameDay = ["telegram", "vk", "dzen", "threads", "instagram", "reddit"]
+    // B742: площадок стало пять — Reddit убран из контура целиком, вместе с
+    // его сдвигом в таблице мотивов. Мотивов по-прежнему шесть, поэтому
+    // требование «у каждой площадки свой» осталось выполнимым.
+    const sameDay = ["telegram", "vk", "dzen", "threads", "instagram"]
       .map((platform) => coverMotifFor("k", platform, at));
-    expect(new Set(sameDay).size).toBe(6);
+    expect(new Set(sameDay).size).toBe(5);
   });
 
   it("без даты мотив всё равно есть и повторяем", () => {

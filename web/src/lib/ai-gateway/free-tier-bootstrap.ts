@@ -31,10 +31,14 @@ import {
   DIRECT_PROVIDER_BASE_URLS,
   FREE_TIER_LLM_PROVIDERS,
 } from "@/lib/ai-gateway/provider-runtime";
+import { MARKETING_RETIRED_PROVIDERS } from "@/lib/marketing/model-pool";
 import { log, serializeError } from "@/lib/logger";
 
 /** Метка строки, которой владеет бутстрап. Чужие метки он не трогает. */
 export const FREE_TIER_CREDENTIAL_LABEL = "env:b703";
+
+/** Метка, которой помечен провайдер, выключенный за отсутствие живых ответов. */
+export const RETIRED_MARKER = "b742-no-successful-calls";
 
 /**
  * Имя переменной окружения — то самое, что владелец назвал в
@@ -55,6 +59,8 @@ export const FREE_TIER_ENV_KEYS: Record<string, string> = {
 export interface FreeTierBootstrapResult {
   configured: AIProvider[];
   missingKey: AIProvider[];
+  /** Провайдеры, физически выключенные этим заходом (B742). */
+  retired: AIProvider[];
   skipped: "encryption-not-configured" | null;
 }
 
@@ -78,7 +84,7 @@ export async function bootstrapFreeTierLLMProviders(): Promise<FreeTierBootstrap
     // Без ключа шифрования запись секрета невозможна. Это не повод падать:
     // остальной контур работает, а коннекторы просто не поднимутся.
     log.warn("ai-free-tier-bootstrap.skipped", { reason: "encryption-not-configured" });
-    return { configured: [], missingKey: [], skipped: "encryption-not-configured" };
+    return { configured: [], missingKey: [], retired: [], skipped: "encryption-not-configured" };
   }
 
   const configured: AIProvider[] = [];
@@ -142,10 +148,55 @@ export async function bootstrapFreeTierLLMProviders(): Promise<FreeTierBootstrap
     }
   }
 
+  /**
+   * B742 — МЁРТВЫЕ ПРОВАЙДЕРЫ ВЫКЛЮЧАЮТСЯ ФИЗИЧЕСКИ, А НЕ ТОЛЬКО СПИСКОМ.
+   *
+   * Требование владельца 2026-09-12: «их надо исключить из пулов выключив
+   * физически чтобы они не мешали пайплайну никак и не были в них
+   * задействованы».
+   *
+   * До этой правки трое (Cerebras, Cohere, TokenRouter) были убраны из
+   * `MARKETING_ACTIVE_PROVIDERS`, то есть маркетинговый обход их не звал. Но
+   * строка провайдера в базе оставалась `enabled`, и это не пустяк: по ней
+   * провайдер виден в суперадминке как рабочий, сторожевая проба ходит к нему
+   * каждые пятнадцать минут и записывает отказ, а любой НЕмаркетинговый
+   * маршрут (у него свой порядок провайдеров) по-прежнему мог его выбрать.
+   *
+   * Выключатель ставится ОДИН РАЗ при старте воркера — тем же заходом, что
+   * поднимает ключи. Повторно провайдер не гасится: если человек сознательно
+   * включил его обратно в панели, проверив живым вызовом, выкатка не имеет
+   * права отменять это решение молча.
+   */
+  const retired: AIProvider[] = [];
+  for (const provider of MARKETING_RETIRED_PROVIDERS) {
+    try {
+      const row = await db.aIProviderConfig.findUnique({
+        where: { provider },
+        select: { enabled: true, metadata: true },
+      });
+      if (!row?.enabled) continue;
+      const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+      // Признак «уже гасили» живёт в метаданных строки: без него заход
+      // выключал бы провайдера каждый раз, отменяя ручное включение.
+      if (metadata.retiredBy === RETIRED_MARKER) continue;
+      await db.aIProviderConfig.update({
+        where: { provider },
+        data: { enabled: false, metadata: { ...metadata, retiredBy: RETIRED_MARKER } },
+      });
+      retired.push(provider);
+    } catch (error) {
+      log.warn("ai-free-tier-bootstrap.retire_failed", {
+        provider,
+        error: serializeError(error),
+      });
+    }
+  }
+  if (retired.length > 0) log.info("ai-free-tier-bootstrap.retired", { retired });
+
   log.info("ai-free-tier-bootstrap.done", {
     configured: configured.length,
     missingKey,
   });
 
-  return { configured, missingKey, skipped: null };
+  return { configured, missingKey, retired, skipped: null };
 }

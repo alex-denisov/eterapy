@@ -11,10 +11,8 @@
  */
 
 import { callTelegramApi } from "@/lib/telegram";
-import { redditAccessToken } from "@/lib/marketing/reddit-oauth";
 import {
   marketingPlatformEnabled,
-  marketingPlatformValue,
   requiredMarketingPlatformValue,
   type MarketingPlatform,
 } from "@/lib/marketing/platform-settings";
@@ -216,44 +214,11 @@ async function replyOnTelegram(input: { body: string; target: InboundReplyTarget
   };
 }
 
-async function replyOnReddit(input: { body: string; target: InboundReplyTarget }): Promise<PublishedPost> {
-  await ensureEnabled("Reddit");
-  const token = await redditAccessToken();
-  const thingId = input.target.externalId;
-  if (!/^t[13]_[a-z0-9]+$/i.test(thingId)) {
-    throw new Error("Reddit inbound reply target is not a comment or post fullname");
-  }
-  const response = await fetch("https://oauth.reddit.com/api/comment", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": await marketingPlatformValue("REDDIT_USER_AGENT") || "ETerapySMM/1.0",
-    },
-    body: new URLSearchParams({ api_type: "json", thing_id: thingId, text: input.body }),
-  });
-  const payload = await response.json().catch(() => null) as {
-    json?: { errors?: unknown[]; data?: { things?: Array<{ data?: { id?: string; permalink?: string } }> } };
-  } | null;
-  const errors = payload?.json?.errors ?? [];
-  const data = payload?.json?.data?.things?.[0]?.data;
-  if (!response.ok || errors.length > 0 || !data?.id) {
-    throw new Error(`Reddit api/comment failed: HTTP ${response.status}${errors.length ? ` ${JSON.stringify(errors).slice(0, 300)}` : ""}`);
-  }
-  return {
-    externalPostId: data.id,
-    publicUrl: data.permalink
-      ? `https://www.reddit.com${data.permalink}`
-      : input.target.permalink ?? "https://www.reddit.com",
-  };
-}
-
 const REPLY_ADAPTERS: Record<string, (input: { body: string; target: InboundReplyTarget }) => Promise<PublishedPost>> = {
   vk: replyOnVk,
   threads: replyOnThreads,
   instagram: replyOnInstagram,
   telegram: replyOnTelegram,
-  reddit: replyOnReddit,
 };
 
 export function inboundReplySupported(platform: string) {

@@ -11,9 +11,9 @@
  * two nodes computing the same day agree on the same schedule.
  */
 
-export type EngagementPlatform = "vk" | "reddit" | "threads";
+export type EngagementPlatform = "vk" | "threads";
 
-export const ENGAGEMENT_PLATFORMS: readonly EngagementPlatform[] = ["vk", "reddit", "threads"];
+export const ENGAGEMENT_PLATFORMS: readonly EngagementPlatform[] = ["vk", "threads"];
 
 /**
  * Owner requirement: at least five comments per network per day. Volume above
@@ -27,11 +27,10 @@ type ActiveWindow = { startMinute: number; endMinute: number };
 
 /**
  * Moscow-local windows in which a real reader of that network is plausibly
- * online. Reddit skews later because the target subreddits are mixed-timezone.
+ * online.
  */
 const ACTIVE_WINDOWS: Record<EngagementPlatform, ActiveWindow> = {
   vk: { startMinute: 9 * 60 + 20, endMinute: 23 * 60 + 10 },
-  reddit: { startMinute: 12 * 60, endMinute: 25 * 60 + 30 },
   threads: { startMinute: 10 * 60, endMinute: 23 * 60 + 40 },
 };
 
@@ -65,7 +64,7 @@ function randomStream(value: string): () => number {
 function minuteToInstant(dateKey: string, minute: number): Date {
   // Moscow is UTC+3 all year, so a Moscow wall-clock minute maps directly.
   // Minutes beyond 1440 deliberately roll into the small hours of the next
-  // day, which is where late Reddit activity actually happens.
+  // day, which is where late-evening activity actually happens.
   const midnight = new Date(`${dateKey}T00:00:00.000+03:00`).getTime();
   return new Date(midnight + minute * 60_000);
 }

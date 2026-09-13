@@ -81,10 +81,21 @@ services:
       # Owner-approved autonomous publishing of independently reviewed owned
       # posts. Comments on third-party materials still require TG moderation.
       MARKETING_AUTOPUBLISH: "true"
+      # B742 — решение владельца 2026-09-12: «MARKETING_PAID_FALLBACK_ENABLED
+      # включай».
+      #
+      # ⚠ ЧТО ЭТО МЕНЯЕТ. Раньше при исчерпанном бесплатном пуле линия просто
+      # вставала: платный хвост (OpenAI, Yandex) стоял последним в очереди, но
+      # выключатель не пускал к нему вовсе. Теперь материал, которому отказал
+      # весь бесплатный пул, доходит до платного маршрута.
+      #
+      # ⚠ ЧТО ЭТО НЕ МЕНЯЕТ. Потолки расхода остаются теми, что назвал владелец
+      # 2026-08-23: $0,03/сутки у OpenAI и 10 ₽/сутки у Yandex
+      # (`paid-route-budget.ts`). Хвост спрашивается ТОЛЬКО после отказа всего
+      # бесплатного пула и только у автора — за суждение редактора владелец
+      # платить не просил.
+      MARKETING_PAID_FALLBACK_ENABLED: "true"
       TELEGRAM_CHANNEL_ID: "${TELEGRAM_CHANNEL_ID:--1004301988677}"
-      # Reddit is executed by the installation-scoped Devvit companion. Until
-      # its shared secret and installation exist, Reddit stays fail-closed.
-      REDDIT_DEVVIT_ENABLED: "true"
       # B702: тему слота выбирает планировщик — спрос семантического ядра плюс
       # живые тренды, а не позиция в ротации константы TOPICS. Включается после
       # того, как оба живых источника трендов доказаны боевыми ключами на самом
