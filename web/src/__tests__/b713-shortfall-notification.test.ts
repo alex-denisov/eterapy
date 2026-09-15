@@ -18,6 +18,7 @@
 
 import {
   buildShortfallNotification,
+  shortfallFingerprint,
   shortfallWorthReporting,
   type ShortfallInput,
 } from "@/lib/marketing/shortfall-notification";
@@ -89,5 +90,53 @@ describe("B713 — молчим, когда сообщать не о чем", ()
 
   it("слоты не закрыты и причина живая — сводка нужна", () => {
     expect(shortfallWorthReporting(input())).toBe(true);
+  });
+});
+
+describe("B746 — один брак из пятнадцати сводкой не считается", () => {
+  it("одна-две вставшие строки при живом конвейере — молчим", () => {
+    // Замер прода 2026-09-15: два вставших материала за трое суток давали
+    // «конвейеру не хватило материала» на каждом суточном такте.
+    expect(shortfallWorthReporting(input({
+      plannedSlots: 15,
+      published: 14,
+      causes: [{ platform: "threads", reason: "раунды редактуры не сошлись", count: 1 }],
+      capacityExhausted: [],
+    }))).toBe(false);
+    expect(shortfallWorthReporting(input({
+      plannedSlots: 15,
+      published: 13,
+      causes: [{ platform: "threads", reason: "раунды редактуры не сошлись", count: 2 }],
+      capacityExhausted: [],
+    }))).toBe(false);
+  });
+
+  it("три и больше при трети плана — сводка; исчерпанная ёмкость — всегда", () => {
+    expect(shortfallWorthReporting(input({
+      plannedSlots: 9,
+      published: 6,
+      causes: [{ platform: "telegram", reason: "раунды редактуры не сошлись", count: 3 }],
+      capacityExhausted: [],
+    }))).toBe(true);
+    // Три из тридцати — не треть: молчим.
+    expect(shortfallWorthReporting(input({
+      plannedSlots: 30,
+      published: 27,
+      causes: [{ platform: "telegram", reason: "раунды редактуры не сошлись", count: 3 }],
+      capacityExhausted: [],
+    }))).toBe(false);
+    expect(shortfallWorthReporting(input({
+      plannedSlots: 15,
+      published: 14,
+      causes: [{ platform: "vk", reason: "исчерпана ёмкость моделей", count: 1 }],
+      capacityExhausted: ["vk"],
+    }))).toBe(true);
+  });
+
+  it("отпечаток состава одинаков при разном порядке причин", () => {
+    const a = shortfallFingerprint(input());
+    const b = shortfallFingerprint(input({ causes: [...input().causes].reverse() }));
+    expect(a).toBe(b);
+    expect(shortfallFingerprint(input({ published: 2 }))).not.toBe(a);
   });
 });

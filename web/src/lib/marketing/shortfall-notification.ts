@@ -33,6 +33,7 @@ import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { sendTelegram } from "@/lib/telegram";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
+import { getSetting, setSetting } from "@/lib/platform-settings";
 
 export interface ShortfallCause {
   /** Человеческая причина: она и попадёт в канал. */
@@ -73,9 +74,41 @@ function moscow(value: Date) {
  * Молчим ровно в одном случае: конвейер закрыл всё, что планировал. Тогда
  * сообщение было бы шумом — про успех уже пришли карточки «Опубликовано».
  */
+/**
+ * B746 — ПОРОГ. Прежде хватало одного вставшего материала: «есть причина И
+ * вышло < план», где план = вышло + встало. Замер прода 2026-09-15: за трое
+ * суток на весь флот встало ДВА материала — и владелец получал «конвейеру не
+ * хватило материала» на каждом суточном такте (4 раза в сутки, пока строка в
+ * окне 24 ч), при 6/6 живых коннекторах. Сообщение про один брак из
+ * пятнадцати — это не сигнал, а фон, и на третий день его перестают читать.
+ *
+ * Сообщаем, когда это правда нехватка: пул отказал целиком по площадке, либо
+ * встало не меньше трёх материалов И не меньше трети плана.
+ */
+export const SHORTFALL_MIN_MISSED = 3;
+export const SHORTFALL_MIN_SHARE = 0.3;
+
 export function shortfallWorthReporting(input: ShortfallInput): boolean {
-  if (input.causes.length === 0 && input.capacityExhausted.length === 0) return false;
-  return input.published < input.plannedSlots;
+  if (input.capacityExhausted.length > 0) return true;
+  if (input.causes.length === 0) return false;
+  const missed = Math.max(input.plannedSlots - input.published, 0);
+  if (missed < SHORTFALL_MIN_MISSED) return false;
+  return input.plannedSlots > 0 && missed / input.plannedSlots >= SHORTFALL_MIN_SHARE;
+}
+
+/**
+ * B746 — ОТПЕЧАТОК СОСТАВА. Окно 24 ч скользит с шагом такта, и одни и те же
+ * вставшие строки попадают в несколько сводок подряд. Один состав — одно
+ * сообщение: отпечаток хранится в настройках и сравнивается перед отправкой.
+ */
+export const SHORTFALL_FINGERPRINT_KEY = "marketing.shortfall.last_fingerprint";
+
+export function shortfallFingerprint(input: ShortfallInput): string {
+  const causes = [...input.causes]
+    .map((cause) => `${cause.platform}|${cause.reason}|${cause.count}`)
+    .sort();
+  const capacity = [...input.capacityExhausted].sort();
+  return JSON.stringify({ causes, capacity, published: input.published, planned: input.plannedSlots });
 }
 
 /**
@@ -192,6 +225,13 @@ export async function collectConveyorShortfall(now: Date): Promise<ShortfallInpu
 export async function notifyShortfall(input: ShortfallInput): Promise<boolean> {
   if (!shortfallWorthReporting(input)) return false;
 
+  const fingerprint = shortfallFingerprint(input);
+  const previous = await getSetting(SHORTFALL_FINGERPRINT_KEY).catch(() => "");
+  if (previous === fingerprint) {
+    log.info("marketing.shortfall_notify_duplicate_suppressed");
+    return false;
+  }
+
   let targets: string[] = [];
   try {
     targets = await marketingDeliveryTargets();
@@ -206,6 +246,8 @@ export async function notifyShortfall(input: ShortfallInput): Promise<boolean> {
   for (const chatId of targets) {
     try {
       await sendTelegram(chatId, message);
+      // Отпечаток пишется ПОСЛЕ доставки: недоставленное не считается сказанным.
+      await setSetting(SHORTFALL_FINGERPRINT_KEY, fingerprint, "marketing-worker").catch(() => null);
       return true;
     } catch (error) {
       log.warn("marketing.shortfall_notify_failed", {

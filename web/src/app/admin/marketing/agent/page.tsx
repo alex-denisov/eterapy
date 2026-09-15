@@ -41,12 +41,13 @@ import { auditMetaBrandAccounts } from "@/lib/marketing/meta-brand-account";
 import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
+import { ConveyorAutoRefresh } from "./auto-refresh";
 import { MarketingAgentControls } from "./agent-controls";
 import { MarketingInboundTable, type InboundTableRow } from "./inbound-table";
 import { MarketingPlatformSettings } from "./platform-settings";
 import { MarketingPlatformPlaybooks } from "./platform-playbooks";
 import { resolvePlatformContracts } from "@/lib/marketing/playbook-settings";
-import { listMarketingPlatformAdminConfigs } from "@/lib/marketing/platform-settings";
+import { listMarketingPlatformAdminConfigs, marketingPlatformEnabled } from "@/lib/marketing/platform-settings";
 
 /**
  * B705 — карточка показывает промт так, как его получает модель: общая часть
@@ -228,7 +229,17 @@ export default async function MarketingAgentPage() {
     };
   }));
 
-  const presenceToday = [...engagementToday, ...scheduledToday];
+  /**
+   * B746 — Max в плане присутствия. Выпуск в Max идёт зеркалом Telegram
+   * (B722, `telegram_mirrored_to_max`), своих слотов у него нет, и таблица
+   * его не показывала вовсе — при живом канале и шести «готово» в коннекторах.
+   * Строка Max повторяет строку Telegram с пометкой о зеркале.
+   */
+  const telegramPresence = scheduledToday.find((row) => row.platform === "telegram");
+  const maxPresence = telegramPresence && (await marketingPlatformEnabled("Max").catch(() => false))
+    ? [{ ...telegramPresence, platform: "max", mode: "зеркало Telegram" as const }]
+    : [];
+  const presenceToday = [...engagementToday, ...scheduledToday, ...maxPresence];
 
   // B626: карточки коннекторов занимали три экрана и повторяли одни и те же
   // подписи. Та же информация в компактной таблице суперадминки читается
@@ -568,7 +579,12 @@ export default async function MarketingAgentPage() {
       <AdminHero
         eyebrow="автономный SMM и SEO"
         title="Маркетинговый агент"
-        actions={<MarketingAgentControls enabled={enabled} />}
+        actions={(
+          <div className="flex flex-col items-end gap-2">
+            <MarketingAgentControls enabled={enabled} />
+            <ConveyorAutoRefresh renderedAt={now.toISOString()} />
+          </div>
+        )}
       >
         Отдельный production-сервис создаёт и проверяет контент двумя разными
         моделями, ведёт SEO-аудит, ищет уместные обсуждения и создаёт сигналы.
