@@ -12,7 +12,7 @@
  * него ищется час, когда его аудитория к нему готова, — а не наоборот.
  */
 
-import { threadsFormatFor } from "@/lib/marketing/post-formats";
+import { formatFor, formatRulesFor, type FormatReply } from "@/lib/marketing/post-formats";
 import {
   publishWindow,
   type ContentClass,
@@ -77,6 +77,14 @@ export interface ContentPlanSlot {
    * должны иметь скриншоты».
    */
   formatMedia?: "none" | "chat_mockup" | "art";
+  /**
+   * B746 — нужны ли материалу ссылка из плана и призыв. `false` — код НЕ
+   * дописывает адрес и не чинит призыв: правила формата раньше уходили только
+   * модели, а `agent.ts` приклеивал хвост «Разобрать…: https://…» поверх них.
+   */
+  formatLink?: boolean;
+  /** B746 — у поста есть продолжение ответом на самого себя (`replyText`). */
+  formatReply?: FormatReply;
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -184,38 +192,15 @@ const DATES = [
 ] as const;
 
 /**
- * B700 фаза 4 — у формата появился КЛАСС, и он третьим полем, а не заголовком.
+ * B746 — форматы ВСЕХ площадок живут в `post-formats.ts`: у каждого своя
+ * конструкция, вес, решение о картинке (`media`), о ссылке (`link`) и о
+ * продолжении ответом (`reply`). Прежние три подписи Telegram и по две у VK и
+ * Instagram давали один сценарий на ленту и картинку на каждом посте.
  *
- * Названия форматов не тронуты намеренно: они лежат в `notes` уже созданных
- * строк реестра, и по ним `nextSlotCandidates` (B645) подбирает слот при
- * переносе. Переименовать формат значило бы разорвать перенос у всего, что уже
- * в работе.
- *
- * Слово «утренняя»/«дневная»/«вечерняя» внутри названия осталось от прежней
- * привязки к литеральному часу. Теперь время суток определяет класс, и на
- * выходных «утренняя карточка» выйдет в 10:00, а не в 08:30 — название говорит
- * о характере материала, а не о минуте на часах.
+ * Названия старых форматов в `notes` уже созданных строк не ломают перенос:
+ * `nextSlotCandidates` (B645) при отсутствии слота того же формата берёт любой
+ * слот того же канала.
  */
-type FormatSpec = readonly [format: string, editorialAngle: string, contentClass: ContentClass];
-
-const TELEGRAM_FORMATS: readonly FormatSpec[] = [
-  ["утренняя символическая карточка", "мягкий символ дня без предсказания", "card"],
-  ["дневная мини-практика", "один наблюдаемый жизненный вопрос и действие на 2 минуты", "practice"],
-  ["вечерняя мистическая история", "короткая история с открытым вопросом, а не готовой моралью", "story"],
-];
-// B733 — форматы Threads переехали в `post-formats.ts`: там у каждого своя
-// конструкция, свой вес и СВОИ требования (пост-шутке не нужны польза и CTA).
-// Двух форматов «короткое наблюдение» и «вопрос для разговора» на всю ленту и
-// давали тот самый один сценарий, из-за которого лучший пост за 30 суток
-// набрал 66 просмотров.
-const INSTAGRAM_FORMATS: readonly FormatSpec[] = [
-  ["визуальная карточка", "одна сильная мысль, сохраняемый вывод и предметный caption", "card"],
-  ["мини-разбор", "сцена, объяснение и один применимый шаг без псевдонаучных обещаний", "explainer"],
-];
-const VK_FORMATS: readonly FormatSpec[] = [
-  ["полезный пост", "понятное объяснение и один применимый шаг", "explainer"],
-  ["пост-обсуждение", "узнаваемая ситуация и конкретный вопрос аудитории", "discussion"],
-];
 
 function scheduledAt(date: string, timeMoscow: string) {
   return `${date}T${timeMoscow}:00+03:00`;
@@ -403,6 +388,8 @@ function slot(input: {
   /** B733 — требования формата, которые сильнее общей рубрики редактора. */
   formatRules?: readonly string[];
   formatMedia?: "none" | "chat_mockup" | "art";
+  formatLink?: boolean;
+  formatReply?: FormatReply;
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
@@ -422,6 +409,8 @@ function slot(input: {
     keyPoints: defaultSlotKeyPoints(input.topic.cluster, input.topic.targetQuery),
     ...(input.formatRules ? { formatRules: input.formatRules } : {}),
     ...(input.formatMedia ? { formatMedia: input.formatMedia } : {}),
+    ...(input.formatLink === undefined ? {} : { formatLink: input.formatLink }),
+    ...(input.formatReply ? { formatReply: input.formatReply } : {}),
   };
 }
 
@@ -469,91 +458,64 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   /** Даты, попадающие в горизонт этой ленты. */
   const datesFor = (channel: PlanChannel) => dates.slice(0, PLAN_HORIZON_DAYS[channel]);
 
+  /**
+   * B746 — один способ раздачи формата на все площадки: формат берётся из
+   * библиотеки площадки по номеру суток и слоту, его правила, медиа, ссылка
+   * и продолжение уходят в слот. Тема (`topicAt`) — остовная, её сменит
+   * планировщик спроса (B702) при создании строки.
+   */
+  const pushFormatted = (channel: PlanChannel, date: string, sequence: number, topicIndex: number, offset: number) => {
+    const day = dayNumber(date);
+    const chosen = formatFor(channel, day, sequence);
+    push({
+      channel,
+      date,
+      topic: topicAt(topicIndex, offset),
+      sequence: sequence + 1,
+      format: chosen.label,
+      editorialAngle: chosen.construction,
+      contentClass: chosen.contentClass,
+      formatRules: formatRulesFor(chosen, day),
+      formatMedia: chosen.media,
+      formatLink: chosen.link,
+      ...(chosen.reply ? { formatReply: chosen.reply } : {}),
+    });
+  };
+
   datesFor("telegram").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("telegram", date); sequence++) {
-      // Формат берётся от номера суток: у ленты три формата на два слота, и без
-      // сдвига по дню третий не выходил бы никогда.
-      const [format, editorialAngle, contentClass] =
-        TELEGRAM_FORMATS[(((day + sequence) % TELEGRAM_FORMATS.length) + TELEGRAM_FORMATS.length) % TELEGRAM_FORMATS.length];
-      push({
-        channel: "telegram",
-        date,
-        topic: topicAt(day * 3 + sequence),
-        sequence: sequence + 1,
-        format,
-        editorialAngle,
-        contentClass,
-      });
+      pushFormatted("telegram", date, sequence, day * 3 + sequence, 0);
     }
   });
 
   datesFor("threads").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("threads", date); sequence++) {
-      const chosen = threadsFormatFor(day, sequence);
-      push({
-        channel: "threads",
-        date,
-        topic: topicAt(day * 2 + sequence, 5),
-        sequence: sequence + 1,
-        format: chosen.label,
-        editorialAngle: chosen.construction,
-        contentClass: chosen.contentClass,
-        formatRules: chosen.rules,
-        formatMedia: chosen.media,
-      });
+      pushFormatted("threads", date, sequence, day * 2 + sequence, 5);
     }
   });
 
   datesFor("instagram").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("instagram", date); sequence++) {
-      const [format, editorialAngle, contentClass] =
-        INSTAGRAM_FORMATS[(((day + sequence) % INSTAGRAM_FORMATS.length) + INSTAGRAM_FORMATS.length) % INSTAGRAM_FORMATS.length];
-      push({
-        channel: "instagram",
-        date,
-        topic: topicAt(day, 8),
-        sequence: sequence + 1,
-        format,
-        editorialAngle,
-        contentClass,
-      });
+      pushFormatted("instagram", date, sequence, day, 8);
     }
   });
 
   datesFor("vk").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("vk", date); sequence++) {
-      const [format, editorialAngle, contentClass] =
-        VK_FORMATS[(((day + sequence) % VK_FORMATS.length) + VK_FORMATS.length) % VK_FORMATS.length];
-      push({
-        channel: "vk",
-        date,
-        topic: topicAt(day, 2),
-        sequence: sequence + 1,
-        format,
-        editorialAngle,
-        contentClass,
-      });
+      pushFormatted("vk", date, sequence, day, 2);
     }
   });
 
   datesFor("dzen").forEach((date) => {
+    const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("dzen", date); sequence++) {
-      push({
-        channel: "dzen",
-        date,
-        topic: topicAt(dayNumber(date), 4),
-        sequence: sequence + 1,
-        format: "структурированная статья",
-        editorialAngle: "ответ читателю, объяснение, примеры, практический шаг и честный мягкий CTA",
-        contentClass: "article",
-      });
+      pushFormatted("dzen", date, sequence, day, 4);
     }
   });
-
 
   return result.sort((left, right) =>
     new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()

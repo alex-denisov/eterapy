@@ -69,7 +69,9 @@ describe("B733 — форматы постов Threads", () => {
       expect(format).not.toBeNull();
       // Требования формата уходят в реестр вместе со слотом: редактор увидит
       // их в задаче, а не догадается по названию.
-      expect(slot.formatRules).toEqual(format!.rules);
+      // B746: серийный формат (оклик по знаку) добавляет строку про знак
+      // суток — правила формата входят в правила слота целиком.
+      expect(slot.formatRules).toEqual(expect.arrayContaining([...format!.rules]));
       expect(slot.formatMedia).toBe(format!.media);
       expect(slot.editorialAngle).toBe(format!.construction);
     }

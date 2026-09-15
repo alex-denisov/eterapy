@@ -424,6 +424,12 @@ type WriterOutput = {
   disclosure: string;
   cta: string;
   mediaBrief: string;
+  /**
+   * B746 — продолжение поста ответом на самого себя (формат `reply`).
+   * Пусто у всех остальных форматов; у формата с `reply` пустое поле —
+   * незавершённый материал, и это замечание редактору (см. `repairPublishableDraft`).
+   */
+  replyText?: string;
   researchUsed: string[];
   safetyFlags: string[];
 };
@@ -582,6 +588,7 @@ function normalizeWriterOutput(value: WriterOutput, fallbackTitle: string): Writ
     disclosure: contractString(value.disclosure),
     cta: contractString(value.cta),
     mediaBrief: contractString(value.mediaBrief),
+    replyText: contractString(value.replyText),
     researchUsed: contractStringList(value.researchUsed),
     safetyFlags: contractStringList(value.safetyFlags),
   };
@@ -637,6 +644,7 @@ export function writerObject(raw: string, fallbackTitle: string): WriterOutput {
       disclosure: jsonStringField(raw, "disclosure") || "",
       cta: jsonStringField(raw, "cta") || "",
       mediaBrief: jsonStringField(raw, "mediaBrief") || "",
+      replyText: jsonStringField(raw, "replyText") || "",
       researchUsed: [],
       safetyFlags: [],
     });
@@ -699,7 +707,7 @@ function assertFreshMarketingModel(model: string, provider: AIProvider) {
  * отсутствие адреса в плане и превышение лимита площадки уже ПОСЛЕ подстановки.
  */
 export interface DraftRepair {
-  field: "destinationUrl" | "cta" | "length" | "mediaBrief" | "emDash";
+  field: "destinationUrl" | "cta" | "length" | "mediaBrief" | "emDash" | "replyText";
   note: string;
 }
 
@@ -716,6 +724,22 @@ export interface DraftRepair {
  * Браковать остаётся то, чего взять негде: пустой текст, safety-флаг и
  * отсутствие адреса в плане.
  */
+/**
+ * B746 — снять ссылку из плана и строку-призыв вокруг неё из текста формата
+ * «без ссылки». Снимается ТОЛЬКО адрес из плана (с UTM или без): чужие ссылки
+ * в тексте — дело редактора.
+ */
+export function stripPlanLink(text: string, destinationUrl: string | null): string {
+  if (!destinationUrl) return text;
+  const bare = destinationUrl.split("?")[0];
+  if (!bare) return text;
+  const escaped = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Строка целиком, если в ней только призыв и адрес; иначе — сам адрес.
+  const lineWithLink = new RegExp(`^[^\\n]{0,160}?${escaped}\\S*[^\\n]*$`, "gmu");
+  const stripped = text.replace(lineWithLink, "").replace(/\n{3,}/g, "\n\n").trim();
+  return stripped.length > 0 ? stripped : text.replace(new RegExp(`${escaped}\\S*`, "gu"), "").trim();
+}
+
 export function repairPublishableDraft(input: {
   draft: WriterOutput;
   isConversational: boolean;
@@ -740,6 +764,19 @@ export function repairPublishableDraft(input: {
    * Пусто — мера не считается, и это честно: сравнивать не с чем.
    */
   recentMaterials?: readonly { title: string; text: string }[];
+  /**
+   * B746 — решения формата, которые раньше код принимал сам.
+   *
+   * `link: false` — материал выходит БЕЗ ссылки из плана и БЕЗ призыва: адрес
+   * не дописывается, отсутствие призыва не замечание и не чинится.
+   * Замер прода 2026-09-15: первый же материал нового формата Threads
+   * («острый вопрос», правило «ссылка НЕ нужна») прошёл редактора с хвостом
+   * «Разобрать свою ситуацию…: https://…», а 14.09 редактор убил материал
+   * с формулировкой «ссылка и CTA здесь запрещены» — ссылку вставила система.
+   *
+   * `reply: "forecast"` — у поста обязано быть продолжение `replyText`.
+   */
+  format?: { link?: boolean; reply?: "forecast" | null; media?: "none" | "chat_mockup" | "art" } | null;
 }): {
   draft: WriterOutput;
   repairs: DraftRepair[];
@@ -767,13 +804,32 @@ export function repairPublishableDraft(input: {
   if (input.isConversational) {
     return { draft: { ...input.draft, text }, repairs: [], violations: [], contractDefects: [] };
   }
-  if (!input.destinationUrl) {
+  const linkRequired = input.format?.link !== false;
+  if (!input.destinationUrl && linkRequired) {
     throw new Error("owned publication has no destination URL in the plan");
   }
 
   const repairs: DraftRepair[] = [];
   let repairedText = text;
   let cta = input.draft.cta?.trim() ?? "";
+
+  /**
+   * B746 — формат без ссылки: адрес из плана НЕ дописывается, а если автор
+   * всё же вставил его или призыв — они снимаются кодом, как и любое другое
+   * нарушение контракта, которое модель не умеет соблюдать по просьбе
+   * ([[reference_model_cannot_count_and_ignores_the_ban]]).
+   */
+  if (!linkRequired) {
+    const stripped = stripPlanLink(repairedText, input.destinationUrl);
+    if (stripped !== repairedText) {
+      repairedText = stripped;
+      repairs.push({
+        field: "destinationUrl",
+        note: "Формат выходит без ссылки: адрес из плана, вставленный автором, снят системой.",
+      });
+    }
+    cta = "";
+  }
 
   /**
    * B700 фаза 6 — система больше НЕ выдумывает призыв за автора.
@@ -789,7 +845,7 @@ export function repairPublishableDraft(input: {
    * раунде и пишет призыв фразой, а не адресом: выпустить материал без призыва
    * хуже, чем выпустить его с типовым, но осмысленным.
    */
-  if (!repairedText.includes(input.destinationUrl)) {
+  if (linkRequired && input.destinationUrl && !repairedText.includes(input.destinationUrl)) {
     // Ссылка приезжает вместе с призывом, а не отдельной голой строкой: хвост
     // «…текст.\n\nhttps://…» и был тем, что владелец назвал браком выпуска.
     const invitation = ctaWordsOf(cta) >= CTA_MIN_WORDS
@@ -813,7 +869,7 @@ export function repairPublishableDraft(input: {
    * площадки, поэтому проверка живёт здесь, а не в `draftLimitViolations`.
    * Требование одинаково для всех площадок и приходит от продукта, а не от API.
    */
-  const ctaViolations: LimitViolation[] = ctaWordsOf(cta) >= CTA_MIN_WORDS ? [] : [{
+  const ctaViolations: LimitViolation[] = !linkRequired || ctaWordsOf(cta) >= CTA_MIN_WORDS ? [] : [{
     kind: "cta",
     issue: ctaWordsOf(cta) === 0
       ? "В материале нет призыва словами: поле cta пустое или содержит только ссылку."
@@ -826,7 +882,7 @@ export function repairPublishableDraft(input: {
    * усечение по лимиту площадки обязано считать длину уже вместе с ним. Иначе
    * материал уезжает за предел ровно тем, чем его чинили.
    */
-  if (ctaViolations.length > 0 && input.finalRound) {
+  if (ctaViolations.length > 0 && input.finalRound && input.destinationUrl) {
     cta = fallbackCta(input.topic ?? input.draft.title ?? null);
     repairedText = repairedText.replace(`\n\n${input.destinationUrl}`, "").trimEnd();
     repairedText = `${repairedText}\n\n${cta}: ${input.destinationUrl}`;
@@ -917,14 +973,32 @@ export function repairPublishableDraft(input: {
     recent: input.recentMaterials ?? [],
   });
 
+  /**
+   * B746 — у формата с продолжением пустой `replyText` — незавершённый
+   * материал: пост «Забирайте прогноз:» без прогноза в ответе это обман
+   * читателя, а не пост. Нарушение, а не замечание: оценивать нечего.
+   */
+  const replyText = input.draft.replyText?.trim() ?? "";
+  const replyViolations: LimitViolation[] = input.format?.reply && replyText.length < 120
+    ? [{
+      kind: "reply",
+      issue: replyText.length === 0
+        ? "Формат требует продолжение ответом: поле replyText пустое."
+        : `Продолжение ответом слишком короткое: ${replyText.length} символов, нужно от 120.`,
+      brief: "Напиши в поле replyText сам прогноз — 4–6 предложений от второго лица, без дат и терминов.",
+    }]
+    : [];
+
   const violations = [
+    ...replyViolations,
     ...(input.finalRound ? [] : ctaViolations),
     ...draftLimitViolations({
       platform: input.platform,
       text: repairedText,
       mediaBrief,
       overrideContract: input.contract,
-    }),
+      // B746: формат без картинки не спрашивают про визуальную идею.
+    }).filter((violation) => !(violation.kind === "media-brief" && input.format?.media === "none")),
   ];
 
   if (violations.length === 0 || !input.finalRound) {
@@ -1451,6 +1525,9 @@ export async function processMarketingDraft(publicationId: string) {
     /** B733 — требования формата: они сильнее общей рубрики редактора. */
     formatRules?: string[];
     formatMedia?: "none" | "chat_mockup" | "art";
+    /** B746 — ссылка/призыв и продолжение ответом — решения формата. */
+    formatLink?: boolean;
+    formatReply?: "forecast";
   } | null = null;
   if (publication.notes) {
     try {
@@ -1497,7 +1574,10 @@ export async function processMarketingDraft(publicationId: string) {
     // Пост-шутка не обязан нести пользу и призыв, и без этой строки редактор
     // режет его по общей рубрике — ровно это и делало ленту ровной.
     formatRules: parsedNotes?.formatRules ?? null,
-    destinationUrl: isConversational ? null : publication.destinationUrl,
+    // B746: формат без ссылки не получает адрес вовсе — иначе автор вставит
+    // его «на всякий случай», а редактор снимет материал за это.
+    formatReply: parsedNotes?.formatReply ?? null,
+    destinationUrl: isConversational || parsedNotes?.formatLink === false ? null : publication.destinationUrl,
     // Для ответа на входящее это НАШ разговор: человек написал нам сам, и его
     // текст — адресат ответа, а не свидетельство спроса.
     inbound: isInboundReply ? {
@@ -1763,6 +1843,7 @@ export async function processMarketingDraft(publicationId: string) {
         // формы. Один запрос (`recentOwnMaterials`), две проекции: просьба
         // автору и проверка машиной.
         recentMaterials: recentTexts,
+        format: { link: parsedNotes?.formatLink, reply: parsedNotes?.formatReply ?? null, media: parsedNotes?.formatMedia },
       });
       }
       let { draft } = repaired;
@@ -1886,7 +1967,9 @@ export async function processMarketingDraft(publicationId: string) {
               machineFindings: contractDefects,
               // B724: площадки без ссылок и CTA (Threads)
               allowNoCta: contract.ctaPolicy === "discouraged"
-                || contract.maxLinks === 0,
+                || contract.maxLinks === 0
+                // B746: формат без ссылки — призыва нет по решению.
+                || parsedNotes?.formatLink === false,
             })),
           },
         ],
@@ -1956,6 +2039,7 @@ export async function processMarketingDraft(publicationId: string) {
             topic: publication.targetQuery ?? publication.title,
             finalRound: true,
             contract,
+            format: { link: parsedNotes?.formatLink, reply: parsedNotes?.formatReply ?? null, media: parsedNotes?.formatMedia },
           });
           draft = repairedRevised.draft;
           repairs.push(...repairedRevised.repairs);
@@ -2149,6 +2233,17 @@ export async function processMarketingDraft(publicationId: string) {
                * Прежняя проверка спрашивала заголовок и не сработала ни разу:
                * цитату собеседника персона Ани ставит в текст поста.
                */
+              /**
+               * B746 — раскладку решает ФОРМАТ, если он её назвал. Мокап
+               * переписки по одной лишь цитате в теле прикреплялся к половине
+               * ленты Telegram («скриншот+текст — жутко бесит», владелец
+               * 2026-09-15). `art` в формате — графика даже при цитате;
+               * `chat_mockup` — мокап, если реплика есть (маршрут сам
+               * откатится на графику без реплики, B731); без формата —
+               * прежнее правило B727 по телу.
+               */
+              if (parsedNotes?.formatMedia === "art") return `${baseUrl}?layout=art`;
+              if (parsedNotes?.formatMedia === "chat_mockup") return `${baseUrl}?layout=chat_mockup`;
               const { layout } = coverLayoutFor({
                 title: approvedDraft.title?.trim() || publication.title,
                 body: approvedDraft.text,
@@ -2156,6 +2251,11 @@ export async function processMarketingDraft(publicationId: string) {
               });
               return layout === "chat_mockup" ? `${baseUrl}?layout=chat_mockup` : baseUrl;
             })(),
+        // B746: продолжение ответом на свой пост едет в notes и уходит на
+        // площадку публикатором сразу после выпуска (см. `publish.ts`).
+        ...(approvedDraft.replyText?.trim() && parsedNotes
+          ? { notes: JSON.stringify({ ...parsedNotes, replyText: approvedDraft.replyText.trim() }) }
+          : {}),
         status: nextStatus,
         // Ручная площадка не «публикуется сама» ни при каком выключателе:
         // дороги наружу у неё нет, и признак должен говорить это прямо.

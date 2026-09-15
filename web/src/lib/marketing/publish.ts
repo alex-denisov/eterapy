@@ -400,6 +400,21 @@ export async function publishVkComment(
   };
 }
 
+/**
+ * B746 — продолжение из `notes` материала. `notes` у утверждённого материала —
+ * JSON; после выпуска к нему дописываются строки («MAX: …», «REPLY: …»), и
+ * тогда это уже не JSON — значит, продолжение либо уже ушло, либо его нет.
+ */
+export function replyTextFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  try {
+    const parsed = JSON.parse(notes) as { replyText?: unknown };
+    return typeof parsed.replyText === "string" && parsed.replyText.trim() ? parsed.replyText.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function publishThreadsReply(
   publication: { body: string; engagementTargetId: string | null },
 ): Promise<PublishedPost> {
@@ -643,6 +658,8 @@ export async function publishScheduledMarketing(input: {
   now?: Date;
   enabled?: boolean;
   adapters?: Partial<Record<string, PublicationAdapter>>;
+  /** B746 — адаптеры ответа на свой пост (для прогона подменяются). */
+  replyAdapters?: Partial<Record<string, (publication: { body: string; engagementTargetId: string | null }) => Promise<PublishedPost>>>;
 } = {}): Promise<PublishScheduledResult> {
   const now = input.now ?? new Date();
   const enabled = input.enabled ?? marketingAutopublishEnabled();
@@ -934,6 +951,46 @@ export async function publishScheduledMarketing(input: {
               .filter(Boolean).join("\n"),
           },
         });
+      }
+
+      /**
+       * B746 — ПРОДОЛЖЕНИЕ ОТВЕТОМ НА СВОЙ ПОСТ (формат `reply`).
+       *
+       * Образец владельца 2026-09-15 (threads.com/share/BAmlNrdx9h): пост
+       * заканчивается «Забирайте прогноз:», а прогноз лежит в первом ответе
+       * автора — чтобы «забрать», ленте надо ОТКРЫТЬ ветку, и для алгоритма
+       * это сигнал сильнее лайка. Ответ уходит сразу за постом тем же путём,
+       * что ответы на входящее (`publishThreadsReply`, `reply_to_id`).
+       *
+       * Отказ ответа выпуск не отменяет: пост уже стоит, и «ушёл без прогноза»
+       * — заметка и предупреждение в логе, а не FAILED (то же правило, что у
+       * зеркала MAX ниже и у уведомлений B694).
+       */
+      const replyText = replyTextFromNotes(publication.notes);
+      if (replyText && normalizedPlatform === "threads" && published.externalPostId) {
+        try {
+          const replyAdapter = input.replyAdapters?.threads ?? publishThreadsReply;
+          const reply = await replyAdapter({ body: replyText, engagementTargetId: published.externalPostId });
+          await db.externalPublication.update({
+            where: { id: publication.id },
+            data: {
+              notes: [publishedData.notes ?? publication.notes, `REPLY: ${reply.publicUrl}`]
+                .filter(Boolean)
+                .join("\n"),
+            },
+          }).catch(() => null);
+          log.info("marketing.reply_after_publish", {
+            publicationId: publication.id,
+            platform: normalizedPlatform,
+            replyId: reply.externalPostId,
+          });
+        } catch (replyError) {
+          log.warn("marketing.reply_after_publish_failed", {
+            publicationId: publication.id,
+            platform: normalizedPlatform,
+            error: replyError instanceof Error ? replyError.message : String(replyError),
+          });
+        }
       }
 
       // B722: Автоматическое зеркалирование Telegram-постов в MAX канал (platform-api2.max.ru)

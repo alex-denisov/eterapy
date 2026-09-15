@@ -522,6 +522,10 @@ export async function generateMarketingDrafts(input: {
             // измениться в библиотеке, а материал уже написан под прежний.
             formatRules: slot.formatRules,
             formatMedia: slot.formatMedia,
+            // B746: ссылка/призыв и продолжение ответом — решения формата,
+            // и код читает их ОТСЮДА, а не угадывает по названию.
+            formatLink: slot.formatLink,
+            formatReply: slot.formatReply,
           }),
           source: "CRON_B589",
           autoPublish: false,

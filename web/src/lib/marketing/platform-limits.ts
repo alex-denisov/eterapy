@@ -102,7 +102,7 @@ export interface LimitViolation {
    * визуальную идею, написать призыв), а `contract` — почти нет. Смешать их
    * значило бы либо чинить нечинимое, либо потерять готовые починки.
    */
-  kind: "length" | "media-brief" | "cta" | "contract";
+  kind: "length" | "media-brief" | "cta" | "contract" | "reply";
   /** Ключ правила `inspectDraft`; у прежних трёх видов пусто. */
   rule?: string;
   /** Замечание в том же виде, в каком их формулирует редактор. */
