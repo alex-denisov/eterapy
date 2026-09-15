@@ -26,7 +26,10 @@ import db from "@/lib/db";
 import { kpiPressure, type KpiVerdict } from "@/lib/marketing/kpi";
 import { readKpiVerdicts } from "@/lib/marketing/kpi-readings";
 import { log, serializeError } from "@/lib/logger";
-import { sendTelegram } from "@/lib/telegram";
+import { sendTelegram, sendTelegramPhoto } from "@/lib/telegram";
+import { signTrendPayload, trendChartUrl } from "@/lib/marketing/orchestrator-chart-sign";
+import type { TrendState } from "@/lib/marketing/orchestrator-trend";
+import { absoluteMainUrl } from "@/lib/subdomain";
 import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
 import {
   applyDirective,
@@ -117,7 +120,54 @@ export function shouldReport(input: {
   return { report: false, reason: "находок нет, суточный доклад уже уходил" };
 }
 
-async function deliver(message: string): Promise<boolean> {
+/**
+ * B746 — КАРТИНКА ТРЕНДА К ОТЧЁТУ.
+ *
+ * Байты берутся у сайта (`/api/marketing/orchestrator/trend`, подписанная
+ * нагрузка), а не рисуются в воркере: рендер Satori живёт в одном месте.
+ * Любой отказ — `null`, и отчёт уходит текстом: картинка дополняет доклад,
+ * а не является его условием.
+ */
+async function trendChartBytes(trend: TrendState, now: Date): Promise<{ bytes: ArrayBuffer; filename: string; contentType: string } | null> {
+  if (trend.days.length === 0) return null;
+  const signed = signTrendPayload({
+    at: now.toISOString(),
+    days: trend.days.map((day) => ({
+      day: day.day,
+      posts: day.posts,
+      distinctTitles: day.distinctTitles,
+      views: day.views,
+      seoPages: day.seoPages,
+      impressions: day.impressions,
+      clicks: day.clicks,
+    })),
+    weeks: trend.weeks.map((delta) => ({
+      label: delta.label,
+      current: delta.current,
+      previous: delta.previous,
+      better: delta.better,
+      unit: delta.unit,
+    })),
+  });
+  if (!signed) return null;
+  try {
+    const response = await fetch(trendChartUrl(absoluteMainUrl("/"), signed), {
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      log.warn("orchestrator.trend_chart_http", { status: response.status });
+      return null;
+    }
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength < 1_000) return null;
+    return { bytes, filename: `trend-${now.toISOString().slice(0, 10)}.png`, contentType: "image/png" };
+  } catch (error) {
+    log.warn("orchestrator.trend_chart_failed", { error: serializeError(error) });
+    return null;
+  }
+}
+
+async function deliver(message: string, chart?: { bytes: ArrayBuffer; filename: string; contentType: string } | null): Promise<boolean> {
   let targets: string[] = [];
   try {
     targets = await marketingDeliveryTargets();
@@ -128,6 +178,11 @@ async function deliver(message: string): Promise<boolean> {
   for (const chatId of targets) {
     try {
       await sendTelegram(chatId, message);
+      // Картинка — вторым сообщением и без права уронить доставку текста.
+      if (chart) {
+        await sendTelegramPhoto(chatId, "📈 Тренд за 14 дней: постов и разных заголовков, просмотров, страниц Библиотеки, показов и кликов в поиске", chart)
+          .catch((error) => log.warn("orchestrator.trend_photo_failed", { error: serializeError(error) }));
+      }
       return true;
     } catch (error) {
       log.warn("orchestrator.delivery_failed", {
@@ -296,10 +351,12 @@ export async function runOrchestratorCycle(
     // ноль горизонтов.
     ...(kpiVerdicts.length > 0 ? { kpi: { verdicts: kpiVerdicts, period: "month" as const } } : {}),
   });
+  const chart = await trendChartBytes(state.trend, now);
   const delivered = await deliver(
     onHold && candidates.length > 0
       ? `${message}\n\n⏸ <b>Правки на удержании</b>\nНастройка <code>${ORCHESTRATOR_HOLD_KEY}</code> = true: диагноз собран, но ничего не меняю.`
       : message,
+    chart,
   );
 
   if (!delivered) {

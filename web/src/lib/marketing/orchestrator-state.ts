@@ -18,6 +18,13 @@ import { readSearchSources, type SearchSourcesState } from "@/lib/marketing/orch
 import { thinCards } from "@/lib/seo/backfill";
 import { dzenBrowserHealth, type BrowserSessionHealth } from "@/lib/marketing/browser-publisher";
 import { VERTEX_CREDENTIAL_LABEL } from "@/lib/ai-gateway/free-tier-bootstrap";
+import { collectTrend, type TrendState } from "@/lib/marketing/orchestrator-trend";
+import {
+  BACKLINK_STATUS_KEY,
+  backlinkTargetsWithStatus,
+  parseBacklinkStatus,
+  type BacklinkTargetState,
+} from "@/lib/seo/backlink-targets";
 
 export interface ProviderState {
   provider: string;
@@ -126,6 +133,14 @@ export interface OrchestratorState {
    * узнает, потому что снаружи всё работает.
    */
   vertexConfigured: boolean;
+  /**
+   * B746 — ряд по дням, дельты недели к неделе, разнообразие лент и
+   * черновики-дубли. Без этого оркестратор не видел ни ленты из десяти
+   * одинаковых постов, ни того, помогли ли его правки.
+   */
+  trend: TrendState;
+  /** B746 — реестр внешних площадок с состоянием шага человека из базы. */
+  backlinks: BacklinkTargetState[];
   recentDirectives: Array<{
     key: string;
     action: string;
@@ -166,6 +181,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     dzen,
     vertexCredentials,
     recentDirectives,
+    trend,
+    backlinkStatusRaw,
   ] = await Promise.all([
     conveyorSnapshot({ now }),
     db.aIProviderConfig.findMany({
@@ -222,6 +239,14 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       take: 20,
       select: { key: true, action: true, problem: true, appliedAt: true, status: true },
     }).catch(() => []),
+    collectTrend({ now }).catch((error: unknown) => {
+      log.warn("orchestrator.trend_failed", { error: serializeError(error) });
+      return { days: [], weeks: [], diversity: [], duplicateDraftIds: [] } satisfies TrendState;
+    }),
+    db.platformSetting
+      .findUnique({ where: { key: BACKLINK_STATUS_KEY }, select: { value: true } })
+      .then((row) => row?.value ?? null)
+      .catch(() => null),
   ]);
 
   // Состояние ключей берётся из самих credential'ов: именно их двигает
@@ -312,6 +337,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     thinCards: thinCards().length,
     dzen,
     vertexConfigured: vertexCredentials > 0,
+    trend,
+    backlinks: backlinkTargetsWithStatus(parseBacklinkStatus(backlinkStatusRaw)),
     recentDirectives,
     causes: [...causeTally.entries()]
       .map(([reason, count]) => ({ reason, count }))

@@ -105,21 +105,81 @@ export const BACKLINK_TARGETS: readonly BacklinkTarget[] = [
    * контент и не та площадка». Первая редакция реестра (B742, облачная сессия)
    * включила обе, не зная этого решения; снято 2026-09-13. Тенчат из того же
    * решения остаётся в бэклоге B621 до появления ресурсов.
+   *
+   * ⚠ ПИКАБУ СНЯТ 2026-09-15 (B746). Владелец: «на Пикабу профиль не понятно
+   * зачем заводить — нет ни коннекторов к площадке, ни контент-плана для нее».
+   * Строка отвечала на «зачем, кроме ссылки» аудиторией — но площадка без
+   * дороги выпуска это регистрация ради регистрации, и оркестратор просил её
+   * каждый понедельник, не зная, сделана она или нет.
    */
-  {
-    id: "pikabu",
-    title: "Пикабу — аккаунт бренда",
-    url: "https://pikabu.ru",
-    route: "human",
-    why: "Аудитория совпадает с нашей по темам отношений и выгорания; аккаунт проходит "
-      + "проверку телефоном, которую агент не пройдёт и не должен.",
-    humanStep: "зарегистрировать аккаунт бренда с подтверждением по телефону",
-  },
 ];
 
 /** Площадки, где нужен человек: ровно тот пул, который просил владелец. */
 export function humanRegistrationTargets(): readonly BacklinkTarget[] {
   return BACKLINK_TARGETS.filter((target) => target.route === "human");
+}
+
+/**
+ * B746 — СОСТОЯНИЕ ШАГА ЧЕЛОВЕКА ХРАНИТСЯ, А НЕ ПОВТОРЯЕТСЯ.
+ *
+ * Реестр был константой без состояния: Яндекс Бизнес, GBP и Пикабу уходили
+ * владельцу каждый понедельник независимо от того, сделано это или нет —
+ * владелец 2026-09-15: «оркестратор живет полностью отрешенным от данных
+ * проекта <…> раздавая устаревшие указания». Состояние живёт в
+ * `platform_settings` одним JSON и отмечается в суперадминке; оркестратор
+ * читает его перед тем, как просить.
+ */
+export type BacklinkStepStatus = "pending" | "done" | "skipped";
+
+export const BACKLINK_STATUS_KEY = "marketing.backlinks.status";
+
+export interface BacklinkTargetState extends BacklinkTarget {
+  status: BacklinkStepStatus;
+  note: string | null;
+  updatedAt: string | null;
+}
+
+export type BacklinkStatusMap = Record<string, { status: BacklinkStepStatus; note?: string; updatedAt?: string }>;
+
+export function parseBacklinkStatus(raw: string | null | undefined): BacklinkStatusMap {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const result: BacklinkStatusMap = {};
+    for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!value || typeof value !== "object") continue;
+      const status = (value as { status?: unknown }).status;
+      if (status !== "pending" && status !== "done" && status !== "skipped") continue;
+      const note = (value as { note?: unknown }).note;
+      const updatedAt = (value as { updatedAt?: unknown }).updatedAt;
+      result[id] = {
+        status,
+        ...(typeof note === "string" && note.trim() ? { note: note.trim() } : {}),
+        ...(typeof updatedAt === "string" ? { updatedAt } : {}),
+      };
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/** Реестр с наложенным состоянием — чистая функция, проверяется прогоном. */
+export function backlinkTargetsWithStatus(status: BacklinkStatusMap): BacklinkTargetState[] {
+  return BACKLINK_TARGETS.map((target) => ({
+    ...target,
+    status: status[target.id]?.status ?? "pending",
+    note: status[target.id]?.note ?? null,
+    updatedAt: status[target.id]?.updatedAt ?? null,
+  }));
+}
+
+/** Шаги человека, которые ещё не сделаны и не отклонены. */
+export function pendingHumanTargets(status: BacklinkStatusMap): BacklinkTargetState[] {
+  return backlinkTargetsWithStatus(status).filter(
+    (target) => target.route === "human" && target.status === "pending",
+  );
 }
 
 /** Площадки, где ссылку ставит сам агент — уже сегодня, своим выпуском. */

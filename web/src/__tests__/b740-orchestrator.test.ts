@@ -91,6 +91,9 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
     // B742: маршрут Vertex поднят — иначе здоровый контур поднимал бы находку
     // про неиспользуемый бонус на каждом прогоне, где её не проверяют.
     vertexConfigured: true,
+    // B746: тренд и реестр внешних площадок — пустые по умолчанию.
+    trend: { days: [], weeks: [], diversity: [], duplicateDraftIds: [] },
+    backlinks: [],
     recentDirectives: [],
     ...overrides,
   };

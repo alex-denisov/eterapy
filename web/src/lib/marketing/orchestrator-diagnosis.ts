@@ -539,8 +539,75 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
     });
   }
 
+  // ── Разнообразие лент (B746) ──────────────────────────────────────────────
+  /**
+   * Замер прода 2026-09-15: Telegram за 14 суток — 41 пост, 16 заголовков,
+   * «9 аркан (Отшельник)» 10 раз. Оркестратор этого не видел: в состоянии не
+   * было ни одной меры однотипности. Правило — по числам, а не по вкусу:
+   * заголовок, вышедший на площадке трижды и больше за неделю, либо меньше
+   * 60 % разных заголовков при пяти и больше постах.
+   */
+  for (const feed of state.trend.diversity) {
+    if (feed.posts < DIVERSITY_MIN_POSTS) continue;
+    const distinctShare = feed.distinctTitles / feed.posts;
+    const repeated = feed.topTitleCount >= DIVERSITY_REPEAT_MAX;
+    if (!repeated && distinctShare >= DIVERSITY_MIN_DISTINCT_SHARE) continue;
+    findings.push({
+      code: `smm.sameness.${feed.platform}`,
+      severity: "warning",
+      title: repeated
+        ? `${feed.platform}: «${(feed.topTitle ?? "").slice(0, 60)}» вышел ${feed.topTitleCount} раз за неделю`
+        : `${feed.platform}: ${feed.distinctTitles} разных заголовков на ${feed.posts} постов за неделю`,
+      detail:
+        "Одна и та же тема день за днём — это лента, которую перестают читать, и подписка, "
+        + "которую снимают. Причина в планировании, а не в текстах: тема повторяется, "
+        + "потому что не считается занятой.",
+    });
+  }
+  const mediaHeavy = state.trend.diversity.filter(
+    (feed) => feed.posts >= DIVERSITY_MIN_POSTS && feed.mediaShare >= 0.95 && feed.platform !== "instagram",
+  );
+  if (mediaHeavy.length > 0) {
+    findings.push({
+      code: "smm.media_everywhere",
+      severity: "observation",
+      title: `Картинка на каждом посте: ${mediaHeavy.map((feed) => feed.platform).join(", ")}`,
+      detail:
+        "Владелец 2026-09-15: «скриншот+текст в телеге — это жутко бесит». Картинка на 100 % "
+        + "постов выдаёт конвейер; у живого канала половина ленты выходит текстом. Решает "
+        + "формат слота (B746), здесь — контроль, что решение доехало до ленты.",
+    });
+  }
+  if (state.trend.duplicateDraftIds.length > 0) {
+    findings.push({
+      code: "smm.duplicate_drafts",
+      severity: "warning",
+      title: `В очереди ${state.trend.duplicateDraftIds.length} черновиков-дублей: та же тема уже стоит или вышла на той же площадке`,
+      detail:
+        "Черновик без текста стоит одной строки в базе и перепишется планировщиком с новой темой; "
+        + "написанный и выпущенный дубль стоит обращений к моделям и читателя, который его пролистал.",
+      directive: {
+        key: `${today}:smm.retire_duplicate_drafts`,
+        target: "conveyor",
+        action: "retire_duplicate_drafts",
+        payload: { ids: state.trend.duplicateDraftIds.slice(0, 50) },
+        problem: `черновиков-дублей в очереди: ${state.trend.duplicateDraftIds.length}`,
+        rationale:
+          "Снимаю пустые черновики, чья тема уже занята на площадке в окне плана. Слоты "
+          + "освобождаются, следующий проход заполнит их другими темами. Откат — вернуть "
+          + "строкам статус DRAFT.",
+        risk: "reversible",
+      },
+    });
+  }
+
   return findings;
 }
+
+/** B746 — пороги разнообразия. Числа из замера прода 2026-09-15. */
+export const DIVERSITY_MIN_POSTS = 5;
+export const DIVERSITY_REPEAT_MAX = 3;
+export const DIVERSITY_MIN_DISTINCT_SHARE = 0.6;
 
 /** Правки, которые из находок следуют. Порядок сохраняется. */
 export function directivesFrom(findings: readonly OrchestratorFinding[]): OrchestratorDirective[] {

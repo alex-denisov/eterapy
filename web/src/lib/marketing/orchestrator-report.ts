@@ -23,7 +23,8 @@ import { MARKETING_ORCHESTRATOR_REPORT_FEATURE } from "@/lib/marketing/model-poo
 import { describeDirective, type OrchestratorDirective } from "@/lib/marketing/orchestrator-actions";
 import type { OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
 import type { OrchestratorState } from "@/lib/marketing/orchestrator-state";
-import { humanRegistrationTargets } from "@/lib/seo/backlink-targets";
+import { pendingHumanTargets, type BacklinkStatusMap, type BacklinkTargetState } from "@/lib/seo/backlink-targets";
+import type { TrendState, WeekDelta } from "@/lib/marketing/orchestrator-trend";
 import { KPI_PERIOD_TITLES, type KpiPeriod, type KpiVerdict } from "@/lib/marketing/kpi";
 
 const SEVERITY_MARK: Record<OrchestratorFinding["severity"], string> = {
@@ -213,23 +214,78 @@ const AGENT_TITLES = {
  * сам: он про шаги, которые владелец делает один раз. Ежедневное повторение
  * превратило бы его в шум и научило бы пролистывать весь отчёт.
  */
-export function backlinkPoolBlock(now: Date): string[] {
+export function backlinkPoolBlock(now: Date, backlinks?: readonly BacklinkTargetState[]): string[] {
   // Понедельник по Москве — один раз в неделю, в начале рабочей недели.
   const moscow = new Date(now.getTime() + 3 * 60 * 60_000);
   if (moscow.getUTCDay() !== 1) return [];
-  const targets = humanRegistrationTargets();
-  if (targets.length === 0) return [];
-  const lines = ["🔗 <b>Внешние ссылки: где нужна ваша регистрация</b>"];
-  lines.push(
-    "<i>Одноразовые аккаунты ради ссылок не завожу: это дословное определение "
-    + "ссылочной схемы у обеих систем, а домен уже переживал снятие страниц с "
-    + "индекса. Ниже — площадки, где ссылка законна и полезна, но регистрацию "
-    + "проходит только человек.</i>",
+  /**
+   * B746 — просим только то, что ещё не сделано. Состояние шага владелец
+   * отмечает в суперадминке, оркестратор читает его из базы: «сделано»
+   * называется сделанным, «отклонено» не повторяется, ждущее — просится.
+   */
+  const status: BacklinkStatusMap = Object.fromEntries(
+    (backlinks ?? []).map((target) => [target.id, { status: target.status }]),
   );
-  for (const target of targets) {
-    lines.push(`• <b>${target.title}</b> — ${target.url}`);
-    lines.push(`  Шаг: ${target.humanStep}`);
-    lines.push(`  Зачем: ${target.why}`);
+  const targets = backlinks ? pendingHumanTargets(status) : pendingHumanTargets({});
+  const done = (backlinks ?? []).filter((target) => target.route === "human" && target.status === "done");
+  if (targets.length === 0 && done.length === 0) return [];
+  const lines = ["🔗 <b>Внешние ссылки: где нужна ваша регистрация</b>"];
+  if (targets.length > 0) {
+    lines.push(
+      "<i>Одноразовые аккаунты ради ссылок не завожу: это дословное определение "
+      + "ссылочной схемы у обеих систем, а домен уже переживал снятие страниц с "
+      + "индекса. Ниже — площадки, где ссылка законна и полезна, но регистрацию "
+      + "проходит только человек. Отметить сделанное: суперадминка → SMM и SEO агент.</i>",
+    );
+    for (const target of targets) {
+      lines.push(`• <b>${target.title}</b> — ${target.url}`);
+      lines.push(`  Шаг: ${target.humanStep}`);
+      lines.push(`  Зачем: ${target.why}`);
+    }
+  }
+  if (done.length > 0) {
+    lines.push(`✅ Сделано: ${done.map((target) => target.title).join("; ")}`);
+  }
+  return lines;
+}
+
+/**
+ * B746 — ЧТО ИЗМЕНИЛОСЬ: НЕДЕЛЯ К НЕДЕЛЕ, ЧИСЛАМИ И СТРЕЛКАМИ.
+ *
+ * Владелец 2026-09-15: «хочу чтоб в отчётах видно было тенденцию — что
+ * изменилось и как улучшилось, а то он топчется на месте». Срез «как сейчас»
+ * не отвечает на этот вопрос по построению; отвечает разность двух окон.
+ * Стрелка — по направлению «лучше» для метрики, а не по знаку числа.
+ */
+function deltaMark(delta: WeekDelta): string {
+  if (delta.current === delta.previous) return "＝";
+  const improved = delta.better === "up" ? delta.current > delta.previous : delta.current < delta.previous;
+  return improved ? "▲" : "▼";
+}
+
+function deltaPercent(delta: WeekDelta): string {
+  if (delta.previous === 0) return delta.current === 0 ? "" : " (с нуля)";
+  const change = Math.round(((delta.current - delta.previous) / delta.previous) * 100);
+  return ` (${change > 0 ? "+" : ""}${change} %)`;
+}
+
+export function trendBlock(trend: TrendState): string[] {
+  if (trend.weeks.length === 0) return [];
+  const lines = ["📈 <b>Что изменилось за неделю</b> <i>(7 дней против предыдущих 7)</i>"];
+  for (const delta of trend.weeks) {
+    lines.push(
+      `${deltaMark(delta)} ${delta.label}: <b>${delta.current}${delta.unit}</b> ← ${delta.previous}${delta.unit}${deltaPercent(delta)}`,
+    );
+  }
+  const feeds = trend.diversity.filter((feed) => feed.posts >= 3);
+  if (feeds.length > 0) {
+    lines.push("<b>Однотипность лент за 7 дней</b> (разных заголовков / постов · с картинкой · форматов)");
+    for (const feed of feeds) {
+      lines.push(
+        `• ${feed.platform}: ${feed.distinctTitles}/${feed.posts} · ${Math.round(feed.mediaShare * 100)} % · ${feed.formats}`
+        + (feed.topTitleCount >= 2 ? ` · повтор ×${feed.topTitleCount}: «${(feed.topTitle ?? "").slice(0, 48)}»` : ""),
+      );
+    }
   }
   return lines;
 }
@@ -347,12 +403,14 @@ export function buildOrchestratorReport(input: {
     : "🧭 <b>Отчёт оркестратора</b>";
   const ownerActions = ownerActionsBlock(input.findings);
   const selfReview = selfReviewBlock(input.state);
-  const backlinks = backlinkPoolBlock(input.state.now);
+  const backlinks = backlinkPoolBlock(input.state.now, input.state.backlinks);
   const kpi = input.kpi ? kpiBlock(input.kpi.verdicts, input.kpi.period) : [];
+  const trend = trendBlock(input.state.trend);
   const blocks = [
     `${header}\n<i>${moscowTime(input.state.now)} МСК</i>`,
     ...(input.narrative ? [input.narrative] : []),
     stateBlock(input.state).join("\n"),
+    ...(trend.length > 0 ? [trend.join("\n")] : []),
     ...(kpi.length > 0 ? [kpi.join("\n")] : []),
     findingsBlock(input.findings).join("\n"),
     directivesBlock(input.directives, ownerActions.length > 0).join("\n"),

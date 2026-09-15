@@ -31,6 +31,7 @@ export type DirectiveAction =
   | "toggle_provider"
   | "update_prompt"
   | "requeue_publications"
+  | "retire_duplicate_drafts"
   | "resolve_signal";
 
 export interface OrchestratorDirective {
@@ -215,6 +216,32 @@ export async function applyDirective(directive: OrchestratorDirective): Promise<
         return { applied: true, previous: { rows } };
       }
 
+      case "retire_duplicate_drafts": {
+        /**
+         * B746 — снимаются ТОЛЬКО пустые черновики: без утверждённого текста и
+         * не выпущенные. Написанный материал стоит обращений к моделям, и его
+         * судьбу решает редактор, а не оркестратор.
+         */
+        const ids = Array.isArray(directive.payload.ids)
+          ? directive.payload.ids.filter((id): id is string => typeof id === "string")
+          : [];
+        if (ids.length === 0) return { applied: false, previous: null, error: "нечего снимать" };
+        const rows = await db.externalPublication.findMany({
+          where: { id: { in: ids }, status: "DRAFT", agentReviewedAt: null },
+          select: { id: true, status: true },
+        });
+        if (rows.length === 0) return { applied: false, previous: null, error: "пустых черновиков среди названных нет" };
+        await db.externalPublication.updateMany({
+          where: { id: { in: rows.map((row) => row.id) } },
+          data: {
+            status: "ARCHIVED",
+            autoPublish: false,
+            archiveReason: "B746: черновик-дубль снят оркестратором — тема уже занята на площадке в окне плана",
+          },
+        });
+        return { applied: true, previous: { rows } };
+      }
+
       case "resolve_signal": {
         const key = String(directive.payload.signalKey ?? "");
         if (!key) return { applied: false, previous: null, error: "сигнал не назван" };
@@ -266,6 +293,10 @@ export function describeDirective(directive: OrchestratorDirective): string {
     case "requeue_publications": {
       const ids = Array.isArray(directive.payload.ids) ? directive.payload.ids.length : 0;
       return `вернуть в работу материалов: ${ids}`;
+    }
+    case "retire_duplicate_drafts": {
+      const ids = Array.isArray(directive.payload.ids) ? directive.payload.ids.length : 0;
+      return `снять черновиков-дублей: ${ids}`;
     }
     case "resolve_signal":
       return `снять с доски сигнал ${String(directive.payload.signalKey)}`;

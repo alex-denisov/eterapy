@@ -42,6 +42,8 @@ import { DEFAULT_PROVIDER_MODELS } from "@/lib/ai-gateway/provider-runtime";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { AdminHero, AnalyticsSection, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { ConveyorAutoRefresh } from "./auto-refresh";
+import { BacklinkStatusPanel } from "./backlink-status";
+import { BACKLINK_STATUS_KEY, backlinkTargetsWithStatus, parseBacklinkStatus } from "@/lib/seo/backlink-targets";
 import { MarketingAgentControls } from "./agent-controls";
 import { MarketingInboundTable, type InboundTableRow } from "./inbound-table";
 import { MarketingPlatformSettings } from "./platform-settings";
@@ -240,6 +242,21 @@ export default async function MarketingAgentPage() {
     ? [{ ...telegramPresence, platform: "max", mode: "зеркало Telegram" as const }]
     : [];
   const presenceToday = [...engagementToday, ...scheduledToday, ...maxPresence];
+
+  // B746: состояние шагов человека по внешним площадкам — из базы.
+  const backlinkStatusRow = await db.platformSetting
+    .findUnique({ where: { key: BACKLINK_STATUS_KEY }, select: { value: true } })
+    .catch(() => null);
+  const backlinkRows = backlinkTargetsWithStatus(parseBacklinkStatus(backlinkStatusRow?.value ?? null)).map((target) => ({
+    id: target.id,
+    title: target.title,
+    url: target.url,
+    route: target.route,
+    humanStep: target.humanStep ?? null,
+    status: target.status,
+    note: target.note,
+    updatedAt: target.updatedAt,
+  }));
 
   // B626: карточки коннекторов занимали три экрана и повторяли одни и те же
   // подписи. Та же информация в компактной таблице суперадминки читается
@@ -672,6 +689,16 @@ export default async function MarketingAgentPage() {
           сторож просроченного ответа.
         </p>
         <MarketingInboundTable rows={inboundRows} />
+      </AnalyticsSection>
+
+      <AnalyticsSection title="Внешние площадки: где нужен человек">
+        <p className="mb-3 text-xs text-slate-600">
+          Оркестратор просит эти регистрации по понедельникам и читает отметку
+          отсюда: «сделано» перестаёт просить, «отклонено» не повторяется.
+          Одноразовые аккаунты ради ссылок не заводим (B742): ссылка законна
+          там, где у нас своё пространство или карточка организации.
+        </p>
+        <BacklinkStatusPanel rows={backlinkRows} />
       </AnalyticsSection>
 
       {dzenFeed ? (
