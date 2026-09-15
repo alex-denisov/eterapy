@@ -223,6 +223,11 @@ export interface GenerateDraftsResult {
   planExhausted: boolean;
 }
 
+/** Московские сутки строки плана — тот же ключ, что `slot.scheduledAt.slice(0, 10)`. */
+function moscowDayKey(value: Date): string {
+  return new Date(value.getTime() + 3 * 60 * 60_000).toISOString().slice(0, 10);
+}
+
 export async function generateMarketingDrafts(input: {
   now?: Date;
   target?: number;
@@ -385,11 +390,30 @@ export async function generateMarketingDrafts(input: {
         lte: new Date(now.getTime() + CROSS_PLATFORM_TOPIC_WINDOW_MS),
       },
     },
-    select: { cluster: true, targetQuery: true },
+    select: { cluster: true, targetQuery: true, utmContent: true, scheduledFor: true },
   }).catch(() => []);
   const usedAcrossFleet = new Set(
     recentRows.map(topicArticleSlug).filter((value): value is string => Boolean(value)),
   );
+  /**
+   * B746 — квота кластера и «давность» кластера считаются ОТ БАЗЫ, а не от
+   * одного прохода. Проход добавляет один-два слота, и `clusterByDay` внутри
+   * него был пуст — правило B718 «один кластер на сутки на флот» держалось
+   * только между слотами одного захода. Здесь же считается, сколько раз
+   * кластер уже стоит в окне: планировщик предпочитает тот, что выходил реже.
+   */
+  const clustersByDay = new Map<string, Set<string>>();
+  const clusterUsage = new Map<string, number>();
+  for (const row of recentRows) {
+    const cluster = row.cluster?.trim();
+    if (!cluster) continue;
+    clusterUsage.set(cluster, (clusterUsage.get(cluster) ?? 0) + 1);
+    if (!row.scheduledFor) continue;
+    const day = moscowDayKey(row.scheduledFor);
+    const set = clustersByDay.get(day) ?? new Set<string>();
+    set.add(cluster);
+    clustersByDay.set(day, set);
+  }
 
   for (const platform of UNIQUE_TOPIC_PLATFORMS) {
     const rows = await db.externalPublication.findMany({
@@ -398,7 +422,7 @@ export async function generateMarketingDrafts(input: {
         status: { not: "ARCHIVED" },
         planSlot: { not: null },
       },
-      select: { cluster: true, targetQuery: true },
+      select: { cluster: true, targetQuery: true, utmContent: true },
     }).catch(() => []);
     usedTopicsByPlatform.set(
       platform,
@@ -428,7 +452,14 @@ export async function generateMarketingDrafts(input: {
     const wordstat = await cachedWordstatWatchlist().catch(() => []);
     const signals = mergeDemandSignals([demandFromCore(), demandFromWordstat(wordstat)]);
     const trends = await scanTrends().catch(() => []);
-    for (const [key, topic] of planTopicsForSlots({ slots, signals, trends, usedByPlatform: usedTopicsByPlatform })) {
+    for (const [key, topic] of planTopicsForSlots({
+      slots,
+      signals,
+      trends,
+      usedByPlatform: usedTopicsByPlatform,
+      clustersByDay,
+      clusterUsage,
+    })) {
       plannedTopics.set(key, topic);
     }
   }

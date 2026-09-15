@@ -121,21 +121,56 @@ export function planTopicsForSlots(input: {
   trends: TrendCandidate[];
   /** articleSlug, уже занятые на площадке слота. */
   usedByPlatform: ReadonlyMap<string, ReadonlySet<string>>;
+  /**
+   * B746 — кластеры, уже стоящие в плане по суткам (ключ — московская дата),
+   * и сколько раз каждый кластер встречается в окне. Оба — из базы: проход
+   * видит один-два слота, а лента живёт неделями.
+   */
+  clustersByDay?: ReadonlyMap<string, ReadonlySet<string>>;
+  clusterUsage?: ReadonlyMap<string, number>;
 }): Map<string, PlannedTopic> {
   const result = new Map<string, PlannedTopic>();
+  // Приоритет роли планировщика: живой тренд > спрос > тема-запас.
+  const tier = (candidate: TopicCandidate) =>
+    candidate.trendBonus > 0 && candidate.trendTopics.length > 0 ? 0
+      : candidate.demandScore > 0 ? 1
+        : 2;
+  // Внутри слоя — спрос + трендовый бонус, при равенстве — по имени статьи:
+  // решение детерминировано и «переживает перезапуск».
   const candidates = buildCandidates(input.signals, input.trends)
-    .sort((left, right) => {
-      // Приоритет роли планировщика: живой тренд > спрос > тема-запас.
-      // Внутри слоя — спрос + трендовый бонус, при равенстве — по имени
-      // статьи: решение детерминировано и «переживает перезапуск».
-      const tier = (candidate: TopicCandidate) =>
-        candidate.trendBonus > 0 && candidate.trendTopics.length > 0 ? 0
-          : candidate.demandScore > 0 ? 1
-            : 2;
-      return tier(left) - tier(right)
+    .sort((left, right) =>
+      tier(left) - tier(right)
           || right.demandScore + right.trendBonus - (left.demandScore + left.trendBonus)
-          || left.articleSlug.localeCompare(right.articleSlug);
-    });
+          || left.articleSlug.localeCompare(right.articleSlug));
+  const rank = new Map(candidates.map((candidate, index) => [candidate.articleSlug, index]));
+
+  /**
+   * B746 — РОТАЦИЯ КЛАСТЕРОВ, А НЕ ЖАДНЫЙ СПРОС.
+   *
+   * Жадный выбор сверху ранжирования при 199 карточках и ~50 слотах в неделю
+   * отдавал ленту двум-трём кластерам с самым высоким спросом («Матрица
+   * судьбы», «Натальная карта») — владелец 2026-09-15: «по разным темам, а не
+   * только арканы, которые уже надоели». Правило: сначала кластер, который в
+   * окне выходил РЕЖЕ ВСЕХ, внутри него — прежний порядок (тренд > спрос).
+   * Живой тренд ротацию обходит: событие дня важнее равномерности.
+   */
+  const usage = new Map<string, number>(input.clusterUsage ?? []);
+  const usageOf = (candidate: TopicCandidate) => usage.get(candidate.cluster) ?? 0;
+  const better = (left: TopicCandidate, right: TopicCandidate) => {
+    const leftTrend = tier(left) === 0;
+    const rightTrend = tier(right) === 0;
+    if (leftTrend !== rightTrend) return leftTrend ? -1 : 1;
+    return usageOf(left) - usageOf(right)
+      || (rank.get(left.articleSlug) ?? 0) - (rank.get(right.articleSlug) ?? 0);
+  };
+  const pick = (allowed: (candidate: TopicCandidate) => boolean): TopicCandidate | null => {
+    let best: TopicCandidate | null = null;
+    for (const candidate of candidates) {
+      if (!allowed(candidate)) continue;
+      if (!best || better(candidate, best) < 0) best = candidate;
+    }
+    return best;
+  };
 
   const taken = new Set<string>();
   /**
@@ -158,7 +193,9 @@ export function planTopicsForSlots(input: {
    * слот получает лучшего доступного: пустой слот хуже однотемного. Поэтому
    * поиск двухступенчатый, а не один `find` с двумя условиями.
    */
-  const clusterByDay = new Map<string, Set<string>>();
+  const clusterByDay = new Map<string, Set<string>>(
+    [...(input.clustersByDay ?? [])].map(([day, clusters]) => [day, new Set(clusters)]),
+  );
 
   for (const slot of input.slots) {
     const usedOnPlatform = input.usedByPlatform.get(slot.channel) ?? new Set<string>();
@@ -166,11 +203,12 @@ export function planTopicsForSlots(input: {
       !taken.has(candidate.articleSlug) && !usedOnPlatform.has(candidate.articleSlug);
     const day = slot.scheduledAt.slice(0, 10);
     const clustersToday = clusterByDay.get(day) ?? new Set<string>();
-    const next = candidates.find((candidate) => free(candidate) && !clustersToday.has(candidate.cluster))
-      ?? candidates.find(free);
+    const next = pick((candidate) => free(candidate) && !clustersToday.has(candidate.cluster))
+      ?? pick(free);
     if (!next) continue;
     clustersToday.add(next.cluster);
     clusterByDay.set(day, clustersToday);
+    usage.set(next.cluster, usageOf(next) + 1);
     taken.add(next.articleSlug);
     const origin: TopicOrigin = next.trendBonus > 0 && next.trendTopics.length > 0
       ? "trend"

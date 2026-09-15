@@ -633,7 +633,21 @@ export function withUnusedTopic(
 export function topicArticleSlug(row: {
   targetQuery?: string | null;
   cluster?: string | null;
+  utmContent?: string | null;
 }): string | null {
+  /**
+   * B746 — СЛАГ СТАТЬИ ЛЕЖИТ В `utmContent` У КАЖДОЙ СТРОКИ ПЛАНА.
+   *
+   * `destinationUrlFor` пишет `utm_content = articleSlug`, и это единственное
+   * поле, по которому тема планировщика (карточка Библиотеки, B702) опознаётся
+   * обратно. Прежний разбор ниже знал только 16 остовных тем `TOPICS`: тема
+   * планировщика возвращала `null`, НЕ считалась занятой, и каждый проход
+   * снова отдавал свободному слоту кандидата №1 по спросу. Замер прода
+   * 2026-09-15: «9 аркан (Отшельник)» — 20 строк за 20 суток, 10 выпусков в
+   * Telegram за 12 суток.
+   */
+  const bySlug = row.utmContent?.trim().toLowerCase();
+  if (bySlug && /^[a-z0-9-]+$/.test(bySlug)) return bySlug;
   const byQuery = row.targetQuery?.trim().toLowerCase();
   if (byQuery) {
     const topic = TOPICS.find((entry) => entry.targetQuery.toLowerCase() === byQuery);
