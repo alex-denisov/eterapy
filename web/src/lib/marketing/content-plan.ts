@@ -517,10 +517,38 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     }
   });
 
-  return result.sort((left, right) =>
+  const sorted = result.sort((left, right) =>
     new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()
       || left.order - right.order
   ).map((entry, index) => ({ ...entry, order: index + 1 }));
+
+  /**
+   * B746 — ОКНО СЛОТА НЕ ДОТЯГИВАЕТСЯ ДО СЛЕДУЮЩЕГО СЛОТА ТОЙ ЖЕ ПЛОЩАДКИ.
+   *
+   * Раньше это держалось составом форматов: у Telegram три класса на три
+   * времени суток, и трёхчасовое окно никогда не вставало в утро. С
+   * библиотекой форматов класс слота — любой, и «разбор» (3 ч) в утро
+   * выходного (10:00 → 13:30, зазор 3,5 ч) с джиттером ±45 минут доставал бы
+   * до дневного слота. Свойство теперь удерживается КОДОМ: окно усекается по
+   * началу следующего слота площадки в те же сутки. Короче окно — раньше
+   * перенос на следующий слот (B645), а не два поста в один час.
+   */
+  const byChannelDay = new Map<string, ContentPlanSlot[]>();
+  for (const slot of sorted) {
+    const key = `${slot.channel}:${slot.scheduledAt.slice(0, 10)}`;
+    byChannelDay.set(key, [...(byChannelDay.get(key) ?? []), slot]);
+  }
+  const clamped = new Map<string, number>();
+  for (const slots of byChannelDay.values()) {
+    for (let index = 0; index + 1 < slots.length; index += 1) {
+      const at = new Date(slots[index].scheduledAt).getTime();
+      const nextAt = new Date(slots[index + 1].scheduledAt).getTime();
+      if (at + slots[index].toleranceMs > nextAt) clamped.set(slots[index].key, Math.max(60_000, nextAt - at));
+    }
+  }
+  return sorted.map((slot) => (
+    clamped.has(slot.key) ? { ...slot, toleranceMs: clamped.get(slot.key)! } : slot
+  ));
 }
 
 export const CONTENT_PLAN_START_AT = new Date("2026-07-29T05:30:00.000Z");

@@ -422,7 +422,12 @@ export const TELEGRAM_FORMATS: readonly PostFormat[] = [
     construction:
       "Один вопрос подписчикам — и всё. Без подводки, без своего ответа, без «напишите в комментариях». "
       + "Вопрос такой, что на него хочется ответить историей, а не «да/нет».",
-    contentClass: "discussion",
+    /**
+     * Класс `story`, а не `discussion`, намеренно: у Telegram три времени суток
+     * с зазором 08:30 → 13:00, и окно `discussion` (4 ч) с джиттером дотянулось
+     * бы до соседнего слота — прогон B700 сторожит это по всему плану.
+     */
+    contentClass: "story",
     weight: 1,
     media: "none",
     link: false,
@@ -438,7 +443,12 @@ export const TELEGRAM_FORMATS: readonly PostFormat[] = [
     construction:
       "Одно спорное утверждение и два-три предложения, почему так, — без смягчения и без «но это только "
       + "моё мнение». Пост существует ради несогласия.",
-    contentClass: "discussion",
+    /**
+     * Класс `story`, а не `discussion`, намеренно: у Telegram три времени суток
+     * с зазором 08:30 → 13:00, и окно `discussion` (4 ч) с джиттером дотянулось
+     * бы до соседнего слота — прогон B700 сторожит это по всему плану.
+     */
+    contentClass: "story",
     weight: 1,
     media: "none",
     link: false,

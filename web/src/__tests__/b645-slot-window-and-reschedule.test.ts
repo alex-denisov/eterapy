@@ -107,19 +107,21 @@ describe("окно слота", () => {
 describe("выбор следующего слота", () => {
   it("предпочитает тот же формат и никогда не уводит в чужой канал", () => {
     const plan = contentPlanFor(NOW);
-    const morning = plan.find((slot) =>
-      slot.channel === "telegram" && slot.format === "утренняя символическая карточка");
+    // B746: форматы Telegram живут в библиотеке `post-formats.ts`; берём
+    // первый телеграм-слот плана и его формат — свойство переноса от
+    // названия не зависит.
+    const morning = plan.find((slot) => slot.channel === "telegram");
     expect(morning).toBeDefined();
 
     const candidates = nextSlotCandidates({
       platform: "telegram",
-      format: "утренняя символическая карточка",
+      format: morning!.format,
       now: NOW,
       takenSlotKeys: [],
       plan,
     });
 
-    expect(candidates[0].format).toBe("утренняя символическая карточка");
+    expect(candidates[0].format).toBe(morning!.format);
     expect(candidates.every((slot) => slot.channel === "telegram")).toBe(true);
   });
 

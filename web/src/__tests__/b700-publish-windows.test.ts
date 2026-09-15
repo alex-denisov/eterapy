@@ -114,7 +114,9 @@ describe("B700 фаза 4 · план собирается из окон", () =>
       expect(slot.contentClass).toBeTruthy();
       expect(slot.daypart).toBeTruthy();
       expect(slot.toleranceMs).toBeGreaterThan(0);
-      expect(slot.toleranceMs).toBe(slotToleranceMsFor(slot.contentClass));
+      // B746: окно класса усекается по началу следующего слота площадки —
+      // не длиннее классового, и никогда не короче минуты.
+      expect(slot.toleranceMs).toBeLessThanOrEqual(slotToleranceMsFor(slot.contentClass));
     }
   });
 
