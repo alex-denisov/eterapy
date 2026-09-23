@@ -84,6 +84,8 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
     },
     causes: [],
     stalledIds: [],
+    feeds: [],
+    lockedSlotIds: [],
     sources: {
       webmaster: { searchablePages: 80, excludedPages: 5, sitemapUrls: 90, recrawlRemaining: 20 },
       webmasterError: null,

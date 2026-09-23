@@ -99,8 +99,15 @@ describe("B706: Dynamic Playbook Contract Overrides", () => {
   });
 
   test("platformContractForPrompt renders prompt instructions with overrides", () => {
+    // Функция отдаёт Record<string, unknown> — это данные для промта, а не
+    // типизированный контракт; тест читает известные ему поля.
+    type PromptContract = {
+      characters: { min: number; max: number };
+      links: { max: number };
+      cta: { policy: string };
+    };
     const baseContract = platformContract("vk");
-    const promptWithoutOverride = platformContractForPrompt("vk");
+    const promptWithoutOverride = platformContractForPrompt("vk") as unknown as PromptContract;
     expect(promptWithoutOverride.characters.min).toBe(baseContract.minCharacters);
     expect(promptWithoutOverride.characters.max).toBe(baseContract.maxCharacters);
 
@@ -110,7 +117,7 @@ describe("B706: Dynamic Playbook Contract Overrides", () => {
       maxCharacters: 1555,
       maxLinks: 0,
       ctaPolicy: "discouraged",
-    });
+    }) as unknown as PromptContract;
     expect(promptWithOverride.characters.min).toBe(555);
     expect(promptWithOverride.characters.max).toBe(1555);
     expect(promptWithOverride.links.max).toBe(0);
@@ -121,10 +128,16 @@ describe("B706: Dynamic Playbook Contract Overrides", () => {
     const baseContract = platformContract("telegram");
     // Generate draft of 600 chars
     const draftText = "А".repeat(600);
-    const draft = {
+    const draft: Parameters<typeof repairPublishableDraft>[0]["draft"] = {
       title: "Заголовок",
       text: draftText,
+      audienceNeed: "",
+      goal: "",
+      disclosure: "",
+      cta: "",
       mediaBrief: "Минималистичная иллюстрация",
+      researchUsed: [],
+      safetyFlags: [],
     };
 
     // Without override (telegram default maxCharacters is 4096), 600 chars is valid and not trimmed

@@ -42,6 +42,7 @@ import { promptAmendmentDirective } from "@/lib/marketing/orchestrator-prompt-am
 import {
   buildOrchestratorReport,
   narrativeFor,
+  splitForTelegram,
 } from "@/lib/marketing/orchestrator-report";
 
 export const ORCHESTRATOR_HOLD_KEY = "marketing.orchestrator.hold";
@@ -177,7 +178,9 @@ async function deliver(message: string, chart?: { bytes: ArrayBuffer; filename: 
   }
   for (const chatId of targets) {
     try {
-      await sendTelegram(chatId, message);
+      // B747: отчёт длиннее предела уходит несколькими сообщениями. Отказ
+      // любой части — отказ доставки: половина отчёта хуже, чем его повтор.
+      for (const part of splitForTelegram(message)) await sendTelegram(chatId, part);
       // Картинка — вторым сообщением и без права уронить доставку текста.
       if (chart) {
         await sendTelegramPhoto(chatId, "📈 Тренд за 14 дней: постов и разных заголовков, просмотров, страниц Библиотеки, показов и кликов в поиске", chart)

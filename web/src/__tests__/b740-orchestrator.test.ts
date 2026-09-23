@@ -75,6 +75,8 @@ function stateWith(overrides: Partial<OrchestratorState> = {}): OrchestratorStat
     },
     causes: [],
     stalledIds: [],
+    feeds: [],
+    lockedSlotIds: [],
     // B741: здоровый контур — оба источника ответили, тонких карточек нет.
     sources: {
       webmaster: { searchablePages: 80, excludedPages: 5, sitemapUrls: 90, recrawlRemaining: 20 },

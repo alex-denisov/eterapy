@@ -420,3 +420,39 @@ export function buildOrchestratorReport(input: {
   ];
   return blocks.join("\n\n");
 }
+
+/**
+ * B747 — ОТЧЁТ ДЛИННЕЕ ПРЕДЕЛА TELEGRAM РЕЖЕТСЯ, А НЕ ТЕРЯЕТСЯ.
+ *
+ * Замер прода 16.09–20.09: при 7–9 находках текст перерастал 4096 символов,
+ * Telegram отвечал «message is too long», проход писал «отчёт не доставлен —
+ * правки не применяю», и пять суток оркестратор не сделал ничего. Чем больше
+ * проблем, тем длиннее отчёт — то есть отказывал он ровно тогда, когда нужен.
+ *
+ * Резка идёт по строкам, жадно: каждая строка отчёта закрывает свои HTML-теги
+ * сама, поэтому граница строки — безопасная граница сообщения.
+ * Строка длиннее предела (не встречается в отчёте) режется по символам.
+ */
+export const TELEGRAM_REPORT_CHUNK = 4000;
+
+export function splitForTelegram(text: string, limit: number = TELEGRAM_REPORT_CHUNK): string[] {
+  if (text.length <= limit) return [text];
+  const pieces = text.split("\n").flatMap((line) => {
+    if (line.length <= limit) return [line];
+    return Array.from({ length: Math.ceil(line.length / limit) }, (_, index) =>
+      line.slice(index * limit, (index + 1) * limit));
+  });
+  const chunks: string[] = [];
+  let current = "";
+  for (const piece of pieces) {
+    const candidate = current === "" ? piece : `${current}\n${piece}`;
+    if (candidate.length <= limit) {
+      current = candidate;
+      continue;
+    }
+    if (current.trim() !== "") chunks.push(current.trimEnd());
+    current = piece;
+  }
+  if (current.trim() !== "") chunks.push(current.trimEnd());
+  return chunks;
+}

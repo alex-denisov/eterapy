@@ -8,6 +8,7 @@
  */
 
 import db from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { log, serializeError } from "@/lib/logger";
 import { conveyorSnapshot, type ConveyorSnapshot } from "@/lib/marketing/conveyor-snapshot";
 import { MARKETING_ACTIVE_PROVIDERS } from "@/lib/marketing/model-pool";
@@ -19,6 +20,7 @@ import { thinCards } from "@/lib/seo/backfill";
 import { dzenBrowserHealth, type BrowserSessionHealth } from "@/lib/marketing/browser-publisher";
 import { VERTEX_CREDENTIAL_LABEL } from "@/lib/ai-gateway/free-tier-bootstrap";
 import { collectTrend, type TrendState } from "@/lib/marketing/orchestrator-trend";
+import { contentPlanFor } from "@/lib/marketing/content-plan";
 import {
   BACKLINK_STATUS_KEY,
   backlinkTargetsWithStatus,
@@ -60,6 +62,20 @@ export interface SeoState {
   lastPublishedAt: Date | null;
 }
 
+/**
+ * B747 — выпуск площадки за две недели.
+ *
+ * Находки SMM раньше строились только из ВСТАВШИХ за сутки материалов. Когда
+ * материалов нет вовсе, нет и вставших — и неделя без единого поста выглядела
+ * для диагноза как «всё спокойно». Тишина видна только от выпуска.
+ */
+export interface FeedOutput {
+  platform: string;
+  lastPublishedAt: Date | null;
+  /** Выпущено за 14 суток — из него диагноз выводит обычный шаг ленты. */
+  publishedFortnight: number;
+}
+
 /** Причина, по которой материалы вставали, и сколько раз за сутки. */
 export interface CauseTally {
   reason: string;
@@ -93,6 +109,13 @@ export interface OrchestratorState {
   causes: CauseTally[];
   /** Материалы, вставшие насмерть за сутки — кандидаты на возврат в работу. */
   stalledIds: string[];
+  /** B747 — выпуск каждой площадки действующего плана. */
+  feeds: FeedOutput[];
+  /**
+   * B747 — пустые архивные строки, которые всё ещё держат будущий слот плана.
+   * Планировщик считает такой слот занятым, и он не заполнится никогда.
+   */
+  lockedSlotIds: string[];
   /**
    * B741 — живые ответы Вебмастера и Search Console.
    *
@@ -183,6 +206,8 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     recentDirectives,
     trend,
     backlinkStatusRaw,
+    feedRows,
+    lockedSlots,
   ] = await Promise.all([
     conveyorSnapshot({ now }),
     db.aIProviderConfig.findMany({
@@ -191,7 +216,16 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     }).catch(() => []),
     db.externalPublication.findMany({
       where: { updatedAt: { gte: dayAgo, lte: now } },
-      select: { id: true, platform: true, status: true, lastError: true, archiveReason: true },
+      select: {
+        id: true,
+        platform: true,
+        status: true,
+        lastError: true,
+        archiveReason: true,
+        attemptCount: true,
+        agentReviewedAt: true,
+        agentWrittenAt: true,
+      },
     }).catch(() => []),
     db.marketingAutomationSignal.findMany({
       where: { status: "OPEN" },
@@ -247,6 +281,38 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       .findUnique({ where: { key: BACKLINK_STATUS_KEY }, select: { value: true } })
       .then((row) => row?.value ?? null)
       .catch(() => null),
+    db.externalPublication.groupBy({
+      by: ["platform"],
+      where: { status: "PUBLISHED", publishedAt: { not: null } },
+      _max: { publishedAt: true },
+    }).then(async (last) => {
+      const fortnight = await db.externalPublication.groupBy({
+        by: ["platform"],
+        where: { status: "PUBLISHED", publishedAt: { gte: new Date(now.getTime() - 14 * 24 * 60 * 60_000) } },
+        _count: { _all: true },
+      });
+      return { last, fortnight };
+    }).catch((error: unknown) => {
+      log.warn("orchestrator.feeds_failed", { error: serializeError(error) });
+      return null;
+    }),
+    db.externalPublication.findMany({
+      where: {
+        status: "ARCHIVED",
+        planSlot: { not: null },
+        scheduledFor: { gt: now },
+        publishedAt: null,
+        agentReviewedAt: null,
+        attemptCount: 0,
+        agentWriterDraft: { equals: Prisma.DbNull },
+      },
+      orderBy: { scheduledFor: "asc" },
+      take: 100,
+      select: { id: true },
+    }).catch((error: unknown) => {
+      log.warn("orchestrator.locked_slots_failed", { error: serializeError(error) });
+      return [] as Array<{ id: string }>;
+    }),
   ]);
 
   // Состояние ключей берётся из самих credential'ов: именно их двигает
@@ -292,7 +358,13 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
     const platform = row.platform.trim().toLowerCase();
     const bucket = byPlatform.get(platform) ?? { published: 0, stalled: 0, reasons: [] };
     if (row.status === "PUBLISHED") bucket.published += 1;
-    if (row.status === "FAILED" || row.status === "ARCHIVED") {
+    // B747: пустая оболочка, снятая уборкой очереди (ни автора, ни редактора,
+    // ни попытки выпуска), — не отказ материала. Посчитанная как отказ, она
+    // становится «повторяющейся причиной», и 15.09 оркестратор предложил
+    // переписать промт SMM из-за пометки разовой чистки B746.
+    const emptyShell = row.status === "ARCHIVED"
+      && row.attemptCount === 0 && !row.agentReviewedAt && !row.agentWrittenAt;
+    if ((row.status === "FAILED" || row.status === "ARCHIVED") && !emptyShell) {
       bucket.stalled += 1;
       const reason = (row.archiveReason ?? row.lastError ?? "").trim();
       if (reason) bucket.reasons.push(reason.slice(0, 120));
@@ -344,5 +416,39 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       .map(([reason, count]) => ({ reason, count }))
       .sort((left, right) => right.count - left.count),
     stalledIds,
+    feeds: feedsFrom(feedRows, [...new Set(contentPlanFor(now).map((slot) => slot.channel))]),
+    lockedSlotIds: lockedSlots.map((row) => row.id),
   };
+}
+
+/**
+ * Выпуск по площадкам ДЕЙСТВУЮЩЕГО плана. Площадка без единого выпуска тоже
+ * попадает в список: её тишина — самая громкая. `null` на входе (база не
+ * ответила) даёт пустой список, а не «везде ноль»: ложная тревога о тишине
+ * всех площадок хуже пропущенного прохода.
+ */
+export function feedsFrom(
+  rows: {
+    last: Array<{ platform: string; _max: { publishedAt: Date | null } }>;
+    fortnight: Array<{ platform: string; _count: { _all: number } }>;
+  } | null,
+  plannedPlatforms: readonly string[],
+): FeedOutput[] {
+  if (!rows) return [];
+  // Регистр площадки в реестре не единый (`lower(platform)` в запросах, B686):
+  // «Telegram» и «telegram» — одна лента, и сводятся они вместе.
+  const norm = (value: string) => value.trim().toLowerCase();
+  return plannedPlatforms.map((platform) => {
+    const lastTimes = rows.last
+      .filter((row) => norm(row.platform) === platform)
+      .map((row) => row._max.publishedAt?.getTime() ?? 0);
+    const latest = Math.max(0, ...lastTimes);
+    return {
+      platform,
+      lastPublishedAt: latest > 0 ? new Date(latest) : null,
+      publishedFortnight: rows.fortnight
+        .filter((row) => norm(row.platform) === platform)
+        .reduce((sum, row) => sum + row._count._all, 0),
+    };
+  });
 }

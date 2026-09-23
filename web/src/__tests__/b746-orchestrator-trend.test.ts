@@ -75,6 +75,8 @@ function baseState(over: Partial<OrchestratorState> = {}): OrchestratorState {
     backlinks: [],
     causes: [],
     stalledIds: [],
+    feeds: [],
+    lockedSlotIds: [],
     recentDirectives: [],
     ...over,
   };

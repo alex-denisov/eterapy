@@ -21,7 +21,7 @@
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 import { updateAIPromptConfig } from "@/lib/ai-gateway/prompts";
-import { AIProvider } from "@prisma/client";
+import { AIProvider, Prisma } from "@prisma/client";
 
 export type DirectiveRisk = "reversible" | "monetary" | "irreversible";
 
@@ -32,6 +32,7 @@ export type DirectiveAction =
   | "update_prompt"
   | "requeue_publications"
   | "retire_duplicate_drafts"
+  | "release_locked_slots"
   | "resolve_signal";
 
 export interface OrchestratorDirective {
@@ -228,16 +229,55 @@ export async function applyDirective(directive: OrchestratorDirective): Promise<
         if (ids.length === 0) return { applied: false, previous: null, error: "нечего снимать" };
         const rows = await db.externalPublication.findMany({
           where: { id: { in: ids }, status: "DRAFT", agentReviewedAt: null },
-          select: { id: true, status: true },
+          select: { id: true, status: true, planSlot: true },
         });
         if (rows.length === 0) return { applied: false, previous: null, error: "пустых черновиков среди названных нет" };
+        // B747: снятый дубль ОТПУСКАЕТ слот. Архивная строка с `planSlot`
+        // считается занятой навсегда (`generateMarketingDrafts`), и без этого
+        // «следующий проход заполнит слот другой темой» было неправдой: так
+        // 43 слота 17–22.09 простояли пустыми, и неделю не вышло ни одного
+        // поста. Ключ слота остаётся в снимке «до» — откат вернёт его.
         await db.externalPublication.updateMany({
           where: { id: { in: rows.map((row) => row.id) } },
           data: {
             status: "ARCHIVED",
             autoPublish: false,
+            planSlot: null,
             archiveReason: "B746: черновик-дубль снят оркестратором — тема уже занята на площадке в окне плана",
           },
+        });
+        return { applied: true, previous: { rows } };
+      }
+
+      case "release_locked_slots": {
+        /**
+         * B747 — ПУСТАЯ АРХИВНАЯ СТРОКА НЕ ДЕРЖИТ СЛОТ.
+         *
+         * Отпускаются только оболочки: ни текста автора, ни решения редактора,
+         * ни попытки выпуска. Материал, который редактор признал негодным,
+         * слот держит намеренно (B705: перевыпуск был бы обходом редактора), и
+         * фильтр повторяет это условие в базе, а не верит списку из диагноза.
+         */
+        const ids = Array.isArray(directive.payload.ids)
+          ? directive.payload.ids.filter((id): id is string => typeof id === "string")
+          : [];
+        if (ids.length === 0) return { applied: false, previous: null, error: "нечего отпускать" };
+        const rows = await db.externalPublication.findMany({
+          where: {
+            id: { in: ids },
+            status: "ARCHIVED",
+            planSlot: { not: null },
+            publishedAt: null,
+            agentReviewedAt: null,
+            attemptCount: 0,
+            agentWriterDraft: { equals: Prisma.DbNull },
+          },
+          select: { id: true, planSlot: true },
+        });
+        if (rows.length === 0) return { applied: false, previous: null, error: "пустых запертых слотов среди названных нет" };
+        await db.externalPublication.updateMany({
+          where: { id: { in: rows.map((row) => row.id) } },
+          data: { planSlot: null },
         });
         return { applied: true, previous: { rows } };
       }
@@ -297,6 +337,10 @@ export function describeDirective(directive: OrchestratorDirective): string {
     case "retire_duplicate_drafts": {
       const ids = Array.isArray(directive.payload.ids) ? directive.payload.ids.length : 0;
       return `снять черновиков-дублей: ${ids}`;
+    }
+    case "release_locked_slots": {
+      const ids = Array.isArray(directive.payload.ids) ? directive.payload.ids.length : 0;
+      return `отпустить запертых слотов плана: ${ids}`;
     }
     case "resolve_signal":
       return `снять с доски сигнал ${String(directive.payload.signalKey)}`;

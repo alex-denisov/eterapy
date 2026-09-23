@@ -184,6 +184,9 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
     });
   }
 
+  // ── Тишина площадок и запертые слоты (B747) ──────────────────────────────
+  findings.push(...silenceFindings(state, today));
+
   // ── Площадки ──────────────────────────────────────────────────────────────
   for (const platform of state.platforms) {
     const total = platform.published + platform.stalled;
@@ -593,14 +596,93 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
         payload: { ids: state.trend.duplicateDraftIds.slice(0, 50) },
         problem: `черновиков-дублей в очереди: ${state.trend.duplicateDraftIds.length}`,
         rationale:
-          "Снимаю пустые черновики, чья тема уже занята на площадке в окне плана. Слоты "
-          + "освобождаются, следующий проход заполнит их другими темами. Откат — вернуть "
-          + "строкам статус DRAFT.",
+          "Снимаю пустые черновики, чья тема уже занята на площадке в окне плана, и отпускаю "
+          + "их слоты: следующий проход заполнит их другими темами. Откат — вернуть строкам "
+          + "статус DRAFT и ключ слота из снимка.",
         risk: "reversible",
       },
     });
   }
 
+  return findings;
+}
+
+/**
+ * B747 — порог тишины ленты.
+ *
+ * Шаг ленты выводится из её же выпуска за 14 суток: у Telegram три поста в
+ * сутки, у Instagram один в двое суток, и единый порог дал бы либо ложную
+ * тревогу по Instagram, либо сутки глухоты по Telegram. Тишина — дольше двух
+ * обычных шагов, но не меньше 36 часов (одни пропущенные сутки — ещё не
+ * поломка: окно слота могло сдвинуться).
+ */
+export const SMM_SILENT_MIN_HOURS = 36;
+export const SMM_SILENT_GAP_FACTOR = 2;
+
+export function silentThresholdHours(publishedFortnight: number): number {
+  if (publishedFortnight <= 0) return SMM_SILENT_MIN_HOURS;
+  const gap = (14 * 24) / publishedFortnight;
+  return Math.max(SMM_SILENT_MIN_HOURS, gap * SMM_SILENT_GAP_FACTOR);
+}
+
+/**
+ * B747 — ТИШИНА ВИДНА ТОЛЬКО ОТ ВЫПУСКА.
+ *
+ * Прод 17.09–22.09: ни одного поста за шесть суток, а оркестратор каждые 6 ч
+ * докладывал про SEO. Все его находки SMM строились из вставших за сутки
+ * материалов — а когда слотов нет вовсе, вставать нечему. Отсюда две находки:
+ * лента молчит (по времени последнего выпуска) и слот заперт (пустая архивная
+ * строка держит будущий ключ плана, и планировщик его никогда не заполнит).
+ */
+function silenceFindings(state: OrchestratorState, today: string): OrchestratorFinding[] {
+  const findings: OrchestratorFinding[] = [];
+  const locked = state.lockedSlotIds.length;
+  for (const feed of state.feeds) {
+    const silentFor = hoursBetween(state.now, feed.lastPublishedAt);
+    const threshold = silentThresholdHours(feed.publishedFortnight);
+    if (silentFor !== null && silentFor < threshold) continue;
+    findings.push({
+      code: `smm.silent.${feed.platform}`,
+      severity: "incident",
+      title: silentFor === null
+        ? `${feed.platform}: в плане есть, но не вышло ни одного поста`
+        : `${feed.platform}: ни одного поста ${Math.round(silentFor)} ч (обычный шаг ленты — ${Math.round(threshold / SMM_SILENT_GAP_FACTOR)} ч)`,
+      detail: locked > 0
+        ? `Запертых слотов плана: ${locked} — пустые архивные строки держат ключи, и планировщик считает `
+          + "слоты занятыми. Отпускаю их ниже; следующий проход планировщика заведёт на них материалы."
+        : "Запертых слотов нет. Смотреть очередь площадки в суперадминке: есть ли черновики на ближайшие "
+          + "сутки и не стоит ли площадка на удержании выпуска.",
+      ...(locked > 0 ? {} : {
+        ownerAction: {
+          what: `открыть «SMM и SEO агент» → очередь ${feed.platform} и проверить, есть ли материалы на сутки вперёд`,
+          expected: `возобновление выпуска ${feed.platform}: ${Math.max(1, Math.round(feed.publishedFortnight / 14))} пост(а) в сутки`,
+        },
+      }),
+    });
+  }
+  if (locked > 0) {
+    findings.push({
+      code: "smm.locked_slots",
+      severity: findings.length > 0 ? "incident" : "warning",
+      title: `Запертых слотов плана: ${locked} — пустые архивные строки держат будущие ключи`,
+      detail:
+        "Планировщик считает занятым любой слот, у строки которого есть ключ плана, в каком бы статусе "
+        + "она ни была. Пустая оболочка в архиве поэтому держит слот вечно: так неделя 17–22.09 "
+        + "осталась без единого поста.",
+      directive: {
+        key: `${today}:smm.release_locked_slots`,
+        target: "conveyor",
+        action: "release_locked_slots",
+        payload: { ids: state.lockedSlotIds.slice(0, 100) },
+        problem: `запертых слотов плана: ${locked}`,
+        rationale:
+          "Снимаю ключ плана с пустых архивных строк (ни текста автора, ни решения редактора, ни "
+          + "попытки выпуска). Строки остаются в архиве с причиной, слоты заполнит следующий проход "
+          + "планировщика. Откат — вернуть строкам ключ из снимка.",
+        risk: "reversible",
+      },
+    });
+  }
   return findings;
 }
 
