@@ -37,7 +37,7 @@ on:
       # workflow with node slugs (or "all"). Never interpolated into `run:` —
       # it is passed through env and matched against the fixed slug list.
       nodes:
-        description: 'Nodes to deploy: "all" or comma-separated slugs (eterapy-1,eterapy-4)'
+        description: 'Nodes to deploy: "all" or comma-separated slugs (eterapy-1,eterapy-3)'
         required: false
         default: 'all'
         type: string
@@ -711,9 +711,9 @@ jobs:
           # `9` — порог, ниже которого прод жертвует запасным образом ради
           # самой выкатки: после загрузки ~4.5 GB на ноде должно остаться
           # около четырёх свободных гигабайт, иначе Postgres упрётся в диск
-          # посреди миграции. На eterapy-1 (30 GB на прод, стенд и Postgres) и
-          # eterapy-4 (19 GB) порог срабатывает — «два предыдущих» там сегодня
-          # физически не помещаются, и скрипт говорит об этом вслух.
+          # посреди миграции. На eterapy-1 (30 GB на прод, стенд и Postgres)
+          # порог срабатывает — «два предыдущих» там сегодня физически не
+          # помещаются, и скрипт говорит об этом вслух.
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             deploy/docker/retain-release-images.sh "$VM_USER@$VM_HOST:/tmp/retain-release-images.sh"
           $SSH "chmod +x /tmp/retain-release-images.sh \
@@ -1023,7 +1023,6 @@ jobs:
           probe eterapy-1 "eterapy-1 prod RU" "$HEALTH_URL"
           probe eterapy-2 "eterapy-2 standby RU" "https://192.144.13.153.sslip.io/api/health"
           probe eterapy-3 "eterapy-3 US racknerd" "https://107.172.153.202.sslip.io/api/health"
-          probe eterapy-4 "eterapy-4 EU aws" "https://18.195.184.182.sslip.io/api/health"
 
       - name: Reject an unexpected public service port
         shell: bash
@@ -1033,7 +1032,6 @@ jobs:
             "192.144.14.146"
             "192.144.13.153"
             "107.172.153.202"
-            "18.195.184.182"
           )
           readonly restricted_ports=("5432" "3200" "6379" "7880")
           failures=0
@@ -1105,7 +1103,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1 | cut -c1-200)
-          export FIELDS="Env=production (4-node fleet)
+          export FIELDS="Env=production (3-node fleet)
           Repo=$GH_REPO
           Branch=$GH_REF
           Commit=${GH_SHA:0:8}
@@ -1115,7 +1113,7 @@ jobs:
 
           # Deploy verdict per host, plus the health probe that followed it.
           NODES=""
-          for slug in eterapy-1 eterapy-2 eterapy-3 eterapy-4; do
+          for slug in eterapy-1 eterapy-2 eterapy-3; do
             [ -f "node-status/$slug.txt" ] || continue
             entry=$(cat "node-status/$slug.txt")
             label="${entry%%=*}"

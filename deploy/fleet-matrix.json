@@ -38,18 +38,5 @@
     "contour": "foreign",
     "webBind": "",
     "baseUrl": "https://107.172.153.202.sslip.io"
-  },
-  {
-    "name": "eterapy-4 EU aws (18.195.184.182)",
-    "slug": "eterapy-4",
-    "host": "18.195.184.182",
-    "user": "ubuntu",
-    "compose": "docker-compose.yml",
-    "profile_args": "--profile worker",
-    "standby": false,
-    "role": "edge",
-    "contour": "foreign",
-    "webBind": "",
-    "baseUrl": "https://18.195.184.182.sslip.io"
   }
 ]

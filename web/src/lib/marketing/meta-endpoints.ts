@@ -30,7 +30,7 @@ export const META_DIRECT_HOSTS: Record<MetaUpstream, string> = {
 
 /**
  * База исходящего шлюза. Это НАША зарубежная нода из `fleet-matrix.json`
- * (`eterapy-3`/`eterapy-4`), а не сторонний прокси: маршрут
+ * (`eterapy-3`), а не сторонний прокси: маршрут
  * `/api/integrations/meta/relay` живёт в том же образе и приезжает той же
  * выкаткой.
  */

@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
   // B667: релизный образ несёт не установленные node_modules, а трассированное
   // дерево. `node_modules` занимал 1.1 ГБ из 2.0 ГБ образа, и платили за это
-  // четыре ноды при каждой выкатке. Сборку дособирает
+  // три ноды при каждой выкатке. Сборку дособирает
   // `scripts/build-standalone.mjs`: статика, public, бандлы воркеров и проверки
   // целостности дерева (см. тикет B667).
   output: "standalone",

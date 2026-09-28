@@ -8,7 +8,6 @@ describe("PRB-009 · production network surface", () => {
     const perimeter = read("deploy/SECURITY-PERIMETER.md");
 
     expect(perimeter).toContain("cloud.ru");
-    expect(perimeter).toContain("EC2 Security Group");
     expect(perimeter).toContain("RackNerd");
     expect(perimeter).toContain("127.0.0.1:3200");
     for (const port of ["5432", "3200", "6379", "7880"]) {

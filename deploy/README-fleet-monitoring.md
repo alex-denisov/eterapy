@@ -15,7 +15,7 @@
 
 `deploy.yml` больше не хранит матрицу инлайном: job `plan` читает
 `deploy/fleet-matrix.json` и фильтрует его по input `nodes` (`all` или
-`eterapy-1,eterapy-4`). Значение input никогда не подставляется в shell —
+`eterapy-1,eterapy-3`). Значение input никогда не подставляется в shell —
 только в env-переменную, которую сравнивает `jq` с фиксированным списком slug'ов.
 
 ## Переменные окружения (все — в `/opt/eterapy/.env`, НЕ в репозитории)
@@ -27,8 +27,7 @@
 FLEET_NODES='[
   {"name":"eterapy-1","host":"192.144.14.146","role":"primary","contour":"ru"},
   {"name":"eterapy-2","host":"192.144.13.153","role":"standby","contour":"ru"},
-  {"name":"eterapy-3","host":"107.172.153.202","role":"edge","contour":"foreign"},
-  {"name":"eterapy-4","host":"18.195.184.182","role":"edge","contour":"foreign"}
+  {"name":"eterapy-3","host":"107.172.153.202","role":"edge","contour":"foreign"}
 ]'
 
 # Секрет агент-эндпоинта (если не задан — используется CRON_SECRET)

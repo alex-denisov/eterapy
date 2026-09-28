@@ -21,8 +21,10 @@
 # NOT shipped by CI.
 #
 # 152-ФЗ: run the RU cluster only on RU nodes (eterapy-1/2) with cloud.ru
-# egress; the Foreign cluster on eterapy-4/3 with AWS egress. Media and
-# recordings must not cross the contour boundary.
+# egress; the Foreign cluster on eterapy-3 (RackNerd). eterapy-4 (AWS) was
+# decommissioned before this cluster ever ran there — no AWS egress in the
+# Foreign contour today. Media and recordings must not cross the contour
+# boundary.
 
 name: eterapy
 

@@ -22,7 +22,7 @@
 // Origins = each contour's public HAProxy. Use hostnames that are CF-proxied
 // (orange cloud) and resolve to the LB VMs.
 const RU_ORIGIN = "https://ru-lb.eterapy.com";       // eterapy-1 HAProxy
-const FOREIGN_ORIGIN = "https://intl-lb.eterapy.com"; // eterapy-4 HAProxy
+const FOREIGN_ORIGIN = "https://intl-lb.eterapy.com"; // Foreign HAProxy — host TBD (eterapy-4 decommissioned)
 
 // Countries served by the RU contour. RU only by default; add CIS members here
 // only if counsel confirms their data may share the RF contour.

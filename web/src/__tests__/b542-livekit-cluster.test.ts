@@ -42,7 +42,7 @@ describe("B542 · LiveKit RU-кластер", () => {
   });
 
   it("Foreign-ноды кластер не получают, пока нет AWS-доступов и своего Redis", () => {
-    for (const slug of ["eterapy-3", "eterapy-4"]) {
+    for (const slug of ["eterapy-3"]) {
       const vm = matrix.find((entry) => entry.slug === slug);
       expect(vm?.profile_args ?? "").not.toContain("livekit");
     }

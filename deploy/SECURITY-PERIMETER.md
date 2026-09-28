@@ -13,7 +13,6 @@ WireGuard или LiveKit.
 | `eterapy-1` · `192.144.14.146` | cloud.ru | firewall/security group в консоли cloud.ru | `22/tcp`, `80/tcp`, `443/tcp`, `7881/tcp`, `50000/udp`, `51820/udp` |
 | `eterapy-2` · `192.144.13.153` | cloud.ru | firewall/security group в консоли cloud.ru | `22/tcp`, `80/tcp`, `443/tcp`, `7881/tcp`, `50000/udp`, `51820/udp` |
 | `eterapy-3` · `107.172.153.202` | RackNerd | сознательно: только точные bind'ы сервисов + внешний deploy-гейт | `22/tcp`, `80/tcp`, `443/tcp` |
-| `eterapy-4` · `18.195.184.182` | AWS | EC2 Security Group | `22/tcp`, `80/tcp`, `443/tcp` |
 
 `7881/tcp` и `50000/udp` — media transport LiveKit только на двух RU-нодах.
 Сигналинг `7880/tcp` не публикуется: nginx/HAProxy достигают его через
@@ -21,7 +20,7 @@ loopback/WireGuard. `51820/udp` — WireGuard флота.
 
 ## Закрытые служебные порты
 
-На всех четырёх публичных IP должны быть недоступны:
+На всех трёх публичных IP должны быть недоступны:
 
 - `5432/tcp` — PostgreSQL;
 - `3200/tcp` — Next.js и ops-agent;

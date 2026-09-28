@@ -18,13 +18,13 @@ describe("B541 · инвентарь флота (parseFleetNodes)", () => {
     const nodes = parseFleetNodes(
       JSON.stringify([
         { name: "eterapy-1", host: "10.0.0.1", role: "primary", contour: "ru" },
-        { name: "eterapy-4", host: "10.0.0.4", role: "edge", contour: "foreign", baseUrl: "http://10.0.0.4:3200" },
+        { name: "eterapy-3", host: "10.0.0.3", role: "edge", contour: "foreign", baseUrl: "http://10.0.0.3:3200" },
       ]),
     );
 
     expect(nodes).toHaveLength(2);
     expect(nodes[0]).toMatchObject({ name: "eterapy-1", host: "10.0.0.1", role: "primary", contour: "ru" });
-    expect(nodes[1].baseUrl).toBe("http://10.0.0.4:3200");
+    expect(nodes[1].baseUrl).toBe("http://10.0.0.3:3200");
   });
 
   it("подставляет baseUrl по умолчанию из host", () => {

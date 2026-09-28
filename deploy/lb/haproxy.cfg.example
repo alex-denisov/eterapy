@@ -1,6 +1,7 @@
 # B540 — contour load balancer (HAProxy). One instance per geo-contour:
 #   eterapy-1 (cloud.ru) fronts the RU contour  → app nodes eterapy-1 + eterapy-2
-#   eterapy-4 (AWS)      fronts the Foreign one  → app nodes eterapy-4 + eterapy-3
+#   Foreign contour       → app node eterapy-3 (LB host TBD; eterapy-4 (AWS)
+#                            was decommissioned before it ever fronted this)
 #
 # Free-tier design (no paid Cloudflare Load Balancing):
 #   * Cloudflare geo-routing (Worker, cf-geo-router.worker.js) decides the
