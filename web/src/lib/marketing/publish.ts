@@ -7,6 +7,7 @@
  * «успешная» пустая публикация.
  */
 
+import { splitThreadsChain } from "@/lib/marketing/threads-chain";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { callTelegramApi, callTelegramApiWithPhoto } from "@/lib/telegram";
@@ -968,27 +969,49 @@ export async function publishScheduledMarketing(input: {
        */
       const replyText = replyTextFromNotes(publication.notes);
       if (replyText && normalizedPlatform === "threads" && published.externalPostId) {
-        try {
-          const replyAdapter = input.replyAdapters?.threads ?? publishThreadsReply;
-          const reply = await replyAdapter({ body: replyText, engagementTargetId: published.externalPostId });
+        const replyAdapter = input.replyAdapters?.threads ?? publishThreadsReply;
+        /**
+         * B750 — продолжение уходит ЦЕПОЧКОЙ: Threads берёт ≤500 символов на
+         * запись, поэтому текст режется, а каждая часть отвечает на
+         * предыдущую. Сбой части не отменяет выпуск, но больше не молчит:
+         * строка `REPLY_FAILED` в заметке видна оркестратору и панели.
+         */
+        const parts = splitThreadsChain(replyText);
+        const urls: string[] = [];
+        let targetId = published.externalPostId;
+        let failure: string | null = null;
+        for (const [index, part] of parts.entries()) {
+          try {
+            const reply = await replyAdapter({ body: part, engagementTargetId: targetId });
+            if (reply.publicUrl) urls.push(reply.publicUrl);
+            targetId = reply.externalPostId;
+          } catch (replyError) {
+            failure = `часть ${index + 1} из ${parts.length}: ${replyError instanceof Error ? replyError.message : String(replyError)}`;
+            log.warn("marketing.reply_after_publish_failed", {
+              publicationId: publication.id,
+              platform: normalizedPlatform,
+              part: index + 1,
+              parts: parts.length,
+              error: failure,
+            });
+            break;
+          }
+        }
+        const noteLines = [
+          ...urls.map((url) => `REPLY: ${url}`),
+          ...(failure ? [`REPLY_FAILED: ${failure}`] : []),
+        ];
+        if (noteLines.length > 0) {
           await db.externalPublication.update({
             where: { id: publication.id },
-            data: {
-              notes: [publishedData.notes ?? publication.notes, `REPLY: ${reply.publicUrl}`]
-                .filter(Boolean)
-                .join("\n"),
-            },
+            data: { notes: [publishedData.notes ?? publication.notes, ...noteLines].filter(Boolean).join("\n") },
           }).catch(() => null);
+        }
+        if (urls.length > 0) {
           log.info("marketing.reply_after_publish", {
             publicationId: publication.id,
             platform: normalizedPlatform,
-            replyId: reply.externalPostId,
-          });
-        } catch (replyError) {
-          log.warn("marketing.reply_after_publish_failed", {
-            publicationId: publication.id,
-            platform: normalizedPlatform,
-            error: replyError instanceof Error ? replyError.message : String(replyError),
+            parts: urls.length,
           });
         }
       }
