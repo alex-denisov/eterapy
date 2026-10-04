@@ -36,6 +36,25 @@ describe("pickLadderCandidate", () => {
   });
 });
 
+describe("баланс направлений", () => {
+  const k = (id: string, demand: number, cluster: string) => ({ id, monthlyDemand: demand, growth: 0, cluster });
+
+  it("направление без страниц идёт раньше более частотного, но уже покрытого", () => {
+    const coverage = new Map([["Астрология", 12]]);
+    const picked = pickLadderCandidate([k("astro", 2_900, "Астрология"), k("family", 700, "Семья и род")], 3_000, coverage);
+    expect(picked?.id).toBe("family");
+  });
+
+  it("при равном охвате берёт самый частотный", () => {
+    const picked = pickLadderCandidate([k("a", 500, "Пара"), k("b", 2_000, "Пара")], 3_000, new Map([["Пара", 1]]));
+    expect(picked?.id).toBe("b");
+  });
+
+  it("без карты охвата ведёт себя как раньше", () => {
+    expect(pickLadderCandidate([k("a", 500, "Пара"), k("b", 2_000, "Астрология")], 3_000)?.id).toBe("b");
+  });
+});
+
 describe("clampDemandCeiling", () => {
   it("держит значение в границах и возвращает умолчание на мусор", () => {
     expect(clampDemandCeiling(100)).toBe(1_000);

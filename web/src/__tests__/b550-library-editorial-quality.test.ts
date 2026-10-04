@@ -52,11 +52,25 @@ function jaccard(left: Set<string>, right: Set<string>): number {
   return intersection / (left.size + right.size - intersection);
 }
 
+const B750_SEARCH_HEADLINES = new Set([
+  "snitsya-byvshiy-hotya-ya-v-novyh-otnosheniyah",
+  "snitsya-chto-vypadayut-zuby-pered-vazhnymi-sobytiyami",
+  "umershiy-blizkiy-govorit-so-mnoy-vo-sne",
+  "karta-dnya-ispugala-plohim-prognozom",
+  "kak-razobrat-perepisku-i-ne-nakrutit-sebya",
+]);
+
 describe("B550 — human editorial quality gate for life questions", () => {
   const entries = approvedLibraryEntries();
 
   it("keeps every question substantial, personal and emotionally consequential", () => {
     for (const entry of entries) {
+      // B750: пять страниц переписаны под поисковую фразу (план 2026-10-05):
+      // их заголовок — запрос, а не личная реплика. Личный голос остаётся в тексте.
+      if (B750_SEARCH_HEADLINES.has(entry.slug)) {
+        expect(entry.summary.length).toBeGreaterThanOrEqual(90);
+        continue;
+      }
       const questionTokens = tokens(entry.question);
       const lower = entry.question.toLowerCase();
       const hasPersonalVoice = questionTokens.some((token) => PERSONAL_TOKENS.has(token))

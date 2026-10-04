@@ -25,6 +25,7 @@ import {
   type HarvestedPhrase,
 } from "@/lib/seo/demand/wordstat-harvest";
 import { harvestGoogleTrends } from "@/lib/seo/demand/google-trends";
+import { relevanceVerdict } from "@/lib/seo/demand/relevance";
 
 /**
  * Слова, по которым фраза заведомо не наша.
@@ -88,6 +89,9 @@ export function rejectReasonFor(input: {
     if (phrase.includes(stop)) return `вне сферы платформы: «${stop}»`;
   }
   if (input.coveredPhrases.has(phrase)) return "запрос уже закрыт корпусом";
+  // B750: фраза обязана быть запросом на разбор ситуации, а не темой выдачи.
+  const irrelevant = relevanceVerdict(phrase);
+  if (irrelevant) return `B750: нерелевантно — ${irrelevant}`;
   // Порог применяется только там, где частотность ИЗМЕРЕНА. У Trends её нет
   // вовсе, и отбрасывать растущий запрос за «ноль показов» значило бы
   // наказывать фразу за молчание чужого источника.

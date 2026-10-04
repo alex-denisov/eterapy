@@ -169,7 +169,7 @@ const TOPICS: readonly Topic[] = [
   },
   {
     cluster: "истории о совместимости",
-    articleSlug: "nizkaya-sovmestimost-po-date-no-my-schastlivy",
+    articleSlug: "vysokaya-sovmestimost-no-my-postoyanno-ssorimsya",
     targetQuery: "совместимость по дате рождения",
   },
 ] as const;

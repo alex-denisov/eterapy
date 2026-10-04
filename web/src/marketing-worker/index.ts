@@ -19,6 +19,8 @@ import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
 import { runSeoCoverageCycle, submitUrlsForRecrawl } from "@/lib/marketing/seo-coverage";
 import { harvestSearchDemand } from "@/lib/seo/demand/harvest";
+import { rejectIrrelevantCandidates } from "@/lib/seo/demand/relevance-cleanup";
+import { harvestSituations } from "@/lib/seo/demand/situation-harvest";
 import { runSeoBackfillCycle, runSeoPageCycle, seoPageUrl } from "@/lib/seo/page-agent";
 import { runOrchestratorCycle, orchestratorReportRequested, ORCHESTRATOR_CYCLE_MS } from "@/lib/marketing/orchestrator";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
@@ -247,6 +249,10 @@ async function main() {
       if (now - lastSeoDemand >= seoCycleMs) {
         lastSeoDemand = now;
         await guarded("seo-demand", () => harvestSearchDemand({ now: new Date(now) }));
+        // B750: сначала снимаем нерелевантное, что уже лежит в очереди, затем
+        // меряем фразы от ситуации. Оба шага не фатальны и не зависят от сбора.
+        await guarded("seo-demand-cleanup", () => rejectIrrelevantCandidates());
+        await guarded("seo-situation", () => harvestSituations({ now: new Date(now) }));
       }
       if (now - lastSeoPage >= seoCycleMs) {
         lastSeoPage = now;

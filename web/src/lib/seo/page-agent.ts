@@ -390,15 +390,24 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
    * фраза на 40 000 показов не взлетает, а средняя и низкая — взлетает.
    * Потолок читается из базы и двигается оркестратором.
    */
-  const [queue, ceiling] = await Promise.all([
+  const [queue, ceiling, covered] = await Promise.all([
     db.seoKeywordCandidate.findMany({
       where: { status: "NEW" },
-      select: { id: true, monthlyDemand: true, growth: true },
+      select: { id: true, monthlyDemand: true, growth: true, cluster: true },
       take: 500,
     }),
     seoDemandCeiling(),
+    // Охват направлений: сколько страниц уже опубликовано в каждом.
+    db.seoLibraryPage
+      .groupBy({
+        by: ["cluster"],
+        where: { status: SEO_PAGE_STATUS.published, kind: SEO_PAGE_KIND.page },
+        _count: { _all: true },
+      })
+      .catch(() => [] as Array<{ cluster: string | null; _count: { _all: number } }>),
   ]);
-  const picked = pickLadderCandidate(queue, ceiling);
+  const coverage = new Map(covered.map((row) => [row.cluster ?? "-", row._count._all]));
+  const picked = pickLadderCandidate(queue, ceiling, coverage);
   const candidate = picked
     ? await db.seoKeywordCandidate.findUnique({ where: { id: picked.id } })
     : null;
@@ -507,7 +516,9 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
           temperature: 0.2,
           seed: `${candidate.phrase}:review:${round}:${tryIndex}`,
           role: "reviewer",
-          excludeModel: writer.model,
+          // B750 — владелец 2026-10-05: редактор остаётся ТЕМ ЖЕ платным Gemini, что и автор;
+        // ошибку чиним, модель не меняем. Прежнее правило независимости отбрасывало
+        // оплаченный ответ редактора и уводило проход на нерабочие бесплатные маршруты.
           attempts,
           available,
         });
@@ -855,7 +866,7 @@ export async function runSeoBackfillCycle(
         temperature: 0.2,
         seed: `backfill:${entry.slug}:review:${round}`,
         role: "reviewer",
-        excludeModel: writer.model,
+        // B750: тот же редактор, ответ не отбрасывается (решение владельца 2026-10-05).
         attempts,
         available,
       });

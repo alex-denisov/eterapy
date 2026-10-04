@@ -77,6 +77,10 @@ const nextConfig: NextConfig = {
       { source: "/products/horary", destination: "/products/horoscope", permanent: true },
       { source: "/products/synastry", destination: "/products/compatibility-by-date", permanent: true },
       { source: "/products/destiny-matrix", destination: "/products/numerology", permanent: true },
+      // B750: три карточки слиты в страницы услуг-выживших (спрос ≈0 у собственных фраз).
+      { source: "/library/natalnaya-karta-obeshchaet-slozhnye-otnosheniya", destination: "/library/chto-pokazyvaet-natalnaya-karta", permanent: true },
+      { source: "/library/nizkaya-sovmestimost-po-date-no-my-schastlivy", destination: "/library/sovmestimost-po-date-rozhdeniya-chto-eto-znachit", permanent: true },
+      { source: "/library/goroskop-sovmestimosti-govorit-chto-my-ne-para", destination: "/library/sovmestimost-po-date-rozhdeniya-chto-eto-znachit", permanent: true },
     ];
   },
   async headers() {

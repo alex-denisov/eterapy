@@ -87,8 +87,8 @@ describe("B384 — sitemap covers the full published catalogue", () => {
     const deep = approved.filter((e) => libraryIsIndexable(e));
     const thin = approved.filter((e) => !libraryIsIndexable(e));
 
-    // Каталог людям не сократился: карточки никуда не делись.
-    expect(approved.length).toBeGreaterThanOrEqual(199);
+    // Каталог людям не сократился: карточки никуда не делись (B750: 199 → 196, три слиты 301).
+    expect(approved.length).toBeGreaterThanOrEqual(196);
     // А в индекс предлагается только то, у чего есть собственный материал.
     expect(deep.length).toBeGreaterThan(0);
     expect(deep.length).toBeLessThan(approved.length / 2);

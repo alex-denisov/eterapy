@@ -24,7 +24,14 @@ export interface LadderCandidate {
   id: string;
   monthlyDemand: number | null;
   growth: number | null;
+  /** Направление ядра. Без него кандидат считается непокрытым направлением «-». */
+  cluster?: string | null;
 }
+
+/** Сколько опубликованных страниц уже у каждого направления. */
+export type ClusterCoverage = ReadonlyMap<string, number>;
+
+const clusterKey = (candidate: LadderCandidate) => candidate.cluster ?? "-";
 
 export function clampDemandCeiling(value: number): number {
   if (!Number.isFinite(value)) return SEO_DEMAND_CEILING_DEFAULT;
@@ -49,19 +56,29 @@ export async function seoDemandCeiling(): Promise<number> {
 export function pickLadderCandidate<T extends LadderCandidate>(
   candidates: readonly T[],
   ceiling: number,
+  coverage: ClusterCoverage = new Map(),
 ): T | null {
+  /**
+   * B750 — БАЛАНС НАПРАВЛЕНИЙ. Владелец 2026-10-05: «SEO должно работать не в
+   * одном направлении». Из 17 страниц 12 лежали в «Натальной карте». Внутри
+   * полосы побеждает направление с НАИМЕНЬШИМ числом страниц, и только потом
+   * частота: одна и та же тема не получает вторую страницу, пока у другой нет
+   * ни одной.
+   */
+  const byCoverage = (a: T, b: T) =>
+    (coverage.get(clusterKey(a)) ?? 0) - (coverage.get(clusterKey(b)) ?? 0);
   const measured = candidates.filter(
     (candidate): candidate is T & { monthlyDemand: number } =>
       candidate.monthlyDemand !== null && candidate.monthlyDemand >= SEO_DEMAND_FLOOR,
   );
   const inBand = measured
     .filter((candidate) => candidate.monthlyDemand <= ceiling)
-    .sort((a, b) => b.monthlyDemand - a.monthlyDemand);
+    .sort((a, b) => byCoverage(a, b) || b.monthlyDemand - a.monthlyDemand);
   if (inBand[0]) return inBand[0];
 
   const above = measured
     .filter((candidate) => candidate.monthlyDemand > ceiling)
-    .sort((a, b) => a.monthlyDemand - b.monthlyDemand);
+    .sort((a, b) => byCoverage(a, b) || a.monthlyDemand - b.monthlyDemand);
   if (above[0]) return above[0];
 
   const unmeasured = candidates
