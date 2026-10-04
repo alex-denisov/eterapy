@@ -561,7 +561,7 @@ jobs:
               curl -fsS -m 30 -X POST "$API/setWebhook" \
                 --data-urlencode "url=$URL" \
                 --data-urlencode "secret_token=$SEC" \
-                --data-urlencode "allowed_updates=[\"message\",\"callback_query\",\"pre_checkout_query\"]" \
+                --data-urlencode "allowed_updates=[\"message\",\"channel_post\",\"callback_query\",\"pre_checkout_query\"]" \
                 | head -c 200
               echo
               curl -fsS -m 30 "$API/getWebhookInfo" \

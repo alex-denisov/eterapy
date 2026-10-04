@@ -54,7 +54,7 @@ case "$ACTION" in
     curl -fsS -X POST "\$API/setWebhook" \
       --data-urlencode "url=\$URL" \
       --data-urlencode "secret_token=\$SECRET" \
-      --data-urlencode 'allowed_updates=["message","callback_query","pre_checkout_query"]' \
+      --data-urlencode 'allowed_updates=["message","channel_post","callback_query","pre_checkout_query"]' \
       -d 'drop_pending_updates=true'
     echo
     ;;
