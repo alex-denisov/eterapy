@@ -127,3 +127,20 @@ describe("B750 harvestSituations", () => {
     await expect(harvestSituations({ now, deps: d, clusters })).resolves.toMatchObject({ accepted: 0 });
   });
 });
+
+import { countForPhrase, normalizeWordstatPhrase } from "@/lib/seo/demand/situation-harvest";
+
+describe("B750 сверка с Wordstat без пунктуации и ё", () => {
+  it("нормализует обе стороны одинаково", () => {
+    expect(normalizeWordstatPhrase("Муж изменил, что делать?")).toBe("муж изменил что делать");
+    expect(normalizeWordstatPhrase("Всё — ёлка (тест)")).toBe("все елка тест");
+  });
+  it("находит строку Wordstat при запятой и ё в запросе", () => {
+    const rows = [
+      { phrase: "муж изменил что делать", count: 1200 },
+      { phrase: "муж изменил что делать после", count: 50 },
+    ];
+    expect(countForPhrase(rows, "муж изменил, что делать")).toBe(1200);
+    expect(countForPhrase(rows, "жена ушла")).toBe(0);
+  });
+});

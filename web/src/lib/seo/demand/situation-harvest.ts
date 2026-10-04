@@ -78,6 +78,26 @@ const EMPTY: SituationHarvestResult = {
   quotaStopped: false,
 };
 
+/**
+ * Вид фразы для сверки с Wordstat: у него нет пунктуации и «ё» заменена на «е».
+ * Без этого «муж изменил, что делать» не находил бы свою строку и получал
+ * частоту 0. Нормализуются ОБЕ стороны сравнения.
+ */
+export function normalizeWordstatPhrase(value: string): string {
+  return value
+    .toLocaleLowerCase("ru-RU")
+    .replace(/ё/g, "е")
+    .replace(/[,;:.!?—–\-«»"'`()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Частота строки, чья нормализованная форма равна фразе; нет строки — 0. */
+export function countForPhrase(rows: ReadonlyArray<{ phrase: string; count: number }>, phrase: string): number {
+  const target = normalizeWordstatPhrase(phrase);
+  return rows.find((row) => normalizeWordstatPhrase(row.phrase) === target)?.count ?? 0;
+}
+
 /** Один кластер на заход, по часу суток: за сутки обходим весь список. */
 export function clusterForRun<T>(now: Date, clusters: readonly T[]): T | null {
   if (clusters.length === 0) return null;
@@ -102,7 +122,7 @@ export function parseSituationPhrases(text: string): string[] {
     for (const item of parsed) {
       const raw = typeof item === "string" ? item : (item as { phrase?: unknown } | null)?.phrase;
       if (typeof raw !== "string") continue;
-      const phrase = normalizePhrase(raw).replace(/[.!?]+$/g, "");
+      const phrase = normalizeWordstatPhrase(raw);
       if (phrase && !out.includes(phrase)) out.push(phrase);
     }
     return out;
@@ -172,8 +192,7 @@ function defaultDeps(now: Date): SituationHarvestDeps {
         folderId: process.env.YANDEX_CLOUD_FOLDER_ID?.trim() ?? "",
         numPhrases: 5,
       });
-      const hit = rows.find((row) => normalizePhrase(row.phrase) === phrase);
-      return hit?.count ?? 0;
+      return countForPhrase(rows, phrase);
     },
     covered: () => coveredPhraseSet(),
     known: async (phrases) => {

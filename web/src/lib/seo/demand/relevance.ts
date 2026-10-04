@@ -27,12 +27,34 @@ function whole(...words: string[]): RegExp {
   return new RegExp(`(?<![${L}])(?:${words.join("|")})(?![${L}])`, "u");
 }
 
+/** Слово с короткой флексией (до двух букв): «сезон» не ловит «сезонная». */
+function inflected(...words: string[]): RegExp {
+  return new RegExp(`(?<![${L}])(?:${words.join("|")})[а-я]{0,2}(?![${L}])`, "u");
+}
+
 interface Block {
   pattern: RegExp;
+  /** Если совпало и это — фраза о личной ситуации, блок не срабатывает. */
+  unless?: RegExp;
   reason: string;
 }
 
+const PERSONAL_CONTEXT = stem("свекров", "тещ", "тёщ", "муж", "жен[аыуе]", "мам[аыу]", "родител", "сестр", "брат", "подруг", "коллег", "начальник");
+
 const BLOCKS: readonly Block[] = [
+  {
+    pattern: inflected("шоу", "серия", "сезон", "кино", "глав[аы]"),
+    reason: "видео, кино, шоу или взрослый контент",
+  },
+  {
+    pattern: inflected("войн[аыеу]"),
+    unless: PERSONAL_CONTEXT,
+    reason: "политика, война, новости или спорт",
+  },
+  {
+    pattern: inflected("матч", "армия", "налог", "бизнес", "компани", "данн(?:ых|ые)", "курс(?:ы|ов|ам)"),
+    reason: "политика, спорт, бизнес или учёба — вне сферы личной ситуации",
+  },
   {
     pattern: stem(
       "видео",
@@ -40,7 +62,6 @@ const BLOCKS: readonly Block[] = [
       "посмотреть",
       "фильм",
       "сериал",
-      "шоу",
       "кинотеатр",
       "скачать",
       "порно",
@@ -49,8 +70,6 @@ const BLOCKS: readonly Block[] = [
       "эротик",
       "русск(?:ая|ие|ий) (?:жена|муж)",
       "трейлер",
-      "серия",
-      "сезон",
     ),
     reason: "видео, кино, шоу или взрослый контент",
   },
@@ -61,14 +80,10 @@ const BLOCKS: readonly Block[] = [
       "манвх",
       "манг[аиу]",
       "комикс",
-      "глава",
-      "главы",
       "фанфик",
       "аниме",
       "дорам",
       "дота",
-      "игр[аыуе]",
-      "игровой",
       "симс",
       "майнкрафт",
       "печенье",
@@ -79,9 +94,6 @@ const BLOCKS: readonly Block[] = [
   },
   {
     pattern: stem(
-      "война",
-      "войны",
-      "войне",
       "спецоперац",
       "украин",
       "росси[июяе]",
@@ -96,11 +108,9 @@ const BLOCKS: readonly Block[] = [
       "президент",
       "политик",
       "депутат",
-      "армия",
       "мобилизац",
       "футбол",
       "хоккей",
-      "матч",
       "чемпионат",
       "ставк",
     ),
@@ -153,13 +163,11 @@ const BLOCKS: readonly Block[] = [
       "интерьер",
       "веб-дизайн",
       "графическ",
-      "курс",
       "обучен",
       "учиться",
       "вакансии",
       "купить",
       "заказать",
-      "кино",
       "камеди",
       "dying",
       "light",
@@ -167,10 +175,6 @@ const BLOCKS: readonly Block[] = [
       "симулятор",
       "групп[аы]? принима",
       "государств",
-      "данных",
-      "компани",
-      "бизнес",
-      "налог",
       "принят(?:ое|ого)",
     ),
     reason: "вне сферы платформы: коммерция, учёба или смежный дизайн",
@@ -210,6 +214,9 @@ const STRONG_INTENT: readonly RegExp[] = [
     "откуда",
     "куда",
     "если",
+    "боюсь",
+    "не могу",
+    "хочу",
   ),
   stem("как (?:рассчитать|посчитать|рассчитывать|считать)"),
   stem(
@@ -274,6 +281,9 @@ const SITUATION_NOUNS: RegExp = stem(
   "выбор",
   "решени",
   "сомнен",
+  "одинок",
+  "одинока",
+  "остаться одн",
   "кризис",
   "выгоран",
   "апати",
@@ -389,7 +399,7 @@ export function relevanceVerdict(phrase: string, cluster?: string | null): strin
   if (!text) return "пустая фраза";
 
   for (const block of BLOCKS) {
-    if (block.pattern.test(text)) return `${block.reason}`;
+    if (block.pattern.test(text) && !(block.unless && block.unless.test(text))) return block.reason;
   }
   if (namesSpecificSurname(text)) return "фамилия конкретного человека, а не вопрос о своей";
   if (MISTYPE_PATTERNS.some((pattern) => pattern.test(text))) {
@@ -403,15 +413,21 @@ export function relevanceVerdict(phrase: string, cluster?: string | null): strin
   if (!strong && STORY_PATTERNS.some((pattern) => pattern.test(text))) {
     return "сюжет о третьих лицах, а не вопрос человека в ситуации";
   }
-  // Одинокая цифра («6 в матрице судьбы», «токсичные отношения 4») — хвост
-  // выдачи. Смысловые слова цифру оправдывают («что значит 6 аркан»).
-  if (/(?<![0-9])\d{1,2}(?![0-9])/u.test(text) && !(strong && /аркан|значени|значит/u.test(text))) {
+  // Номер в начале или в конце фразы («6 в матрице судьбы», «токсичные
+  // отношения 4») — хвост выдачи. Число внутри личной фразы («мне 40 и я
+  // одинока») — возраст, оно законно. Смысловые слова оправдывают и номер.
+  const tokens = text.split(" ");
+  const numericEdge = /^\d{1,2}$/.test(tokens[0]) || /^\d{1,2}$/.test(tokens[tokens.length - 1]);
+  if (numericEdge && !(strong && /аркан|значени|значит/u.test(text))) {
     return "хвост выдачи с номером, а не запрос";
+  }
+  if (/(?<![0-9])\d{1,2}(?![0-9])/u.test(text) && !strong && !situation) {
+    return "число без вопроса и ситуации — хвост выдачи";
   }
   const words = text.split(" ").length;
   const meaning = /(?<![а-я])(?:значени|значит|означ|расшифров|трактов)/u.test(text);
   // Короткая вопросительная рамка («дизайн человека какие») — обрывок выдачи.
-  if (strong && words < 4 && !meaning) return "обрывок вопроса — слишком коротко, чтобы быть запросом";
+  if (strong && words < 4 && !meaning && !situation) return "обрывок вопроса — слишком коротко, чтобы быть запросом";
   if (!strong && !explainer && !situation) {
     return "нет вопроса, ситуации или объяснения смысла — это тема выдачи";
   }
