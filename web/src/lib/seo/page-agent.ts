@@ -149,6 +149,26 @@ function strList(value: unknown): string[] {
     : [];
 }
 
+/**
+ * B750 — ОТВЕТ АВТОРА, КОТОРЫЙ НЕ РАЗОБРАЛСЯ КАК JSON, — ЭТО ПОВТОР, А НЕ ПАДЕНИЕ.
+ *
+ * На проде 04.10 проход умер на `JSON.parse` («Expected ',' or '}' … position 22»):
+ * модель не заэкранировала кавычку внутри строки, разбор стоял ВНЕ цикла
+ * раундов, и целая попытка (пять обращений к моделям) пропадала. Последний
+ * опубликованный материал — 01.10, три дня тишины при потолке четыре в сутки.
+ * Теперь это замечание для следующего раунда с другим маршрутом.
+ */
+export function safeParseWriterDraft(
+  text: string,
+): { draft: SeoPageDraft; error: null } | { draft: null; error: string } {
+  try {
+    return { draft: writerDraftFrom(parseModelJson(text)), error: null };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { draft: null, error: reason };
+  }
+}
+
 export function writerDraftFrom(payload: Record<string, unknown>): SeoPageDraft {
   const body = Array.isArray(payload.body)
     ? payload.body
@@ -412,7 +432,16 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
         attempts,
         available,
       });
-      draft = writerDraftFrom(parseModelJson(writer.text));
+      const parsedDraft = safeParseWriterDraft(writer.text);
+      if (!parsedDraft.draft) {
+        if (round > SEO_MAX_REVIEW_ROUNDS) throw new Error(`ответ автора не JSON: ${parsedDraft.error}`);
+        notes = [
+          `Прошлый ответ не разобрался как JSON (${parsedDraft.error}). Верни ТОЛЬКО один JSON-объект: `
+          + "кавычки внутри строк экранируй как \\\", переносы строк — как \\n, без текста до и после объекта.",
+        ];
+        continue;
+      }
+      draft = parsedDraft.draft;
 
       const violations = inspectSeoPageDraft({ draft, targetQuery: brief.targetQuery });
       const blocking = blockingViolations(violations);
