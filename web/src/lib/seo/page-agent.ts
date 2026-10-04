@@ -33,6 +33,7 @@ import { resolveLibraryCta } from "@/lib/library-cta";
 import { upsertMarketingSignal, resolveMarketingSignal } from "@/lib/marketing/agent";
 import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import { marketingProviderOrder } from "@/lib/marketing/model-pool";
+import { liveDemandBriefText } from "@/lib/seo/demand-brief-live";
 import { pickLadderCandidate, seoDemandCeiling } from "@/lib/seo/demand-ladder";
 import { ctaProductForService, topicForService, SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import {
@@ -285,6 +286,9 @@ export async function briefFor(candidate: {
     ctaPromise: product?.summary ?? "разбор вашего вопроса специалистами платформы",
     ctaPath: `/products/${cta.slug}`,
     recentTitles: recent.map((row) => row.question),
+    // B750: живые данные собираются здесь, до первого вызова автора. Отказ любого
+    // источника даёт пустой бриф — конвейер не встаёт.
+    demandBrief: await liveDemandBriefText(candidate.displayPhrase).catch(() => ""),
   };
 }
 

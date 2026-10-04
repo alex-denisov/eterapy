@@ -48,6 +48,8 @@ export interface SeoPageBrief {
   ctaPath: string;
   /** Заголовки уже вышедших материалов той же темы — чтобы не повторяться. */
   recentTitles: readonly string[];
+  /** B750 — живые данные по запросу (формулировки, выдача, свежие посты). Пусто — данных нет. */
+  demandBrief?: string;
 }
 
 export const SEO_LIBRARY_WRITER_SYSTEM_PROMPT = [
@@ -97,6 +99,7 @@ export function seoLibraryWriterPrompt(brief: SeoPageBrief, revisionNotes: reado
     `ТЕМА КАТАЛОГА: ${brief.topic}`,
     `УСЛУГА ДЛЯ ПЕРЕХОДА: «${brief.ctaProduct}» — ${brief.ctaPromise}. Адрес: ${brief.ctaPath}`,
   ];
+  if (brief.demandBrief) lines.push("", brief.demandBrief, "");
   if (brief.recentTitles.length > 0) {
     lines.push(
       "УЖЕ ВЫШЛО ПО ЭТОЙ ТЕМЕ (не повторяй угол и заголовок):",

@@ -212,6 +212,30 @@ export async function serpTrends(input: {
   return result;
 }
 
+/** B750 — тексты выдачи по ОДНОЙ фразе: бриф спроса показывает автору, как отвечают другие. */
+export async function serpTextsFor(input: {
+  queryText: string;
+  apiKey: string;
+  folderId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<string[]> {
+  const call = input.fetchImpl ?? fetch;
+  const response = await call(SEARCH_URL, {
+    method: "POST",
+    headers: { Authorization: `Api-Key ${input.apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: { searchType: "SEARCH_TYPE_RU", queryText: input.queryText },
+      folderId: input.folderId,
+      responseFormat: "FORMAT_XML",
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`SearchAPI ${input.queryText}: HTTP ${response.status}`);
+  const payload = await response.json() as { rawData?: string };
+  if (!payload.rawData) return [];
+  return parseSerpTexts(Buffer.from(payload.rawData, "base64").toString("utf8"));
+}
+
 function headPhrases(): string[] {
   return SEMANTIC_CORE
     .map((cluster) => cluster.phrases[0]?.phrase)

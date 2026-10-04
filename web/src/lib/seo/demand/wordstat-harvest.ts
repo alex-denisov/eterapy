@@ -99,10 +99,11 @@ export function seedWindow(now: Date, size = WORDSTAT_HARVEST_SEEDS_PER_RUN) {
   });
 }
 
-async function topRequestsFor(input: {
+export async function topRequestsFor(input: {
   seed: string;
   apiKey: string;
   folderId: string;
+  numPhrases?: number;
 }): Promise<Array<{ phrase: string; count: number }>> {
   const response = await fetch(TOP_REQUESTS_URL, {
     method: "POST",
@@ -112,7 +113,7 @@ async function topRequestsFor(input: {
     },
     body: JSON.stringify({
       phrase: input.seed,
-      numPhrases: WORDSTAT_HARVEST_PHRASES_PER_SEED,
+      numPhrases: input.numPhrases ?? WORDSTAT_HARVEST_PHRASES_PER_SEED,
       regions: ["225"],
       folderId: input.folderId,
     }),
