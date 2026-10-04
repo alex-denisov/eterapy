@@ -96,7 +96,12 @@ export const SEO_MAX_REVIEW_ROUNDS = 2;
 /** Сколько обращений к моделям стоит один материал. Выше — материал умирает от расхода. */
 export const SEO_MAX_ATTEMPTS_PER_PAGE = 8;
 export const SEO_WRITER_MAX_TOKENS = 8_000;
-export const SEO_EDITOR_MAX_TOKENS = 1_500;
+/**
+ * B750 — 1 500 было мало: бесплатные рассуждающие модели (nemotron на KiloCode)
+ * тратили потолок на «мысли» и отдавали `finishReason: length` без JSON — 04.10
+ * это убивало проход. Потолок вывода ничего не стоит: платится только выданное.
+ */
+export const SEO_EDITOR_MAX_TOKENS = 4_000;
 
 const ENABLED_KEY = "seo.page_agent.enabled";
 
@@ -166,6 +171,17 @@ export function safeParseWriterDraft(
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return { draft: null, error: reason };
+  }
+}
+
+/** B750 — вердикт редактора, который не разобрался, — повод спросить другой маршрут, а не уронить проход. */
+export function safeParseEditorVerdict(
+  text: string,
+): { verdict: SeoEditorVerdict; error: null } | { verdict: null; error: string } {
+  try {
+    return { verdict: editorVerdictFrom(parseModelJson(text)), error: null };
+  } catch (error) {
+    return { verdict: null, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -473,25 +489,41 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
         throw new Error(`материал не проходит гейт: ${blocking.map((v) => v.message).join("; ")}`);
       }
 
-      reviewer = await completeStructured({
-        feature: SEO_LIBRARY_EDITOR_FEATURE,
-        systemPrompt: SEO_LIBRARY_EDITOR_SYSTEM_PROMPT,
-        userPrompt: seoLibraryEditorPrompt({
-          brief,
-          draftJson: JSON.stringify(draft),
-          machineFindings: violations.map((violation) => violation.message),
-          round,
-          previousNotes: notes,
-        }),
-        maxTokens: SEO_EDITOR_MAX_TOKENS,
-        temperature: 0.2,
-        seed: `${candidate.phrase}:review:${round}`,
-        role: "reviewer",
-        excludeModel: writer.model,
-        attempts,
-        available,
-      });
-      verdict = editorVerdictFrom(parseModelJson(reviewer.text));
+      // B750: до трёх маршрутов на вердикт — обрезанный или не-JSON ответ
+      // бесплатной модели не должен стоить всего прохода.
+      verdict = null;
+      for (let tryIndex = 0; tryIndex < 3 && !verdict; tryIndex += 1) {
+        reviewer = await completeStructured({
+          feature: SEO_LIBRARY_EDITOR_FEATURE,
+          systemPrompt: SEO_LIBRARY_EDITOR_SYSTEM_PROMPT,
+          userPrompt: seoLibraryEditorPrompt({
+            brief,
+            draftJson: JSON.stringify(draft),
+            machineFindings: violations.map((violation) => violation.message),
+            round,
+            previousNotes: notes,
+          }),
+          maxTokens: SEO_EDITOR_MAX_TOKENS,
+          temperature: 0.2,
+          seed: `${candidate.phrase}:review:${round}:${tryIndex}`,
+          role: "reviewer",
+          excludeModel: writer.model,
+          attempts,
+          available,
+        });
+        const parsedVerdict = safeParseEditorVerdict(reviewer.text);
+        if (parsedVerdict.verdict) {
+          verdict = parsedVerdict.verdict;
+        } else {
+          log.warn("seo-page-agent.editor_unparsable", {
+            provider: reviewer.provider,
+            model: reviewer.model,
+            tryIndex,
+            error: parsedVerdict.error,
+          });
+        }
+      }
+      if (!verdict) throw new Error("редактор не вернул разбираемый вердикт ни на одном маршруте");
 
       if (verdict.verdict === "APPROVE") break;
       if (verdict.verdict === "REJECT") {

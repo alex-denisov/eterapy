@@ -30,3 +30,17 @@ describe("safeParseWriterDraft", () => {
     expect(result.draft?.question).toBe("К чему снится бывший муж?");
   });
 });
+
+import { safeParseEditorVerdict } from "@/lib/seo/page-agent";
+
+describe("safeParseEditorVerdict", () => {
+  it("обрезанный ответ (finishReason length) даёт ошибку, а не бросает", () => {
+    const result = safeParseEditorVerdict('{"verdict": "APPR');
+    expect(result.verdict).toBeNull();
+    expect(result.error).toBeTruthy();
+  });
+
+  it("ответ без JSON даёт ошибку", () => {
+    expect(safeParseEditorVerdict("Думаю, текст хороший.").verdict).toBeNull();
+  });
+});
