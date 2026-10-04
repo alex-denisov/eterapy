@@ -33,6 +33,7 @@ import { resolveLibraryCta } from "@/lib/library-cta";
 import { upsertMarketingSignal, resolveMarketingSignal } from "@/lib/marketing/agent";
 import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import { marketingProviderOrder } from "@/lib/marketing/model-pool";
+import { pickLadderCandidate, seoDemandCeiling } from "@/lib/seo/demand-ladder";
 import { ctaProductForService, topicForService, SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import {
   SEO_PAGE_KIND,
@@ -344,13 +345,23 @@ export async function runSeoPageCycle(input: { now?: Date } = {}): Promise<SeoPa
     };
   }
 
-  const candidate = await db.seoKeywordCandidate.findFirst({
-    where: { status: "NEW" },
-    // Измеренный спрос вперёд растущего: у растущего запроса из Trends нет
-    // абсолютной частотности, и поставить его первым значило бы предпочесть
-    // неизвестное известному.
-    orderBy: [{ monthlyDemand: "desc" }, { growth: "desc" }, { firstSeenAt: "asc" }],
-  });
+  /**
+   * B750 — выбор по ЛЕСЕНКЕ частоты, а не «самый частотный вперёд»: при ИКС 0
+   * фраза на 40 000 показов не взлетает, а средняя и низкая — взлетает.
+   * Потолок читается из базы и двигается оркестратором.
+   */
+  const [queue, ceiling] = await Promise.all([
+    db.seoKeywordCandidate.findMany({
+      where: { status: "NEW" },
+      select: { id: true, monthlyDemand: true, growth: true },
+      take: 500,
+    }),
+    seoDemandCeiling(),
+  ]);
+  const picked = pickLadderCandidate(queue, ceiling);
+  const candidate = picked
+    ? await db.seoKeywordCandidate.findUnique({ where: { id: picked.id } })
+    : null;
   if (!candidate) {
     return { ...IDLE, enabled: true, publishedToday, idleReason: "очередь запросов пуста — сбор спроса ничего не дал" };
   }

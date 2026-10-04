@@ -54,6 +54,7 @@ export interface OrchestratorDirective {
  */
 export const SETTING_BOUNDS: Record<string, { min: number; max: number; label: string }> = {
   "seo.pages_per_day": { min: 1, max: 8, label: "страниц Библиотеки в сутки" },
+  "seo.demand_ceiling": { min: 1_000, max: 60_000, label: "потолок частотности запросов для новых страниц" },
   "marketing.conveyor.max_awaiting_review": { min: 2, max: 12, label: "потолок очереди редактора" },
 };
 

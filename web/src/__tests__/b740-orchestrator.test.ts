@@ -334,6 +334,7 @@ describe("B740 — границы автономии не перешагиваю
   it("у каждой настройки белого списка есть читатель в рантайме", () => {
     const readers: Record<string, string> = {
       "seo.pages_per_day": "src/lib/seo/page-agent.ts",
+      "seo.demand_ceiling": "src/lib/seo/demand-ladder.ts",
       "marketing.conveyor.max_awaiting_review": "src/lib/marketing/conveyor-settings.ts",
     };
     for (const key of Object.keys(SETTING_BOUNDS)) {
