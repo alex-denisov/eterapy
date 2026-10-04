@@ -216,6 +216,20 @@ export async function getPublishedSeoLibraryEntry(slug: string): Promise<Anonymo
 }
 
 /**
+ * B750 — СНЯТАЯ ОРКЕСТРАТОРОМ СТРАНИЦА. Слаг со строкой RETIRED отдаёт 301 на
+ * каталог, а не 404: у адреса есть история в выдаче, и вес не должен пропасть.
+ */
+export async function isRetiredSeoLibrarySlug(slug: string): Promise<boolean> {
+  const row = await db.seoLibraryPage
+    .findFirst({
+      where: { slug, kind: SEO_PAGE_KIND.page, status: SEO_PAGE_STATUS.retired },
+      select: { id: true },
+    })
+    .catch(() => null);
+  return Boolean(row);
+}
+
+/**
  * B741 — ДОПИСАННЫЕ ТЕЛА ДЛЯ КАРТОЧЕК РЕДАКЦИОННОГО КОРПУСА.
  *
  * Отдельный запрос, а не часть `publishedSeoLibraryEntries`: там строки —

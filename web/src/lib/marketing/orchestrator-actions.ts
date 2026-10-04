@@ -22,6 +22,7 @@ import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 import { updateAIPromptConfig } from "@/lib/ai-gateway/prompts";
 import { AIProvider, Prisma } from "@prisma/client";
+import { runRightsAction } from "@/lib/marketing/orchestrator-rights";
 
 export type DirectiveRisk = "reversible" | "monetary" | "irreversible";
 
@@ -33,7 +34,12 @@ export type DirectiveAction =
   | "requeue_publications"
   | "retire_duplicate_drafts"
   | "release_locked_slots"
-  | "resolve_signal";
+  | "resolve_signal"
+  | "queue_keyword"
+  | "retire_library_page"
+  | "restore_library_page"
+  | "mark_backlink_step"
+  | "recrawl_urls";
 
 export interface OrchestratorDirective {
   key: string;
@@ -87,6 +93,38 @@ export const EDITABLE_PROMPT_FEATURES = new Set([
   "marketing-reply-reviewer",
   "seo-library-writer",
   "seo-library-editor",
+]);
+
+/**
+ * B750 — ЖЁСТКИЙ ПЕРЕЧЕНЬ «НИКОГДА». Владелец 2026-10-04: права максимально
+ * широкие, но без доступа к финансам и пользователям и без права уронить прод.
+ * Ни одно действие словаря не адресует эти области; тест читает текст модулей и
+ * проверяет, что моделей оттуда в них нет, а сырого SQL и shell-действия нет.
+ */
+export const FORBIDDEN_DOMAINS = [
+  "payments",
+  "wallets",
+  "tariffs",
+  "price_rates",
+  "orders",
+  "users",
+  "sessions",
+  "accounts",
+  "credentials",
+  "secrets",
+  "env",
+  "migrations",
+  "deploy",
+  "infra",
+] as const;
+
+/** Действия B750: обработчики и суточные потолки — в `orchestrator-rights.ts`. */
+export const RIGHTS_ACTIONS = new Set<DirectiveAction>([
+  "queue_keyword",
+  "retire_library_page",
+  "restore_library_page",
+  "mark_backlink_step",
+  "recrawl_urls",
 ]);
 
 export const ORCHESTRATOR_ACTOR = "service:marketing-orchestrator";
@@ -298,6 +336,13 @@ export async function applyDirective(directive: OrchestratorDirective): Promise<
         return { applied: true, previous: { key, status: row.status } };
       }
 
+      case "queue_keyword":
+      case "retire_library_page":
+      case "restore_library_page":
+      case "mark_backlink_step":
+      case "recrawl_urls":
+        return await runRightsAction(directive.action, directive.payload, directive.key);
+
       default: {
         const exhaustive: never = directive.action;
         return { applied: false, previous: null, error: `неизвестное действие ${String(exhaustive)}` };
@@ -345,6 +390,18 @@ export function describeDirective(directive: OrchestratorDirective): string {
     }
     case "resolve_signal":
       return `снять с доски сигнал ${String(directive.payload.signalKey)}`;
+    case "queue_keyword":
+      return `поставить запрос в очередь: «${String(directive.payload.phrase)}» (${String(directive.payload.monthlyDemand)}/мес)`;
+    case "retire_library_page":
+      return `снять страницу Библиотеки ${String(directive.payload.slug)} (редирект на /library)`;
+    case "restore_library_page":
+      return `вернуть страницу Библиотеки ${String(directive.payload.slug)}`;
+    case "mark_backlink_step":
+      return `отметить шаг ${String(directive.payload.id)}: ${String(directive.payload.status)}`;
+    case "recrawl_urls": {
+      const urls = Array.isArray(directive.payload.urls) ? directive.payload.urls.length : 0;
+      return `подать в переобход адресов: ${urls}`;
+    }
     default:
       return directive.action;
   }

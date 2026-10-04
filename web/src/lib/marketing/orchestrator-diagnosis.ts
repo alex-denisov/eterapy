@@ -84,6 +84,112 @@ function dayKey(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
+/** Ступени потолка лесенки частотности (B750). */
+export const DEMAND_CEILING_STEPS = [3_000, 10_000, 30_000, 60_000] as const;
+/** Рост показов неделя к неделе, начиная с которого сигнал считается растущим. */
+/** Суточный потолок снятия страниц. */
+export const RETIRE_PER_RUN = 3;
+export const SEARCH_GROWTH_MIN = 1.05;
+
+function searchSignalGrowing(state: OrchestratorState): boolean {
+  const delta = state.trend.weeks.find((week) => week.metric === "impressions");
+  return Boolean(delta && delta.previous > 0 && delta.current >= delta.previous * SEARCH_GROWTH_MIN);
+}
+
+/**
+ * B750 — находки про очередь запросов и страницы без спроса. Чистая функция.
+ * Автоматического снятия страниц нет: решение о снятии принимает владелец.
+ */
+export function seoDemandFindings(state: OrchestratorState, today: string): OrchestratorFinding[] {
+  const findings: OrchestratorFinding[] = [];
+  const { queueInBand, demandCeiling, pagesWithoutDemand } = state.seo;
+
+  if (queueInBand === 0 && demandCeiling !== undefined) {
+    const next = DEMAND_CEILING_STEPS.find((step) => step > demandCeiling);
+    const growing = searchSignalGrowing(state);
+    const detail =
+      "Пока в очереди нет запросов средней частоты, агент либо простаивает, либо берёт то, что «удобно писать». ";
+    findings.push({
+      code: "seo.queue_band_empty",
+      severity: "observation",
+      title: `В очереди нет запросов в полосе 300…${demandCeiling} показов/мес`,
+      detail: next && growing
+        ? detail + `Показы в поиске растут неделя к неделе — домену можно доверить запросы выше: потолок ${next}.`
+        : detail + "Показы в поиске не растут (или потолок максимален), поэтому потолок не трогаю: ждём новых фраз.",
+      ...(next && growing
+        ? {
+            directive: {
+              key: `${today}:seo.raise_ceiling`,
+              target: "seo" as const,
+              action: "set_setting" as const,
+              payload: { key: "seo.demand_ceiling", value: next },
+              problem: "в полосе лесенки нет запросов, показы в поиске растут",
+              rationale: `Поднимаю потолок частотности до ${next}: шаг на одну ступень лесенки, откат — прежнее значение.`,
+              risk: "reversible" as const,
+            },
+          }
+        : {}),
+    });
+  }
+
+  if (pagesWithoutDemand && pagesWithoutDemand.count > 0) {
+    findings.push({
+      code: "seo.page_without_demand",
+      severity: "observation",
+      title: `Страниц Библиотеки старше 30 суток со спросом ниже 100: ${pagesWithoutDemand.count}`,
+      detail:
+        `Первые: ${pagesWithoutDemand.slugs.slice(0, 5).join(", ")}. Автоматически не снимаю — `
+        + "решение о снятии принимает владелец в диалоге.",
+    });
+  }
+
+  const restoring = (state.seo.restoreRequested ?? []).slice(0, RETIRE_PER_RUN);
+  restoring.forEach((slug, index) => {
+    findings.push({
+      code: index === 0 ? "seo.restore_requested" : `seo.restore_requested.${slug}`,
+      severity: "observation",
+      title: index === 0
+        ? `Возвращаю ${restoring.length} страниц по вашей просьбе`
+        : `Возвращаю страницу ${slug} по вашей просьбе`,
+      detail: `Страница ${slug} снята, владелец попросил вернуть её в Библиотеку.`,
+      directive: {
+        key: `${today}:restore:${slug}`,
+        target: "seo",
+        action: "restore_library_page",
+        payload: { slug },
+        problem: `владелец попросил вернуть страницу ${slug}`,
+        rationale: "Возвращаю статус PUBLISHED; адрес снова отдаёт страницу вместо редиректа.",
+        risk: "reversible",
+      },
+    });
+  });
+
+  // Восстановление сильнее снятия: слаг в обоих списках не снимается.
+  const approved = (state.seo.retireApproved ?? [])
+    .filter((slug) => !(state.seo.restoreRequested ?? []).includes(slug))
+    .slice(0, RETIRE_PER_RUN);
+  approved.forEach((slug, index) => {
+    findings.push({
+      code: index === 0 ? "seo.retire_approved" : `seo.retire_approved.${slug}`,
+      severity: "observation",
+      title: index === 0
+        ? `Снимаю ${approved.length} страниц без спроса по вашему решению`
+        : `Снимаю страницу ${slug} по вашему решению`,
+      detail: `Страница ${slug} одобрена владельцем к снятию; адрес будет отдавать редирект на /library.`,
+      directive: {
+        key: `${today}:retire:${slug}`,
+        target: "seo",
+        action: "retire_library_page",
+        payload: { slug },
+        problem: `страница ${slug} не набирает спроса, владелец одобрил её снятие`,
+        rationale: "Снимаю с выдачи, но не удаляю: строка остаётся, откат — restore_library_page.",
+        risk: "reversible",
+      },
+    });
+  });
+  return findings;
+}
+
 /**
  * Разбор состояния в находки.
  *
@@ -384,6 +490,8 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
         + "Разница видна по причинам отклонения в очереди запросов.",
     });
   }
+
+  findings.push(...seoDemandFindings(state, today));
 
   if (state.seo.neverSubmitted >= 3) {
     findings.push({

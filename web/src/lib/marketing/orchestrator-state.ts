@@ -16,6 +16,8 @@ import { humanCause } from "@/lib/marketing/shortfall-notification";
 import { SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 import { moscowDayBounds, seoPagesPerDay } from "@/lib/seo/page-agent";
 import { readSearchSources, type SearchSourcesState } from "@/lib/marketing/orchestrator-search-sources";
+import { SEO_DEMAND_CEILING_DEFAULT, SEO_DEMAND_FLOOR, seoDemandCeiling } from "@/lib/seo/demand-ladder";
+import { RESTORE_REQUESTED_KEY, RETIRE_APPROVED_KEY, parseRetireApproved } from "@/lib/marketing/orchestrator-rights";
 import { thinCards } from "@/lib/seo/backfill";
 import { dzenBrowserHealth, type BrowserSessionHealth } from "@/lib/marketing/browser-publisher";
 import { VERTEX_CREDENTIAL_LABEL } from "@/lib/ai-gateway/free-tier-bootstrap";
@@ -60,6 +62,16 @@ export interface SeoState {
   /** Сколько опубликованных страниц НИ РАЗУ не отдавали в переобход. */
   neverSubmitted: number;
   lastPublishedAt: Date | null;
+  /** B750 — новых запросов в полосе лесенки [пол, потолок]. */
+  queueInBand?: number;
+  /** B750 — действующий потолок лесенки частотности. */
+  demandCeiling?: number;
+  /** B750 — страницы базы старше 30 суток с targetDemand < 100. */
+  pagesWithoutDemand?: { count: number; slugs: string[] };
+  /** B750 — одобренные владельцем к снятию слаги, которые сейчас PUBLISHED. */
+  retireApproved?: string[];
+  /** B750 — просьбы владельца вернуть страницу, которые сейчас RETIRED. */
+  restoreRequested?: string[];
 }
 
 /**
@@ -181,11 +193,73 @@ function topReasonOf(reasons: string[]): string | null {
   return [...tally.entries()].sort((left, right) => right[1] - left[1])[0][0];
 }
 
+/** Порог частотности, ниже которого страница базы считается «без спроса». */
+export const PAGE_DEMAND_FLOOR = 100;
+export const PAGE_DEMAND_MIN_AGE_DAYS = 30;
+
+/** B750 — три дешёвых запроса: полоса лесенки и страницы без спроса. */
+async function collectSeoDemandState(
+  now: Date,
+): Promise<Pick<SeoState, "queueInBand" | "demandCeiling" | "pagesWithoutDemand" | "retireApproved" | "restoreRequested">> {
+  const ceiling = await seoDemandCeiling().catch(() => SEO_DEMAND_CEILING_DEFAULT);
+  const cutoff = new Date(now.getTime() - PAGE_DEMAND_MIN_AGE_DAYS * 86_400_000);
+  const weakWhere = {
+    status: SEO_PAGE_STATUS.published,
+    kind: "PAGE",
+    targetDemand: { lt: PAGE_DEMAND_FLOOR },
+    publishedAt: { lt: cutoff },
+  };
+  const approvedRow = await db.platformSetting
+    .findUnique({ where: { key: RETIRE_APPROVED_KEY }, select: { value: true } })
+    .catch(() => null);
+  const restoreRow = await db.platformSetting
+    .findUnique({ where: { key: RESTORE_REQUESTED_KEY }, select: { value: true } })
+    .catch(() => null);
+  const restoreAsked = parseRetireApproved(restoreRow?.value);
+  // Восстановление сильнее снятия: слаг в обоих списках не снимается.
+  const approved = parseRetireApproved(approvedRow?.value).filter((slug) => !restoreAsked.includes(slug));
+  const [queueInBand, weakCount, weakRows, retireRows, restoreRows] = await Promise.all([
+    db.seoKeywordCandidate
+      .count({ where: { status: "NEW", monthlyDemand: { gte: SEO_DEMAND_FLOOR, lte: ceiling } } })
+      .catch(() => 0),
+    db.seoLibraryPage.count({ where: weakWhere }).catch(() => 0),
+    db.seoLibraryPage
+      .findMany({ where: weakWhere, orderBy: { publishedAt: "asc" }, take: 5, select: { slug: true } })
+      .catch(() => [] as Array<{ slug: string }>),
+    approved.length === 0
+      ? Promise.resolve([] as Array<{ slug: string }>)
+      : db.seoLibraryPage
+          .findMany({
+            where: { slug: { in: approved }, kind: "PAGE", status: SEO_PAGE_STATUS.published },
+            select: { slug: true },
+          })
+          .catch(() => [] as Array<{ slug: string }>),
+    restoreAsked.length === 0
+      ? Promise.resolve([] as Array<{ slug: string }>)
+      : db.seoLibraryPage
+          .findMany({
+            where: { slug: { in: restoreAsked }, kind: "PAGE", status: SEO_PAGE_STATUS.retired },
+            select: { slug: true },
+          })
+          .catch(() => [] as Array<{ slug: string }>),
+  ]);
+  const restorable = new Set(restoreRows.map((row) => row.slug));
+  const live = new Set(retireRows.map((row) => row.slug));
+  return {
+    queueInBand,
+    demandCeiling: ceiling,
+    pagesWithoutDemand: { count: weakCount, slugs: weakRows.map((row) => row.slug) },
+    retireApproved: approved.filter((slug) => live.has(slug)),
+    restoreRequested: restoreAsked.filter((slug) => restorable.has(slug)),
+  };
+}
+
 export async function collectOrchestratorState(input: { now?: Date } = {}): Promise<OrchestratorState> {
   const now = input.now ?? new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
   const { start: dayStart, end: dayEnd } = moscowDayBounds(now);
+  const seoExtra = await collectSeoDemandState(now);
 
   const [
     conveyor,
@@ -397,6 +471,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       queueRejected,
       neverSubmitted,
       lastPublishedAt: seoLast?.publishedAt ?? null,
+      ...seoExtra,
     },
     search: {
       impressions: snapshots[0]?.impressions ?? null,

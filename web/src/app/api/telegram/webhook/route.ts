@@ -14,6 +14,7 @@ import db from "@/lib/db";
 import { enableAllTelegramNotifications } from "@/lib/notifications";
 import { bindTelegramToUser, findUserByTelegramSubject, unbindTelegramFromUser } from "@/lib/telegram-binding";
 import { sendTelegram } from "@/lib/telegram";
+import { handleOwnerMessage } from "@/lib/marketing/orchestrator-dialogue";
 import {
   formatTelegramGrowthMessage,
   getTrackedTelegramMiniAppUrl,
@@ -131,6 +132,26 @@ export async function POST(req: NextRequest) {
       });
       await completeWebhookEvent(claim.event.id, { result });
       return NextResponse.json({ ok: true, result });
+    }
+
+    // B750: владелец отвечает оркестратору в канале/группе отчётов — это
+    // `message` (супергруппа) или `channel_post` (канал). Не наш чат и боты
+    // проходят дальше по прежнему маршруту.
+    const dialogueMsg = update.message ?? update.channel_post;
+    if (dialogueMsg?.text && dialogueMsg.chat.id !== undefined) {
+      const dialogue = await handleOwnerMessage({
+        text: dialogueMsg.text,
+        chatId: String(dialogueMsg.chat.id),
+        messageId: dialogueMsg.message_id ?? null,
+        fromBot: Boolean(dialogueMsg.from?.is_bot),
+        chatType: dialogueMsg.chat.type,
+        now: new Date(),
+      });
+      if (dialogue.handled) {
+        const result = `owner-dialogue:${dialogue.intent}`;
+        await completeWebhookEvent(claim.event.id, { result });
+        return NextResponse.json({ ok: true, result });
+      }
     }
 
     const msg = update.message;
@@ -321,12 +342,20 @@ interface TelegramUpdate {
       chat: { id: number };
     };
   };
+  /** B750: пост канала (если отчёты идут в канал, а не в супергруппу). */
+  channel_post?: {
+    text?: string;
+    date?: number;
+    message_id?: number;
+    chat: { id: number; type?: string; username?: string };
+    from?: { is_bot?: boolean };
+  };
   message?: {
     text?: string;
     date?: number;
     message_id?: number;
     message_thread_id?: number;
-    chat: { id: number; username?: string };
+    chat: { id: number; type?: string; username?: string };
     from?: { id?: number; is_bot?: boolean; username?: string; first_name?: string; last_name?: string };
     /** B618: пересланный в группу обсуждений пост канала, а не комментарий. */
     is_automatic_forward?: boolean;

@@ -27,9 +27,9 @@ import {
   automatedBacklinkTargets,
   humanRegistrationTargets,
 } from "@/lib/seo/backlink-targets";
+import { buildDailyBrief } from "@/lib/marketing/orchestrator-brief";
 import {
   backlinkPoolBlock,
-  buildOrchestratorReport,
   directivesBlock,
   looksRussian,
   ownerActionsBlock,
@@ -342,22 +342,24 @@ describe("B742 §4 — внешние ссылки: граница автома�
 });
 
 describe("B742 — отчёт собирается целиком и остаётся читаемым", () => {
-  it("шаги владельца и самооценка попадают в собранный отчёт", () => {
+  it("шаги владельца попадают в собранную презентацию", () => {
     const state = stateWith({
       dzen: { reachable: true, authorized: false, reason: "session expired", account: null },
       recentDirectives: [
         { key: "2026-09-11:conveyor.widen_drum", action: "set_setting", problem: "очередь редактора связывает линию", appliedAt: NOW, status: "APPLIED" },
       ],
     });
-    const report = buildOrchestratorReport({
+    const report = buildDailyBrief({
       state,
       findings: diagnose(state),
-      directives: [],
+      planned: [],
+      applied: [],
+      ownerNotes: [],
       narrative: null,
     });
-    expect(report).toContain("Что нужно от вас");
-    expect(report).toContain("Мои прошлые правки за неделю");
-    // Отчёт существует без модели: связующий абзац необязателен по построению.
+    expect(report).toContain("ЧТО НУЖНО ОТ ВАС");
+    expect(report).not.toContain("ничего\n");
+    // Отчёт существует без модели: связующее предложение необязательно по построению.
     expect(report.startsWith("🧭")).toBe(true);
   });
 });

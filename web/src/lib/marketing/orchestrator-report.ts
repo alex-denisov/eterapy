@@ -358,16 +358,16 @@ export async function narrativeFor(input: {
        */
       feature: MARKETING_ORCHESTRATOR_REPORT_FEATURE,
       dataClass: "PUBLIC_MARKETING",
-      maxTokens: 500,
+      maxTokens: 200,
       temperature: 0.3,
       messages: [
         {
           role: "system",
           content: [
             "Ты — руководитель отдела маркетинга платформы ETerapy. Ты докладываешь владельцу.",
-            "Тебе дают готовый список находок и готовый план правок. Твоя работа — ОДИН абзац: что из этого главное, что произойдёт, если не чинить, и чего ждать после правок.",
+            "Тебе дают готовый список находок и готовый план правок. Твоя работа — ОДНО предложение: что из этого главное и чего ждать после правок.",
             "Ни одного нового факта, ни одной новой цифры: всё, что ты называешь, должно быть в списке находок.",
-            "Три-четыре предложения. ТОЛЬКО ПО-РУССКИ: ответ на любом другом языке будет отброшен и не дойдёт до владельца.",
+            "Не длиннее 25 слов. ТОЛЬКО ПО-РУССКИ: ответ на любом другом языке будет отброшен и не дойдёт до владельца.",
             "Без восклицаний, без «мы усердно работаем», без вводных вроде «важно отметить».",
           ].join("\n"),
         },
@@ -380,45 +380,12 @@ export async function narrativeFor(input: {
       log.warn("orchestrator.narrative_not_russian", { model: response.model, sample: text.slice(0, 60) });
       return null;
     }
-    return text.slice(0, 900);
+    return text.slice(0, 300);
   } catch (error) {
     // Молчание модели не имеет права стать молчанием отчёта.
     log.warn("orchestrator.narrative_failed", { error: serializeError(error) });
     return null;
   }
-}
-
-/** Полный текст отчёта. Чистая функция — проверяется прогоном, а не отправкой. */
-export function buildOrchestratorReport(input: {
-  /** B743: факт по метрикам за период. Пусто — блока KPI в отчёте нет. */
-  kpi?: { verdicts: readonly KpiVerdict[]; period: KpiPeriod };
-  state: OrchestratorState;
-  findings: readonly OrchestratorFinding[];
-  directives: readonly OrchestratorDirective[];
-  narrative: string | null;
-}): string {
-  const incidents = input.findings.filter((finding) => finding.severity === "incident").length;
-  const header = incidents > 0
-    ? `🧭 <b>Отчёт оркестратора · ${incidents} инцидент(ов)</b>`
-    : "🧭 <b>Отчёт оркестратора</b>";
-  const ownerActions = ownerActionsBlock(input.findings);
-  const selfReview = selfReviewBlock(input.state);
-  const backlinks = backlinkPoolBlock(input.state.now, input.state.backlinks);
-  const kpi = input.kpi ? kpiBlock(input.kpi.verdicts, input.kpi.period) : [];
-  const trend = trendBlock(input.state.trend);
-  const blocks = [
-    `${header}\n<i>${moscowTime(input.state.now)} МСК</i>`,
-    ...(input.narrative ? [input.narrative] : []),
-    stateBlock(input.state).join("\n"),
-    ...(trend.length > 0 ? [trend.join("\n")] : []),
-    ...(kpi.length > 0 ? [kpi.join("\n")] : []),
-    findingsBlock(input.findings).join("\n"),
-    directivesBlock(input.directives, ownerActions.length > 0).join("\n"),
-    ...(ownerActions.length > 0 ? [ownerActions.join("\n")] : []),
-    ...(selfReview.length > 0 ? [selfReview.join("\n")] : []),
-    ...(backlinks.length > 0 ? [backlinks.join("\n")] : []),
-  ];
-  return blocks.join("\n\n");
 }
 
 /**

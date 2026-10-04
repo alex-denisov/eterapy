@@ -20,7 +20,7 @@ import { runSeoAudit } from "@/lib/marketing/seo-monitor";
 import { runSeoCoverageCycle, submitUrlsForRecrawl } from "@/lib/marketing/seo-coverage";
 import { harvestSearchDemand } from "@/lib/seo/demand/harvest";
 import { runSeoBackfillCycle, runSeoPageCycle, seoPageUrl } from "@/lib/seo/page-agent";
-import { runOrchestratorCycle, ORCHESTRATOR_CYCLE_MS } from "@/lib/marketing/orchestrator";
+import { runOrchestratorCycle, orchestratorReportRequested, ORCHESTRATOR_CYCLE_MS } from "@/lib/marketing/orchestrator";
 import { runMarketingUrlAudit } from "@/lib/marketing/url-monitor";
 import { refreshMetaMarketingTokens } from "@/lib/marketing/meta-oauth";
 import { generateMarketingDrafts } from "@/lib/marketing/publication-queue";
@@ -101,6 +101,7 @@ let lastSnapshotCheck = 0;
 let lastSeoDemand = 0;
 let lastSeoPage = 0;
 let lastOrchestrator = 0;
+let lastReportPoll = 0;
 let lastSeoBackfill = 0;
 const seoCycleMs = Math.max(
   60 * 60_000,
@@ -298,7 +299,14 @@ async function main() {
        * состоянии контура, и судить он должен по тому, что этот проход уже
        * сделал, а не по тому, что было до него.
        */
-      if (now - lastOrchestrator >= ORCHESTRATOR_CYCLE_MS) {
+      // B750 — просьба владельца «пришли отчёт» не ждёт часового шага: флаг
+      // `report_now` спрашивается у базы не чаще раза в минуту.
+      let reportRequested = false;
+      if (now - lastReportPoll >= 60_000) {
+        lastReportPoll = now;
+        reportRequested = await orchestratorReportRequested().catch(() => false);
+      }
+      if (reportRequested || now - lastOrchestrator >= ORCHESTRATOR_CYCLE_MS) {
         lastOrchestrator = now;
         await guarded("orchestrator", () => runOrchestratorCycle({ now: new Date(now) }));
       }

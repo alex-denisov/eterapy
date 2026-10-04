@@ -186,3 +186,22 @@ export function pendingHumanTargets(status: BacklinkStatusMap): BacklinkTargetSt
 export function automatedBacklinkTargets(): readonly BacklinkTarget[] {
   return BACKLINK_TARGETS.filter((target) => target.route !== "human");
 }
+
+/** B750 — чистая запись статуса шага: возвращает новую карту, исходную не трогает. */
+export function withBacklinkStatus(
+  map: BacklinkStatusMap,
+  id: string,
+  status: BacklinkStepStatus,
+  note: string | null | undefined,
+  now: Date,
+): BacklinkStatusMap {
+  const trimmed = note?.trim();
+  return {
+    ...map,
+    [id]: {
+      status,
+      ...(trimmed ? { note: trimmed } : {}),
+      updatedAt: now.toISOString(),
+    },
+  };
+}

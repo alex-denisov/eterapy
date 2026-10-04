@@ -126,13 +126,14 @@ export function getTelegramRuntimeConfig() {
 export async function sendTelegram(
   chatId: string,
   text: string,
-  options?: { replyMarkup?: TelegramInlineKeyboard },
+  options?: { replyMarkup?: TelegramInlineKeyboard; replyToMessageId?: number },
 ): Promise<number | null> {
   if (!BOT_TOKEN) {
     log.warn("telegram.bot_token_missing");
     return null;
   }
   const result = await telegramApi<{ message_id?: number }>("sendMessage", {
+    ...(options?.replyToMessageId ? { reply_parameters: { message_id: options.replyToMessageId, allow_sending_without_reply: true } } : {}),
     chat_id: chatId,
     text,
     parse_mode: "HTML",
@@ -275,6 +276,7 @@ export async function getBotUpdates(offset?: number) {
  */
 export const TELEGRAM_ALLOWED_UPDATES = [
   "message",
+  "channel_post",
   "callback_query",
   "pre_checkout_query",
 ] as const;

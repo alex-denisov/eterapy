@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowRight, ChevronLeft, CircleHelp, Compass, ShieldCheck } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
@@ -9,6 +9,7 @@ import { approvedLibraryEntries, librarySection } from "@/data/anonymous-library
 import {
   getLibraryEntryWithBackfill,
   getPublishedSeoLibraryEntry,
+  isRetiredSeoLibrarySlug,
   libraryEntriesWithBackfill,
   publishedSeoLibraryEntries,
 } from "@/lib/seo/library-store";
@@ -65,7 +66,10 @@ export async function generateMetadata({
   // B741: у карточки корпуса может быть дописанное тело — оно меняет и
   // мета-описание, поэтому берётся до сборки метаданных, а не после.
   const entry = await getLibraryEntryWithBackfill(slug) ?? await getPublishedSeoLibraryEntry(slug);
-  if (!entry) return {};
+  if (!entry) {
+    if (await isRetiredSeoLibrarySlug(slug)) permanentRedirect("/library");
+    return {};
+  }
 
   const title = libraryMetaTitle(entry);
   const description = libraryMetaDescription(entry);
@@ -119,7 +123,10 @@ export default async function LibraryEntryPage({
   // самостоятельная страница агента. Порядок повторяет метаданные выше —
   // разойдись они, страница показывала бы одно, а в выдаче обещала другое.
   const entry = await getLibraryEntryWithBackfill(slug) ?? await getPublishedSeoLibraryEntry(slug);
-  if (!entry) notFound();
+  if (!entry) {
+    if (await isRetiredSeoLibrarySlug(slug)) permanentRedirect("/library");
+    notFound();
+  }
   const section = librarySection(entry);
   /**
    * B740 — СТРАНИЦА АГЕНТА НЕ ИМЕЕТ ПРАВА БЫТЬ СИРОТОЙ.

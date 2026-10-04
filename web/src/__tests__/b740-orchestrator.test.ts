@@ -9,12 +9,9 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { diagnose, directivesFrom } from "@/lib/marketing/orchestrator-diagnosis";
-import {
-  buildOrchestratorReport,
-  directivesBlock,
-  findingsBlock,
-} from "@/lib/marketing/orchestrator-report";
-import { shouldReport } from "@/lib/marketing/orchestrator";
+import { directivesBlock, findingsBlock } from "@/lib/marketing/orchestrator-report";
+import { buildDailyBrief } from "@/lib/marketing/orchestrator-brief";
+import { reportDecision } from "@/lib/marketing/orchestrator";
 import {
   EDITABLE_PROMPT_FEATURES,
   SETTING_BOUNDS,
@@ -182,27 +179,30 @@ describe("B740 — отчёт существует и без модели", () =
   it("текст собирается при недоступном пуле", () => {
     const state = stateWith({ stalledIds: ["a", "b", "c"] });
     const findings = diagnose(state);
-    const report = buildOrchestratorReport({
+    const report = buildDailyBrief({
       state,
       findings,
-      directives: directivesFrom(findings),
+      planned: directivesFrom(findings),
+      applied: [],
+      ownerNotes: [],
       narrative: null,
     });
     expect(report).toContain("Отчёт оркестратора");
-    expect(report).toContain("Как сейчас");
-    expect(report).toContain("Что я нашёл");
+    expect(report).toContain("ИТОГ");
+    expect(report).toContain("ЧТО ДЕЛАЮ ДАЛЬШЕ");
   });
 
-  it("сначала проблема, потом правка — руководитель читает состояние дел", () => {
+  it("сначала итог и сделанное, потом план — руководитель читает состояние дел", () => {
     const state = stateWith({ stalledIds: ["a", "b", "c"] });
     const findings = diagnose(state);
-    const report = buildOrchestratorReport({
+    const report = buildDailyBrief({
       state,
       findings,
-      directives: directivesFrom(findings),
-      narrative: null,
+      planned: directivesFrom(findings),
+      applied: [],
+      ownerNotes: [],
     });
-    expect(report.indexOf("Что я нашёл")).toBeLessThan(report.indexOf("Что меняю"));
+    expect(report.indexOf("ИТОГ")).toBeLessThan(report.indexOf("ЧТО ДЕЛАЮ ДАЛЬШЕ"));
   });
 
   it("у каждой правки в отчёте названо обоснование", () => {
@@ -218,32 +218,32 @@ describe("B740 — отчёт существует и без модели", () =
   });
 });
 
-describe("B740 — спокойный проход молчит, но раз в сутки отчитывается", () => {
-  it("находок нет и доклад был недавно — молчим", () => {
-    expect(shouldReport({
-      findings: 0,
-      directives: 0,
-      now: NOW,
-      lastReportAt: new Date(NOW.getTime() - 6 * 3_600_000),
-    }).report).toBe(false);
+describe("B740/B750 — спокойный проход молчит, отчёт раз в сутки в 09:00 МСК", () => {
+  const quiet = { reportNow: false, incidents: [] as string[], lastIncidentAt: {} };
+
+  it("сегодняшняя презентация уже ушла — молчим", () => {
+    expect(reportDecision({
+      ...quiet,
+      now: new Date("2026-09-12T12:00:00Z"),
+      lastBriefAt: new Date("2026-09-12T06:05:00Z"),
+    }).reason).not.toBeNull();
   });
 
-  it("находок нет, но сутки прошли — отчитываемся: владелец должен отличать тишину от смерти агента", () => {
-    expect(shouldReport({
-      findings: 0,
-      directives: 0,
-      now: NOW,
-      lastReportAt: new Date(NOW.getTime() - 25 * 3_600_000),
-    }).report).toBe(true);
+  it("сутки сменились, 09:00 прошло — отчитываемся: владелец отличает тишину от смерти агента", () => {
+    expect(reportDecision({
+      ...quiet,
+      now: new Date("2026-09-12T06:00:00Z"),
+      lastBriefAt: new Date("2026-09-11T06:05:00Z"),
+    }).daily).toBe(true);
   });
 
-  it("есть находка — отчитываемся немедленно", () => {
-    expect(shouldReport({
-      findings: 1,
-      directives: 0,
-      now: NOW,
-      lastReportAt: new Date(NOW.getTime() - 60_000),
-    }).report).toBe(true);
+  it("инцидент — отдельным сообщением до 09:00", () => {
+    expect(reportDecision({
+      ...quiet,
+      incidents: ["pool.dead"],
+      now: new Date("2026-09-12T03:00:00Z"),
+      lastBriefAt: new Date("2026-09-11T06:05:00Z"),
+    }).alertCodes).toEqual(["pool.dead"]);
   });
 });
 
