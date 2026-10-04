@@ -18,7 +18,7 @@ export function llmsText() {
     link("/", "ETerapy overview", "Definitions, use cases, limitations, examples, sources, and frequently asked questions."),
     link("/how-it-works", "How ETerapy works", "The question-first flow from a free primary reflection to optional depth."),
     link("/products", "Products and services", "Digital formats, joint formats, symbolic reflection tools, and specialist sessions."),
-    link("/ai-psychologist", "AI-assisted first reflection", "Free question-first reflection with explicit non-medical boundaries."),
+    link("/ai-psychologist", "AI psychologist online (ИИ-психолог)", "Free anonymous first reflection with a neural-network assistant, no registration; explicit non-medical boundaries."),
     link("/products/chat-analysis", "Conversation analysis", "Private analysis of observable message tone and possible replies; no mind-reading or lie detection."),
     link("/products/tarot", "Online Tarot spread", "A question-led symbolic spread with card meanings, a decision fork, and no prediction claim."),
     link("/products/natal-chart", "Natal chart", "A chart calculated from birth data and explained as a symbolic portrait, not a forecast."),

@@ -24,7 +24,7 @@ describe("v5 SEO routing policy", () => {
     expect(body).toContain("User-agent: PerplexityBot");
     expect(body).toContain("# LLM content map: https://eterapy.com/llms.txt");
     // B701: цитировать в ответах можно, обучать на нас — нет.
-    expect(body).toContain("Content-Signal: ai-train=no, search=yes, ai-input=yes");
+    expect(body).toContain("Content-Signal: ai-train=yes, search=yes, ai-input=yes");
   });
 
   it.each(["app.eterapy.com", "admin.eterapy.com"])("blocks all crawlers on %s", async (host) => {
