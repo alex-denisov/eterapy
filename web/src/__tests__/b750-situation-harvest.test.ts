@@ -144,3 +144,18 @@ describe("B750 сверка с Wordstat без пунктуации и ё", () =
     expect(countForPhrase(rows, "жена ушла")).toBe(0);
   });
 });
+
+describe("B750 дубли темы в сборе от ситуации", () => {
+  it("фраза, близкая к живой в очереди, не измеряется и не сохраняется", async () => {
+    const measure = jest.fn(async (_phrase: string) => 900);
+    const { deps: d, saved } = deps({
+      generate: async () => JSON.stringify(["муж изменил что делать", "как понять что он меня не любит"]),
+      liveTopics: async () => ["что делать если муж изменил"],
+      measure,
+    });
+    const result = await harvestSituations({ now: new Date(Date.UTC(2026, 9, 5)), deps: d, clusters });
+    expect(measure).toHaveBeenCalledTimes(1);
+    expect(saved.map((r) => r.phrase)).toEqual(["как понять что он меня не любит"]);
+    expect(result.filtered).toBe(1);
+  });
+});

@@ -28,6 +28,8 @@ import {
   normalizePhrase,
   rejectReasonFor,
 } from "@/lib/seo/demand/harvest";
+import { duplicateOf } from "@/lib/seo/demand/duplicates";
+import { liveTopicPhrases } from "@/lib/seo/demand/relevance-cleanup";
 import { topRequestsFor, wordstatConfigured } from "@/lib/seo/demand/wordstat-harvest";
 
 export const SITUATION_PHRASES_PER_CLUSTER = 25;
@@ -48,6 +50,8 @@ export interface SituationHarvestDeps {
   /** Частота фразы в Wordstat; бросает ошибку с «HTTP 429» при исчерпании квоты. */
   measure: (phrase: string) => Promise<number>;
   covered: () => Promise<ReadonlySet<string>>;
+  /** Живые намерения очереди и страниц; по ним отсекаются дубли темы. */
+  liveTopics?: () => Promise<string[]>;
   /** Какие из фраз уже есть в таблице (любой статус) — их не измеряем заново. */
   known: (phrases: string[]) => Promise<ReadonlySet<string>>;
   save: (row: {
@@ -195,6 +199,7 @@ function defaultDeps(now: Date): SituationHarvestDeps {
       return countForPhrase(rows, phrase);
     },
     covered: () => coveredPhraseSet(),
+    liveTopics: () => liveTopicPhrases({ includeNew: true }),
     known: async (phrases) => {
       const rows = await db.seoKeywordCandidate.findMany({
         where: { phrase: { in: phrases } },
@@ -236,6 +241,7 @@ export async function harvestSituations(
     const proposed = parseSituationPhrases(await deps.generate(target));
     result.proposed = proposed.length;
     const covered = await deps.covered();
+    const liveTopics = deps.liveTopics ? await deps.liveTopics().catch(() => [] as string[]) : [];
 
     const candidates: string[] = [];
     for (const phrase of proposed) {
@@ -244,7 +250,7 @@ export async function harvestSituations(
       const reject =
         words < SITUATION_MIN_WORDS || words > SITUATION_MAX_WORDS
           ? "длина"
-          : rejectReasonFor({ phrase, monthlyDemand: null, source: "wordstat", coveredPhrases: covered });
+          : rejectReasonFor({ phrase, monthlyDemand: null, source: "wordstat", coveredPhrases: covered, liveTopics: [...liveTopics, ...candidates] });
       if (reject) result.filtered += 1;
       else candidates.push(phrase);
     }
@@ -252,6 +258,7 @@ export async function harvestSituations(
     const known = await deps.known(candidates);
     const fresh = candidates.filter((phrase) => !known.has(phrase)).slice(0, SITUATION_MEASURE_LIMIT);
 
+    const savedThisRun: string[] = [];
     for (const phrase of fresh) {
       let demand: number;
       try {
@@ -269,6 +276,8 @@ export async function harvestSituations(
       if (demand < SEO_DEMAND_FLOOR) continue;
       // Верхний потолок («головной запрос») проверяем теми же правилами, что и сбор.
       if (rejectReasonFor({ phrase, monthlyDemand: demand, source: "wordstat", coveredPhrases: covered })) continue;
+      // Внутри захода два близких намерения тоже не берём: первое сохранённое выигрывает.
+      if (duplicateOf(phrase, savedThisRun)) continue;
       try {
         await deps.save({
           phrase,
@@ -278,6 +287,7 @@ export async function harvestSituations(
           service: target.service,
           now,
         });
+        savedThisRun.push(phrase);
         result.accepted += 1;
       } catch (error) {
         log.warn("seo-situation.save_failed", { phrase, error: serializeError(error) });

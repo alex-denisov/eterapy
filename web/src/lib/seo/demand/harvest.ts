@@ -26,6 +26,8 @@ import {
 } from "@/lib/seo/demand/wordstat-harvest";
 import { harvestGoogleTrends } from "@/lib/seo/demand/google-trends";
 import { relevanceVerdict } from "@/lib/seo/demand/relevance";
+import { duplicateOf } from "@/lib/seo/demand/duplicates";
+import { liveTopicPhrases } from "@/lib/seo/demand/relevance-cleanup";
 
 /**
  * Слова, по которым фраза заведомо не наша.
@@ -80,6 +82,8 @@ export function rejectReasonFor(input: {
   monthlyDemand: number | null;
   source: HarvestedPhrase["source"];
   coveredPhrases: ReadonlySet<string>;
+  /** B750: живые намерения (NEW/PLANNED/USED, опубликованные страницы). */
+  liveTopics?: readonly string[];
 }): string | null {
   const phrase = normalizePhrase(input.phrase);
   const words = phrase.split(" ").filter(Boolean);
@@ -92,6 +96,8 @@ export function rejectReasonFor(input: {
   // B750: фраза обязана быть запросом на разбор ситуации, а не темой выдачи.
   const irrelevant = relevanceVerdict(phrase);
   if (irrelevant) return `B750: нерелевантно — ${irrelevant}`;
+  const rival = input.liveTopics ? duplicateOf(phrase, input.liveTopics) : null;
+  if (rival && rival !== phrase) return `B750: дубль темы — ${rival}`;
   // Порог применяется только там, где частотность ИЗМЕРЕНА. У Trends её нет
   // вовсе, и отбрасывать растущий запрос за «ноль показов» значило бы
   // наказывать фразу за молчание чужого источника.
@@ -172,6 +178,7 @@ export async function harvestSearchDemand(input: { now?: Date } = {}): Promise<D
     if (seen.growth === null && item.growth !== null) seen.growth = item.growth;
   }
 
+  const liveTopics = await liveTopicPhrases({ includeNew: true }).catch(() => [] as string[]);
   let accepted = 0;
   let rejected = 0;
   for (const [phrase, item] of merged) {
@@ -180,7 +187,9 @@ export async function harvestSearchDemand(input: { now?: Date } = {}): Promise<D
       monthlyDemand: item.monthlyDemand,
       source: item.source,
       coveredPhrases: covered,
+      liveTopics,
     });
+    if (!reject) liveTopics.push(phrase);
     const source = [...item.sources].sort().join("+");
     try {
       await db.seoKeywordCandidate.upsert({

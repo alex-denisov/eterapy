@@ -11,7 +11,9 @@
  */
 
 import db from "@/lib/db";
+import { duplicateOf } from "@/lib/seo/demand/duplicates";
 import { relevanceVerdict } from "@/lib/seo/demand/relevance";
+import { SEO_PAGE_STATUS } from "@/lib/seo/page-kinds";
 
 export interface RelevanceCleanupResult {
   scanned: number;
@@ -19,19 +21,72 @@ export interface RelevanceCleanupResult {
 }
 
 export const RELEVANCE_REJECT_PREFIX = "B750: нерелевантно — ";
+export const DUPLICATE_REJECT_PREFIX = "B750: дубль темы — ";
+/** Потолок строк за проход: попарная проверка O(n²) остаётся дешёвой. */
+export const CLEANUP_MAX_ROWS = 600;
+
+/**
+ * Фразы, чьё намерение уже занято: взятые в работу, закрытые страницей и
+ * опубликованные страницы. Новая фраза, близкая к любой из них, — каннибал.
+ */
+export async function liveTopicPhrases(options: { includeNew?: boolean } = {}): Promise<string[]> {
+  const [candidates, pages] = await Promise.all([
+    db.seoKeywordCandidate
+      .findMany({
+        where: { status: { in: options.includeNew ? ["NEW", "PLANNED", "USED"] : ["PLANNED", "USED"] } },
+        select: { phrase: true },
+        take: 2000,
+      })
+      .catch(() => [] as Array<{ phrase: string }>),
+    db.seoLibraryPage
+      .findMany({
+        where: { status: SEO_PAGE_STATUS.published },
+        select: { targetQuery: true },
+        take: 2000,
+      })
+      .catch(() => [] as Array<{ targetQuery: string }>),
+  ]);
+  return [...candidates.map((row) => row.phrase), ...pages.map((row) => row.targetQuery)];
+}
 
 export async function rejectIrrelevantCandidates(): Promise<RelevanceCleanupResult> {
-  const rows = await db.seoKeywordCandidate.findMany({
+  const rows = (await db.seoKeywordCandidate.findMany({
     where: { status: "NEW" },
-    select: { id: true, phrase: true, cluster: true },
-  });
+    select: { id: true, phrase: true, cluster: true, monthlyDemand: true, firstSeenAt: true },
+    orderBy: [{ monthlyDemand: { sort: "desc", nulls: "last" } }, { firstSeenAt: "asc" }],
+    take: CLEANUP_MAX_ROWS,
+  })) as Array<{
+    id: string;
+    phrase: string;
+    cluster: string | null;
+    monthlyDemand?: number | null;
+    firstSeenAt?: Date;
+  }>;
 
   const idsByReason = new Map<string, string[]>();
+  const reject = (reason: string, id: string) =>
+    idsByReason.set(reason, [...(idsByReason.get(reason) ?? []), id]);
+
+  const survivors: typeof rows = [];
   for (const row of rows) {
     const verdict = relevanceVerdict(row.phrase, row.cluster);
-    if (!verdict) continue;
-    const reason = `${RELEVANCE_REJECT_PREFIX}${verdict}`;
-    idsByReason.set(reason, [...(idsByReason.get(reason) ?? []), row.id]);
+    if (verdict) reject(`${RELEVANCE_REJECT_PREFIX}${verdict}`, row.id);
+    else survivors.push(row);
+  }
+
+  // Порядок: частота по убыванию, при равенстве — раньше замеченная. Сортируем
+  // здесь, а не доверяем базе: так правило держится и на подменённой выборке.
+  const ordered = [...survivors].sort(
+    (a, b) =>
+      (b.monthlyDemand ?? -1) - (a.monthlyDemand ?? -1) ||
+      (a.firstSeenAt?.getTime() ?? 0) - (b.firstSeenAt?.getTime() ?? 0),
+  );
+  const occupied = await liveTopicPhrases();
+  const kept: string[] = [];
+  for (const row of ordered) {
+    const rival = duplicateOf(row.phrase, occupied) ?? duplicateOf(row.phrase, kept);
+    if (rival) reject(`${DUPLICATE_REJECT_PREFIX}${rival}`, row.id);
+    else kept.push(row.phrase);
   }
 
   let rejected = 0;
