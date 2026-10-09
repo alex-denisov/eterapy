@@ -100,7 +100,7 @@ export async function metaAuthorizationUrl(input: {
   // документации нет, поэтому там ставить нечего.
   if (input.platform === "Instagram") url.searchParams.set("force_reauth", "true");
   url.searchParams.set("scope", input.platform === "Threads"
-    ? "threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights"
+    ? "threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights,threads_keyword_search,threads_manage_mentions"
     : "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_insights");
   return url.toString();
 }
