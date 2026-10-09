@@ -56,6 +56,9 @@ describe("B610 · Meta OAuth setup", () => {
     // пути авторизации не было лишнего перехода.
     expect(threads.origin).toBe("https://www.threads.com");
     expect(threads.searchParams.get("scope")).toContain("threads_content_publish");
+    // B755: права поиска и упоминаний входят в токен только при выдаче — продление их не добавляет.
+    expect(threads.searchParams.get("scope")).toContain("threads_keyword_search");
+    expect(threads.searchParams.get("scope")).toContain("threads_manage_mentions");
 
     const instagram = new URL(await metaAuthorizationUrl({ platform: "Instagram", state: "signed" }));
     expect(instagram.origin).toBe("https://www.instagram.com");
