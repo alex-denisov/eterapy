@@ -23,7 +23,8 @@
  */
 
 import db from "@/lib/db";
-import { kpiPressure, type KpiVerdict } from "@/lib/marketing/kpi";
+import { kpiPressure, qualityBlocksGrowth, type KpiVerdict } from "@/lib/marketing/kpi";
+import { arbitrateDirectives } from "@/lib/marketing/orchestrator-arbiter";
 import { readKpiVerdicts } from "@/lib/marketing/kpi-readings";
 import { log, serializeError } from "@/lib/logger";
 import { sendTelegram, sendTelegramPhoto } from "@/lib/telegram";
@@ -36,7 +37,7 @@ import {
   describeDirective,
   type OrchestratorDirective,
 } from "@/lib/marketing/orchestrator-actions";
-import { diagnose, directivesFrom, type OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
+import { diagnose, type OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
 import { collectOrchestratorState, type OrchestratorState } from "@/lib/marketing/orchestrator-state";
 import { promptAmendmentDirective } from "@/lib/marketing/orchestrator-prompt-amendment";
 import { clip, escapeHtml } from "@/lib/marketing/orchestrator-brief";
@@ -244,10 +245,14 @@ export async function runOrchestratorCycle(
   const onHold = await orchestratorOnHold();
 
   const state = await collectOrchestratorState({ now });
-  const findings = diagnose(state);
-  const incidents = findings.filter((finding) => finding.severity === "incident").length;
+  const diagnosed = diagnose(state);
+  const incidents = diagnosed.filter((finding) => finding.severity === "incident").length;
 
-  const candidates = directivesFrom(findings);
+  const kpiVerdicts = await readKpiVerdicts({ period: "month", now }).catch((error: unknown) => {
+    log.warn("orchestrator.kpi_read_failed", { error: serializeError(error) });
+    return [] as KpiVerdict[];
+  });
+  const extraDirectives: OrchestratorDirective[] = [];
 
   /**
    * B740 — правка промта достраивается ЗДЕСЬ, а не в диагнозе.
@@ -259,7 +264,7 @@ export async function runOrchestratorCycle(
    * Строится только когда правки вообще применяются: на удержании тратить
    * обращение к модели ради текста, который никуда не поедет, незачем.
    */
-  if (!onHold && findings.some((finding) => finding.code === "smm.recurring_cause")) {
+  if (!onHold && diagnosed.some((finding) => finding.code === "smm.recurring_cause")) {
     const cause = state.causes[0];
     if (cause) {
       const amendment = await promptAmendmentDirective({
@@ -269,7 +274,7 @@ export async function runOrchestratorCycle(
         occurrences: cause.count,
         dayKey: now.toISOString().slice(0, 10),
       }).catch(() => null);
-      if (amendment) candidates.push(amendment);
+      if (amendment) extraDirectives.push(amendment);
     }
   }
   /**
@@ -285,16 +290,12 @@ export async function runOrchestratorCycle(
    * страниц» выполнялся бы выпуском мусора — так и набрался корпус из 199
    * карточек с медианой 65 слов.
    */
-  const kpiVerdicts = await readKpiVerdicts({ period: "month", now }).catch((error: unknown) => {
-    log.warn("orchestrator.kpi_read_failed", { error: serializeError(error) });
-    return [] as KpiVerdict[];
-  });
   const dayKey = now.toISOString().slice(0, 10);
   for (const move of kpiPressure({ verdicts: kpiVerdicts, seoPagesPerDay: state.seo.dailyCap })) {
     // Правка не заводится, если настройка уже стоит на этом значении: отчёт
     // «изменил на то же самое» — это шум, за который владелец уже выговаривал.
     if (move.setting === "seo.pages_per_day" && move.value === state.seo.dailyCap) continue;
-    candidates.push({
+    extraDirectives.push({
       key: `${dayKey}:kpi.${move.setting}`,
       target: "seo",
       action: "set_setting",
@@ -306,6 +307,17 @@ export async function runOrchestratorCycle(
       risk: "reversible",
     });
   }
+
+  // B753: встречные правки одной настройки и рост темпа при просевшем качестве
+  // решаются здесь, ДО отчёта, а не взаимным откатом на следующих проходах.
+  const arbitrated = arbitrateDirectives({
+    findings: diagnosed,
+    extra: extraDirectives,
+    currentCap: state.seo.dailyCap,
+    qualityBlocks: qualityBlocksGrowth(kpiVerdicts),
+  });
+  const findings = arbitrated.findings;
+  const candidates = arbitrated.directives;
 
   const { handled, pending } = await alreadyHandled(candidates.map((directive) => directive.key), now);
   const directives = onHold

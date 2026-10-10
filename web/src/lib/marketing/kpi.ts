@@ -310,3 +310,16 @@ export function kpiPressure(input: {
 
   return moves;
 }
+
+/**
+ * B753 — ПРОСЕВШЕЕ КАЧЕСТВО ЗАПРЕЩАЕТ РОСТ ТЕМПА ЛЮБОМУ ПРАВИЛУ, А НЕ ТОЛЬКО KPI.
+ *
+ * `kpiPressure` умел сдерживать только собственное повышение, и правило
+ * «очередь растёт быстрее выпуска» поднимало норму параллельно. На проде это
+ * дало суточный пилообразный ряд 1→2→3→1 без итогового сдвига.
+ * Замера нет — запрета нет: отсутствие данных не повод стоять на месте.
+ */
+export function qualityBlocksGrowth(verdicts: readonly KpiVerdict[]): boolean {
+  const quality = verdicts.find((verdict) => verdict.definition.id === "seo.unique_share");
+  return Boolean(quality && quality.actual !== null && !quality.onTrack);
+}
