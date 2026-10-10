@@ -222,9 +222,27 @@ async function discoverVk(): Promise<Candidate[]> {
  * instead of failing the cycle, and starts working on its own once the
  * permission appears.
  */
+async function ownThreadsUsername(token: string): Promise<string | null> {
+  try {
+    const url = new URL(`${metaEndpoint("threads")}/v1.0/me`);
+    url.searchParams.set("fields", "username");
+    const response = await fetch(url, {
+      headers: metaRequestHeaders({ Authorization: `Bearer ${token}` }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const payload = await response.json().catch(() => null) as { username?: string } | null;
+    return response.ok && typeof payload?.username === "string" ? payload.username.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 async function discoverThreads(): Promise<Candidate[]> {
   const token = await marketingPlatformValue("THREADS_ACCESS_TOKEN");
   if (!token) return [];
+  // B756: Standard Access отдаёт в поиске только НАШИ посты. Отвечать самим себе
+  // в «чужих» постах нельзя, поэтому свои отсекаются по имени аккаунта.
+  const own = await ownThreadsUsername(token);
   const result: Candidate[] = [];
   for (const topic of TOPICS.slice(0, 6)) {
     const url = new URL(`${metaEndpoint("threads")}/v1.0/keyword_search`);
@@ -245,12 +263,18 @@ async function discoverThreads(): Promise<Candidate[]> {
       error?: { message?: string; code?: number };
     } | null;
     if (!response.ok || payload?.error) {
-      // Missing permission, capability, or Meta API restriction is a configuration state,
-      // not an outage. Threads keyword search is only available when Meta grants the scope.
-      return [];
+      // Отказ Meta — состояние настройки, а не поломка прохода, но и не тишина:
+      // причина попадает в журнал, иначе «ноль кандидатов» читается как «нет тем».
+      log.warn("discovery.threads_keyword_search_refused", {
+        status: response.status,
+        code: payload?.error?.code ?? null,
+        message: payload?.error?.message ?? null,
+      });
+      return result;
     }
     for (const item of payload?.data ?? []) {
       if (!item.id || !item.permalink || (item.text ?? "").trim().length < 60) continue;
+      if (own && (item.username ?? "").toLowerCase() === own) continue;
       result.push({
         platform: "threads",
         targetId: item.id,

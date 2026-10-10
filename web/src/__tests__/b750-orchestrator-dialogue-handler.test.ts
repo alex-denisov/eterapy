@@ -18,6 +18,12 @@ jest.mock("@/lib/telegram", () => ({ sendTelegram: (...a: unknown[]) => (sendTel
 jest.mock("@/lib/ai", () => ({ aiComplete: (...a: unknown[]) => aiComplete(...a) }));
 jest.mock("@/lib/marketing/model-pool", () => ({ MARKETING_ORCHESTRATOR_REPORT_FEATURE: "marketing.orchestrator.report" }));
 jest.mock("@/lib/marketing/owner-task-intake", () => ({ acceptOwnerTask: jest.fn(async () => "Понял так: тест") }));
+jest.mock("@/lib/marketing/threads-manual-card", () => ({
+  extractThreadsPostUrl: () => null,
+  parseCardMark: () => null,
+  buildThreadsCard: jest.fn(),
+  markLatestCard: jest.fn(),
+}));
 
 import { handleOwnerMessage } from "@/lib/marketing/orchestrator-dialogue";
 

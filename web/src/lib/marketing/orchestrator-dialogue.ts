@@ -11,6 +11,12 @@ import { moderationChatIds } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
 import {
+  buildThreadsCard,
+  extractThreadsPostUrl,
+  markLatestCard,
+  parseCardMark,
+} from "@/lib/marketing/threads-manual-card";
+import {
   BACKLINK_STATUS_KEY,
   parseBacklinkStatus,
   withBacklinkStatus,
@@ -224,7 +230,15 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
   const intent = interpretOwnerMessage(input.text);
   let reply: string;
   try {
-    if (intent.kind === "note" && intent.text.length >= MIN_TASK_LENGTH) {
+    const threadsUrl = intent.kind === "note" ? extractThreadsPostUrl(input.text) : null;
+    const cardMark = intent.kind === "note" ? parseCardMark(input.text) : null;
+    if (threadsUrl) {
+      // B756: ссылка на чужой пост Threads — карточка ответа, публикует человек.
+      reply = await buildThreadsCard({ url: threadsUrl, text: input.text, now: input.now });
+    } else if (cardMark) {
+      // Отметка по последней открытой карточке; открытых нет — обычная заметка.
+      reply = (await markLatestCard(cardMark)) ?? (await applyIntent(intent, input.now));
+    } else if (intent.kind === "note" && intent.text.length >= MIN_TASK_LENGTH) {
       await appendNote(intent.text, input.now);
       reply = await acceptOwnerTask({ text: intent.text, messageId: input.messageId ?? null, now: input.now });
     } else {

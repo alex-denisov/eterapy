@@ -69,3 +69,29 @@ describe("B719 · Threads discovery resilience", () => {
     }));
   });
 });
+
+describe("B756 · Threads discovery не возвращает наши посты", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; marketingPlatformValue.mockReset(); });
+
+  it("посты собственного аккаунта отсекаются", async () => {
+    marketingPlatformValue.mockResolvedValue("threads-mock-token");
+    const long = "Достаточно длинный пост про матрицу судьбы и таро, который содержит более шестидесяти символов текста.";
+    global.fetch = jest.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.includes("/me")) return { ok: true, json: async () => ({ username: "Eterapy_Official" }) } as Response;
+      return {
+        ok: true,
+        json: async () => ({
+          data: [
+            { id: "1", text: long, permalink: "https://threads.net/@eterapy_official/post/1", username: "eterapy_official" },
+            { id: "2", text: long, permalink: "https://threads.net/@other/post/2", username: "other" },
+          ],
+        }),
+      } as Response;
+    }) as unknown as typeof fetch;
+    const result = await discoveryTestables.discoverThreads();
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.every((candidate) => candidate.targetId === "2")).toBe(true);
+  });
+});

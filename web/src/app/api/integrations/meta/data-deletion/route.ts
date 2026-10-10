@@ -5,8 +5,9 @@ import {
 } from "@/lib/marketing/meta-webhooks";
 
 export async function POST(request: Request) {
-  const form = await request.formData();
-  const signedRequest = form.get("signed_request");
+  // B756: пустой или не форменный POST — это 400, а не 500 (Meta и сканеры шлют такое).
+  const form = await request.formData().catch(() => null);
+  const signedRequest = form?.get("signed_request");
   if (typeof signedRequest !== "string") return Response.json({ error: "Missing signed_request" }, { status: 400 });
   const instagramPayload = await verifyMetaSignedRequest("Instagram", signedRequest).catch(() => null);
   const threadsPayload = instagramPayload?.user_id
