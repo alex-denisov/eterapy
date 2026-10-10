@@ -17,6 +17,7 @@ jest.mock("@/lib/ops-notification-channel", () => ({ moderationChatIds: jest.fn(
 jest.mock("@/lib/telegram", () => ({ sendTelegram: (...a: unknown[]) => (sendTelegram as jest.Mock)(...a) }));
 jest.mock("@/lib/ai", () => ({ aiComplete: (...a: unknown[]) => aiComplete(...a) }));
 jest.mock("@/lib/marketing/model-pool", () => ({ MARKETING_ORCHESTRATOR_REPORT_FEATURE: "marketing.orchestrator.report" }));
+jest.mock("@/lib/marketing/owner-task-intake", () => ({ acceptOwnerTask: jest.fn(async () => "Понял так: тест") }));
 
 import { handleOwnerMessage } from "@/lib/marketing/orchestrator-dialogue";
 
@@ -100,5 +101,16 @@ describe("B750 handleOwnerMessage", () => {
   it("не бросает при сбое базы и Telegram", async () => {
     sendTelegram.mockRejectedValueOnce(new Error("tg"));
     await expect(handleOwnerMessage({ ...base, text: "отчёт" })).resolves.toBeDefined();
+  });
+});
+
+describe("B754 поручение свободной фразой", () => {
+  it("длинная заметка уходит на разбор поручения, короткая остаётся заметкой", async () => {
+    const task = await handleOwnerMessage({ ...base, text: "подними норму выпуска страниц Библиотеки до трёх в сутки" });
+    expect(task).toEqual({ handled: true, intent: "note" });
+    expect(sendTelegram).toHaveBeenCalledWith("-100500", expect.stringContaining("Понял так"), expect.anything());
+    sendTelegram.mockClear();
+    await handleOwnerMessage({ ...base, text: "ок, спасибо" });
+    expect(sendTelegram).toHaveBeenCalledWith("-100500", expect.stringContaining("Принял к сведению"), expect.anything());
   });
 });

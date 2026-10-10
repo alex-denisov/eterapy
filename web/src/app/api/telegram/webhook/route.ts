@@ -138,9 +138,12 @@ export async function POST(req: NextRequest) {
     // `message` (супергруппа) или `channel_post` (канал). Не наш чат и боты
     // проходят дальше по прежнему маршруту.
     const dialogueMsg = update.message ?? update.channel_post;
-    if (dialogueMsg?.text && dialogueMsg.chat.id !== undefined) {
+    // B754: подпись к фото — тоже поручение; само фото помечается словом, не качается.
+    const dialogueText = dialogueMsg?.text
+      ?? (dialogueMsg?.caption ? `${dialogueMsg.caption} [приложено фото]` : undefined);
+    if (dialogueText && dialogueMsg && dialogueMsg.chat.id !== undefined) {
       const dialogue = await handleOwnerMessage({
-        text: dialogueMsg.text,
+        text: dialogueText,
         chatId: String(dialogueMsg.chat.id),
         messageId: dialogueMsg.message_id ?? null,
         fromBot: Boolean(dialogueMsg.from?.is_bot),
@@ -345,6 +348,7 @@ interface TelegramUpdate {
   /** B750: пост канала (если отчёты идут в канал, а не в супергруппу). */
   channel_post?: {
     text?: string;
+    caption?: string;
     date?: number;
     message_id?: number;
     chat: { id: number; type?: string; username?: string };
@@ -352,6 +356,8 @@ interface TelegramUpdate {
   };
   message?: {
     text?: string;
+    /** B754: подпись к фото/файлу владельца. */
+    caption?: string;
     date?: number;
     message_id?: number;
     message_thread_id?: number;

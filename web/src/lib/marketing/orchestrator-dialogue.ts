@@ -9,6 +9,7 @@ import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 import { moderationChatIds } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
+import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
 import {
   BACKLINK_STATUS_KEY,
   parseBacklinkStatus,
@@ -28,6 +29,8 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,120}$/;
 const OWNER_CHAT_TYPES = new Set(["group", "supergroup", "channel"]);
 /** Команды — короткие фразы; длинный текст со словом «отчёт» — это факт, а не команда. */
 const MAX_COMMAND_LENGTH = 60;
+/** B754: заметка от этой длины считается поручением и уходит на разбор. */
+const MIN_TASK_LENGTH = 20;
 
 export type OwnerIntent =
   | { kind: "backlink_done"; targetIds: string[]; status: BacklinkStepStatus; note: string }
@@ -221,7 +224,12 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
   const intent = interpretOwnerMessage(input.text);
   let reply: string;
   try {
-    reply = await applyIntent(intent, input.now);
+    if (intent.kind === "note" && intent.text.length >= MIN_TASK_LENGTH) {
+      await appendNote(intent.text, input.now);
+      reply = await acceptOwnerTask({ text: intent.text, messageId: input.messageId ?? null, now: input.now });
+    } else {
+      reply = await applyIntent(intent, input.now);
+    }
   } catch (error) {
     log.error("orchestrator.dialogue_apply_failed", { intent: intent.kind, error: serializeError(error) });
     reply = "Не смог записать это — попробуйте ещё раз чуть позже.";
