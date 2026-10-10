@@ -25,6 +25,14 @@
 import db from "@/lib/db";
 import { kpiPressure, qualityBlocksGrowth, type KpiVerdict } from "@/lib/marketing/kpi";
 import { arbitrateDirectives } from "@/lib/marketing/orchestrator-arbiter";
+import {
+  REPORT_DIGEST_PREFIX,
+  buildSeoReport,
+  buildSmmReport,
+  reportFingerprint,
+  unchangedLine,
+  type ReportKind,
+} from "@/lib/marketing/orchestrator-reports";
 import { readKpiVerdicts } from "@/lib/marketing/kpi-readings";
 import { log, serializeError } from "@/lib/logger";
 import { sendTelegram, sendTelegramPhoto } from "@/lib/telegram";
@@ -41,9 +49,8 @@ import { diagnose, type OrchestratorFinding } from "@/lib/marketing/orchestrator
 import { collectOrchestratorState, type OrchestratorState } from "@/lib/marketing/orchestrator-state";
 import { promptAmendmentDirective } from "@/lib/marketing/orchestrator-prompt-amendment";
 import { clip, escapeHtml } from "@/lib/marketing/orchestrator-brief";
-import { narrativeFor, splitForTelegram } from "@/lib/marketing/orchestrator-report";
+import { splitForTelegram } from "@/lib/marketing/orchestrator-report";
 import {
-  buildDailyBrief,
   buildIncidentAlert,
   reportDecision,
   type BriefDirective,
@@ -556,23 +563,40 @@ async function deliverBrief(input: CycleBase & {
   const stored = await storeDirectives(input.directives, input.pending);
   const applied = await appliedSince(input.lastBriefAt, now);
   const ownerNotes = parseOwnerNotes(await readSetting(ORCHESTRATOR_NOTES_KEY), input.lastBriefAt);
-  // Одно необязательное предложение: отказ пула не имеет права задержать отчёт.
-  const narrative = input.findings.length > 0
-    ? await narrativeFor({ findings: input.findings, directives: stored }).catch(() => null)
-    : null;
-  const brief = buildDailyBrief({
+  // B752: два отдельных отчёта вместо одного. Модель к тексту не подключается:
+  // числа и вердикты из снимка и кода, отчёт существует и при упавшем пуле.
+  const reportInput = {
     state: input.state,
     findings: input.findings,
+    verdicts: input.kpiVerdicts,
     planned: stored,
     applied,
-    ownerNotes,
-    narrative,
-  });
-  const chart = await trendChartBytes(input.state.trend, now);
+  };
+  const noteLines = ownerNotes.slice(-2).map((note) => `<i>Учёл ваше: ${escapeHtml(clip(note.text, 110))}</i>`);
   const holdNote = onHold && input.candidates.length > 0
     ? `\n\n⏸ <b>Правки на удержании</b>: <code>${ORCHESTRATOR_HOLD_KEY}</code> = true, ничего не меняю.`
     : "";
-  const delivered = await deliver(`${brief}${holdNote}`, chart);
+  const parts: Array<{ kind: ReportKind; text: string; digestKey: string; digest: string; same: boolean }> = [];
+  for (const kind of ["seo", "smm"] as const) {
+    const text = kind === "seo" ? buildSeoReport(reportInput) : buildSmmReport(reportInput);
+    const digestKey = `${REPORT_DIGEST_PREFIX}${kind}`;
+    const digest = reportFingerprint(text);
+    // Совпавший со вчерашним отчёт заменяется одной строкой, но не при просьбе владельца.
+    const same = !decision.ownerRequested && (await readSetting(digestKey)) === digest;
+    parts.push({ kind, text, digestKey, digest, same });
+  }
+  const chart = await trendChartBytes(input.state.trend, now);
+  let delivered = false;
+  for (const [index, part] of parts.entries()) {
+    const body = part.same ? unchangedLine(part.kind, now) : part.text;
+    const prefix = index === 0 && noteLines.length > 0 ? `${noteLines.join("\n")}\n\n` : "";
+    const suffix = index === 0 ? holdNote : "";
+    const sent = await deliver(`${prefix}${body}${suffix}`, index === parts.length - 1 && !part.same ? chart : null);
+    if (sent) {
+      delivered = true;
+      await writeSetting(part.digestKey, part.digest).catch(() => undefined);
+    }
+  }
 
   if (!delivered) {
     await rollback().catch(() => undefined);

@@ -123,6 +123,7 @@ describe("B750 — суточная презентация в проходе", (
     expect(result.reported).toBe(true);
     expect(events).toEqual([
       "store:2026-10-05:seo",
+      expect.stringMatching(/^send:/), // B752: два отчёта — SEO и SMM
       expect.stringMatching(/^send:/),
       "apply:2026-10-05:seo",
     ]);
@@ -178,7 +179,7 @@ describe("B750 — сбой доставки не теряет правки и �
     const retry = await runOrchestratorCycle({ now: new Date(AT_0900.getTime() + 3_600_000) });
     expect(retry.reported).toBe(true);
     expect(retry.planned).toBe(1);
-    expect(events).toEqual([expect.stringMatching(/^send:/), "apply:2026-10-05:seo"]);
+    expect(events).toEqual([expect.stringMatching(/^send:/), expect.stringMatching(/^send:/), "apply:2026-10-05:seo"]);
   });
 
   it("report_now при сбое: пауза 15 мин, воркер и проход не ломятся каждую минуту", async () => {
@@ -204,7 +205,7 @@ describe("B750 — суточная презентация совпала с п�
     store.set("marketing.orchestrator.report_now", "true");
     let during: string | undefined;
     onSend = () => {
-      during = store.get("marketing.orchestrator.report_now");
+      during ??= store.get("marketing.orchestrator.report_now");
       store.set("marketing.orchestrator.report_now", "true");
     };
     const result = await runOrchestratorCycle({ now: AT_0900 });
