@@ -49,6 +49,8 @@ export interface OrchestratorDirective {
   problem: string;
   rationale: string;
   risk: DirectiveRisk;
+  /** Снимок «до» у уже применённой правки — для строки «было → стало» в отчёте. */
+  previous?: Record<string, unknown> | null;
 }
 
 /**

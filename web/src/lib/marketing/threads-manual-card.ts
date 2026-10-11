@@ -12,12 +12,15 @@ import db from "@/lib/db";
 import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
 import { MARKETING_ORCHESTRATOR_REPORT_FEATURE } from "@/lib/marketing/model-pool";
+import { ingestOwnerTopic } from "@/lib/marketing/discovery";
 import { ORCHESTRATOR_ACTOR } from "@/lib/marketing/orchestrator-actions";
 
 export const THREADS_CARDS_KEY = "marketing.threads.manual_cards";
 const MAX_CARDS = 50;
 const THREADS_POST_URL = /https?:\/\/(?:www\.)?threads\.(?:net|com)\/@[\w.]+\/post\/[\w-]+/i;
 const REPLY_MAX = 280;
+/** Согласовано с владельцем 2026-10-10: старт с 5 ответов под чужими постами в сутки. */
+export const CARD_DAILY_LIMIT = 5;
 
 export interface ThreadsCard {
   url: string;
@@ -76,6 +79,13 @@ async function writeCards(cards: ThreadsCard[]): Promise<void> {
   });
 }
 
+/** Сколько карточек заведено за московские сутки момента `now`. */
+export function cardsToday(cards: readonly ThreadsCard[], now: Date): number {
+  const day = (value: Date) => new Date(value.getTime() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = day(now);
+  return cards.filter((card) => day(new Date(card.at)) === today).length;
+}
+
 /** Отметка владельца по последней открытой карточке. `null` — это не отметка. */
 export function parseCardMark(text: string): "PUBLISHED" | "SKIPPED" | null {
   const flat = text.trim().toLowerCase();
@@ -99,6 +109,9 @@ export async function markLatestCard(mark: "PUBLISHED" | "SKIPPED"): Promise<str
 
 /** Карточка по ссылке/тексту поста. Текст ответа — владельцу, публикует человек. */
 export async function buildThreadsCard(input: { url: string; text: string; now: Date }): Promise<string> {
+  if (cardsToday(await readCards(), input.now) >= CARD_DAILY_LIMIT) {
+    return `На сегодня лимит ${CARD_DAILY_LIMIT} ответов под чужими постами выбран: чаще — риск антиспама Meta. Пришлите завтра.`;
+  }
   let draft: { replies: string[]; hook: string } | null = null;
   try {
     const response = await aiComplete({
@@ -122,6 +135,24 @@ export async function buildThreadsCard(input: { url: string; text: string; now: 
     ...(await readCards()),
     { url: input.url, at: input.now.toISOString(), replies: draft.replies, hook: draft.hook, status: "OPEN" },
   ]);
+  // Тема поста — в очередь собственных постов. Нужен сам текст: по одной ссылке
+  // темы нет. Отказ очереди не отменяет карточку.
+  const topicText = input.text.replace(input.url, "").replace(/\[приложено фото\]/g, "").trim();
+  let topicQueued = false;
+  if (topicText.length >= 40) {
+    const postId = input.url.split("/post/")[1] ?? input.url;
+    topicQueued = await ingestOwnerTopic({
+      platform: "threads",
+      targetId: postId,
+      targetUrl: input.url,
+      targetLabel: "Threads (вручную)",
+      excerpt: topicText.slice(0, 500),
+      topic: topicText.slice(0, 80),
+    }, input.now).catch((error: unknown) => {
+      log.warn("orchestrator.threads_topic_failed", { error: serializeError(error) });
+      return false;
+    });
+  }
   return [
     "📌 Куда:",
     input.url,
@@ -132,6 +163,7 @@ export async function buildThreadsCard(input: { url: string; text: string; now: 
     "",
     `💡 Почему: ${draft.hook}`,
     "",
+    topicQueued ? "🗂 Тема поста добавлена в очередь наших тем." : "",
     "Публикую не я: ответьте «опубликовал» или «пропустить».",
   ].join("\n");
 }

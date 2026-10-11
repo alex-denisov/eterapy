@@ -26,7 +26,9 @@ import db from "@/lib/db";
 import { kpiPressure, qualityBlocksGrowth, type KpiVerdict } from "@/lib/marketing/kpi";
 import { arbitrateDirectives } from "@/lib/marketing/orchestrator-arbiter";
 import {
+  OWNER_TASKS_KEY,
   REPORT_DIGEST_PREFIX,
+  parseOpenOwnerTasks,
   buildSeoReport,
   buildSmmReport,
   reportFingerprint,
@@ -519,6 +521,7 @@ async function appliedSince(since: Date | null, now: Date): Promise<BriefDirecti
     problem: row.problem,
     rationale: row.rationale,
     risk: row.risk as OrchestratorDirective["risk"],
+    previous: (row.previous ?? null) as Record<string, unknown> | null,
   }));
 }
 
@@ -571,6 +574,7 @@ async function deliverBrief(input: CycleBase & {
     verdicts: input.kpiVerdicts,
     planned: stored,
     applied,
+    ownerTasks: parseOpenOwnerTasks(await readSetting(OWNER_TASKS_KEY)),
   };
   const noteLines = ownerNotes.slice(-2).map((note) => `<i>Учёл ваше: ${escapeHtml(clip(note.text, 110))}</i>`);
   const holdNote = onHold && input.candidates.length > 0

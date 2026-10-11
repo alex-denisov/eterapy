@@ -28,7 +28,7 @@ import {
   type OrchestratorDirective,
 } from "@/lib/marketing/orchestrator-actions";
 
-export const OWNER_TASKS_KEY = "marketing.orchestrator.owner_tasks";
+import { OWNER_TASKS_KEY } from "@/lib/marketing/orchestrator-reports";
 const MAX_TASKS = 30;
 const MAX_UNDERSTOOD = 240;
 

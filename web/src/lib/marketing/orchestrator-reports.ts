@@ -25,6 +25,24 @@ export const REPORT_DIGEST_PREFIX = "marketing.orchestrator.report_digest.";
 const MAX_ITEMS = 3;
 const SEO_CODE = /^(seo|search|source)\./;
 
+/** Очередь поручений владельца, не сводящихся к словарю правок (B754). */
+export const OWNER_TASKS_KEY = "marketing.orchestrator.owner_tasks";
+
+export function parseOpenOwnerTasks(raw: string | null): Array<{ understood: string; at: string }> {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is { understood: string; at: string; status?: string } =>
+        !!row && typeof row.understood === "string" && typeof row.at === "string")
+      .filter((row) => row.status === undefined || row.status === "OPEN")
+      .map((row) => ({ understood: row.understood, at: row.at }));
+  } catch {
+    return [];
+  }
+}
+
 export type ReportKind = "seo" | "smm";
 
 export interface ReportInput {
@@ -35,6 +53,8 @@ export interface ReportInput {
   planned: readonly OrchestratorDirective[];
   /** Правки, применённые с прошлой презентации. */
   applied: readonly OrchestratorDirective[];
+  /** B754: открытые поручения владельца, которые нельзя выполнить словарём. */
+  ownerTasks?: ReadonlyArray<{ understood: string; at: string }>;
 }
 
 export function belongsTo(kind: ReportKind, item: OrchestratorFinding | OrchestratorDirective): boolean {
@@ -78,10 +98,12 @@ function kpiLines(verdicts: readonly KpiVerdict[], agent: ReportKind): string[] 
 function doneLines(applied: readonly OrchestratorDirective[], kind: ReportKind): string[] {
   const own = applied.filter((directive) => belongsTo(kind, directive)).slice(0, MAX_ITEMS);
   if (own.length === 0) return ["• правок не вносил"];
-  return own.map(
-    (directive) =>
-      `• ${escapeHtml(clip(describeDirective(directive), 60))} — ${escapeHtml(clip(directive.problem, 60))}`,
-  );
+  return own.map((directive) => {
+    const was = directive.previous && "value" in directive.previous ? directive.previous.value : undefined;
+    const now = directive.action === "set_setting" ? directive.payload.value : undefined;
+    const change = was !== undefined && now !== undefined ? ` (было ${String(was)} → стало ${String(now)})` : "";
+    return `• ${escapeHtml(clip(describeDirective(directive), 60))}${escapeHtml(change)} — ${escapeHtml(clip(directive.problem, 60))}`;
+  });
 }
 
 function planLines(input: ReportInput, kind: ReportKind): string[] {
@@ -153,6 +175,10 @@ export function buildSeoReport(input: ReportInput): string {
   ];
   const owner = ownerLines(input, "seo");
   if (owner.length > 0) lines.push("", "<b>НУЖНО ОТ ВАС</b>", ...owner);
+  const tasks = (input.ownerTasks ?? []).slice(-3);
+  if (tasks.length > 0) {
+    lines.push("", "<b>ВАШИ ПОРУЧЕНИЯ В ОЧЕРЕДИ</b>", ...tasks.map((task) => `• ${escapeHtml(clip(task.understood, 100))}`));
+  }
   return finish(lines);
 }
 

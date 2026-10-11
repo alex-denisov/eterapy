@@ -372,6 +372,28 @@ async function plannedToday(platform: EngagementPlatform, now: Date) {
   };
 }
 
+/**
+ * B756: тема из поста, который владелец прислал вручную, встаёт в очередь тем
+ * собственных постов тем же путём, что и найденная поиском. Свободного слота
+ * сегодня нет — тема не теряется молча, функция возвращает `false`.
+ */
+export async function ingestOwnerTopic(
+  candidate: Candidate,
+  now = new Date(),
+): Promise<boolean> {
+  const existing = await plannedToday(candidate.platform, now);
+  if (existing.takenKeys.has(engagementKey(candidate))) return false;
+  const slot = openEngagementSlots({ platform: candidate.platform, now, taken: existing.slots })[0];
+  if (!slot) return false;
+  const tone = pickEngagementTone({
+    platform: candidate.platform,
+    sequence: existing.slots.length,
+    recentToneIds: [...existing.toneIds],
+  });
+  await ingestEngagementCandidate(candidate, { scheduledFor: slot, toneId: tone.id });
+  return true;
+}
+
 export interface EngagementDiscoveryOutcome {
   platform: EngagementPlatform;
   target: number;

@@ -24,3 +24,15 @@ describe("Threads manual card", () => {
     expect(parseCardMark("обязательно опубликуй")).toBeNull();
   });
 });
+
+import { CARD_DAILY_LIMIT, cardsToday, type ThreadsCard } from "@/lib/marketing/threads-manual-card";
+
+describe("лимит карточек", () => {
+  const card = (at: string): ThreadsCard => ({ url: "u", at, replies: ["a", "b"], hook: "h", status: "OPEN" });
+  it("считает московские сутки: 21:30 UTC уже следующий день", () => {
+    const now = new Date("2026-10-11T10:00:00Z");
+    const cards = [card("2026-10-10T21:30:00Z"), card("2026-10-11T08:00:00Z"), card("2026-10-10T10:00:00Z")];
+    expect(cardsToday(cards, now)).toBe(2);
+    expect(CARD_DAILY_LIMIT).toBe(5);
+  });
+});
