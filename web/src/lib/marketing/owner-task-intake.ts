@@ -108,9 +108,20 @@ function targetFor(action: DirectiveAction, payload: Record<string, unknown>): O
   return "seo";
 }
 
-interface QueuedTask { at: string; text: string; understood: string; status: "OPEN" }
+/**
+ * Статусы ведёт внешний исполнитель (`scripts/agents/owner_task_executor.py`):
+ * OPEN → IN_PROGRESS → PR_OPENED | FAILED. Сам прод код не исполняет и не мержит.
+ */
+interface QueuedTask {
+  id: string;
+  at: string;
+  text: string;
+  understood: string;
+  status: "OPEN" | "IN_PROGRESS" | "PR_OPENED" | "FAILED";
+  prUrl?: string;
+}
 
-async function enqueueTask(task: QueuedTask): Promise<number> {
+async function enqueueTask(task: Omit<QueuedTask, "id">): Promise<number> {
   const row = await db.platformSetting.findUnique({ where: { key: OWNER_TASKS_KEY }, select: { value: true } });
   let current: QueuedTask[] = [];
   try {
@@ -119,7 +130,7 @@ async function enqueueTask(task: QueuedTask): Promise<number> {
   } catch {
     current = [];
   }
-  const next = [...current, task].slice(-MAX_TASKS);
+  const next = [...current, { ...task, id: `t${Date.parse(task.at)}` }].slice(-MAX_TASKS);
   await db.platformSetting.upsert({
     where: { key: OWNER_TASKS_KEY },
     create: { key: OWNER_TASKS_KEY, value: JSON.stringify(next), updatedBy: ORCHESTRATOR_ACTOR },

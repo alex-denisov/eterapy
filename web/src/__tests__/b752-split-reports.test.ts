@@ -76,3 +76,31 @@ describe("B752 отчёты", () => {
     expect(unchangedLine("seo", new Date()).split("\n")).toHaveLength(1);
   });
 });
+
+import { parseOpenOwnerTasks } from "@/lib/marketing/orchestrator-reports";
+
+describe("B754 очередь поручений в отчёте", () => {
+  it("в отчёт идут открытые и ждущие ревью, закрытые и упавшие — нет", () => {
+    const raw = JSON.stringify([
+      { id: "t1", understood: "a", at: "x", status: "OPEN" },
+      { id: "t2", understood: "b", at: "x", status: "PR_OPENED", prUrl: "https://github.com/o/r/pull/1" },
+      { id: "t3", understood: "c", at: "x", status: "FAILED" },
+      { id: "t4", understood: "d", at: "x" },
+    ]);
+    expect(parseOpenOwnerTasks(raw).map((t) => t.understood)).toEqual(["a", "b", "d"]);
+    expect(parseOpenOwnerTasks("мусор")).toEqual([]);
+  });
+
+  it("SEO-отчёт показывает PR на ревью и «было → стало»", () => {
+    const text = buildSeoReport({
+      ...input,
+      ownerTasks: [{ understood: "добавить блок", at: "x", status: "PR_OPENED", prUrl: "https://github.com/o/r/pull/7" }],
+      applied: [{
+        key: "k", target: "seo", action: "set_setting", payload: { key: "seo.pages_per_day", value: 2 },
+        problem: "очередь растёт", rationale: "r", risk: "reversible", previous: { key: "seo.pages_per_day", value: "1" },
+      }],
+    });
+    expect(text).toContain("PR на ревью: https://github.com/o/r/pull/7");
+    expect(text).toContain("было 1 → стало 2");
+  });
+});

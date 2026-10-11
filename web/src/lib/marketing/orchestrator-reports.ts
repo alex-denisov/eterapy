@@ -28,16 +28,19 @@ const SEO_CODE = /^(seo|search|source)\./;
 /** Очередь поручений владельца, не сводящихся к словарю правок (B754). */
 export const OWNER_TASKS_KEY = "marketing.orchestrator.owner_tasks";
 
-export function parseOpenOwnerTasks(raw: string | null): Array<{ understood: string; at: string }> {
+export interface OwnerTaskRow { understood: string; at: string; status: string; prUrl?: string }
+
+/** Открытые и ждущие ревью поручения. Закрытые и упавшие в отчёт не идут. */
+export function parseOpenOwnerTasks(raw: string | null): OwnerTaskRow[] {
   if (!raw) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((row): row is { understood: string; at: string; status?: string } =>
+      .filter((row): row is OwnerTaskRow =>
         !!row && typeof row.understood === "string" && typeof row.at === "string")
-      .filter((row) => row.status === undefined || row.status === "OPEN")
-      .map((row) => ({ understood: row.understood, at: row.at }));
+      .map((row) => ({ ...row, status: row.status ?? "OPEN" }))
+      .filter((row) => ["OPEN", "IN_PROGRESS", "PR_OPENED"].includes(row.status));
   } catch {
     return [];
   }
@@ -54,7 +57,7 @@ export interface ReportInput {
   /** Правки, применённые с прошлой презентации. */
   applied: readonly OrchestratorDirective[];
   /** B754: открытые поручения владельца, которые нельзя выполнить словарём. */
-  ownerTasks?: ReadonlyArray<{ understood: string; at: string }>;
+  ownerTasks?: readonly OwnerTaskRow[];
 }
 
 export function belongsTo(kind: ReportKind, item: OrchestratorFinding | OrchestratorDirective): boolean {
@@ -177,7 +180,7 @@ export function buildSeoReport(input: ReportInput): string {
   if (owner.length > 0) lines.push("", "<b>НУЖНО ОТ ВАС</b>", ...owner);
   const tasks = (input.ownerTasks ?? []).slice(-3);
   if (tasks.length > 0) {
-    lines.push("", "<b>ВАШИ ПОРУЧЕНИЯ В ОЧЕРЕДИ</b>", ...tasks.map((task) => `• ${escapeHtml(clip(task.understood, 100))}`));
+    lines.push("", "<b>ВАШИ ПОРУЧЕНИЯ В ОЧЕРЕДИ</b>", ...tasks.map((task) => `• ${escapeHtml(clip(task.understood, 80))} — ${task.status === "PR_OPENED" ? `PR на ревью: ${escapeHtml(task.prUrl ?? "")}` : task.status === "IN_PROGRESS" ? "исполнитель работает" : "ждёт исполнителя"}`));
   }
   return finish(lines);
 }
