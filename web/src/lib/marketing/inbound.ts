@@ -57,15 +57,15 @@ export const INBOUND_SLA_MS = 60 * 60_000;
  * - `THREAD_COOLDOWN` — не отвечать несколько раз подряд в одной ветке: пять
  *   ответов под одним постом читаются как бот, даже если каждый уместен.
  */
-export const INBOUND_REPLIES_PER_HOUR = Math.max(
-  1,
-  Number(process.env.MARKETING_REPLIES_PER_HOUR || 12),
-);
-export const INBOUND_REPLIES_PER_DAY = Math.max(
-  INBOUND_REPLIES_PER_HOUR,
-  Number(process.env.MARKETING_REPLIES_PER_DAY || 60),
-);
-export const INBOUND_THREAD_COOLDOWN_MS = 3 * 60_000;
+// Без часового предела (владелец 2026-10-11): темп ответов задаёт его же
+// одобрение в Telegram. Предел можно вернуть переменной окружения.
+export const INBOUND_REPLIES_PER_HOUR = Number(process.env.MARKETING_REPLIES_PER_HOUR) > 0
+  ? Number(process.env.MARKETING_REPLIES_PER_HOUR)
+  : Number.POSITIVE_INFINITY;
+export const INBOUND_REPLIES_PER_DAY = Number(process.env.MARKETING_REPLIES_PER_DAY) > 0
+  ? Number(process.env.MARKETING_REPLIES_PER_DAY)
+  : 200;
+export const INBOUND_THREAD_COOLDOWN_MS = 60_000;
 const STALE_NOTIFY_INTERVAL_MS = 6 * 60 * 60_000;
 const STALE_NOTIFY_SETTING_KEY = "marketing.inbound.stalled.notifiedAt";
 

@@ -10,6 +10,7 @@ import { log, serializeError } from "@/lib/logger";
 import { moderationChatIds } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
+import { describeOwnerIdeas, parseOwnerIdeas, queueOwnerIdeas } from "@/lib/marketing/owner-ideas";
 import {
   buildThreadsCard,
   extractThreadsPostUrl,
@@ -232,7 +233,10 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
   try {
     const threadsUrl = intent.kind === "note" ? extractThreadsPostUrl(input.text) : null;
     const cardMark = intent.kind === "note" ? parseCardMark(input.text) : null;
-    if (threadsUrl) {
+    const ideas = intent.kind === "note" ? parseOwnerIdeas(input.text) : null;
+    if (ideas) {
+      reply = describeOwnerIdeas(await queueOwnerIdeas(ideas, input.now));
+    } else if (threadsUrl) {
       // B756: ссылка на чужой пост Threads — карточка ответа, публикует человек.
       reply = await buildThreadsCard({ url: threadsUrl, text: input.text, now: input.now });
     } else if (cardMark) {

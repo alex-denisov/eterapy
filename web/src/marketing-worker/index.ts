@@ -89,6 +89,7 @@ let lastPlanSync = 0;
 let lastProviderProbe = 0;
 let lastInboundAudit = 0;
 let lastCommentSweep = 0;
+let lastFullSweep = 0;
 let lastRegistryRecovery = 0;
 let lastSnapshotCheck = 0;
 /**
@@ -154,9 +155,17 @@ async function main() {
       // подтверждается вовсе (B631), у VK он зависит от настройки в сообществе.
       // Обход не зависит ни от того, ни от другого, и держит обещание срока —
       // ответ в течение часа.
-      if (now - lastCommentSweep >= 5 * 60_000) {
+      // Threads не присылает ответы вебхуком (в подписке нет поля `replies`), так
+      // что «по триггеру» достижимо только опросом: свежие посты (двое суток) —
+      // каждую минуту, остальные — раз в 15 минут.
+      const fullSweepDue = now - lastFullSweep >= 15 * 60_000;
+      if (fullSweepDue || now - lastCommentSweep >= 60_000) {
         lastCommentSweep = now;
-        await guarded("comment-sweep", () => sweepOwnPublicationComments({ now: new Date(now) }));
+        if (fullSweepDue) lastFullSweep = now;
+        await guarded("comment-sweep", () => sweepOwnPublicationComments({
+          now: new Date(now),
+          ...(fullSweepDue ? {} : { lookbackMs: 48 * 3_600_000 }),
+        }));
         // Сразу после обхода — постановка ответов в очередь и проверка срока:
         // так найденный комментарий попадает в тот же проход writer → редактор.
         await guarded("inbound-sla", () => auditInboundSla({ now: new Date(now) }));

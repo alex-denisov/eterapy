@@ -70,13 +70,17 @@ interface SweepTarget {
   publicUrl: string | null;
 }
 
-async function publishedTargets(platform: SweepPlatform, now: Date): Promise<SweepTarget[]> {
+async function publishedTargets(
+  platform: SweepPlatform,
+  now: Date,
+  lookbackMs: number = SWEEP_LOOKBACK_MS,
+): Promise<SweepTarget[]> {
   const rows = await db.externalPublication.findMany({
     where: {
       platform,
       status: "PUBLISHED",
       externalPostId: { not: null },
-      publishedAt: { gte: new Date(now.getTime() - SWEEP_LOOKBACK_MS) },
+      publishedAt: { gte: new Date(now.getTime() - lookbackMs) },
     },
     orderBy: { publishedAt: "desc" },
     take: SWEEP_PUBLICATION_LIMIT,
@@ -298,7 +302,7 @@ export function vkCommentsArriveByPush(input: {
  * комментариев», уже однажды стоило нам полутора недель.
  */
 export async function sweepOwnPublicationComments(
-  input: { now?: Date; platforms?: readonly SweepPlatform[] } = {},
+  input: { now?: Date; platforms?: readonly SweepPlatform[]; lookbackMs?: number } = {},
 ): Promise<SweepOutcome[]> {
   const now = input.now ?? new Date();
   const outcomes: SweepOutcome[] = [];
@@ -319,7 +323,7 @@ export async function sweepOwnPublicationComments(
       continue;
     }
     try {
-      const targets = await publishedTargets(platform, now);
+      const targets = await publishedTargets(platform, now, input.lookbackMs);
       let found = 0;
       let ingested = 0;
       let skippedOwn = 0;

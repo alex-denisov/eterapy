@@ -1,6 +1,7 @@
 import type { AIProvider } from "@prisma/client";
 // B700: `Prisma` нужен значением, а не только типом — `Prisma.DbNull` очищает
 // колонку `Json?`, и обычный `null` для неё означает «не менять».
+import { OWNER_IDEA_SOURCE } from "@/lib/marketing/owner-ideas";
 import { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { AIGatewayRoutingError } from "@/lib/ai-gateway/routing";
@@ -2766,6 +2767,15 @@ export async function runMarketingAgentCycle(
   const freshFilter = {
     AND: [readyForWork, plannedDue, plannedFilter, { agentWriterDraft: { equals: Prisma.DbNull } }],
   };
+  // Идеи владельца обгоняют такт: он сам решил, что пост нужен сейчас.
+  const ownerIdeas = capacityCooldown
+    ? []
+    : await db.externalPublication.findMany({
+      where: { AND: [readyForWork, dueNow, plannedFilter, { source: OWNER_IDEA_SOURCE }, { agentReviewedAt: null }] },
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: 3,
+      select: { id: true, scheduledFor: true },
+    });
   const fresh = writerRoom > 0
     ? await db.externalPublication.findMany({
       where: freshFilter,
@@ -2782,10 +2792,14 @@ export async function runMarketingAgentCycle(
    * но горящее окно обгоняет склад. Правило живёт в `conveyor-tact.ts`, где его
    * держит прогон, а не живая база.
    */
+  const ownerIdeaIds = new Set(ownerIdeas.map((row) => row.id));
   const planned = orderByUrgency([
+    ...ownerIdeas.map((row) => ({ ...row, written: false })),
     ...reviewQueue.map((row) => ({ ...row, written: true })),
     ...fresh.map((row) => ({ ...row, written: false })),
-  ]).slice(0, LOOP_LIMIT);
+  ]).filter((row, index, all) => all.findIndex((other) => other.id === row.id) === index)
+    .sort((a, b) => Number(ownerIdeaIds.has(b.id)) - Number(ownerIdeaIds.has(a.id)))
+    .slice(0, LOOP_LIMIT);
   // «Отложено тактом» — отдельное число: иначе пустая очередь и сработавший
   // пейсинг снаружи выглядят одинаково.
   const paced = writerRoom > 0

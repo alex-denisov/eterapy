@@ -166,20 +166,15 @@ describe("B630 · антиспам ответов", () => {
 
   it("до потолка часа ответ разрешён", () => {
     expect(inboundReplyAllowed({
-      perHour: INBOUND_REPLIES_PER_HOUR - 1,
+      perHour: 500,
       perDay: 0,
       lastReplyInThreadAt: null,
       now,
     })).toEqual({ allowed: true });
   });
 
-  it("потолок часа откладывает ответ", () => {
-    expect(inboundReplyAllowed({
-      perHour: INBOUND_REPLIES_PER_HOUR,
-      perDay: 0,
-      lastReplyInThreadAt: null,
-      now,
-    })).toMatchObject({ allowed: false, reason: "hour_cap" });
+  it("часового потолка по умолчанию нет (решение владельца 2026-10-11)", () => {
+    expect(INBOUND_REPLIES_PER_HOUR).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("потолок суток откладывает ответ", () => {
