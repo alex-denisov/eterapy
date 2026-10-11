@@ -2,6 +2,7 @@ import "dotenv/config";
 import { setTimeout as wait } from "timers/promises";
 import {
   runMarketingAgentCycle,
+  conversationalWorkWaiting,
   marketingAgentEnabled,
   resolveMarketingSignal,
   upsertMarketingSignal,
@@ -153,7 +154,7 @@ async function main() {
       // подтверждается вовсе (B631), у VK он зависит от настройки в сообществе.
       // Обход не зависит ни от того, ни от другого, и держит обещание срока —
       // ответ в течение часа.
-      if (now - lastCommentSweep >= 15 * 60_000) {
+      if (now - lastCommentSweep >= 5 * 60_000) {
         lastCommentSweep = now;
         await guarded("comment-sweep", () => sweepOwnPublicationComments({ now: new Date(now) }));
         // Сразу после обхода — постановка ответов в очередь и проверка срока:
@@ -170,6 +171,9 @@ async function main() {
       if (now - lastAgentCycle >= agentCycleMs) {
         lastAgentCycle = now;
         await guarded("agent", runMarketingAgentCycle);
+      } else if (await conversationalWorkWaiting(new Date(now)).catch(() => false)) {
+        // Ответ человеку не ждёт общего шага цикла — только разговорное.
+        await guarded("agent-conversational", () => runMarketingAgentCycle({ conversationalOnly: true }));
       }
       // Approved comments are dispatched independently of the owned-post
       // autopublish flag. Owned posts still obey MARKETING_AUTOPUBLISH.

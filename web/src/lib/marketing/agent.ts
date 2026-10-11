@@ -2543,8 +2543,20 @@ const IDLE_TACT = {
   capacityPerHour: 0,
 } as const;
 
+/**
+ * Есть ли разговорный черновик, готовый к работе. Воркер спрашивает это каждую
+ * минуту и при «да» не ждёт десятиминутного шага: человек, написавший под
+ * постом, ждёт ответа, а плановое (дорогое) остаётся на своём темпе.
+ */
+export async function conversationalWorkWaiting(now: Date = new Date()): Promise<boolean> {
+  const count = await db.externalPublication.count({
+    where: { AND: [readyForWorkFilter, dueNowFilter(marketingGenerationHorizon(now)), conversationalFilter] },
+  });
+  return count > 0;
+}
+
 export async function runMarketingAgentCycle(
-  input: { now?: Date } = {},
+  input: { now?: Date; conversationalOnly?: boolean } = {},
 ): Promise<MarketingAgentCycleResult> {
   if (!await marketingAgentEnabled()) {
     return {
@@ -2786,7 +2798,7 @@ export async function runMarketingAgentCycle(
   // исчерпанном потолке, материал оставался черновиком.
   let processed = 0;
   let capacityStop = false;
-  for (const draft of [...conversational, ...planned]) {
+  for (const draft of [...conversational, ...(input.conversationalOnly ? [] : planned)]) {
     const outcome = await processMarketingDraft(draft.id);
     processed += 1;
     if (outcome.status === "failed" && outcome.capacity) {

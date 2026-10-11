@@ -59,13 +59,13 @@ export const INBOUND_SLA_MS = 60 * 60_000;
  */
 export const INBOUND_REPLIES_PER_HOUR = Math.max(
   1,
-  Number(process.env.MARKETING_REPLIES_PER_HOUR || 4),
+  Number(process.env.MARKETING_REPLIES_PER_HOUR || 12),
 );
 export const INBOUND_REPLIES_PER_DAY = Math.max(
   INBOUND_REPLIES_PER_HOUR,
-  Number(process.env.MARKETING_REPLIES_PER_DAY || 20),
+  Number(process.env.MARKETING_REPLIES_PER_DAY || 60),
 );
-export const INBOUND_THREAD_COOLDOWN_MS = 15 * 60_000;
+export const INBOUND_THREAD_COOLDOWN_MS = 3 * 60_000;
 const STALE_NOTIFY_INTERVAL_MS = 6 * 60 * 60_000;
 const STALE_NOTIFY_SETTING_KEY = "marketing.inbound.stalled.notifiedAt";
 
