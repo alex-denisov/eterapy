@@ -114,6 +114,7 @@ export async function recoverFailedPublications(
       id: true,
       key: true,
       platform: true,
+      contentType: true,
       scheduledFor: true,
       lastError: true,
       recoveryCount: true,
@@ -137,6 +138,31 @@ export async function recoverFailedPublications(
   let deferredToNextSlot = 0;
   let stuckInQueue = 0;
   for (const row of failed) {
+    // Одобренный владельцем ответ человеку не должен умирать от гонки Threads:
+    // контейнер создан, а выпуск ответил «не существует». Прод 2026-10-11 — ответ
+    // ушёл в архив, входящее осталось без ответа и без уведомления. Выпуск теперь
+    // ждёт контейнер сам; эта ветка подбирает уже упавшие и редкие остатки.
+    if (
+      row.contentType === "INBOUND_REPLY"
+      && row.body?.trim()
+      && row.attemptCount > 0
+      && row.recoveryCount < MAX_RECOVERY_ATTEMPTS
+      && /does not exist/i.test(row.lastError ?? "")
+    ) {
+      await db.externalPublication.update({
+        where: { id: row.id },
+        data: {
+          status: "SCHEDULED",
+          scheduledFor: now,
+          attemptCount: 0,
+          recoveryCount: { increment: 1 },
+          lastError: `Выпуск повторён после отказа Threads: ${row.lastError}`,
+        },
+      });
+      requeued += 1;
+      continue;
+    }
+
     // B636 — отказ КАНАЛА не отменяет материал никогда.
     //
     // Начиная с B636 выпуск сам возвращает такую строку в очередь, но на проде

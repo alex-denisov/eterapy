@@ -39,6 +39,7 @@ import {
   metaFetchableMediaUrl,
   metaRequestHeaders,
 } from "@/lib/marketing/meta-endpoints";
+import { publishThreadsContainer } from "@/lib/marketing/threads-container";
 import { assertMetaBrandAccount } from "@/lib/marketing/meta-brand-account";
 import {
   marketingPlatformEnabled,
@@ -439,15 +440,10 @@ export async function publishThreadsReply(
   if (!create.ok || !created?.id) {
     throw new Error(`Threads reply creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
-    method: "POST",
-    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
-    body: new URLSearchParams({ access_token: token, creation_id: created.id }),
-  });
-  const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
-  if (!publish.ok || !published?.id) {
-    throw new Error(`Threads reply publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
-  }
+  const published = await publishThreadsContainer({ userId, token, creationId: created.id })
+    .catch((error: unknown) => {
+      throw new Error(`Threads reply publish failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
   return {
     externalPostId: published.id,
     publicUrl: `https://www.threads.com/post/${published.id}`,
@@ -478,15 +474,10 @@ export async function publishToThreads(
   if (!create.ok || !created?.id) {
     throw new Error(`Threads post creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
-    method: "POST",
-    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
-    body: new URLSearchParams({ access_token: token, creation_id: created.id }),
-  });
-  const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
-  if (!publish.ok || !published?.id) {
-    throw new Error(`Threads post publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
-  }
+  const published = await publishThreadsContainer({ userId, token, creationId: created.id })
+    .catch((error: unknown) => {
+      throw new Error(`Threads post publish failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
   return {
     externalPostId: published.id,
     publicUrl: `https://www.threads.com/post/${published.id}`,

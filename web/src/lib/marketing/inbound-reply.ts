@@ -18,6 +18,7 @@ import {
 } from "@/lib/marketing/platform-settings";
 import type { PublishedPost } from "@/lib/marketing/publish";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
+import { publishThreadsContainer } from "@/lib/marketing/threads-container";
 
 const VK_API_VERSION = "5.199";
 const META_GRAPH_VERSION = "v25.0";
@@ -150,15 +151,10 @@ async function replyOnThreads(input: { body: string; target: InboundReplyTarget 
   if (!create.ok || !created?.id) {
     throw new Error(`Threads reply creation failed: ${created?.error?.message ?? `HTTP ${create.status}`}`);
   }
-  const publish = await fetch(`${metaEndpoint("threads")}/v1.0/${encodeURIComponent(userId)}/threads_publish`, {
-    method: "POST",
-    headers: metaRequestHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
-    body: new URLSearchParams({ access_token: token, creation_id: created.id }),
-  });
-  const published = await publish.json().catch(() => null) as { id?: string; error?: { message?: string } } | null;
-  if (!publish.ok || !published?.id) {
-    throw new Error(`Threads reply publish failed: ${published?.error?.message ?? `HTTP ${publish.status}`}`);
-  }
+  const published = await publishThreadsContainer({ userId, token, creationId: created.id })
+    .catch((error: unknown) => {
+      throw new Error(`Threads reply publish failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
   return {
     externalPostId: published.id,
     publicUrl: `https://www.threads.com/post/${published.id}`,
