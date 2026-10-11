@@ -184,17 +184,20 @@ async function metaJson(url: string): Promise<Record<string, unknown>> {
   return payload;
 }
 
-let ownThreadsUsername: { value: string; at: number } | null = null;
+let ownThreadsUsername: { token: string; value: string; at: number } | null = null;
 
 /** `from.id` в ответах Threads не приходит — свои комментарии узнаём по имени аккаунта. */
 async function threadsOwnUsername(token: string): Promise<string | null> {
-  if (ownThreadsUsername && Date.now() - ownThreadsUsername.at < 60 * 60_000) return ownThreadsUsername.value;
+  // Кеш привязан к токену: смена аккаунта в настройках не должна тянуть старое имя.
+  if (ownThreadsUsername?.token === token && Date.now() - ownThreadsUsername.at < 60 * 60_000) {
+    return ownThreadsUsername.value;
+  }
   try {
     const payload = await metaJson(
       `${metaEndpoint("threads")}/v1.0/me?fields=username&access_token=${encodeURIComponent(token)}`,
     );
     const name = typeof payload.username === "string" ? payload.username.toLowerCase() : null;
-    if (name) ownThreadsUsername = { value: name, at: Date.now() };
+    if (name) ownThreadsUsername = { token, value: name, at: Date.now() };
     return name;
   } catch {
     return null;
