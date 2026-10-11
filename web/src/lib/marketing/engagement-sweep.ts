@@ -184,6 +184,23 @@ async function metaJson(url: string): Promise<Record<string, unknown>> {
   return payload;
 }
 
+let ownThreadsUsername: { value: string; at: number } | null = null;
+
+/** `from.id` в ответах Threads не приходит — свои комментарии узнаём по имени аккаунта. */
+async function threadsOwnUsername(token: string): Promise<string | null> {
+  if (ownThreadsUsername && Date.now() - ownThreadsUsername.at < 60 * 60_000) return ownThreadsUsername.value;
+  try {
+    const payload = await metaJson(
+      `${metaEndpoint("threads")}/v1.0/me?fields=username&access_token=${encodeURIComponent(token)}`,
+    );
+    const name = typeof payload.username === "string" ? payload.username.toLowerCase() : null;
+    if (name) ownThreadsUsername = { value: name, at: Date.now() };
+    return name;
+  } catch {
+    return null;
+  }
+}
+
 async function sweepThreads(target: SweepTarget): Promise<SweptComment[]> {
   const token = await marketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await marketingPlatformValue("THREADS_USER_ID");
@@ -191,6 +208,7 @@ async function sweepThreads(target: SweepTarget): Promise<SweptComment[]> {
   const url = `${metaEndpoint("threads")}/v1.0/${encodeURIComponent(target.externalPostId)}/replies`
     + `?fields=id,text,username,permalink,timestamp,from`
     + `&access_token=${encodeURIComponent(token)}`;
+  const ownName = await threadsOwnUsername(token);
   const payload = await metaJson(url);
   const items = (payload.data as Array<{
     id?: string;
@@ -208,7 +226,10 @@ async function sweepThreads(target: SweepTarget): Promise<SweptComment[]> {
       text: item.text ?? "",
       permalink: item.permalink ?? target.publicUrl,
       createdAt: item.timestamp ? new Date(item.timestamp) : null,
-      own: Boolean(userId && item.from?.id === userId),
+      own: Boolean(
+        (userId && item.from?.id === userId)
+        || (ownName && item.username?.toLowerCase() === ownName),
+      ),
     }];
   });
 }
