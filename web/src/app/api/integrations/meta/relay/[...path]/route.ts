@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
 const UPSTREAM_KEYS = Object.keys(META_DIRECT_HOSTS) as MetaUpstream[];
 
 /** Заголовки, которые имеет смысл пронести к площадке. Остальное отбрасываем. */
-const FORWARDED_HEADERS = ["content-type", "authorization", "accept"];
+const FORWARDED_HEADERS = ["content-type", "authorization", "accept", "user-agent"];
 
 function unauthorized() {
   return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });

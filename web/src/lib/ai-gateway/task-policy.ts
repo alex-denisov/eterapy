@@ -210,6 +210,21 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Yandex Vision OCR only; image is not persisted after OCR.",
   },
   {
+    feature: "marketing-screenshot-ocr",
+    enabled: true,
+    tier: "vision",
+    title: "OCR скриншота поста (SMM)",
+    purpose: "Текст со скриншота чужого поста, присланного владельцем в канал; публичный контент, не пользовательские данные.",
+    // G7: vision-only provider order — never route a screenshot to a text-only
+    // model, which used to silently fail with "Не удалось распознать скриншот".
+    providerOrder: [...directVisionOrder],
+    modelPreferences: { ...visionModelPreferences },
+    maxTokens: 3000,
+    temperature: 0,
+    timeoutMs: 45_000,
+    fallbackNotes: "Yandex Vision OCR only; image is not persisted after OCR.",
+  },
+  {
     feature: "product-chat-analysis-ocr-structure",
     enabled: true,
     tier: "sensitive",

@@ -17,7 +17,7 @@ import { ORCHESTRATOR_ACTOR } from "@/lib/marketing/orchestrator-actions";
 
 export const THREADS_CARDS_KEY = "marketing.threads.manual_cards";
 const MAX_CARDS = 50;
-const THREADS_POST_URL = /https?:\/\/(?:www\.)?threads\.(?:net|com)\/@[\w.]+\/post\/[\w-]+/i;
+const THREADS_POST_URL = /https?:\/\/(?:www\.)?threads\.(?:net|com)\/(?:@[\w.]+\/post|share)\/[\w-]+/i;
 const REPLY_MAX = 280;
 /** Согласовано с владельцем 2026-10-10: старт с 5 ответов под чужими постами в сутки. */
 export const CARD_DAILY_LIMIT = 5;
@@ -140,7 +140,7 @@ export async function buildThreadsCard(input: { url: string; text: string; now: 
   const topicText = input.text.replace(input.url, "").replace(/\[приложено фото\]/g, "").trim();
   let topicQueued = false;
   if (topicText.length >= 40) {
-    const postId = input.url.split("/post/")[1] ?? input.url;
+    const postId = input.url.split(/\/(?:post|share)\//)[1] ?? input.url;
     topicQueued = await ingestOwnerTopic({
       platform: "threads",
       targetId: postId,

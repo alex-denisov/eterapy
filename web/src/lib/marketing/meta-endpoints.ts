@@ -19,13 +19,23 @@
  * воркера.
  */
 
-export type MetaUpstream = "instagram" | "facebook" | "threads" | "instagram-oauth";
+export type MetaUpstream =
+  | "instagram"
+  | "facebook"
+  | "threads"
+  | "instagram-oauth"
+  /** Публичные страницы Threads (превью ссылки владельца): с РФ-ноды не открываются. */
+  | "threads-web"
+  /** Файлы Telegram (скриншоты владельца): релей Cloudflare умеет только методы. */
+  | "telegram";
 
 export const META_DIRECT_HOSTS: Record<MetaUpstream, string> = {
   instagram: "https://graph.instagram.com",
   facebook: "https://graph.facebook.com",
   threads: "https://graph.threads.net",
   "instagram-oauth": "https://api.instagram.com",
+  "threads-web": "https://www.threads.com",
+  telegram: "https://api.telegram.org",
 };
 
 /**

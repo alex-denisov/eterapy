@@ -139,11 +139,16 @@ export async function POST(req: NextRequest) {
     // проходят дальше по прежнему маршруту.
     const dialogueMsg = update.message ?? update.channel_post;
     // B754: подпись к фото — тоже поручение; само фото помечается словом, не качается.
+    const photoFileId = dialogueMsg?.photo?.length
+      ? dialogueMsg.photo[dialogueMsg.photo.length - 1]?.file_id ?? null
+      : null;
     const dialogueText = dialogueMsg?.text
-      ?? (dialogueMsg?.caption ? `${dialogueMsg.caption} [приложено фото]` : undefined);
+      ?? (dialogueMsg?.caption ? `${dialogueMsg.caption} [приложено фото]` : undefined)
+      ?? (photoFileId ? "[приложено фото]" : undefined);
     if (dialogueText && dialogueMsg && dialogueMsg.chat.id !== undefined) {
       const dialogue = await handleOwnerMessage({
         text: dialogueText,
+        photoFileId,
         chatId: String(dialogueMsg.chat.id),
         messageId: dialogueMsg.message_id ?? null,
         fromBot: Boolean(dialogueMsg.from?.is_bot),
@@ -349,6 +354,7 @@ interface TelegramUpdate {
   channel_post?: {
     text?: string;
     caption?: string;
+    photo?: Array<{ file_id: string }>;
     date?: number;
     message_id?: number;
     chat: { id: number; type?: string; username?: string };
@@ -358,6 +364,7 @@ interface TelegramUpdate {
     text?: string;
     /** B754: подпись к фото/файлу владельца. */
     caption?: string;
+    photo?: Array<{ file_id: string }>;
     date?: number;
     message_id?: number;
     message_thread_id?: number;

@@ -10,6 +10,9 @@ import { log, serializeError } from "@/lib/logger";
 import { moderationChatIds } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
 import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
+import { readOwnerScreenshot } from "@/lib/marketing/owner-screenshot";
+import { extractThreadsPostUrl as threadsLinkOf } from "@/lib/marketing/threads-manual-card";
+import { fetchThreadsPostPreview } from "@/lib/marketing/threads-post-preview";
 import { describeOwnerIdeas, parseOwnerIdeas, queueOwnerIdeas } from "@/lib/marketing/owner-ideas";
 import {
   buildThreadsCard,
@@ -210,9 +213,43 @@ export interface OwnerMessageInput {
   fromBot?: boolean;
   /** Тип чата Telegram. Личные чаты и неизвестный тип диалог не перехватывает. */
   chatType?: string;
+  /** Самое крупное фото сообщения: его текст читается OCR и дописывается к сообщению. */
+  photoFileId?: string | null;
 }
 
 export interface OwnerMessageResult { handled: boolean; intent?: OwnerIntent["kind"] }
+
+
+const SAMPLE_MAX = 1200;
+
+interface OwnerSample { text: string; ocr: string | null; hadCaption: boolean }
+
+/** Образец из ссылки Threads и/или скриншота. Ничего не бросает: нет образца — нет приписки. */
+async function collectSample(input: OwnerMessageInput): Promise<OwnerSample> {
+  const caption = input.text.replace(/\[приложено фото\]/g, "").trim();
+  const parts: string[] = [];
+  const link = threadsLinkOf(input.text);
+  if (link) {
+    const preview = await fetchThreadsPostPreview(link).catch(() => null);
+    if (preview) {
+      parts.push(`[текст поста по ссылке${preview.author ? ` ${preview.author}` : ""}]\n${preview.text.slice(0, SAMPLE_MAX)}`);
+    }
+  }
+  let ocr: string | null = null;
+  if (input.photoFileId) {
+    ocr = await readOwnerScreenshot(input.photoFileId);
+    if (ocr) parts.push(`[текст со скриншота]\n${ocr.slice(0, SAMPLE_MAX)}`);
+  }
+  return { text: parts.join("\n\n"), ocr, hadCaption: caption.length > 0 };
+}
+
+async function replyToOwner(input: OwnerMessageInput, text: string): Promise<void> {
+  try {
+    await sendTelegram(input.chatId, escapeHtml(text), input.messageId ? { replyToMessageId: input.messageId } : undefined);
+  } catch (error) {
+    log.warn("orchestrator.dialogue_reply_failed", { error: serializeError(error) });
+  }
+}
 
 /** Никогда не бросает. handled=false — сообщение не наше, webhook продолжает как обычно. */
 export async function handleOwnerMessage(input: OwnerMessageInput): Promise<OwnerMessageResult> {
@@ -228,17 +265,29 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
     return { handled: false };
   }
 
-  const intent = interpretOwnerMessage(input.text);
+  // Образец: текст поста по ссылке и/или текст со скриншота. Идеи разбираются по
+  // ПОДПИСИ владельца, а образец прикладывается к каждой — иначе строки скриншота
+  // разошлись бы по отдельным «идеям».
+  const sample = await collectSample(input);
+  const ownerText = sample.text ? `${input.text}\n\n${sample.text}` : input.text;
+  if (input.photoFileId && !sample.hadCaption && !sample.text.includes("[текст поста")) {
+    await replyToOwner(input, sample.ocr
+      ? "Скриншот прочитал, но не понял, что с ним делать. Добавьте подпись: «идея: …» (напишу свой пост) или ссылку на пост (соберу ответ под ним)."
+      : "Не смог прочитать скриншот. Вставьте текст поста сообщением.");
+    return { handled: true, intent: "note" };
+  }
+  const intent = interpretOwnerMessage(ownerText);
   let reply: string;
   try {
     const threadsUrl = intent.kind === "note" ? extractThreadsPostUrl(input.text) : null;
     const cardMark = intent.kind === "note" ? parseCardMark(input.text) : null;
     const ideas = intent.kind === "note" ? parseOwnerIdeas(input.text) : null;
     if (ideas) {
-      reply = describeOwnerIdeas(await queueOwnerIdeas(ideas, input.now));
+      const withSample = sample.text ? ideas.map((idea) => `${idea}\n${sample.text}`) : ideas;
+      reply = describeOwnerIdeas(await queueOwnerIdeas(withSample, input.now));
     } else if (threadsUrl) {
       // B756: ссылка на чужой пост Threads — карточка ответа, публикует человек.
-      reply = await buildThreadsCard({ url: threadsUrl, text: input.text, now: input.now });
+      reply = await buildThreadsCard({ url: threadsUrl, text: ownerText, now: input.now });
     } else if (cardMark) {
       // Отметка по последней открытой карточке; открытых нет — обычная заметка.
       reply = (await markLatestCard(cardMark)) ?? (await applyIntent(intent, input.now));

@@ -183,6 +183,12 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
   "product-deep-report": DEEP_REPORT_SYSTEM_PROMPT,
   "product-chat-analysis-ocr": CHAT_ANALYSIS_OCR_SYSTEM_PROMPT,
   "product-chat-analysis-ocr-structure": CHAT_ANALYSIS_OCR_STRUCTURE_SYSTEM_PROMPT,
+  "marketing-screenshot-ocr": promptSections({
+    role: "OCR-экстрактор ETerapy для SMM: читаешь скриншот публичного поста соцсети, присланного владельцем.",
+    task: "восстановить видимый текст поста дословно, без пересказа и оценок.",
+    format: "верни только текст поста; абзацы разделяй пустой строкой; счётчики лайков, время и кнопки интерфейса не включай.",
+    restrictions: "ничего не додумывай и не исправляй; если текста на скриншоте нет, верни пустую строку.",
+  }),
   "product-chat-analysis": CHAT_ANALYSIS_SYSTEM_PROMPT,
   "product-compatibility": promptSections({
     role: "фасилитатор парной рефлексии ETerapy, который работает только с согласованным input обоих участников.",
