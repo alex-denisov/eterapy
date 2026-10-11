@@ -88,6 +88,7 @@ describe("B704 · переписанный адрес доходит до пло
   it("Threads: image_url указывает на имя за Cloudflare", async () => {
     const fetchMock = jest.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "container" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ status: "FINISHED" }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "post" }) });
     global.fetch = fetchMock as unknown as typeof fetch;
 
