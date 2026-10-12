@@ -36,7 +36,7 @@ export const MARKETING_FREE_PROVIDERS = [
 export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.OPENROUTER,
   AIProvider.GEMINI,
-  // B770: GROQ выведен — его модель отвечает 404 на каждое обращение (см. MARKETING_RETIRED_PROVIDERS).
+  AIProvider.GROQ,
   AIProvider.MISTRAL,
   // B703 — шесть из семи новых коннекторов. Pollinations в активный список НЕ
   // входит: на его бесплатном тарифе одна модель, gpt-oss-20b от 2025-08-05,
@@ -77,21 +77,10 @@ export const MARKETING_ACTIVE_PROVIDERS = [
  * Вернутся сами, как только у них появится успех: список активных правится
  * решением по замеру, а не молчанием.
  */
-/**
- * B770 — ЧЕТВЁРТЫЙ: GROQ, 2026-10-12.
- *
- * Не «лимит», а «модели нет»: `qwen/qwen3.6-27b` отвечает 404 `model_not_found`
- * на КАЖДОЕ обращение (замер B762, 8 заданий — 0 ответов). Каждое такое
- * обращение сгорает из бюджета материала так же, как у остальных мёртвых.
- * Подобрать имя наугад нельзя (выдуманное имя — тот же 404, B703): возвращать
- * Groq в пул надо после `GET /models` боевым ключом и записи проверенного имени
- * в оба списка предпочтений.
- */
 export const MARKETING_RETIRED_PROVIDERS = [
   AIProvider.CEREBRAS,
   AIProvider.COHERE,
   AIProvider.TOKENROUTER,
-  AIProvider.GROQ,
 ] as const;
 
 /**
@@ -319,7 +308,10 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
    */
   [AIProvider.GEMINI]: "gemini-3.8-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
-  [AIProvider.GROQ]: "qwen/qwen3.6-27b",
+  // B770: `qwen/qwen3.6-27b` исчез из каталога (404 `model_not_found`). Имя преемника не
+  // угадано: взято из `GET /models` боевым ключом через наш шлюз 2026-10-12 и проверено
+  // вызовом chat/completions (ответ 200, без утечки рассуждения).
+  [AIProvider.GROQ]: "qwen/qwen3.8-27b",
   // 41/0 против 3/0 у small: обе живы, роли меняются местами.
   [AIProvider.MISTRAL]: "mistral-medium-2604",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
@@ -383,7 +375,10 @@ export const MARKETING_REVIEWER_MODEL_PREFERENCES: Partial<Record<AIProvider, st
    */
   [AIProvider.GEMINI]: "gemini-3.6-flash",
   [AIProvider.CEREBRAS]: "gemma-4-31b",
-  [AIProvider.GROQ]: "qwen/qwen3.6-27b",
+  // B770: `qwen/qwen3.6-27b` исчез из каталога (404 `model_not_found`). Имя преемника не
+  // угадано: взято из `GET /models` боевым ключом через наш шлюз 2026-10-12 и проверено
+  // вызовом chat/completions (ответ 200, без утечки рассуждения).
+  [AIProvider.GROQ]: "qwen/qwen3.8-27b",
   [AIProvider.MISTRAL]: "mistral-small-2603",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
   // B703. У Hugging Face бесплатны ровно две модели — обе `Ternary-Bonsai-27B`
@@ -407,6 +402,7 @@ const MARKETING_MODEL_RELEASES: Readonly<Record<string, string>> = {
   "gemini-3.5-flash": "2026-05-19",
   "gemma-4-31b": "2026-04-03",
   "qwen/qwen3.6-27b": "2026-07-17",
+  "qwen/qwen3.8-27b": "2026-08-17",
   "mistral-small-2603": "2026-03-16",
   "mistral-medium-2604": "2026-04-21",
   "command-a-plus-05-2026": "2026-05-20",

@@ -86,7 +86,7 @@ export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
   [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
   [AIProvider.OPENROUTER]: "openrouter/free",
   [AIProvider.GEMINI]: "gemini-3.6-flash",
-  [AIProvider.GROQ]: "qwen/qwen3.6-27b",
+  [AIProvider.GROQ]: "qwen/qwen3.8-27b",
   [AIProvider.MISTRAL]: "mistral-small-2603",
   [AIProvider.CEREBRAS]: "gpt-oss-120b",
   [AIProvider.COHERE]: "command-a-plus-05-2026",
