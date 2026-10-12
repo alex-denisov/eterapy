@@ -199,7 +199,7 @@ describe("выпуск не идёт задним числом", () => {
     // канала и вышел бы в произвольную минуту возврата доступа.
     publicationFindMany
       .mockResolvedValueOnce([scheduledRow({
-        platform: "instagram",
+        platform: "vk",
         scheduledFor: new Date(NOW.getTime() - 48 * 3_600_000),
       })])
       .mockResolvedValue([]);
@@ -208,7 +208,7 @@ describe("выпуск не идёт задним числом", () => {
     const result = await publishScheduledMarketing({
       now: NOW,
       enabled: true,
-      adapters: { instagram: adapter },
+      adapters: { vk: adapter },
     });
 
     expect(result.deferred).toBe(1);

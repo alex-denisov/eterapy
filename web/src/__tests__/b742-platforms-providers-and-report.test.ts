@@ -128,7 +128,7 @@ describe("B742 §2 — Reddit убран из площадок целиком", 
 
   it("план не резервирует под неё ни одного слота — ни скользящий, ни начальный", () => {
     const channels = new Set(contentPlanFor(NOW).map((slot) => String(slot.channel)));
-    expect([...channels].sort()).toEqual(["dzen", "instagram", "telegram", "threads", "vk"]);
+    expect([...channels].sort()).toEqual(["dzen", "telegram", "threads", "vk"]);
     expect(CONTENT_PLAN.some((slot) => String(slot.channel) === "reddit")).toBe(false);
   });
 

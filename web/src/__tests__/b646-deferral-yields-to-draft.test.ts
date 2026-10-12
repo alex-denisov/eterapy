@@ -50,9 +50,9 @@ function everyFutureSlotTaken(platform: string) {
 
 const approved = {
   id: "pub-approved",
-  key: "instagram-2026-08-01-morning",
-  platform: "instagram",
-  planSlot: "instagram-2026-08-01-morning",
+  key: "vk-2026-08-01-morning",
+  platform: "vk",
+  planSlot: "vk-2026-08-01-morning",
   notes: JSON.stringify({ format: "утренняя карточка" }),
   scheduledFor: new Date("2026-08-01T06:00:00.000Z"),
   deferralCount: 0,
@@ -66,12 +66,12 @@ beforeEach(() => {
 
 describe("B646 — перенос при полностью занятом плане", () => {
   it("забирает ближайший слот у ненаписанного черновика", async () => {
-    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("instagram"));
+    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("vk"));
     const donorSlotAt = new Date("2026-08-04T06:00:00.000Z");
     publicationFindFirst.mockResolvedValue({
       id: "pub-draft",
-      key: "instagram-2026-08-04-morning",
-      planSlot: "instagram-2026-08-04-morning",
+      key: "vk-2026-08-04-morning",
+      planSlot: "vk-2026-08-04-morning",
       scheduledFor: donorSlotAt,
     });
 
@@ -83,8 +83,8 @@ describe("B646 — перенос при полностью занятом пл�
     });
 
     expect(result.deferred).toBe(true);
-    expect(result.slot).toBe("instagram-2026-08-04-morning");
-    expect(result.yieldedBy).toBe("instagram-2026-08-04-morning");
+    expect(result.slot).toBe("vk-2026-08-04-morning");
+    expect(result.yieldedBy).toBe("vk-2026-08-04-morning");
 
     // Донор обязан отпустить слот В ТОЙ ЖЕ транзакции, что и захват: слот
     // уникален в базе, и падение между двумя записями оставило бы его ничьим.
@@ -94,7 +94,7 @@ describe("B646 — перенос при полностью занятом пл�
   });
 
   it("ищет донора только среди неутверждённых черновиков своей площадки", async () => {
-    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("instagram"));
+    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("vk"));
     publicationFindFirst.mockResolvedValue(null);
 
     await deferPublicationToNextSlot({
@@ -105,7 +105,7 @@ describe("B646 — перенос при полностью занятом пл�
     });
 
     const [args] = publicationFindFirst.mock.calls[0] as [{ where: Record<string, unknown> }];
-    expect(args.where.platform).toBe("instagram");
+    expect(args.where.platform).toBe("vk");
     expect(args.where.status).toBe("DRAFT");
     // Отметка редактора — та самая граница: утверждённый материал не сдвигается
     // никогда, иначе перенос одной строки поехал бы каскадом по всему плану.
@@ -113,7 +113,7 @@ describe("B646 — перенос при полностью занятом пл�
   });
 
   it("без подходящего донора материал остаётся в очереди, а не архивируется", async () => {
-    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("instagram"));
+    publicationFindMany.mockResolvedValue(everyFutureSlotTaken("vk"));
     publicationFindFirst.mockResolvedValue(null);
 
     const result = await deferPublicationToNextSlot({

@@ -31,7 +31,8 @@ describe("B610 · rolling marketing automation", () => {
     // один пост вместо двух), отсюда 61 → 59 и 14 → 12 у threads.
     // B742: Reddit удалён из площадок целиком — план лишился двух его слотов
     // за две недели (выходил дважды за 21 день), поэтому 59 → 57.
-    expect(plan).toHaveLength(57);
+    // B763: Instagram на паузе по решению владельца — 57 → 54.
+    expect(plan).toHaveLength(54);
     // B742: Reddit удалён, и окно плана сузилось до самого дальнего из
     // оставшихся горизонтов — четырнадцати суток Дзена. Пятнадцатая дата была
     // его и ушла вместе с ним.
@@ -39,7 +40,6 @@ describe("B610 · rolling marketing automation", () => {
     expect(counts).toEqual({
       telegram: 21,
       threads: 12,
-      instagram: 3,
       vk: 7,
       dzen: 14,
     });
