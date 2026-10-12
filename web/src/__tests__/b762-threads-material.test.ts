@@ -48,7 +48,7 @@ describe("B762 — пул сцен", () => {
   it("промт разведчика запрещает цитировать чужие посты и требует сцену, а не тему", () => {
     const prompt = scoutPrompt(["пост 1", "пост 2"]);
     expect(prompt).toMatch(/Не цитируй/);
-    expect(prompt).toMatch(/сцена, хорошо/);
+    expect(prompt).toMatch(/Хорошо:/);
   });
 });
 
