@@ -20,6 +20,7 @@ import {
   recentHooksForPrompt,
   type RecentThreadsPost,
 } from "@/lib/marketing/threads-hooks";
+import { factFindings, pickThreadsFact, type ThreadsFact } from "@/lib/marketing/threads-facts";
 import type { LimitViolation } from "@/lib/marketing/platform-limits";
 
 export const FREE_THREADS_TOPIC =
@@ -32,6 +33,8 @@ export interface ThreadsWriterContext {
   recentHooks: string[];
   /** Время слота: соседи по ленте считаются от него. */
   at: Date;
+  /** B766: проверенный факт из механик платформы; `null` — теме он не нужен. */
+  fact: ThreadsFact | null;
 }
 
 function draftText(value: unknown): string {
@@ -69,6 +72,7 @@ export async function recentThreadsPosts(excludeId: string, at: Date): Promise<R
 
 export async function threadsWriterContext(publication: {
   id: string;
+  cluster?: string | null;
   platform: string;
   contentType: string | null;
   source: string | null;
@@ -77,11 +81,18 @@ export async function threadsWriterContext(publication: {
   const at = publication.scheduledFor ?? now;
   const recent = await recentThreadsPosts(publication.id, at).catch(() => []);
   const scene = isOwnerReviewed(publication) ? null : await claimThreadsScene(publication.id, now);
-  return { scene, recent, recentHooks: recentHooksForPrompt(recent, at), at };
+  const fact = isOwnerReviewed(publication)
+    ? null
+    : pickThreadsFact({ at, cluster: publication.cluster ?? null, scene: scene?.scene ?? null, seed: publication.id });
+  return { scene, recent, recentHooks: recentHooksForPrompt(recent, at), at, fact };
 }
 
 /** Находки копирки для текста-кандидата; пусто — копирки нет. */
 export function hookCopyVerdict(context: ThreadsWriterContext | null, text: string): LimitViolation[] {
   if (!context) return [];
-  return hookCopyFindings({ text, recent: context.recent, now: context.at });
+  return [
+    ...hookCopyFindings({ text, recent: context.recent, now: context.at }),
+    // B766: пост не выдумывает астрологии сверх проверенного факта.
+    ...factFindings(context.fact, text),
+  ];
 }

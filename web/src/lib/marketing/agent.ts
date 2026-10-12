@@ -22,6 +22,7 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
+import { factForWriter } from "@/lib/marketing/threads-facts";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
 import {
   INBOUND_REPLY_CONTENT_TYPE,
@@ -1591,6 +1592,7 @@ export async function processMarketingDraft(publicationId: string) {
         ? { scene: threadsContext.scene.scene, reaction: threadsContext.scene.reaction, why: threadsContext.scene.why,
           note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
         : null,
+      fact: factForWriter(threadsContext.fact),
       recentHooks: threadsContext.recentHooks,
       recentHooksRule: "Это первые строки постов ленты за 30 суток. Не повторяй ни один из этих зачинов — ни слово в слово, ни по схеме с другим знаком или именем.",
     } : {}),
@@ -2307,8 +2309,15 @@ export async function processMarketingDraft(publicationId: string) {
             })(),
         // B746: продолжение ответом на свой пост едет в notes и уходит на
         // площадку публикатором сразу после выпуска (см. `publish.ts`).
-        ...(approvedDraft.replyText?.trim() && parsedNotes
-          ? { notes: JSON.stringify({ ...parsedNotes, replyText: approvedDraft.replyText.trim() }) }
+        // B766: факт едет вместе с постом — владелец видит его на карточке, вердикт хранит.
+        ...(parsedNotes && (approvedDraft.replyText?.trim() || threadsContext?.fact)
+          ? {
+            notes: JSON.stringify({
+              ...parsedNotes,
+              ...(approvedDraft.replyText?.trim() ? { replyText: approvedDraft.replyText.trim() } : {}),
+              ...(threadsContext?.fact ? { fact: threadsContext.fact.statement } : {}),
+            }),
+          }
           : {}),
         status: nextStatus,
         // Ручная площадка не «публикуется сама» ни при каком выключателе:
