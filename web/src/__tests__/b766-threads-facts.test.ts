@@ -94,3 +94,28 @@ describe("проверка поста против факта", () => {
     expect(factForWriter(null)).toBeNull();
   });
 });
+
+describe("эталоны владельца автору", () => {
+  it("без вердиктов примеров нет", async () => {
+    jest.resetModules();
+    jest.doMock("@/lib/db", () => ({ __esModule: true, default: {
+      platformSetting: { findMany: jest.fn(async () => []) },
+      externalPublication: { findMany: jest.fn(async () => []) },
+    } }));
+    const { ownerExamplesFromVerdicts } = await import("@/lib/marketing/threads-writer-context");
+    expect(await ownerExamplesFromVerdicts()).toBeNull();
+  });
+
+  it("эталон — принятое с оценкой ≥ 9, контрпример — отказ с причиной тегами", async () => {
+    jest.resetModules();
+    const verdict = (id: string, decision: string, rating: number | null, tags: string[]) => ({
+      value: JSON.stringify({ at: `2026-10-12T0${id}:00:00Z`, publicationId: `p${id}`, decision, rating, tags, comment: null }),
+    });
+    jest.doMock("@/lib/db", () => ({ __esModule: true, default: {
+      platformSetting: { findMany: jest.fn(async () => [verdict("1", "approve", 9, []), verdict("2", "reject", null, ["not_funny"])]) },
+      externalPublication: { findMany: jest.fn(async () => [{ id: "p1", body: "хороший пост" }, { id: "p2", body: "плохой пост" }]) },
+    } }));
+    const { ownerExamplesFromVerdicts } = await import("@/lib/marketing/threads-writer-context");
+    expect(await ownerExamplesFromVerdicts()).toEqual({ good: ["хороший пост"], bad: [{ text: "плохой пост", why: "не смешно" }] });
+  });
+});

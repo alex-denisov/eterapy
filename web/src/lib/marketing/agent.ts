@@ -1593,6 +1593,10 @@ export async function processMarketingDraft(publicationId: string) {
           note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
         : null,
       fact: factForWriter(threadsContext.fact),
+      ...(threadsContext.ownerExamples ? {
+        ownerExamples: threadsContext.ownerExamples,
+        ownerExamplesRule: "good — посты, которые владелец оценил на 9–10: держи их планку, но не копируй слова. bad — отказы владельца с причиной: не повторяй ни приём, ни ошибку.",
+      } : {}),
       recentHooks: threadsContext.recentHooks,
       recentHooksRule: "Это первые строки постов ленты за 30 суток. Не повторяй ни один из этих зачинов — ни слово в слово, ни по схеме с другим знаком или именем.",
     } : {}),

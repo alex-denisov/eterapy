@@ -20,6 +20,7 @@ import {
   recentHooksForPrompt,
   type RecentThreadsPost,
 } from "@/lib/marketing/threads-hooks";
+import { exemplarIds, readThreadsVerdicts, rejectTagLabel } from "@/lib/marketing/threads-verdicts";
 import { factFindings, pickThreadsFact, type ThreadsFact } from "@/lib/marketing/threads-facts";
 import type { LimitViolation } from "@/lib/marketing/platform-limits";
 
@@ -35,6 +36,36 @@ export interface ThreadsWriterContext {
   at: Date;
   /** B766: проверенный факт из механик платформы; `null` — теме он не нужен. */
   fact: ThreadsFact | null;
+  /** B766: что владелец принял с оценкой ≥ 9 (эталоны) и что отказал с причиной (контрпримеры). */
+  ownerExamples: OwnerExamples | null;
+}
+
+export interface OwnerExamples {
+  good: string[];
+  bad: Array<{ text: string; why: string }>;
+}
+
+const EXAMPLES_PER_SIDE = 3;
+
+/** Эталоны и контрпримеры из вердиктов; пусто, пока владелец ничего не оценил. */
+export async function ownerExamplesFromVerdicts(): Promise<OwnerExamples | null> {
+  const verdicts = await readThreadsVerdicts();
+  if (verdicts.length === 0) return null;
+  const { good, bad } = exemplarIds(verdicts);
+  const ids = [...good.slice(-EXAMPLES_PER_SIDE), ...bad.slice(-EXAMPLES_PER_SIDE)];
+  if (ids.length === 0) return null;
+  const rows = await db.externalPublication.findMany({ where: { id: { in: ids } }, select: { id: true, body: true } });
+  const body = new Map(rows.map((row) => [row.id, row.body?.trim() ?? ""]));
+  const why = new Map(verdicts.filter((v) => v.decision === "reject").map((v) => [
+    v.publicationId,
+    [v.tags.map(rejectTagLabel).join(", "), v.comment ?? ""].filter(Boolean).join(": "),
+  ]));
+  return {
+    good: good.slice(-EXAMPLES_PER_SIDE).map((id) => body.get(id) ?? "").filter(Boolean),
+    bad: bad.slice(-EXAMPLES_PER_SIDE)
+      .map((id) => ({ text: body.get(id) ?? "", why: why.get(id) ?? "" }))
+      .filter((item) => item.text),
+  };
 }
 
 function draftText(value: unknown): string {
@@ -84,7 +115,7 @@ export async function threadsWriterContext(publication: {
   const fact = isOwnerReviewed(publication)
     ? null
     : pickThreadsFact({ at, cluster: publication.cluster ?? null, scene: scene?.scene ?? null, seed: publication.id });
-  return { scene, recent, recentHooks: recentHooksForPrompt(recent, at), at, fact };
+  return { scene, recent, recentHooks: recentHooksForPrompt(recent, at), at, fact, ownerExamples: await ownerExamplesFromVerdicts().catch(() => null) };
 }
 
 /** Находки копирки для текста-кандидата; пусто — копирки нет. */
