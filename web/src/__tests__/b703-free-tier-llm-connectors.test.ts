@@ -180,7 +180,8 @@ describe("B703 · пул SMM", () => {
     // B719 — было 12, стало 9: выведены Cerebras, Cohere и TokenRouter. Рычаг
     // B703 при этом цел, в пуле по-прежнему вдвое больше провайдеров, чем
     // шесть исходных.
-    expect(MARKETING_ACTIVE_PROVIDERS.length).toBe(9);
+    // B770 — стало 8: выведен Groq (модель отвечает 404 на каждое обращение).
+    expect(MARKETING_ACTIVE_PROVIDERS.length).toBe(8);
     expect(MARKETING_ACTIVE_PROVIDERS.length).toBeGreaterThan(6);
   });
 

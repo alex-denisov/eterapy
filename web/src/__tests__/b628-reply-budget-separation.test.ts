@@ -27,13 +27,13 @@ jest.mock("@/lib/marketing/pool-capacity", () => ({
   // предмет. Проверка «есть ли вторая модель» разбирается в
   // b699-last-surviving-provider-must-be-usable.
   marketingPoolAvailability: async () => ({
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingHourlyCapacity: async () => ({
     perHour: 2,
     materialsLeftToday: 2,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,

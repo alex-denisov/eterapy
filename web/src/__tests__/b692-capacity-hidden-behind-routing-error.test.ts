@@ -36,7 +36,7 @@ function routingError(codes: string[]) {
     "All AI providers failed for marketing-agent-reviewer",
     "ALL_PROVIDERS_FAILED",
     codes.map((code) => ({
-      provider: "GROQ" as never,
+      provider: "SAMBANOVA" as never,
       status: "failed" as const,
       code,
       retryable: true,

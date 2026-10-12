@@ -68,7 +68,7 @@ describe("B712 — порядок провайдеров", () => {
   });
 
   it("голова уступает, когда её провайдер остывает", () => {
-    const available = [AIProvider.GROQ, AIProvider.NVIDIA, AIProvider.MISTRAL];
+    const available = [AIProvider.SAMBANOVA, AIProvider.NVIDIA, AIProvider.MISTRAL];
     const order = marketingProviderOrder("pub-1", [], available);
     expect(order).not.toContain(AIProvider.GEMINI);
     expect(order.length).toBe(3);

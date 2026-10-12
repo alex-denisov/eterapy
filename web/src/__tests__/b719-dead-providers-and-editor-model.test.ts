@@ -96,7 +96,7 @@ describe("B740 — голова редактора передана Gemini, Mist
   });
 
   it("это предпочтение, а не запрет: без Gemini и Mistral обход продолжается", () => {
-    const available = [AIProvider.GROQ, AIProvider.NVIDIA, AIProvider.OPENROUTER];
+    const available = [AIProvider.SAMBANOVA, AIProvider.NVIDIA, AIProvider.OPENROUTER];
     const order = marketingProviderOrder("pub-1", [], available, { role: "reviewer" });
     expect(order).not.toContain(AIProvider.MISTRAL);
     expect(order.length).toBe(3);

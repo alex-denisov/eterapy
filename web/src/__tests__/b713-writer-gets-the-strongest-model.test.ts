@@ -97,7 +97,7 @@ describe("B713 — писатель получает сильнейшую жив
      * которого даты выпуска нет и быть не может. Ограничивают его деньги
      * (`paid-route-budget.ts`), а не возраст весов.
      */
-    const named = [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.GROQ,
+    const named = [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.SAMBANOVA,
       AIProvider.MISTRAL, AIProvider.KILOCODE, AIProvider.NVIDIA,
       AIProvider.OPENCODE_ZEN, AIProvider.SAMBANOVA, AIProvider.HUGGINGFACE]
       .flatMap((provider) => [

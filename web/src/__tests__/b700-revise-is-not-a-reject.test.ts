@@ -34,13 +34,13 @@ const update = jest.fn();
 jest.mock("@/lib/marketing/pool-capacity", () => ({
   __esModule: true,
   marketingPoolAvailability: async () => ({
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingHourlyCapacity: async () => ({
     perHour: 2,
     materialsLeftToday: 2,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,
@@ -148,7 +148,7 @@ const writes = () => update.mock.calls.map((call) => (call[0] as {
 function answerWith(decision: "REVISE" | "REJECT") {
   aiComplete.mockImplementation((input: { feature: string }) =>
     Promise.resolve(input.feature.includes("writer")
-      ? { text: WRITER_ANSWER, provider: "GROQ", model: "qwen/qwen3.6-27b", finishReason: "STOP" }
+      ? { text: WRITER_ANSWER, provider: "SAMBANOVA", model: "qwen/qwen3.6-27b", finishReason: "STOP" }
       : { text: reviewerAnswer(decision), provider: "GEMINI", model: "gemini-3.5-flash", finishReason: "STOP" }));
 }
 

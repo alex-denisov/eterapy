@@ -89,7 +89,7 @@ describe("B699 · очередь обхода не стучится в осты�
    * владелец, и вращение никуда не делось — оно переехало в хвост.
    */
   it("голова задана приоритетом, а вращение сохраняется за ней", () => {
-    const available = [AIProvider.GROQ, AIProvider.GEMINI, AIProvider.MISTRAL];
+    const available = [AIProvider.SAMBANOVA, AIProvider.GEMINI, AIProvider.MISTRAL];
     const orders = ["a", "b", "c", "d", "e", "f"].map(
       (seed) => marketingProviderOrder(seed, [], available),
     );

@@ -24,13 +24,13 @@ const count = jest.fn();
 jest.mock("@/lib/marketing/pool-capacity", () => ({
   __esModule: true,
   marketingPoolAvailability: async () => ({
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingHourlyCapacity: async () => ({
     perHour: 2,
     materialsLeftToday: 2,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,

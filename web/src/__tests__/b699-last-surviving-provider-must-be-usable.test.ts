@@ -73,12 +73,12 @@ describe("B699 · выживший в одиночку Mistral снова год
     // за 72 часа боевой работы дала НОЛЬ успехов. Числиться двумодельным на
     // мёртвой модели дороже, чем честно объявить одну: конвейер иначе отправляет
     // половину обращений в стену и списывает их из бюджета материала.
+    // B770 — ушёл и Groq: модель отвечает 404 на каждое обращение.
     // B719 — из списка ушли Cerebras, Cohere и TokenRouter: не потому что у
     // них появилась вторая модель, а потому что они выведены из активного
     // пула целиком (0 успехов за всю сохранённую историю обращений).
     expect(marketingProvidersWithSingleModel()).toEqual([
       AIProvider.OPENROUTER,
-      AIProvider.GROQ,
       AIProvider.OPENCODE_ZEN,
       AIProvider.SAMBANOVA,
       AIProvider.HUGGINGFACE,
@@ -91,8 +91,8 @@ describe("B699 · роли разводятся до вызова автора, 
     expect(marketingPoolCanSeparateRoles([AIProvider.MISTRAL])).toBe(true);
   });
 
-  it("Groq в одиночку роли не разводит — и это выясняется без вызова автора", () => {
-    expect(marketingPoolCanSeparateRoles([AIProvider.GROQ])).toBe(false);
+  it("SambaNova в одиночку роли не разводит — и это выясняется без вызова автора", () => {
+    expect(marketingPoolCanSeparateRoles([AIProvider.SAMBANOVA])).toBe(false);
   });
 
   it("пустой пул развести роли не может", () => {
@@ -105,16 +105,16 @@ describe("B699 · роли разводятся до вызова автора, 
    */
   it("провайдер вне активного списка ёмкостью не считается", () => {
     expect(marketingPoolCanSeparateRoles([AIProvider.OPENAI])).toBe(false);
-    expect(marketingPoolCanSeparateRoles([AIProvider.OPENAI, AIProvider.GROQ])).toBe(false);
+    expect(marketingPoolCanSeparateRoles([AIProvider.OPENAI, AIProvider.SAMBANOVA])).toBe(false);
   });
 
   it("два разных провайдера роли разводят", () => {
-    expect(marketingPoolCanSeparateRoles([AIProvider.GROQ, AIProvider.GEMINI])).toBe(true);
+    expect(marketingPoolCanSeparateRoles([AIProvider.SAMBANOVA, AIProvider.GEMINI])).toBe(true);
   });
 
   it("одномодельный провайдер вместе с любым другим роли разводит", () => {
     // B719: Cerebras выведен из активного пула, поэтому пара берётся из живых
     // одномодельных — суть проверки та же.
-    expect(marketingPoolCanSeparateRoles([AIProvider.GROQ, AIProvider.SAMBANOVA])).toBe(true);
+    expect(marketingPoolCanSeparateRoles([AIProvider.SAMBANOVA, AIProvider.HUGGINGFACE])).toBe(true);
   });
 });

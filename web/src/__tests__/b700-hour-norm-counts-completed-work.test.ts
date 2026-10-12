@@ -42,11 +42,11 @@ jest.mock("@/lib/db", () => ({
 
 jest.mock("@/lib/marketing/pool-capacity", () => ({
   __esModule: true,
-  marketingPoolAvailability: async () => ({ providers: ["GROQ", "GEMINI"], canSeparateRoles: true }),
+  marketingPoolAvailability: async () => ({ providers: ["SAMBANOVA", "GEMINI"], canSeparateRoles: true }),
   marketingHourlyCapacity: async () => ({
     perHour: 5,
     materialsLeftToday: 5,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,

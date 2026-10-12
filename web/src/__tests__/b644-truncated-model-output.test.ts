@@ -30,13 +30,13 @@ jest.mock("@/lib/marketing/pool-capacity", () => ({
   // предмет. Проверка «есть ли вторая модель» разбирается в
   // b699-last-surviving-provider-must-be-usable.
   marketingPoolAvailability: async () => ({
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingHourlyCapacity: async () => ({
     perHour: 2,
     materialsLeftToday: 2,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,
@@ -193,7 +193,7 @@ describe("обрыв лечится бюджетом, а не перебором
         writerCalls += 1;
         return Promise.resolve(writerCalls === 1
           ? { text: TRUNCATED, provider: "GEMINI", model: "gemini-3.6-flash", finishReason: "MAX_TOKENS" }
-          : { text: WRITER_ANSWER, provider: "GROQ", model: "qwen/qwen3.6-27b", finishReason: "STOP" });
+          : { text: WRITER_ANSWER, provider: "SAMBANOVA", model: "gemma-4-31B-it", finishReason: "STOP" });
       }
       return Promise.resolve({
         text: REVIEWER_ANSWER,

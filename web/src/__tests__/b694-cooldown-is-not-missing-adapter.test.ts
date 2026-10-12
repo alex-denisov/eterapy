@@ -51,7 +51,7 @@ function routingError(codes: string[]) {
     "All AI providers failed for marketing-agent-reviewer",
     "ALL_PROVIDERS_FAILED",
     codes.map((code) => ({
-      provider: "GROQ" as never,
+      provider: "SAMBANOVA" as never,
       status: "skipped" as const,
       code,
       retryable: true,
@@ -64,14 +64,14 @@ describe("B694 — пустой список ключей разбирается
     const returnsAt = new Date(NOW.getTime() + 4 * 60_000);
 
     await expect(runAIGatewayFallbackWithCredentials({
-      plan: plan(["GROQ", "COHERE"]),
+      plan: plan(["SAMBANOVA", "COHERE"]),
       request: { messages: [{ role: "user", content: "ping" }] },
       resolveAdapters: async () => [],
       resolveCooldown: async () => returnsAt,
     })).rejects.toThrow(AIGatewayRoutingError);
 
     const error = await runAIGatewayFallbackWithCredentials({
-      plan: plan(["GROQ", "COHERE"]),
+      plan: plan(["SAMBANOVA", "COHERE"]),
       request: { messages: [{ role: "user", content: "ping" }] },
       resolveAdapters: async () => [],
       resolveCooldown: async () => returnsAt,
@@ -88,7 +88,7 @@ describe("B694 — пустой список ключей разбирается
 
   it("ключей нет вовсе — MISSING_ADAPTER остаётся честной жалобой на настройку", async () => {
     const error = await runAIGatewayFallbackWithCredentials({
-      plan: plan(["GROQ"]),
+      plan: plan(["SAMBANOVA"]),
       request: { messages: [{ role: "user", content: "ping" }] },
       resolveAdapters: async () => [],
       resolveCooldown: async () => null,
@@ -99,7 +99,7 @@ describe("B694 — пустой список ключей разбирается
 
   it("без resolveCooldown поведение прежнее — старые вызовы не меняют смысла", async () => {
     const error = await runAIGatewayFallbackWithCredentials({
-      plan: plan(["GROQ"]),
+      plan: plan(["SAMBANOVA"]),
       request: { messages: [{ role: "user", content: "ping" }] },
       resolveAdapters: async () => [],
     }).catch((err: unknown) => err as AIGatewayRoutingError);
@@ -132,7 +132,7 @@ describe("B694 — остывание всего пула откладывает
 
 describe("B694 — региональная блокировка перестаёт быть дверью без обратного хода", () => {
   it("ключ без блокировки и без остывания берётся", () => {
-    const where = activeCredentialWhere("GROQ" as never, NOW);
+    const where = activeCredentialWhere("SAMBANOVA" as never, NOW);
     expect(where.OR).toContainEqual({ regionBlocked: false, cooldownUntil: null });
   });
 

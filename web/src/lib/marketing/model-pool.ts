@@ -36,7 +36,7 @@ export const MARKETING_FREE_PROVIDERS = [
 export const MARKETING_ACTIVE_PROVIDERS = [
   AIProvider.OPENROUTER,
   AIProvider.GEMINI,
-  AIProvider.GROQ,
+  // B770: GROQ выведен — его модель отвечает 404 на каждое обращение (см. MARKETING_RETIRED_PROVIDERS).
   AIProvider.MISTRAL,
   // B703 — шесть из семи новых коннекторов. Pollinations в активный список НЕ
   // входит: на его бесплатном тарифе одна модель, gpt-oss-20b от 2025-08-05,
@@ -77,10 +77,21 @@ export const MARKETING_ACTIVE_PROVIDERS = [
  * Вернутся сами, как только у них появится успех: список активных правится
  * решением по замеру, а не молчанием.
  */
+/**
+ * B770 — ЧЕТВЁРТЫЙ: GROQ, 2026-10-12.
+ *
+ * Не «лимит», а «модели нет»: `qwen/qwen3.6-27b` отвечает 404 `model_not_found`
+ * на КАЖДОЕ обращение (замер B762, 8 заданий — 0 ответов). Каждое такое
+ * обращение сгорает из бюджета материала так же, как у остальных мёртвых.
+ * Подобрать имя наугад нельзя (выдуманное имя — тот же 404, B703): возвращать
+ * Groq в пул надо после `GET /models` боевым ключом и записи проверенного имени
+ * в оба списка предпочтений.
+ */
 export const MARKETING_RETIRED_PROVIDERS = [
   AIProvider.CEREBRAS,
   AIProvider.COHERE,
   AIProvider.TOKENROUTER,
+  AIProvider.GROQ,
 ] as const;
 
 /**
@@ -335,7 +346,13 @@ export const MARKETING_WRITER_MODEL_PREFERENCES: Partial<Record<AIProvider, stri
    * модель 2024 года, рубеж свежести пула — 2026-02-28. Явное имя здесь
    * сильнее override'а, потому что маршрут получает `model` параметром.
    */
-  [AIProvider.OPENAI]: "gpt-5.4-mini",
+  /**
+   * B770 — платный автор: `gpt-5.6-luna` вместо устаревшей `gpt-5.4-mini`.
+   * Слепой тест владельца B762 (раунд 2, средняя оценка): luna 6,3 — лучшая из
+   * семи; цена $0,20 / $1,20 за 1M. Рубеж свежести к платному хвосту не
+   * применяется (см. `marketingModelFreshnessApplies`).
+   */
+  [AIProvider.OPENAI]: "gpt-5.6-luna",
   [AIProvider.YANDEX]: "yandexgpt/latest",
 };
 

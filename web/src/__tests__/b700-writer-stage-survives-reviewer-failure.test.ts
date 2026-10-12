@@ -29,13 +29,13 @@ const update = jest.fn();
 jest.mock("@/lib/marketing/pool-capacity", () => ({
   __esModule: true,
   marketingPoolAvailability: async () => ({
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingHourlyCapacity: async () => ({
     perHour: 2,
     materialsLeftToday: 2,
-    providers: ["GROQ", "GEMINI"],
+    providers: ["SAMBANOVA", "GEMINI"],
     canSeparateRoles: true,
   }),
   marketingPoolResumeAt: async () => null,
@@ -107,7 +107,7 @@ function quotaExhausted() {
     "All AI providers failed for marketing-agent-reviewer",
     "ALL_PROVIDERS_FAILED",
     [{
-      provider: "GROQ" as never,
+      provider: "SAMBANOVA" as never,
       status: "failed" as const,
       code: "RATE_LIMITED",
       retryable: true,
@@ -163,7 +163,7 @@ describe("B700 · труд автора переживает отказ реда
       if (input.feature.includes("writer")) {
         return Promise.resolve({
           text: WRITER_ANSWER,
-          provider: "GROQ",
+          provider: "SAMBANOVA",
           model: "qwen/qwen3.6-27b",
           finishReason: "STOP",
         });
@@ -190,7 +190,7 @@ describe("B700 · труд автора переживает отказ реда
       input.feature.includes("writer")
         ? Promise.resolve({
           text: WRITER_ANSWER,
-          provider: "GROQ",
+          provider: "SAMBANOVA",
           model: "qwen/qwen3.6-27b",
           finishReason: "STOP",
         })
@@ -233,7 +233,7 @@ describe("B700 · труд автора переживает отказ реда
   it("утверждённый с первого раза материал не оставляет незавершённой стадии", async () => {
     aiComplete.mockImplementation((input: AiCall) =>
       Promise.resolve(input.feature.includes("writer")
-        ? { text: WRITER_ANSWER, provider: "GROQ", model: "qwen/qwen3.6-27b", finishReason: "STOP" }
+        ? { text: WRITER_ANSWER, provider: "SAMBANOVA", model: "qwen/qwen3.6-27b", finishReason: "STOP" }
         : { text: REVIEWER_ANSWER, provider: "GEMINI", model: "gemini-3.6-flash", finishReason: "STOP" }));
 
     const result = await processMarketingDraft("pub-1");
