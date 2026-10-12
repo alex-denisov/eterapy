@@ -40,6 +40,7 @@ import {
   metaFetchableMediaUrl,
   metaRequestHeaders,
 } from "@/lib/marketing/meta-endpoints";
+import { topicTagFor } from "@/lib/marketing/threads-engagement";
 import { publishThreadsContainer } from "@/lib/marketing/threads-container";
 import { assertMetaBrandAccount } from "@/lib/marketing/meta-brand-account";
 import {
@@ -124,6 +125,8 @@ export type PublicationAdapter = (
      * тела статьи.
      */
     parseMode?: "HTML" | "Markdown" | null;
+    /** B768: тема поста Threads; без неё пост не попадает в рекомендации. */
+    topicTag?: string | null;
   },
 ) => Promise<PublishedPost>;
 
@@ -452,7 +455,7 @@ export async function publishThreadsReply(
 }
 
 export async function publishToThreads(
-  publication: { body: string; mediaUrl?: string | null },
+  publication: { body: string; mediaUrl?: string | null; topicTag?: string | null },
 ): Promise<PublishedPost> {
   await ensurePlatformEnabled("Threads");
   const token = await requiredMarketingPlatformValue("THREADS_ACCESS_TOKEN");
@@ -466,6 +469,7 @@ export async function publishToThreads(
       access_token: token,
       media_type: publication.mediaUrl ? "IMAGE" : "TEXT",
       text: publication.body,
+      ...(publication.topicTag ? { topic_tag: publication.topicTag } : {}),
       // B704: за обложкой приходит сама площадка, а до российского адреса её
       // скачиватель не доходит — называем имя за Cloudflare.
       ...(publication.mediaUrl ? { image_url: metaFetchableMediaUrl(publication.mediaUrl) } : {}),
@@ -901,6 +905,9 @@ export async function publishScheduledMarketing(input: {
         engagementTargetId: publication.engagementTargetId,
         engagementTargetUrl: publication.engagementTargetUrl,
         inbound: publication.inboundReplyTo ?? null,
+        topicTag: publication.platform.trim().toLowerCase() === "threads" && publication.contentType !== "COMMENT"
+          ? topicTagFor({ cluster: publication.cluster })
+          : null,
       });
       /**
        * ⚠ ОТПРАВКА УЖЕ СОСТОЯЛАСЬ — ОТМЕНИТЬ ЕЁ НЕЛЬЗЯ. Всё, что падает ниже,
