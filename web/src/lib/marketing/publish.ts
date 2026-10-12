@@ -56,6 +56,7 @@ import {
   linkLabelFromBody,
   toPlatformMarkup,
 } from "@/lib/marketing/link-presentation";
+import { firstReviewAfterPublish } from "@/lib/marketing/review-schedule";
 import { stripHiddenMarkers } from "@/lib/marketing/text-hygiene";
 import { stripImageMetadata } from "@/lib/marketing/image-hygiene";
 
@@ -924,7 +925,7 @@ export async function publishScheduledMarketing(input: {
         status: "PUBLISHED" as const,
         externalPostId: published.externalPostId,
         publishedAt: now,
-        nextReviewAt: new Date(now.getTime() + 7 * DAY_MS),
+        nextReviewAt: firstReviewAfterPublish(publication.platform, now),
         lastError: null,
         // `undefined` в Prisma означает «не трогать поле»: заметка
         // дописывается к существующей, а не затирает её.

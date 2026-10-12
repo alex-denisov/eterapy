@@ -37,6 +37,8 @@ import {
   writeAreas,
   type LifeArea,
 } from "@/lib/marketing/threads-life-areas";
+import { fetchSuggestTrendTexts, seedsForPass } from "@/lib/marketing/threads-trends";
+import { areaTierWeight } from "@/lib/marketing/threads-niche";
 import { readThreadsVerdicts } from "@/lib/marketing/threads-verdicts";
 import {
   TELEGRAM_TREND_TIMEOUT_MS,
@@ -73,6 +75,8 @@ export interface ThreadsScene {
   why: string;
   /** B767: область жизни из утверждённого списка; нет — сцена вне списка. */
   area?: string;
+  /** B771: как сцена связана с нашей темой; автор берёт её оптикой поста. */
+  bridge?: string;
   foundAt: string;
   usedBy?: string;
   usedAt?: string;
@@ -88,6 +92,8 @@ const SceneSchema = z.object({
   reaction: z.string().min(3).max(80),
   why: z.string().min(5).max(300),
   area: z.string().max(80).optional(),
+  /** B771: как сцена связана с нашей темой (таро, знаки, планеты, число судьбы). */
+  bridge: z.string().max(200).optional(),
 });
 const ScoutResponseSchema = z.object({ scenes: z.array(SceneSchema).min(1) });
 /** Окно повтора сцены: сцену прошлой недели повторять можно (решение владельца 2026-10-12). */
@@ -190,7 +196,9 @@ export function takeScene(
     }
   }
   const areas = [...new Set(fresh.map((scene) => scene.area).filter((area): area is string => Boolean(area)))];
-  const chosen = chooseArea({ candidates: areas, usedThisWeek, weights });
+  // B771: ближние к теме области весят больше, периферия — меньше; оценки владельца сохраняются.
+  const tiered = Object.fromEntries(areas.map((area) => [area, (weights?.[area] ?? 1) * areaTierWeight(area)]));
+  const chosen = chooseArea({ candidates: areas, usedThisWeek, weights: tiered });
   const candidate = (chosen ? fresh.find((scene) => scene.area === chosen) : null) ?? fresh[0];
   if (!candidate) return { pool, scene: null, claimed: false };
   const taken: ThreadsScene = { ...candidate, usedBy: publicationId, usedAt: now.toISOString() };
@@ -220,9 +228,9 @@ export function scoutPrompt(posts: readonly string[], areas: readonly string[] =
   const sample = posts.slice(0, 40)
     .map((post) => Array.from(post.replace(/[\uD800-\uDFFF]/gu, "")).slice(0, 300).join(""))
     .join("\n---\n");
-  return `Ты — разведчик живого материала для ленты Threads (русскоязычная аудитория 20–35 лет: отношения, бывшие, работа, деньги, подруги, семья, знаки зодиака, таро).
+  return `Ты — разведчик живого материала для ленты Threads (русскоязычная аудитория 20–35 лет). ТЕМА ЛЕНТЫ ОДНА: отношения и самопознание, увиденные через таро, знаки зодиака, планеты и Луну, число судьбы, расклады. Жизнь — материал, наша оптика — всегда.
 
-Ниже — посты открытых каналов. Найди в них ${SCENES_PER_SCOUT} РАЗНЫХ жизненных сцен, из которых получится пост, под которым люди не смогут промолчать.
+Ниже — посты открытых каналов и строки «Запросы людей…» (что люди ищут прямо сейчас: это их боли и вопросы, сцену можно строить на них). Найди в них ${SCENES_PER_SCOUT} РАЗНЫХ жизненных сцен, из которых получится пост, под которым люди не смогут промолчать.
 
 Сцена — это конкретная ситуация с деталью (кто, что сказал или сделал, где, во сколько) И С ПОВОРОТОМ или жалом, а не тема и не открытка. Плохо: «Отношения после расставания» (тема), «Вместе собираем пазл и смеёмся» (открытка, никто не ответит). Хорошо: «Бывший через год лайкнул фото в 2 ночи и через минуту убрал лайк — а ты уже успела показать скрин трём подругам».
 
@@ -233,6 +241,7 @@ export function scoutPrompt(posts: readonly string[], areas: readonly string[] =
 Для каждой сцены назови ОДНУ реакцию читателя (посмеяться, удивиться, разозлиться, ужаснуться, умилиться, обрадоваться, позавидовать, посочувствовать, вспомнить своё и рассказать, поспорить) и что люди напишут в комментариях.
 
 Правила:
+- У КАЖДОЙ сцены поле "bridge": одна фраза, как именно в этой сцене работает наша тема (что показал бы расклад, что сказал бы знак, где стояла бы Луна, что значит число). Не можешь сформулировать связку без натяжки — сцену не включай.
 - Своими словами. Не цитируй и не пересказывай конкретный пост, не называй каналы, авторов и реальных людей.
 - Разные сферы и разные реакции: не больше четверти сцен про бывших, не больше трети смешных, «умилиться» — не больше трёх.
 - Без рекламы, без медицины и диагнозов, без насилия и кризисных историй.
@@ -240,7 +249,7 @@ export function scoutPrompt(posts: readonly string[], areas: readonly string[] =
 ${areas.length > 0 ? `Для каждой сцены укажи область жизни ТОЧНО как в списке: ${areas.join("; ")}. Распредели сцены по областям широко, не копи в одной. Если сцена не подходит ни под одну область, назови новую область коротко (1–3 слова) в поле area — владелец утвердит её.\n\n` : ""}Сцены с поворотом и физически возможные: человек не может одновременно быть в двух местах и делать несовместимое. Ориентир планки — посты, которые владелец оценил на 9–10: узнаваемая деталь и жало, а не открытка.
 
 Верни СТРОГО JSON без markdown:
-{"scenes":[{"scene":"...","reaction":"...","why":"..."${areas.length > 0 ? ',"area":"..."' : ""}}]}
+{"scenes":[{"scene":"...","reaction":"...","why":"...","bridge":"..."${areas.length > 0 ? ',"area":"..."' : ""}}]}
 
 Посты:
 ${sample}`;
@@ -315,7 +324,10 @@ export async function runThreadsMaterialScout(input: {
     topics: approvedAreaNames(areas).sort(() => Math.random() - 0.5),
     fetchImpl: input.fetchImpl,
   }).catch(() => [] as string[]);
-  const posts = [...pages.flatMap((page) => (page.status === "fulfilled" ? page.value : [])), ...googleTexts];
+  // B767: бесплатный источник трендов — подсказки поиска по зёрнам нашей темы (ключи не нужны).
+  const suggestTexts = await fetchSuggestTrendTexts({ seeds: seedsForPass(now, 6), fetchImpl: input.fetchImpl })
+    .catch(() => [] as string[]);
+  const posts = [...pages.flatMap((page) => (page.status === "fulfilled" ? page.value : [])), ...suggestTexts, ...googleTexts];
   if (posts.length === 0) {
     log.warn("marketing.threads_scout_no_posts", { channels: channels.length });
     return { ran: true, added: 0, posts: 0, reason: "no-posts" };
@@ -345,7 +357,11 @@ export async function runThreadsMaterialScout(input: {
       .filter((scene) => scene.area && !matchApprovedArea(areas, scene.area))
       .map((scene) => scene.area as string);
     if (areas.length > 0) await writeAreas(recordSightings(areas, proposed, now)).catch(() => undefined);
-    const tagged = parsed.data.scenes.map((scene) => ({ ...scene, area: matchApprovedArea(areas, scene.area) ?? undefined }));
+    // B771: сцена без связки с темой в пул не идёт; если модель не дала связку нигде — берём всё (пул не должен пустеть).
+    const withBridge = parsed.data.scenes.filter((scene) => Boolean(scene.bridge?.trim()));
+    if (withBridge.length === 0) log.warn("marketing.threads_scout_no_bridge", { scenes: parsed.data.scenes.length });
+    const kept = withBridge.length > 0 ? withBridge : parsed.data.scenes;
+    const tagged = kept.map((scene) => ({ ...scene, area: matchApprovedArea(areas, scene.area) ?? undefined }));
     const merged = mergeScenes(pool, tagged, now);
     await writePool(merged);
     const added = merged.scenes.length - pool.scenes.length;

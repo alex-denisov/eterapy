@@ -22,6 +22,7 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
+import { nicheFindings } from "@/lib/marketing/threads-niche";
 import { threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
@@ -1592,6 +1593,7 @@ export async function processMarketingDraft(publicationId: string) {
     ...(threadsContext ? {
       freshMaterial: threadsContext.scene
         ? { scene: threadsContext.scene.scene, reaction: threadsContext.scene.reaction, why: threadsContext.scene.why,
+          ...(threadsContext.scene.bridge ? { nicheBridge: threadsContext.scene.bridge } : {}),
           note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
         : null,
       fact: factForWriter(threadsContext.fact),
@@ -2090,6 +2092,7 @@ export async function processMarketingDraft(publicationId: string) {
       const copyFindings = [
         ...hookCopyVerdict(threadsContext, draft.text ?? ""),
         ...(threadsContext ? threadsStopFindings(draft.text ?? "") : []),
+        ...(threadsContext ? nicheFindings(draft.text ?? "") : []),
         ...(threadsContext ? endingQuestionFindings({ text: draft.text ?? "", format: parsedNotes?.format ?? null, wanted: wantsEndingQuestion(publication.id) }) : []),
       ];
       if (copyFindings.length > 0 && review.decision !== "REJECT") {

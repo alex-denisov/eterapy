@@ -25,7 +25,8 @@ import { factFindings, pickThreadsFact, type ThreadsFact } from "@/lib/marketing
 import type { LimitViolation } from "@/lib/marketing/platform-limits";
 
 export const FREE_THREADS_TOPIC =
-  "Тема свободная: выбери сама живую сцену из отношений, работы, денег, дружбы, семьи или знаков — такую, "
+  "Тема свободная, но ТЕМА ЛЕНТЫ одна: отношения и самопознание через таро, знаки, планеты, Луну, число судьбы. "
+  + "Выбери сама живую сцену из отношений, дружбы, работы или семьи и покажи её нашей оптикой — такую, "
   + "которой нет среди недавних хуков ленты. Не про «сложный разговор» и не про «выбор между карьерой и любовью».";
 
 export interface ThreadsWriterContext {

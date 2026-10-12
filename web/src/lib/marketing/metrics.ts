@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
 import { metaEndpoint, metaRequestHeaders } from "@/lib/marketing/meta-endpoints";
+import { firstReviewAfterPublish } from "@/lib/marketing/review-schedule";
 import { requiredMarketingPlatformValue } from "@/lib/marketing/platform-settings";
 
 const DAY_MS = 86_400_000;
@@ -22,6 +23,26 @@ export type PublicationMetricAdapter = (publication: {
 }) => Promise<PublicationMetricSnapshot>;
 
 type Milestone = 7 | 14 | 28;
+
+const MINUTE_MS = 60_000;
+/** B762: ранние замеры Threads — реакция в первые минуты решает, показывает ли лента пост дальше. */
+const EARLY_MINUTES = [30, 90] as const;
+/** Показатели накопительные: замер, снятый много позже срока, говорил бы о другом сроке — его не пишем. */
+const EARLY_VALID_MS = 3 * 60 * MINUTE_MS;
+
+/** Какой ранний замер пора снять: 30 или 90 минут; `null` — не Threads, рано, уже записан или опоздал. */
+function firstDueEarlyMinutes(publishedAt: Date, now: Date, recordedSources: Set<string>, platform: string): 30 | 90 | null {
+  if (platform !== "threads") return null;
+  for (const minutes of EARLY_MINUTES) {
+    const dueAt = publishedAt.getTime() + minutes * MINUTE_MS;
+    if (now.getTime() < dueAt) return null;
+    if (recordedSources.has(`API_THREADS_M${minutes}`) || recordedSources.has(`AUTO_UNAVAILABLE_THREADS_M${minutes}`)) continue;
+    if (now.getTime() - dueAt <= EARLY_VALID_MS) return minutes;
+  }
+  return null;
+}
+
+
 
 function optionalInt(value: unknown): number | null {
   const number = Number(value);
@@ -144,6 +165,13 @@ function firstDueMilestone(
   return null;
 }
 
+/** После M30 — M90, после M90 — D7 (как у остальных площадок). */
+function earlyNextReview(publishedAt: Date, minutes: 30 | 90): Date {
+  return minutes === 30
+    ? new Date(publishedAt.getTime() + 90 * MINUTE_MS)
+    : new Date(publishedAt.getTime() + 7 * DAY_MS);
+}
+
 function nextReviewAt(publishedAt: Date, milestone: Milestone) {
   if (milestone === 7) return new Date(publishedAt.getTime() + 14 * DAY_MS);
   if (milestone === 14) return new Date(publishedAt.getTime() + 28 * DAY_MS);
@@ -184,16 +212,17 @@ export async function collectDuePublicationMetrics(input: {
   for (const publication of due) {
     if (!publication.publishedAt || !publication.externalPostId || !publication.nextReviewAt) continue;
     const platform = publication.platform.toLowerCase();
-    const milestone = firstDueMilestone(
-      publication.publishedAt,
-      now,
-      new Set(publication.metrics.map((metric) => metric.source)),
-      platform,
-    );
+    const recordedSources = new Set(publication.metrics.map((metric) => metric.source));
+    const early = firstDueEarlyMinutes(publication.publishedAt, now, recordedSources, platform);
+    const milestone = early ?? firstDueMilestone(publication.publishedAt, now, recordedSources, platform);
+    // Метка срока: `M30`/`M90` (минуты) для раннего замера, `D7`/`D14`/`D28` (сутки) для остальных.
+    const label = early ? `M${early}` : `D${milestone}`;
     if (!milestone) {
+      // Ранний замер мог пропасть (сбой API, простой воркера): пост ждёт D7, а не выпадает из контроля.
+      const firstDay = new Date(publication.publishedAt.getTime() + 7 * DAY_MS);
       await db.externalPublication.update({
         where: { id: publication.id },
-        data: { nextReviewAt: null },
+        data: { nextReviewAt: now.getTime() < firstDay.getTime() ? firstDay : null },
       });
       continue;
     }
@@ -227,8 +256,8 @@ export async function collectDuePublicationMetrics(input: {
         })
         : null;
       const source = adapter
-        ? `API_${platform.toUpperCase()}_D${milestone}`
-        : `AUTO_UNAVAILABLE_${platform.toUpperCase()}_D${milestone}`;
+        ? `API_${platform.toUpperCase()}_${label}`
+        : `AUTO_UNAVAILABLE_${platform.toUpperCase()}_${label}`;
       await db.$transaction([
         db.externalPublicationMetric.create({
           data: {
@@ -243,7 +272,9 @@ export async function collectDuePublicationMetrics(input: {
         db.externalPublication.update({
           where: { id: publication.id },
           data: {
-            nextReviewAt: nextReviewAt(publication.publishedAt, milestone),
+            nextReviewAt: early
+              ? earlyNextReview(publication.publishedAt, early)
+              : nextReviewAt(publication.publishedAt, milestone as Milestone),
             lastError: null,
           },
         }),
@@ -254,13 +285,13 @@ export async function collectDuePublicationMetrics(input: {
           kind: "MARKETING_METRICS",
           severity: "WARNING",
           title: `Метрики ${platform}: нужен ручной или новый API-адаптер`,
-          summary: `D+${milestone} зафиксирован без платформенных метрик; UTM-переходы посчитаны на стороне ETerapy.`,
+          summary: `${label} зафиксирован без платформенных метрик; UTM-переходы посчитаны на стороне ETerapy.`,
           evidence: { publicationId: publication.id, platform, milestone },
         });
       } else {
         await resolveMarketingSignal(`metrics:unsupported:${platform}`).catch(() => undefined);
       }
-      await resolveMarketingSignal(`metrics:${publication.id}:d${milestone}`).catch(() => undefined);
+      await resolveMarketingSignal(`metrics:${publication.id}:${label.toLowerCase()}`).catch(() => undefined);
       recorded += 1;
     } catch (error) {
       failed += 1;
@@ -272,10 +303,10 @@ export async function collectDuePublicationMetrics(input: {
         },
       });
       await upsertMarketingSignal({
-        key: `metrics:${publication.id}:d${milestone}`,
+        key: `metrics:${publication.id}:${label.toLowerCase()}`,
         kind: "MARKETING_METRICS",
         severity: "INCIDENT",
-        title: `Не сняты метрики D+${milestone}`,
+        title: `Не сняты метрики ${label}`,
         summary: error instanceof Error ? error.message : String(error),
         evidence: { publicationId: publication.id, platform, milestone },
       }).catch(() => undefined);
@@ -287,6 +318,8 @@ export async function collectDuePublicationMetrics(input: {
 
 export const marketingMetricTestables = {
   firstDueMilestone,
+  firstDueEarlyMinutes,
+  firstReviewAfterPublish,
   nextReviewAt,
   optionalInt,
 };
