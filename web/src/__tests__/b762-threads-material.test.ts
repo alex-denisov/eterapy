@@ -51,3 +51,11 @@ describe("B762 — пул сцен", () => {
     expect(prompt).toMatch(/сцена, хорошо/);
   });
 });
+
+describe("B762 — промт разведчика без битых суррогатов", () => {
+  it("эмодзи на границе обрезки не оставляет одинокий суррогат", () => {
+    const post = `${"а".repeat(299)}😀😀`;
+    const prompt = scoutPrompt([post]);
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(prompt)).toBe(false);
+  });
+});
