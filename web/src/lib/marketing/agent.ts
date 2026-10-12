@@ -22,7 +22,7 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
-import { ENDING_QUESTION_RULE, endingQuestionFindings } from "@/lib/marketing/threads-engagement";
+import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
 import {
@@ -1594,7 +1594,7 @@ export async function processMarketingDraft(publicationId: string) {
           note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
         : null,
       fact: factForWriter(threadsContext.fact),
-      endingRule: ENDING_QUESTION_RULE,
+      endingRule: wantsEndingQuestion(publication.id) ? ENDING_QUESTION_RULE : NO_QUESTION_RULE,
       ...(threadsContext.ownerExamples ? {
         ownerExamples: threadsContext.ownerExamples,
         ownerExamplesRule: "good — посты, которые владелец оценил на 9–10: держи их планку, но не копируй слова. bad — отказы владельца с причиной: не повторяй ни приём, ни ошибку.",
@@ -2088,7 +2088,7 @@ export async function processMarketingDraft(publicationId: string) {
       // B768: вопрос в конце — замечание кругов правки; на выпуске (fallback ниже) не режет.
       const copyFindings = [
         ...hookCopyVerdict(threadsContext, draft.text ?? ""),
-        ...(threadsContext ? endingQuestionFindings({ text: draft.text ?? "", format: parsedNotes?.format ?? null }) : []),
+        ...(threadsContext ? endingQuestionFindings({ text: draft.text ?? "", format: parsedNotes?.format ?? null, wanted: wantsEndingQuestion(publication.id) }) : []),
       ];
       if (copyFindings.length > 0 && review.decision !== "REJECT") {
         const copyReview: ReviewerOutput = {

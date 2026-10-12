@@ -1,5 +1,7 @@
 /** B768 — вопрос в конце поста Threads и тема поста (topic_tag). */
 import {
+  ENDING_QUESTION_SHARE,
+  wantsEndingQuestion,
   endingQuestionFindings,
   endsWithInviteQuestion,
   sanitizeTopicTag,
@@ -45,5 +47,19 @@ describe("тема поста", () => {
     expect(sanitizeTopicTag("Сон & отдых.")).toBe("Сон отдых");
     expect(sanitizeTopicTag("я".repeat(80))).toHaveLength(50);
     expect(sanitizeTopicTag(" . & ")).toBeNull();
+  });
+});
+
+describe("вопрос не в каждом посте", () => {
+  it("назначение детерминировано и близко к заданной доле", () => {
+    const ids = Array.from({ length: 2000 }, (_, i) => `cm${i}abcdefghijkl`);
+    expect(ids.map((id) => wantsEndingQuestion(id))).toEqual(ids.map((id) => wantsEndingQuestion(id)));
+    const share = ids.filter((id) => wantsEndingQuestion(id)).length / ids.length;
+    expect(Math.abs(share - ENDING_QUESTION_SHARE)).toBeLessThan(0.05);
+  });
+
+  it("там, где вопрос не назначен, его отсутствие не замечание", () => {
+    expect(endingQuestionFindings({ text: "Лайк в 2 ночи.", format: null, wanted: false })).toEqual([]);
+    expect(endingQuestionFindings({ text: "Лайк в 2 ночи.", format: null, wanted: true })).toHaveLength(1);
   });
 });

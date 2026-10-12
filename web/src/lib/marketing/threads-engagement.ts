@@ -17,6 +17,24 @@ import type { LimitViolation } from "@/lib/marketing/platform-limits";
 /** Форматы, где вопрос в конце ломает жанр. Пусто, пока владелец не назвал их на примерах. */
 export const QUESTION_EXEMPT_FORMATS: ReadonlySet<string> = new Set<string>();
 
+/**
+ * Доля постов с вопросом в конце. Вопрос даёт комментарии и охват, но лента из
+ * одних вопросов утомляет и читается как приём (владелец, 2026-10-12: «не в 100%
+ * случаев»). Решение по слоту детерминировано от id строки: повторная генерация и
+ * доработка не меняют назначение.
+ */
+export const ENDING_QUESTION_SHARE = 0.65;
+
+export function wantsEndingQuestion(seed: string, share = ENDING_QUESTION_SHARE): boolean {
+  let hash = 2166136261;
+  for (const ch of seed) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return (hash % 1000) / 1000 < share;
+}
+
+export const NO_QUESTION_RULE =
+  "В этом посте вопрос в конце НЕ ставь: пост кончается ударом (поворот, деталь, жало). "
+  + "Лента не должна состоять из одних вопросов.";
+
 export const ENDING_QUESTION_RULE =
   "Пост кончается эмоцией и ОДНИМ конкретным вопросом читателю, на который можно ответить за секунду "
   + "(«У кого так было — выкинули или оставили?», «Тельцов, это про работу или про отношения? Напиши цифрой»). "
@@ -37,8 +55,8 @@ export function endsWithInviteQuestion(text: string): boolean {
   return !VAGUE_QUESTION.test(sentence.trim());
 }
 
-export function endingQuestionFindings(input: { text: string; format: string | null }): LimitViolation[] {
-  if (!input.text.trim()) return [];
+export function endingQuestionFindings(input: { text: string; format: string | null; wanted?: boolean }): LimitViolation[] {
+  if (!input.text.trim() || input.wanted === false) return [];
   if (input.format && QUESTION_EXEMPT_FORMATS.has(input.format)) return [];
   if (endsWithInviteQuestion(input.text)) return [];
   return [{
