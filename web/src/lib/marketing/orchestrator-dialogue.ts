@@ -13,6 +13,7 @@ import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
 import { readOwnerScreenshot } from "@/lib/marketing/owner-screenshot";
 import { extractThreadsPostUrl as threadsLinkOf } from "@/lib/marketing/threads-manual-card";
 import { fetchThreadsPostPreview } from "@/lib/marketing/threads-post-preview";
+import { ideaLinkOf, runIdeaTeardown } from "@/lib/marketing/threads-idea-teardown";
 import { describeOwnerIdeas, parseOwnerCommand, queueOwnerIdeas } from "@/lib/marketing/owner-ideas";
 import { queueOwnerComment } from "@/lib/marketing/owner-comment";
 import { handleOwnerReason } from "@/lib/marketing/owner-review";
@@ -277,6 +278,17 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
     }
   } catch (error) {
     log.error("orchestrator.owner_reason_failed", { error: serializeError(error) });
+  }
+
+  // B772: ссылка на пост + «идея / по мотивам / разбор» — разбор механик в пул сцен.
+  const ideaUrl = ideaLinkOf(input.text);
+  if (ideaUrl) {
+    const teardown = await runIdeaTeardown({ url: ideaUrl, now: input.now }).catch((error) => {
+      log.error("orchestrator.idea_teardown_failed", { error: serializeError(error) });
+      return { ok: false, reply: "Не смог разобрать ссылку — попробуйте ещё раз чуть позже." };
+    });
+    await replyToOwner(input, teardown.reply);
+    return { handled: true, intent: "note" };
   }
 
   // Образец: текст поста по ссылке и/или текст со скриншота. Идеи разбираются по

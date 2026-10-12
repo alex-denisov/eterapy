@@ -20,6 +20,7 @@ import {
   recentHooksForPrompt,
   type RecentThreadsPost,
 } from "@/lib/marketing/threads-hooks";
+import { fetchOwnThreadsPosts, mergeOwnPosts } from "@/lib/marketing/threads-own-posts";
 import { exemplarIds, readThreadsVerdicts, rejectTagLabel } from "@/lib/marketing/threads-verdicts";
 import { factFindings, pickThreadsFact, type ThreadsFact } from "@/lib/marketing/threads-facts";
 import type { LimitViolation } from "@/lib/marketing/platform-limits";
@@ -94,12 +95,15 @@ export async function recentThreadsPosts(excludeId: string, at: Date): Promise<R
     select: { body: true, agentWriterDraft: true, publishedAt: true, scheduledFor: true },
     take: 400,
   });
-  return rows
+  const known = rows
     .map((row) => ({
       text: row.body?.trim() || draftText(row.agentWriterDraft),
       at: row.publishedAt ?? row.scheduledFor ?? at,
     }))
     .filter((post) => post.text.trim().length > 0);
+  // B772: посты, выложенные владельцем руками, в базе не живут — берём их из API (сбой → []).
+  const manual = await fetchOwnThreadsPosts().catch(() => []);
+  return mergeOwnPosts(known, manual, at, HOOK_MEMORY_DAYS);
 }
 
 export async function threadsWriterContext(publication: {

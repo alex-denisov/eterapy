@@ -12,6 +12,7 @@
  * за неделю прошли все.
  */
 
+import { topRequestsFor, wordstatConfigured } from "@/lib/seo/demand/wordstat-harvest";
 import { TELEGRAM_TREND_TIMEOUT_MS } from "@/lib/marketing/trend-telegram";
 
 export const TREND_SEEDS: readonly string[] = [
@@ -51,6 +52,38 @@ export async function fetchSuggestTrendTexts(input: {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const phrases = parseYandexSuggest(await response.json()).filter((phrase) => phrase.length > seed.trim().length + 2);
     return phrases.length > 0 ? `Запросы людей по «${seed.trim()}»: ${phrases.join("; ")}` : null;
+  }));
+  return results.flatMap((result) => (result.status === "fulfilled" && result.value ? [result.value] : []));
+}
+
+const WORDSTAT_SEEDS_PER_PASS = 3;
+const WORDSTAT_PHRASES_PER_SEED = 15;
+
+/** Строка «Запросы людей (Wordstat)» с числом показов; пусто, если фраз нет. */
+export function wordstatLine(seed: string, rows: ReadonlyArray<{ phrase: string; count: number }>): string | null {
+  const phrases = rows.filter((row) => row.phrase.trim().length > seed.trim().length + 2);
+  if (phrases.length === 0) return null;
+  return `Запросы людей (Wordstat, показов в месяц) по «${seed.trim()}»: ${phrases.map((row) => `${row.phrase} (${row.count})`).join("; ")}`;
+}
+
+/**
+ * Спрос из Wordstat по зёрнам темы: сколько людей реально ищет каждую формулировку.
+ * Работает, когда заданы ключ и каталог Yandex Cloud (они уже есть у SEO-контура);
+ * иначе молчит, источником остаются подсказки поиска.
+ */
+export async function fetchWordstatTrendTexts(input: {
+  now: Date;
+  env?: Partial<NodeJS.ProcessEnv>;
+  topRequests?: typeof topRequestsFor;
+}): Promise<string[]> {
+  const env = input.env ?? process.env;
+  if (!wordstatConfigured(env)) return [];
+  const apiKey = env.YANDEX_WORDSTAT_API_KEY?.trim() ?? "";
+  const folderId = env.YANDEX_CLOUD_FOLDER_ID?.trim() ?? "";
+  const call = input.topRequests ?? topRequestsFor;
+  const results = await Promise.allSettled(seedsForPass(input.now, WORDSTAT_SEEDS_PER_PASS).map(async (seed) => {
+    const rows = await call({ seed: seed.trim(), apiKey, folderId, numPhrases: WORDSTAT_PHRASES_PER_SEED });
+    return wordstatLine(seed, rows);
   }));
   return results.flatMap((result) => (result.status === "fulfilled" && result.value ? [result.value] : []));
 }

@@ -22,7 +22,7 @@ import {
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
-import { nicheFindings } from "@/lib/marketing/threads-niche";
+import { nicheFindings, suggestPole, threadsNicheBrief } from "@/lib/marketing/threads-niche";
 import { threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
@@ -1597,6 +1597,7 @@ export async function processMarketingDraft(publicationId: string) {
           note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
         : null,
       fact: factForWriter(threadsContext.fact),
+      nicheBrief: threadsNicheBrief(suggestPole(threadsContext.recent.map((post) => post.text))),
       endingRule: wantsEndingQuestion(publication.id) ? ENDING_QUESTION_RULE : NO_QUESTION_RULE,
       ...(threadsContext.ownerExamples ? {
         ownerExamples: threadsContext.ownerExamples,

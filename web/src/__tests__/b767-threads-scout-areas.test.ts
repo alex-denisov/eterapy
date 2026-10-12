@@ -41,13 +41,14 @@ describe("области жизни", () => {
     expect(matchApprovedArea(areas, undefined)).toBeNull();
   });
 
-  it("новая область предлагается, а в трёх разных проходах за неделю утверждается сама", () => {
+  it("новая область предлагается и копит встречи, но сама не утверждается: тему держит владелец", () => {
     let areas = recordSightings(defaultAreas(), ["Коворкинг"], new Date(NOW.getTime() - 4 * DAY));
     expect(areas.find((a) => a.name === "Коворкинг")?.status).toBe("proposed");
     areas = recordSightings(areas, ["коворкинг", "Коворкинг"], new Date(NOW.getTime() - 2 * DAY));
     expect(areas.find((a) => a.name === "Коворкинг")?.sightings).toHaveLength(2);
     areas = recordSightings(areas, ["Коворкинг"], NOW);
-    expect(areas.find((a) => a.name === "Коворкинг")?.status).toBe("approved");
+    expect(areas.find((a) => a.name === "Коворкинг")?.sightings).toHaveLength(3);
+    expect(areas.find((a) => a.name === "Коворкинг")?.status).toBe("proposed");
   });
 
   it("встречи старше недели не копятся в автоодобрение", () => {
@@ -61,7 +62,7 @@ describe("области жизни", () => {
     const proposed = recordSightings(defaultAreas(), ["Коворкинг"], NOW);
     expect(decideArea(proposed, "коворкинг", true).find((a) => a.name === "Коворкинг")?.status).toBe("approved");
     expect(decideArea(proposed, "коворкинг", false).some((a) => a.name === "Коворкинг")).toBe(false);
-    expect(decideArea(proposed, "быт", false).some((a) => a.name === "быт")).toBe(true);
+    expect(decideArea(proposed, "границы", false).some((a) => a.name === "границы")).toBe(true);
   });
 });
 

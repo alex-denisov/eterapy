@@ -214,10 +214,10 @@ jobs:
           path: .seo-state
           key: seo-state-${{ github.run_id }}
 
-      # Отчёт идёт в маркетинговый канал владельца, служебный — запасной адрес.
-      # Ровно как в `seo-telegram-report.sh`: пока бота не добавили в новый
-      # канал, Telegram отвечает `chat not found`, и без запасного адреса
-      # сторож молчал бы (INC-098).
+      # Отчёт сторожа — техническое уведомление: идёт в служебный канал, маркетинговый —
+      # запасной адрес (решение владельца 2026-10-13: техуведомления не в канал маркетинга).
+      # Пока бота не добавили в канал, Telegram отвечает `chat not found`, и без
+      # запасного адреса сторож молчал бы (INC-098).
       - name: Report to Telegram
         if: always()
         env:
@@ -248,7 +248,7 @@ jobs:
               --data-urlencode "text=${TEXT}" \
               -d disable_web_page_preview=true | grep -q '"ok":true'
           }
-          send "$TG_MARKETING" || send "$TG_FALLBACK" || echo "::warning::отчёт SEO-маршрута не доставлен ни в один канал"
+          send "$TG_FALLBACK" || send "$TG_MARKETING" || echo "::warning::отчёт SEO-маршрута не доставлен ни в один канал"
 
       # ⚠ ЗДЕСЬ НЕТ ШАГА, КОТОРЫЙ ВАЛИТ ПРОГОН, И ЭТО РЕШЕНИЕ, А НЕ ПРОПУСК.
       #

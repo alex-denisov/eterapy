@@ -24,6 +24,7 @@ jest.mock("@/lib/marketing/threads-manual-card", () => ({
   markLatestCard: jest.fn(),
 }));
 
+jest.mock("@/lib/marketing/threads-idea-teardown", () => ({ ideaLinkOf: () => null, runIdeaTeardown: jest.fn() }));
 jest.mock("@/lib/marketing/owner-review", () => ({ handleOwnerReason: jest.fn(async () => null) }));
 jest.mock("@/lib/marketing/owner-comment", () => ({ queueOwnerComment: jest.fn() }));
 

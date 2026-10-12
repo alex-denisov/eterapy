@@ -37,7 +37,7 @@ import {
   writeAreas,
   type LifeArea,
 } from "@/lib/marketing/threads-life-areas";
-import { fetchSuggestTrendTexts, seedsForPass } from "@/lib/marketing/threads-trends";
+import { fetchSuggestTrendTexts, fetchWordstatTrendTexts, seedsForPass } from "@/lib/marketing/threads-trends";
 import { areaTierWeight } from "@/lib/marketing/threads-niche";
 import { readThreadsVerdicts } from "@/lib/marketing/threads-verdicts";
 import {
@@ -77,6 +77,8 @@ export interface ThreadsScene {
   area?: string;
   /** B771: как сцена связана с нашей темой; автор берёт её оптикой поста. */
   bridge?: string;
+  /** B772: сцена из разбора ссылки владельца — выдаётся раньше разведчика. */
+  source?: "owner-link";
   foundAt: string;
   usedBy?: string;
   usedAt?: string;
@@ -126,6 +128,18 @@ async function writePool(pool: ThreadsMaterialPool): Promise<void> {
     create: { key: THREADS_MATERIAL_POOL_KEY, value },
     update: { value },
   });
+}
+
+/** B772: сцены из разбора ссылки владельца в общий пул; срок разведчика не сдвигается. Возвращает, сколько добавлено. */
+export async function addOwnerLinkScenes(
+  scenes: readonly Omit<ThreadsScene, "id" | "foundAt" | "source">[],
+  now: Date,
+): Promise<number> {
+  const pool = await readPool();
+  const merged = mergeScenes(pool, scenes.map((scene) => ({ ...scene, source: "owner-link" as const })), now);
+  await writePool({ ...merged, scoutedAt: pool.scoutedAt });
+  const before = new Set(pool.scenes.map((scene) => scene.id));
+  return merged.scenes.filter((scene) => !before.has(scene.id)).length;
 }
 
 export function scoutDue(pool: ThreadsMaterialPool, now: Date): boolean {
@@ -199,7 +213,9 @@ export function takeScene(
   // B771: ближние к теме области весят больше, периферия — меньше; оценки владельца сохраняются.
   const tiered = Object.fromEntries(areas.map((area) => [area, (weights?.[area] ?? 1) * areaTierWeight(area)]));
   const chosen = chooseArea({ candidates: areas, usedThisWeek, weights: tiered });
-  const candidate = (chosen ? fresh.find((scene) => scene.area === chosen) : null) ?? fresh[0];
+  // B772: сцены из ссылок владельца идут первыми, квота областей их не задерживает.
+  const ownerFirst = fresh.find((scene) => scene.source === "owner-link");
+  const candidate = ownerFirst ?? (chosen ? fresh.find((scene) => scene.area === chosen) : null) ?? fresh[0];
   if (!candidate) return { pool, scene: null, claimed: false };
   const taken: ThreadsScene = { ...candidate, usedBy: publicationId, usedAt: now.toISOString() };
   return {
@@ -327,7 +343,8 @@ export async function runThreadsMaterialScout(input: {
   // B767: бесплатный источник трендов — подсказки поиска по зёрнам нашей темы (ключи не нужны).
   const suggestTexts = await fetchSuggestTrendTexts({ seeds: seedsForPass(now, 6), fetchImpl: input.fetchImpl })
     .catch(() => [] as string[]);
-  const posts = [...pages.flatMap((page) => (page.status === "fulfilled" ? page.value : [])), ...suggestTexts, ...googleTexts];
+  const wordstatTexts = await fetchWordstatTrendTexts({ now }).catch(() => [] as string[]);
+  const posts = [...pages.flatMap((page) => (page.status === "fulfilled" ? page.value : [])), ...wordstatTexts, ...suggestTexts, ...googleTexts];
   if (posts.length === 0) {
     log.warn("marketing.threads_scout_no_posts", { channels: channels.length });
     return { ran: true, added: 0, posts: 0, reason: "no-posts" };
