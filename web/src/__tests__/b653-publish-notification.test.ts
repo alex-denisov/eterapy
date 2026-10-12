@@ -36,14 +36,12 @@ function input(over: Partial<PublishedNotificationInput> = {}): PublishedNotific
 }
 
 describe("B653 · состав карточки", () => {
-  it("у поста есть площадка, тема, время МСК и ссылка", () => {
+  it("свой пост — одна строка: площадка · время МСК · опубликовано · ссылка, без текста и лишних полей", () => {
     const text = buildPublishedNotification(input());
-    expect(text).toContain("Опубликовано: Пост");
-    expect(text).toContain("telegram · ETerapy");
-    expect(text).toContain("Тема:</b> Тревога и состояние");
-    expect(text).toContain("https://t.me/eterapy/42");
     // Время печатается в МСК, а не в UTC воркера: 09:30Z = 12:30 МСК.
-    expect(text).toContain("12:30");
+    expect(text).toBe("Telegram · 12:30 · опубликовано · https://t.me/eterapy/42");
+    expect(text.split("\n").length).toBeLessThanOrEqual(3);
+    for (const gone of ["Тема", "Запрос", "Ведёт на", "Короткий текст", "Когда тревога"]) expect(text).not.toContain(gone);
   });
 
   it("у ответа на входящее видно КОМУ ответили и что нам написали", () => {
@@ -54,7 +52,7 @@ describe("B653 · состав карточки", () => {
       engagementExcerpt: "А это работает, если не спишь вторую неделю?",
       publicUrl: "https://t.me/eterapy/42?comment=7",
     }));
-    expect(text).toContain("Опубликовано: Ответ на входящее");
+    expect(text).toContain("опубликовано: Ответ на входящее");
     expect(text).toContain("Кому ответили:</b> @marina");
     expect(text).toContain("Нам написали:");
     expect(text).toContain("вторую неделю");
@@ -80,7 +78,7 @@ describe("B653 · состав карточки", () => {
 describe("B653 · пустой адрес называет причину, а не молчит", () => {
   it("у Дзена сказано, что адрес появится после импорта ленты", () => {
     const text = buildPublishedNotification(input({ platform: "dzen", publicUrl: null }));
-    expect(text).toContain("Ссылка:</b> пока нет");
+    expect(text).toContain("Дзен · 12:30 · опубликовано · ссылки пока нет");
     expect(text).toContain("Дзен заберёт материал из ленты");
   });
 
@@ -104,10 +102,11 @@ describe("B653 · экранирование и длина", () => {
     expect(text).toContain("&lt;script&gt;");
   });
 
-  it("длинное тело подрезается — карточка обязана оставаться ёмкой", () => {
-    const text = buildPublishedNotification(input({ body: "я".repeat(5_000) }));
-    expect(text).toContain("…");
-    expect(text.length).toBeLessThan(2_000);
+  it("длинное тело не попадает в карточку своего поста, у разговора подрезается", () => {
+    expect(buildPublishedNotification(input({ body: "я".repeat(5_000) })).length).toBeLessThan(200);
+    const talk = buildPublishedNotification(input({ contentType: "COMMENT", body: "я".repeat(5_000) }));
+    expect(talk).toContain("…");
+    expect(talk.length).toBeLessThan(2_000);
   });
 });
 
@@ -154,6 +153,17 @@ describe("B653 · недоставленное уведомление не тр�
     const { notifyPublished } = await import("@/lib/marketing/publish-notification");
     await expect(notifyPublished(input())).resolves.toBe(true);
     expect(sendTelegram).toHaveBeenCalledTimes(1);
-    expect(sendTelegram).toHaveBeenCalledWith("-100marketing", expect.stringContaining("Опубликовано"));
+    expect(sendTelegram).toHaveBeenCalledWith("-100marketing", expect.stringContaining("опубликовано"));
+  });
+});
+
+describe("B765 · системные отчёты идут в служебный канал, рабочий остаётся для действий", () => {
+  it("opsReportTargets ставит служебный адрес первым, маркетинговый — запасным", async () => {
+    jest.resetModules();
+    jest.dontMock("@/lib/ops-notification-channel");
+    jest.doMock("@/lib/db", () => ({ db: {}, default: {} }));
+    const { opsReportTargets } = await import("@/lib/ops-notification-channel");
+    const targets = await opsReportTargets({ OPS_NOTIFY_CHAT_ID: "-100ops", TELEGRAM_ETERAPY_MARKETING_CHAT_ID: "-100mkt" });
+    expect(targets).toEqual(["-100ops", "-100mkt"]);
   });
 });

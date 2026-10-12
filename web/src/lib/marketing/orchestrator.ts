@@ -42,7 +42,7 @@ import { sendTelegram, sendTelegramPhoto } from "@/lib/telegram";
 import { signTrendPayload, trendChartUrl } from "@/lib/marketing/orchestrator-chart-sign";
 import type { TrendState } from "@/lib/marketing/orchestrator-trend";
 import { absoluteMainUrl } from "@/lib/subdomain";
-import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
+import { opsReportTargets } from "@/lib/ops-notification-channel";
 import {
   applyDirective,
   describeDirective,
@@ -208,7 +208,7 @@ async function trendChartBytes(trend: TrendState, now: Date): Promise<{ bytes: A
 async function deliver(message: string, chart?: { bytes: ArrayBuffer; filename: string; contentType: string } | null): Promise<boolean> {
   let targets: string[] = [];
   try {
-    targets = await marketingDeliveryTargets();
+    targets = await opsReportTargets();
   } catch (error) {
     log.error("orchestrator.targets_failed", { error: serializeError(error) });
     return false;

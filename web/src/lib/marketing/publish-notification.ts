@@ -70,63 +70,49 @@ export function missingUrlReason(platform: string): string {
   return "площадка не вернула адрес материала";
 }
 
+const PLATFORM_LABEL: Record<string, string> = {
+  threads: "Threads", telegram: "Telegram", dzen: "Дзен", vk: "VK", instagram: "Instagram", max: "MAX",
+};
+
+function platformLabel(platform: string): string {
+  return PLATFORM_LABEL[platform.trim().toLowerCase()] ?? platform;
+}
+
 /**
- * Текст карточки. Ёмко: один экран, без кнопок — это отчёт о свершившемся,
- * а не решение, которое надо принять.
+ * Текст карточки (B765). Это отчёт о свершившемся, а не решение: текст поста не
+ * повторяется (он виден в соседнем канале), полей «Тема», «Запрос», «Ведёт на»
+ * и второго заголовка нет — владелец назвал их лишними, а аудит показал, что
+ * читает их только эта карточка.
+ *
+ * Свой пост — одна строка: `Threads · 14:20 · опубликовано · ссылка`. Разговор
+ * (ответ на входящее, комментарий) сохраняет «кому» и «что», потому что без них
+ * карточка ничего не говорит.
  */
 export function buildPublishedNotification(input: PublishedNotificationInput): string {
   const isReply = input.contentType === INBOUND_REPLY_CONTENT_TYPE;
   const isConversational = isReply || input.contentType === "COMMENT";
 
-  const when = input.publishedAt.toLocaleString("ru-RU", {
-    dateStyle: "medium",
-    timeStyle: "short",
+  const time = input.publishedAt.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone: "Europe/Moscow",
   });
+  const link = input.publicUrl
+    ? html(input.publicUrl)
+    : `ссылки пока нет — ${html(missingUrlReason(input.platform))}`;
+  const head = `${html(platformLabel(input.platform))} · ${time} · опубликовано`;
 
-  const where = short(input.channelName, 120);
+  if (!isConversational) return `${head} · ${link}`;
+
+  const lines: string[] = [`<b>${head}: ${html(publicationKindLabel(input.contentType))}</b>`];
   const tone = engagementToneById(input.engagementTone)?.label ?? null;
-  const target = short(input.engagementTargetLabel, 180);
-  const excerpt = short(input.engagementExcerpt, 400);
-  const preview = short(input.body, 600);
-
-  const lines: string[] = [
-    `<b>Опубликовано: ${html(publicationKindLabel(input.contentType))}</b>`,
-    "",
-    `<b>Площадка:</b> ${html(input.platform)}${where ? ` · ${html(where)}` : ""}`,
-    `<b>Когда:</b> ${html(when)} МСК`,
-  ];
-
-  if (input.cluster) lines.push(`<b>Тема:</b> ${html(input.cluster)}`);
-  if (input.targetQuery) lines.push(`<b>Запрос:</b> ${html(input.targetQuery)}`);
-  if (isConversational && tone) lines.push(`<b>Регистр:</b> ${html(tone)}`);
-
-  if (isConversational) {
-    lines.push(`<b>${isReply ? "Кому ответили" : "Где прокомментировали"}:</b> ${html(target ?? "—")}`);
-    if (excerpt) {
-      lines.push(`<b>${isReply ? "Нам написали" : "Контекст"}:</b> ${html(excerpt)}`);
-    }
-  }
-
-  lines.push(
-    input.publicUrl
-      ? `<b>Ссылка:</b> ${html(input.publicUrl)}`
-      : `<b>Ссылка:</b> пока нет — ${html(missingUrlReason(input.platform))}`,
-  );
-
-  if (isConversational && input.engagementTargetUrl && input.engagementTargetUrl !== input.publicUrl) {
-    lines.push(`<b>Исходное обсуждение:</b> ${html(input.engagementTargetUrl)}`);
-  }
-  if (input.destinationUrl) {
-    lines.push(`<b>Ведёт на:</b> ${html(input.destinationUrl)}`);
-  }
-
-  if (!isConversational) {
-    const title = short(input.title, 200);
-    if (title) lines.push("", `<b>${html(title)}</b>`);
-  }
-  if (preview) lines.push("", html(preview));
-
+  if (tone) lines.push(`<b>Регистр:</b> ${html(tone)}`);
+  lines.push(`<b>${isReply ? "Кому ответили" : "Где прокомментировали"}:</b> ${html(short(input.engagementTargetLabel, 180) ?? "—")}`);
+  const excerpt = short(input.engagementExcerpt, 300);
+  if (excerpt) lines.push(`<b>${isReply ? "Нам написали" : "Контекст"}:</b> ${html(excerpt)}`);
+  const reply = short(input.body, 400);
+  if (reply) lines.push(`<b>Что ответили:</b> ${html(reply)}`);
+  lines.push(`<b>Ссылка:</b> ${link}`);
   return lines.join("\n");
 }
 

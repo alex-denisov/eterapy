@@ -56,7 +56,7 @@ jest.mock("@/lib/telegram", () => ({
   }),
   sendTelegramPhoto: jest.fn(async () => undefined),
 }));
-jest.mock("@/lib/ops-notification-channel", () => ({ marketingDeliveryTargets: async () => ["1"] }));
+jest.mock("@/lib/ops-notification-channel", () => ({ marketingDeliveryTargets: async () => ["1"], opsReportTargets: async () => ["1"] }));
 jest.mock("@/lib/marketing/kpi", () => ({ kpiPressure: () => [], qualityBlocksGrowth: () => false }));
 jest.mock("@/lib/marketing/kpi-readings", () => ({ readKpiVerdicts: async () => [] }));
 jest.mock("@/lib/marketing/orchestrator-chart-sign", () => ({ signTrendPayload: () => null, trendChartUrl: () => "" }));

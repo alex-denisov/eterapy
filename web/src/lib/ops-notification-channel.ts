@@ -103,6 +103,20 @@ export async function marketingDeliveryTargets(
 }
 
 /**
+ * B765 — куда слать системные отчёты: оркестратор (SEO/SMM), нехватку, сводки.
+ *
+ * Служебный канал первым: рабочий маркетинговый канал оставлен для карточек, где
+ * нужно действие, и коротких итогов. Маркетинговый — запасной адрес, чтобы
+ * отчёт не пропал, если бот не вхож в служебный.
+ */
+export async function opsReportTargets(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+): Promise<string[]> {
+  const [ops, marketing] = await Promise.all([resolveOpsChannel(env), resolveMarketingChannel(env)]);
+  return [...new Set([...ops.chatIds, ...marketing.chatIds])];
+}
+
+/**
  * Чаты, из которых мы принимаем решение премодерации.
  *
  * ⚠ ПОЧЕМУ СПИСОК, А НЕ ОДИН АДРЕС. Отправка переехала в маркетинговый канал,

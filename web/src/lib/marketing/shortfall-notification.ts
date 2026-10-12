@@ -32,7 +32,7 @@
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { sendTelegram } from "@/lib/telegram";
-import { marketingDeliveryTargets } from "@/lib/ops-notification-channel";
+import { opsReportTargets } from "@/lib/ops-notification-channel";
 import { getSetting, setSetting } from "@/lib/platform-settings";
 
 export interface ShortfallCause {
@@ -234,7 +234,7 @@ export async function notifyShortfall(input: ShortfallInput): Promise<boolean> {
 
   let targets: string[] = [];
   try {
-    targets = await marketingDeliveryTargets();
+    targets = await opsReportTargets();
   } catch (error) {
     log.error("marketing.shortfall_notify_targets_failed", {
       error: error instanceof Error ? error.message : String(error),
