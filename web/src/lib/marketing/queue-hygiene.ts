@@ -62,6 +62,11 @@ export const STALE_SCHEDULE_MS = 48 * 60 * 60_000;
  * удаляется: владелец велел убрать готовое из пула, и архив делает ровно это,
  * оставляя возможность вернуть материал при снятии паузы.
  */
+/** B762 — расхождение часа строки и слота, которое считается совпадением (джиттер). */
+const REALIGN_TOLERANCE_MS = 20 * 60_000;
+/** B762 — ближе этого к выпуску строку не двигаем: публикатор уже может её взять. */
+const REALIGN_MIN_LEAD_MS = 10 * 60_000;
+
 export const CHANNEL_PAUSED_REASON = "CHANNEL_PAUSED_BY_OWNER: канал на паузе по решению владельца 2026-10-12 (B763).";
 
 export interface QueueRow {
@@ -257,6 +262,33 @@ export function planQueueHygiene(input: {
       // B713 §4a: ключ снятого слота обязан вернуться в оборот. Иначе слот,
       // вернувшийся в план (как вечерний Telegram), останется закрыт навсегда.
       releaseSlot: true,
+    });
+  }
+
+  /**
+   * B762 — СТРОКИ СТАРОЙ СЕТКИ THREADS ВСТАЮТ НА ВРЕМЯ СВОЕГО СЛОТА.
+   *
+   * Сетка Threads сменилась (2 времени суток → 8 слотов с 07:30), а строки,
+   * заведённые раньше, хранят прежний час: слот `-02` стал утренним, а строка
+   * на нём осталась вечерней — и совпала бы по времени с новым вечерним слотом.
+   * Формат и текст строки не трогаются (решение владельца: готовое не
+   * переписывать), меняется только час. Назад во времени не двигаем.
+   */
+  const slotAt = new Map(plan.map((slot) => [slot.key, new Date(slot.scheduledAt)]));
+  for (const row of rows) {
+    if (row.platform.trim().toLowerCase() !== "threads") continue;
+    if (!isLive(row) || isConversational(row) || expired.has(row.id) || overdue.has(row.id)) continue;
+    if (!row.planSlot || !row.scheduledFor) continue;
+    const target = slotAt.get(row.planSlot);
+    if (!target || target.getTime() <= now.getTime() + REALIGN_MIN_LEAD_MS) continue;
+    if (Math.abs(target.getTime() - row.scheduledFor.getTime()) <= REALIGN_TOLERANCE_MS) continue;
+    if (actions.some((action) => action.id === row.id)) continue;
+    actions.push({
+      kind: "schedule",
+      id: row.id,
+      scheduledFor: target,
+      planSlot: row.planSlot,
+      reason: "B762: сетка Threads сменилась на 8 слотов — время строки приведено к времени её слота, формат и текст прежние.",
     });
   }
 

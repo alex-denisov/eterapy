@@ -50,7 +50,10 @@ export type ContentClass =
   | "article";    // длинный структурированный разбор
 
 /** Время суток в терминах ритма аудитории, а не часов на циферблате. */
-export type Daypart = "morning" | "midday" | "evening" | "late";
+export type Daypart = "morning" | "midday" | "evening" | "late" | GridDaypart;
+
+/** B762 — позиция в сетке площадки с фиксированным числом слотов в сутки. */
+export type GridDaypart = `slot-${number}`;
 
 /**
  * Характер площадки: когда её аудитория вообще читает и отвечает.
@@ -64,6 +67,16 @@ export interface AudienceProfile {
   rhythm: string;
   /** Часы МСК по времени суток: будни и выходные. */
   dayparts: Partial<Record<Daypart, { weekday: string; weekend: string }>>;
+  /**
+   * B762 — сетка вместо времён суток. Есть сетка — n-й слот площадки в сутках
+   * встаёт на n-е время сетки, а `dayparts` не используются.
+   */
+  grid?: {
+    times: readonly { weekday: string; weekend: string }[];
+    /** Границы окна публикаций площадки, `HH:MM` МСК. Джиттер их не пересекает. */
+    opensAt: string;
+    closesAt: string;
+  };
 }
 
 /**
@@ -112,11 +125,28 @@ const PLATFORM_AUDIENCE: Record<PlanChannel, AudienceProfile> = {
       evening: { weekday: "19:15", weekend: "18:00" },
     },
   },
+  /**
+   * B762 — 8 постов в сутки, окно 07:30–23:30 МСК (решение владельца
+   * 2026-10-12). Шаг ≈2 ч 15 мин, выходные сдвинуты позже: люди встают позже.
+   * Время суток («день», «вечер») здесь не годится — их четыре, а слотов
+   * восемь, и лишний слот молча пропадал бы в `publishWindow → null` (B713).
+   */
   threads: {
-    rhythm: "короткие заходы в перерыве и вечером; утренней ленты у площадки нет",
-    dayparts: {
-      midday: { weekday: "10:45", weekend: "12:00" },
-      evening: { weekday: "18:45", weekend: "19:30" },
+    rhythm: "короткие заходы весь день: утро в дороге, перерывы, вечер и поздняя лента",
+    dayparts: {},
+    grid: {
+      opensAt: "07:30",
+      closesAt: "23:30",
+      times: [
+        { weekday: "07:30", weekend: "08:15" },
+        { weekday: "09:45", weekend: "10:25" },
+        { weekday: "12:00", weekend: "12:35" },
+        { weekday: "14:15", weekend: "14:45" },
+        { weekday: "16:30", weekend: "16:55" },
+        { weekday: "18:45", weekend: "19:05" },
+        { weekday: "21:00", weekend: "21:15" },
+        { weekday: "23:15", weekend: "23:15" },
+      ],
     },
   },
   instagram: {
@@ -268,6 +298,7 @@ export function publishWindow(input: {
   if (!audience) return null;
   const taken = new Set(input.taken ?? []);
   const weekend = isWeekend(input.weekday);
+  if (audience.grid) return gridWindow(audience.grid, input, taken, weekend);
 
   for (const daypart of CLASS_DAYPARTS[input.contentClass]) {
     const hours = audience.dayparts[daypart];
@@ -292,6 +323,38 @@ export function publishWindow(input: {
     };
   }
   return null;
+}
+
+/**
+ * B762 — джиттер сетки ±15 минут: шаг сетки 2 ч 15 мин, и ±45 минут классового
+ * джиттера сводили бы соседние посты на 45 минут друг от друга.
+ */
+const GRID_JITTER_MINUTES = 15;
+
+function minutesOf(time: string): number {
+  const [hours, mins] = time.split(":").map((part) => Number(part));
+  return hours * 60 + mins;
+}
+
+function gridWindow(
+  grid: NonNullable<AudienceProfile["grid"]>,
+  input: { contentClass: ContentClass; jitterSeed?: string | null },
+  taken: ReadonlySet<Daypart>,
+  weekend: boolean,
+): PublishWindow | null {
+  const index = grid.times.findIndex((_, position) => !taken.has(`slot-${position + 1}`));
+  if (index < 0) return null;
+  const daypart: GridDaypart = `slot-${index + 1}`;
+  const base = weekend ? grid.times[index].weekend : grid.times[index].weekday;
+  const jitter = input.jitterSeed
+    ? (stableHash(`${input.jitterSeed}:${daypart}`) % (GRID_JITTER_MINUTES * 2 + 1)) - GRID_JITTER_MINUTES
+    : 0;
+  const total = Math.min(minutesOf(grid.closesAt), Math.max(minutesOf(grid.opensAt), minutesOf(base) + jitter));
+  return {
+    time: `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`,
+    toleranceMs: CLASS_TOLERANCE_MS[input.contentClass],
+    daypart,
+  };
 }
 
 /** Сдвиг применяется в одном месте — иначе две ветки разъедутся молча. */

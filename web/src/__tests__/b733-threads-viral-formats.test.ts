@@ -82,10 +82,9 @@ describe("B733 — форматы постов Threads", () => {
     expect(used.size).toBeGreaterThan(3);
   });
 
-  it("расписание неровное — не «две штуки каждые сутки»", () => {
-    // Один прогон плана, а не сумма по нескольким: окно пересобирается «от
-    // завтра» каждый заход, и одна и та же дата попала бы в счёт несколько раз
-    // ([[reference_sliding_window_positions_are_not_dates]]).
+  it("расписание неровное — час выпуска гуляет изо дня в день", () => {
+    // B762: число постов в сутки ровное — 8 (решение владельца 2026-10-12);
+    // неровность, ради которой B733 чередовал 1 и 2 поста, держит джиттер сетки.
     const perDay = new Map<string, number>();
     for (const slot of contentPlanFor(new Date("2026-09-10T09:00:00+03:00"))) {
       if (slot.channel !== "threads") continue;
@@ -93,15 +92,6 @@ describe("B733 — форматы постов Threads", () => {
       perDay.set(day, (perDay.get(day) ?? 0) + 1);
     }
     expect(perDay.size).toBeGreaterThan(3);
-    const counts = new Set(perDay.values());
-    expect(counts.size).toBeGreaterThan(1);
-    // Больше двух в сутки поставить нельзя: у Threads объявлены два времени
-    // суток, и третий слот молча исчезал бы (тот же разрыв, что B713 нашёл
-    // у Telegram).
-    for (const count of perDay.values()) {
-      expect(count).toBeGreaterThanOrEqual(1);
-      expect(count).toBeLessThanOrEqual(2);
-    }
     // И час выпуска не повторяется изо дня в день: джиттер B718 разводит его
     // внутри времени суток.
     const times = new Set(

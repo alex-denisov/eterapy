@@ -62,6 +62,7 @@ export const MARKETING_PLATFORM_FIELDS = [
   // входа. Бот сюда не годится: чужой канал он читать не может, а просить
   // администраторов чужих каналов не о чем.
   { platform: "Research", key: "MARKETING_TREND_TELEGRAM_CHANNELS", label: "Открытые Telegram-каналы для поиска тем: имена через запятую или с новой строки", secret: false, multiline: true, requirement: "optional" },
+  { platform: "Research", key: "THREADS_SCOUT_TELEGRAM_CHANNELS", label: "Открытые Telegram-каналы для разведчика живых сцен Threads (раз в двое суток): имена через запятую или с новой строки", secret: false, multiline: true, requirement: "optional" },
 ] as const;
 
 export type MarketingPlatform = typeof MARKETING_PLATFORM_FIELDS[number]["platform"];

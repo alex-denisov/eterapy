@@ -43,6 +43,7 @@ import {
 } from "@/lib/marketing/shortfall-notification";
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
+import { runThreadsMaterialScout } from "@/lib/marketing/threads-material";
 
 const pollMs = Math.max(15_000, Number(process.env.MARKETING_AGENT_POLL_MS || 60_000));
 
@@ -149,6 +150,9 @@ async function main() {
         lastPlanSync = now;
         await guarded("plan", () => generateMarketingDrafts({ now: new Date(now) }));
         await guarded("registry-audit", () => auditStalledPublications({ now: new Date(now) }));
+        // B762: разведчик живых сцен Threads. Сам решает, пора ли (раз в двое
+        // суток, отметка в базе), — здесь только заглядываем раз в 6 часов.
+        await guarded("threads-scout", () => runThreadsMaterialScout({ now: new Date(now) }));
       }
       // B630 — обход комментариев под собственными публикациями каждые 15
       // минут. Это не дубль webhook'а, а страховка: у Meta обратный вызов не

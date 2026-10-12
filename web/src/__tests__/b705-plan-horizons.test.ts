@@ -82,7 +82,7 @@ describe("B705 — темп считается от календарных су�
     expect(slots.some((slot) => String(slot.channel) === "reddit")).toBe(false);
   });
 
-  it("суточный объём флота остаётся в границах 5–9 материалов", () => {
+  it("суточный объём флота остаётся в границах 5–14 материалов", () => {
     // §9: конвейер давал такт на 24 материала в сутки — втрое больше, чем нужно.
     // B713: верхняя граница 8 → 9. Владелец 2026-08-17 вернул Telegram третий
     // слот в сутки, потому что окна публикации знали о нём, а план — нет, и
@@ -97,7 +97,9 @@ describe("B705 — темп считается от календарных су�
     const firstWeek = [...perDay.entries()].sort().slice(0, 7).map(([, count]) => count);
     for (const count of firstWeek) {
       expect(count).toBeGreaterThanOrEqual(5);
-      expect(count).toBeLessThanOrEqual(9);
+      // B762: Threads 8 постов в сутки (решение владельца 2026-10-12):
+      // 3 Telegram + 8 Threads + 1 VK + 1 Дзен = 13; потолок 9 → 14 осознанно.
+      expect(count).toBeLessThanOrEqual(14);
     }
   });
 });

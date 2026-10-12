@@ -84,6 +84,13 @@ import { coverLayoutFor } from "@/lib/marketing/cover-layout";
 import { generatePaidCover, isPaidCoverPlatform } from "@/lib/marketing/cover-image";
 import { buildMarketingResearchBrief, recentOwnMaterials } from "@/lib/marketing/research";
 import { samenessFindings } from "@/lib/marketing/sameness";
+import {
+  FREE_THREADS_TOPIC,
+  hookCopyVerdict,
+  isThreadsOwnedPost,
+  threadsWriterContext,
+  type ThreadsWriterContext,
+} from "@/lib/marketing/threads-writer-context";
 import { buildConversationMemory } from "@/lib/marketing/conversation-memory";
 
 /**
@@ -1562,16 +1569,35 @@ export async function processMarketingDraft(publicationId: string) {
     })
     : null;
 
+  /**
+   * B762 — пост Threads пишется не на SEO-тему слота, а на живую сцену из пула
+   * разведчика (или на свободную тему), и автор видит хуки ленты за месяц.
+   * Сухой прогон 2026-10-12: SEO-тема слота сделала 56 постов про одно и то же.
+   */
+  const threadsContext: ThreadsWriterContext | null = isThreadsOwnedPost(publication)
+    ? await threadsWriterContext(publication).catch(() => null)
+    : null;
+
   const task = {
     kind: isInboundReply ? "INBOUND_REPLY" : isConversational ? "COMMENT" : "OWNED_POST",
     platform,
-    title: publication.title,
-    topic: publication.cluster ?? publication.targetQuery ?? "саморефлексия",
-    editorialBrief: publication.notes,
+    title: threadsContext ? null : publication.title,
+    topic: threadsContext
+      ? (threadsContext.scene?.scene ?? FREE_THREADS_TOPIC)
+      : publication.cluster ?? publication.targetQuery ?? "саморефлексия",
+    ...(threadsContext ? {
+      freshMaterial: threadsContext.scene
+        ? { scene: threadsContext.scene.scene, reaction: threadsContext.scene.reaction, why: threadsContext.scene.why,
+          note: "Это повод, а не текст: пиши свой пост с нуля, не пересказывай." }
+        : null,
+      recentHooks: threadsContext.recentHooks,
+      recentHooksRule: "Это первые строки постов ленты за 30 суток. Не повторяй ни один из этих зачинов — ни слово в слово, ни по схеме с другим знаком или именем.",
+    } : {}),
+    editorialBrief: threadsContext ? null : publication.notes,
     format: parsedNotes?.format ?? null,
     editorialAngle: parsedNotes?.editorialAngle ?? null,
-    outline: parsedNotes?.outline ?? null,
-    keyPoints: parsedNotes?.keyPoints ?? null,
+    outline: threadsContext ? null : parsedNotes?.outline ?? null,
+    keyPoints: threadsContext ? null : parsedNotes?.keyPoints ?? null,
     // B733: требования ФОРМАТА уходят и автору, и редактору одним полем.
     // Пост-шутка не обязан нести пользу и призыв, и без этой строки редактор
     // режет его по общей рубрике — ровно это и делало ленту ровной.
@@ -2048,6 +2074,24 @@ export async function processMarketingDraft(publicationId: string) {
         }
       }
 
+      // B762: копирка хука в Threads не утверждается ни при какой оценке —
+      // ни текст автора, ни правка редактора. Это отказ, а не замечание.
+      const copyFindings = hookCopyVerdict(threadsContext, draft.text ?? "");
+      if (copyFindings.length > 0 && review.decision !== "REJECT") {
+        const copyReview: ReviewerOutput = {
+          ...review,
+          decision: "REVISE",
+          issues: [...copyFindings.map((finding) => finding.issue), ...review.issues],
+          revisionBrief: [...copyFindings.map((finding) => finding.brief), ...review.revisionBrief],
+          revisedText: "",
+        };
+        iterationHistory[iterationHistory.length - 1] = { ...iterationHistory[iterationHistory.length - 1], review: copyReview };
+        lifetimeRounds += 1;
+        previousDraft = draft;
+        previousReview = copyReview;
+        continue;
+      }
+
       if (approvedByScorecard(review, scoreKeys)) {
         approvedDraft = draft;
         break;
@@ -2141,7 +2185,10 @@ export async function processMarketingDraft(publicationId: string) {
         round: iteration.round,
         text: iteration.candidate.text ?? "",
         scores: iteration.review?.scores,
-        decision: iteration.review?.decision ?? "REVISE",
+        // B762: копирка хука не выходит и «с замечаниями».
+        decision: hookCopyVerdict(threadsContext, iteration.candidate.text ?? "").length > 0
+          ? "REJECT"
+          : iteration.review?.decision ?? "REVISE",
         safetyFlags: iteration.candidate.safetyFlags ?? [],
         issues: iteration.review?.issues ?? [],
       })));

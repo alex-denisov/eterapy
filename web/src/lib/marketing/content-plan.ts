@@ -16,9 +16,10 @@ import { formatFor, formatRulesFor, type FormatReply, type PostFormat } from "@/
 import {
   PROFANITY_ARM_RULE,
   PROFANITY_TECHNIQUE_CODE,
+  heroRuleFor,
   isProfanityArm,
-  techniqueFor,
 } from "@/lib/marketing/threads-clusters";
+import { THREADS_SLOTS_PER_DAY, threadsDayLineup, type LineupEntry } from "@/lib/marketing/threads-lineup";
 import {
   publishWindow,
   type ContentClass,
@@ -334,6 +335,8 @@ function slotReserve(channel: PlanChannel, date: string, sequence: number): Slot
  * канала из этого списка. Снятые строки лежат в архиве с причиной
  * `CHANNEL_PAUSED_BY_OWNER` и восстанавливаются.
  */
+export { THREADS_SLOTS_PER_DAY };
+
 export const PAUSED_PLAN_CHANNELS: ReadonlySet<PlanChannel> = new Set<PlanChannel>(["instagram"]);
 
 export function isPlanChannelPaused(platform: string): boolean {
@@ -352,18 +355,12 @@ function slotsPerDay(channel: PlanChannel, date: string): number {
     // больше, чем по любой другой причине. Решение владельца 2026-08-17.
     case "telegram": return 3;
     /**
-     * B733 — РАСПИСАНИЕ THREADS НЕРОВНОЕ.
-     *
-     * Требование владельца 2026-09-08: пост не должен выходить «по одному и
-     * тому же расписанию». Живой аккаунт пишет то дважды за день, то один раз,
-     * и ровная сетка «две штуки каждые сутки» сама по себе читается как бот.
-     *
-     * ⚠ Больше двух в сутки поставить НЕЛЬЗЯ: у Threads в `publish-windows.ts`
-     * объявлены два времени суток (день и вечер), и третий слот молча
-     * исчезал бы в `publishWindow → null`. Ровно этот разрыв между таблицей
-     * окон и планом B713 нашёл у Telegram — 72 снятия слота за две недели.
+     * B762 — 8 постов в сутки (решение владельца 2026-10-12). Неровность
+     * расписания, ради которой B733 чередовал 1 и 2 поста, теперь держит
+     * джиттер сетки ±15 минут: при восьми постах «пропуск суток» был бы
+     * провалом ленты, а не живостью.
      */
-    case "threads": return (((day % 3) + 3) % 3) === 0 ? 1 : 2;
+    case "threads": return THREADS_SLOTS_PER_DAY;
     case "vk": return 1;
     case "dzen": return 1;
     case "instagram": return every(2);
@@ -445,16 +442,24 @@ function slot(input: {
   };
 }
 
-/** Приём и (раз в десять постов) плечо крепкой лексики для слота Threads. */
-function threadsExtrasFor(format: PostFormat, day: number, sequence: number): { technique: string; rules: string[] } {
+/**
+ * B762 — правила слота Threads из состава суток: знак оклика, герой, приём и
+ * (раз в десять постов) плечо крепкой лексики. Формат уже выбран рядом суток.
+ */
+function threadsSlotRules(entry: LineupEntry, day: number, sequence: number): { technique: string; rules: string[] } {
+  const format = entry.format;
+  const sign = entry.sign
+    ? [`Знак этого поста — ${entry.sign}. Обращение к знаку по имени в первой строке; другие знаки — только если этого прямо требует формат.`]
+    : [];
+  const hero = format.heroes && entry.heroIndex !== undefined ? [heroRuleFor(format.heroes, entry.heroIndex, 0)] : [];
+  const base = [...sign, ...hero, ...format.rules];
   if (isProfanityArm(day, sequence)) {
-    return { technique: PROFANITY_TECHNIQUE_CODE, rules: [PROFANITY_ARM_RULE] };
+    return { technique: PROFANITY_TECHNIQUE_CODE, rules: [...base, PROFANITY_ARM_RULE] };
   }
-  const clusterIndex = Number.parseInt((format.cluster ?? "K0").replace(/\D/g, ""), 10) || 0;
-  const technique = techniqueFor(day, sequence, clusterIndex);
+  const technique = entry.technique!;
   return {
     technique: technique.code,
-    rules: [`Приём поста: ${technique.code} «${technique.label}». ${technique.hint} Применяй творчески, не как шаблон.`],
+    rules: [...base, `Приём поста: ${technique.code} «${technique.label}». ${technique.hint} Применяй творчески, не как шаблон.`],
   };
 }
 
@@ -510,10 +515,11 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
    */
   const pushFormatted = (channel: PlanChannel, date: string, sequence: number, topicIndex: number, offset: number) => {
     const day = dayNumber(date);
-    const chosen = formatFor(channel, day, sequence);
-    // B759: у Threads к формату добавляется ПРИЁМ (пара «кластер × приём»), а
-    // каждый десятый пост — тестовое плечо крепкой лексики.
-    const threadsExtras = channel === "threads" ? threadsExtrasFor(chosen, day, sequence) : null;
+    // B762: у Threads формат, знак, герой и приём даёт состав суток целиком —
+    // независимый выбор по слоту ставил два оклика одного знака подряд.
+    const entry = channel === "threads" ? threadsDayLineup(day)[sequence] : null;
+    const chosen = entry ? entry.format : formatFor(channel, day, sequence);
+    const threadsExtras = entry ? threadsSlotRules(entry, day, sequence) : null;
     push({
       channel,
       date,
@@ -522,7 +528,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       format: chosen.label,
       editorialAngle: chosen.construction,
       contentClass: chosen.contentClass,
-      formatRules: [...formatRulesFor(chosen, day, sequence), ...(threadsExtras?.rules ?? [])],
+      formatRules: threadsExtras ? threadsExtras.rules : formatRulesFor(chosen, day, sequence),
       formatMedia: chosen.media,
       formatLink: chosen.link,
       ...(chosen.reply ? { formatReply: chosen.reply } : {}),
@@ -541,7 +547,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   datesFor("threads").forEach((date) => {
     const day = dayNumber(date);
     for (let sequence = 0; sequence < slotsPerDay("threads", date); sequence++) {
-      pushFormatted("threads", date, sequence, day * 2 + sequence, 5);
+      pushFormatted("threads", date, sequence, day * THREADS_SLOTS_PER_DAY + sequence, 5);
     }
   });
 
