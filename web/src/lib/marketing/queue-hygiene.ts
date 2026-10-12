@@ -28,6 +28,7 @@
  * внутри цикла с базой, проверяется только на проде.
  */
 
+import { isOwnerReviewed } from "@/lib/marketing/owner-review-state";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { PLAN_HORIZON_DAYS, type ContentPlanSlot, type PlanChannel } from "@/lib/marketing/content-plan";
@@ -315,6 +316,7 @@ export async function runQueueHygiene(input: {
       platform: true,
       status: true,
       contentType: true,
+      source: true,
       scheduledFor: true,
       publishedAt: true,
       createdAt: true,
@@ -328,7 +330,9 @@ export async function runQueueHygiene(input: {
   const { actions, unplaced } = planQueueHygiene({
     now: input.now,
     plan: input.plan,
-    rows: rows.map((row) => ({
+    // B761: идея и комментарий владельца ждут решения человека без слота плана и
+    // без срока — сторож не вправе ни переносить их, ни снимать как «бездомные».
+    rows: rows.filter((row) => !(isOwnerReviewed(row) && ["DRAFT", "REVIEW"].includes(row.status))).map((row) => ({
       id: row.id,
       platform: row.platform,
       status: row.status,

@@ -57,8 +57,9 @@ const h1 = heading;
 
 // ─── Auth emails ──────────────────────────────────────────────────────────────
 
-export async function sendVerificationEmail(email: string, name: string, token: string) {
-  const url = `${APP_URL}/auth/verify-email?token=${token}`;
+export async function sendVerificationEmail(email: string, name: string, token: string, next?: string | null) {
+  // B760: адрес возврата к услуге едет в ссылке; страница подтверждения ведёт назад к ней.
+  const url = `${APP_URL}/auth/verify-email?token=${token}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
   return withAccountEmailLog(
     { recipient: email, event: "ACCOUNT_EMAIL_VERIFY", subject: "Подтвердите email — ETerapy" },
     () => sendViaResend({

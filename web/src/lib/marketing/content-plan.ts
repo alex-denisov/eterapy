@@ -12,7 +12,13 @@
  * него ищется час, когда его аудитория к нему готова, — а не наоборот.
  */
 
-import { formatFor, formatRulesFor, type FormatReply } from "@/lib/marketing/post-formats";
+import { formatFor, formatRulesFor, type FormatReply, type PostFormat } from "@/lib/marketing/post-formats";
+import {
+  PROFANITY_ARM_RULE,
+  PROFANITY_TECHNIQUE_CODE,
+  isProfanityArm,
+  techniqueFor,
+} from "@/lib/marketing/threads-clusters";
 import {
   publishWindow,
   type ContentClass,
@@ -85,6 +91,10 @@ export interface ContentPlanSlot {
   formatLink?: boolean;
   /** B746 — у поста есть продолжение ответом на самого себя (`replyText`). */
   formatReply?: FormatReply;
+  /** B759 — код кластера каталога (K1…K27): по нему считается замер. */
+  formatCluster?: string;
+  /** B759 — код приёма (P1…P32): пара «кластер × приём» тоже меряется. */
+  technique?: string;
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -390,6 +400,8 @@ function slot(input: {
   formatMedia?: "none" | "chat_mockup" | "art";
   formatLink?: boolean;
   formatReply?: FormatReply;
+  formatCluster?: string;
+  technique?: string;
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
@@ -411,6 +423,21 @@ function slot(input: {
     ...(input.formatMedia ? { formatMedia: input.formatMedia } : {}),
     ...(input.formatLink === undefined ? {} : { formatLink: input.formatLink }),
     ...(input.formatReply ? { formatReply: input.formatReply } : {}),
+    ...(input.formatCluster ? { formatCluster: input.formatCluster } : {}),
+    ...(input.technique ? { technique: input.technique } : {}),
+  };
+}
+
+/** Приём и (раз в десять постов) плечо крепкой лексики для слота Threads. */
+function threadsExtrasFor(format: PostFormat, day: number, sequence: number): { technique: string; rules: string[] } {
+  if (isProfanityArm(day, sequence)) {
+    return { technique: PROFANITY_TECHNIQUE_CODE, rules: [PROFANITY_ARM_RULE] };
+  }
+  const clusterIndex = Number.parseInt((format.cluster ?? "K0").replace(/\D/g, ""), 10) || 0;
+  const technique = techniqueFor(day, sequence, clusterIndex);
+  return {
+    technique: technique.code,
+    rules: [`Приём поста: ${technique.code} «${technique.label}». ${technique.hint} Применяй творчески, не как шаблон.`],
   };
 }
 
@@ -467,6 +494,9 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
   const pushFormatted = (channel: PlanChannel, date: string, sequence: number, topicIndex: number, offset: number) => {
     const day = dayNumber(date);
     const chosen = formatFor(channel, day, sequence);
+    // B759: у Threads к формату добавляется ПРИЁМ (пара «кластер × приём»), а
+    // каждый десятый пост — тестовое плечо крепкой лексики.
+    const threadsExtras = channel === "threads" ? threadsExtrasFor(chosen, day, sequence) : null;
     push({
       channel,
       date,
@@ -475,10 +505,12 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       format: chosen.label,
       editorialAngle: chosen.construction,
       contentClass: chosen.contentClass,
-      formatRules: formatRulesFor(chosen, day),
+      formatRules: [...formatRulesFor(chosen, day, sequence), ...(threadsExtras?.rules ?? [])],
       formatMedia: chosen.media,
       formatLink: chosen.link,
       ...(chosen.reply ? { formatReply: chosen.reply } : {}),
+      ...(chosen.cluster ? { formatCluster: chosen.cluster } : {}),
+      ...(threadsExtras ? { technique: threadsExtras.technique } : {}),
     });
   };
 

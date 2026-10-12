@@ -11,30 +11,24 @@ describe("B723: Anya Persona, Few-Shot Hooks, Token Optimization & Anti-Slop", (
     expect(role.title).toContain("Аня");
     expect(role.title).toContain("куратор");
     expect(role.mission).toContain("Ани");
-    expect(role.mission).toContain("28 лет");
+    expect(role.mission).toContain("28–32");
   });
 
-  it("системный промпт автора содержит персона-директиву Ани", () => {
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Голос и персона: Аня, куратор eTerapy");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Тебе 28 лет");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("тёплая, внимательная, умная, без менторства");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("70%");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("20%");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("10%");
+  it("системный промпт автора содержит живую персону Ани (редакция B759)", () => {
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Голос и персона: Аня, eTerapy");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("28–32 года");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("кот Котлета");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("бывший Никита");
+    // Прежний баланс 70/20/10 владелец отменил.
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).not.toContain("70 / 20 / 10");
   });
 
-  it("системный промпт содержит формулу Question-First и хук в первых 50 знаках", () => {
+  it("формула Question-First остаётся, но отменяется форматами без пользы и призыва", () => {
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Хук ситуации (первые 50 знаков)");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Разбор скрытого мотива");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Неожиданный инсайт / зеркало");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Мягкий CTA");
-  });
-
-  it("системный промпт содержит 4 эталонных Few-Shot хука", () => {
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Скрытый мотив");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Инсайт-зеркало");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("только если формат требует пользы и призыва");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("«Ты слишком много думаешь» — написал он в 01:40");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Когда на вопрос «как дела?» хочется ответить тишиной");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Молчание после ссоры — это не пауза");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Карта дня или архетип — это не предсказание судьбы");
   });
 
   it("системный промпт включает строгие правила Anti-Slop (Conor Bronsdon)", () => {

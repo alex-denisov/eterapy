@@ -557,6 +557,9 @@ export async function generateMarketingDrafts(input: {
             // и код читает их ОТСЮДА, а не угадывает по названию.
             formatLink: slot.formatLink,
             formatReply: slot.formatReply,
+            // B759: теги замера — кластер каталога и приём пишутся в строку.
+            formatCluster: slot.formatCluster,
+            technique: slot.technique,
           }),
           source: "CRON_B589",
           autoPublish: false,

@@ -12,6 +12,8 @@ import { VKIDButton } from "@/components/vkid-button";
 import { sanitizeEmail, getEmailError } from "@/lib/validation";
 import { homePathForRole, homeUrlForRole } from "@/lib/subdomain";
 import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
+import { authLink, cameFromService, getSafeRedirectPath, readAuthReturn } from "@/lib/auth-return";
+import { WelcomeGiftNote } from "@/components/auth/welcome-gift-note";
 
 // B539: no credentials in the repo. Dev-only quick-login buttons read from
 // the local env (never committed):
@@ -30,6 +32,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const intent = searchParams.get("intent");
+  const returnContext = readAuthReturn(searchParams);
   const nextPath = getSafeRedirectPath(searchParams.get("next"));
   const accountState = searchParams.get("account");
   const isSavingResult = intent === "save-result";
@@ -206,9 +209,10 @@ export default function LoginPage() {
 
               <div className="mt-4 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
                 Нет аккаунта?{" "}
-                <Link href="/register" className="font-medium" style={{ color: "var(--soft-bordeaux)" }}>
+                <Link href={authLink("/register", returnContext)} className="font-medium" style={{ color: "var(--soft-bordeaux)" }}>
                   Создать
                 </Link>
+                {cameFromService(returnContext) && <WelcomeGiftNote className="mt-1" />}
               </div>
               <p className="mt-6 text-xs leading-relaxed" style={{ color: "var(--soft-ink-faint)" }}>
                 Продолжая, вы принимаете <Link href="/legal/offer" className="underline">условия</Link> и{" "}
@@ -258,9 +262,4 @@ export default function LoginPage() {
       </section>
     </main>
   );
-}
-
-function getSafeRedirectPath(value: string | null): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
-  return value;
 }

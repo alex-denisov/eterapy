@@ -13,9 +13,10 @@ import { acceptOwnerTask } from "@/lib/marketing/owner-task-intake";
 import { readOwnerScreenshot } from "@/lib/marketing/owner-screenshot";
 import { extractThreadsPostUrl as threadsLinkOf } from "@/lib/marketing/threads-manual-card";
 import { fetchThreadsPostPreview } from "@/lib/marketing/threads-post-preview";
-import { describeOwnerIdeas, parseOwnerIdeas, queueOwnerIdeas } from "@/lib/marketing/owner-ideas";
+import { describeOwnerIdeas, parseOwnerCommand, queueOwnerIdeas } from "@/lib/marketing/owner-ideas";
+import { queueOwnerComment } from "@/lib/marketing/owner-comment";
+import { handleOwnerReason } from "@/lib/marketing/owner-review";
 import {
-  buildThreadsCard,
   extractThreadsPostUrl,
   markLatestCard,
   parseCardMark,
@@ -265,6 +266,17 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
     return { handled: false };
   }
 
+  // B761: сообщение после «Отклонить»/«Доработать» — это причина, а не новая заметка.
+  try {
+    const reasonReply = await handleOwnerReason({ text: input.text, chatId: input.chatId, now: input.now });
+    if (reasonReply) {
+      await replyToOwner(input, reasonReply);
+      return { handled: true, intent: "note" };
+    }
+  } catch (error) {
+    log.error("orchestrator.owner_reason_failed", { error: serializeError(error) });
+  }
+
   // Образец: текст поста по ссылке и/или текст со скриншота. Идеи разбираются по
   // ПОДПИСИ владельца, а образец прикладывается к каждой — иначе строки скриншота
   // разошлись бы по отдельным «идеям».
@@ -281,13 +293,14 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
   try {
     const threadsUrl = intent.kind === "note" ? extractThreadsPostUrl(input.text) : null;
     const cardMark = intent.kind === "note" ? parseCardMark(input.text) : null;
-    const ideas = intent.kind === "note" ? parseOwnerIdeas(input.text) : null;
-    if (ideas) {
-      const withSample = sample.text ? ideas.map((idea) => `${idea}\n${sample.text}`) : ideas;
+    const command = intent.kind === "note" ? parseOwnerCommand(input.text) : null;
+    if (command?.kind === "idea") {
+      const withSample = sample.text ? command.items.map((idea) => `${idea}\n${sample.text}`) : command.items;
       reply = describeOwnerIdeas(await queueOwnerIdeas(withSample, input.now));
-    } else if (threadsUrl) {
-      // B756: ссылка на чужой пост Threads — карточка ответа, публикует человек.
-      reply = await buildThreadsCard({ url: threadsUrl, text: ownerText, now: input.now });
+    } else if (command?.kind === "comment" || threadsUrl) {
+      // B761: «комментарий …» (и голая ссылка на чужой пост) — текст на премодерацию,
+      // публикует человек. Суточного лимита нет.
+      reply = await queueOwnerComment({ url: threadsUrl, text: ownerText, now: input.now });
     } else if (cardMark) {
       // Отметка по последней открытой карточке; открытых нет — обычная заметка.
       reply = (await markLatestCard(cardMark)) ?? (await applyIntent(intent, input.now));

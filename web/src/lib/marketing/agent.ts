@@ -21,6 +21,7 @@ import {
   engagementToneById,
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
+import { isOwnerReviewed } from "@/lib/marketing/owner-review-state";
 import {
   INBOUND_REPLY_CONTENT_TYPE,
   isConversationalContentType,
@@ -2190,7 +2191,9 @@ export async function processMarketingDraft(publicationId: string) {
 
     // B654: у площадки без автоматического выпуска утверждённый материал ждёт
     // человека, а не встаёт в очередь, которой для неё не существует.
-    const nextStatus = isConversational
+    // B761: идея владельца после редактора ждёт владельца, а не слота.
+    const needsOwnerReview = isOwnerReviewed(publication);
+    const nextStatus = isConversational || needsOwnerReview
       ? "REVIEW"
       : approvedStatusForPlatform(platform);
     /**
@@ -2260,7 +2263,7 @@ export async function processMarketingDraft(publicationId: string) {
         status: nextStatus,
         // Ручная площадка не «публикуется сама» ни при каком выключателе:
         // дороги наружу у неё нет, и признак должен говорить это прямо.
-        autoPublish: !isConversational && nextStatus === "SCHEDULED",
+        autoPublish: !isConversational && !needsOwnerReview && nextStatus === "SCHEDULED",
         attemptCount: { increment: 1 },
         // B713 §3: материал, вышедший без полного одобрения, обязан нести это
         // на себе. Пустая `lastError` у такого материала означала бы, что круги
@@ -2282,7 +2285,19 @@ export async function processMarketingDraft(publicationId: string) {
         agentWrittenAt: null,
       },
     });
-    if (isConversational) await requestMarketingModeration(updated.id);
+    if (isConversational) {
+      await requestMarketingModeration(updated.id);
+    } else if (needsOwnerReview) {
+      // Готовый пост владельца не пропадает из-за сбоя доставки карточки: он
+      // остаётся REVIEW, причина видна в строке.
+      await requestMarketingModeration(updated.id).catch(async (error) => {
+        log.warn("marketing.owner_review_delivery_failed", { publicationId: updated.id, error: serializeError(error) });
+        await db.externalPublication.update({
+          where: { id: updated.id },
+          data: { lastError: "MODERATION_DELIVERY_FAILED" },
+        }).catch(() => undefined);
+      });
+    }
     await resolveMarketingSignal(`agent-draft:${publication.id}`).catch(() => undefined);
     // Прошла хоть одна генерация — ёмкость вернулась. B695: вместе с ней
     // закрываются и соседние причины простоя, иначе кокпит покажет открытым

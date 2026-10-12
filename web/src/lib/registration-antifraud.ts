@@ -107,7 +107,21 @@ export interface RegistrationRiskInput {
   email: string;
   /** True when the normalized email already matches another account (gmail twin). */
   aliasDuplicate?: boolean;
+  /**
+   * B760: сколько регистраций с этого IP уже прошло за последние сутки
+   * (по журналу `fraud_events`). Жёсткого лимита «3 в сутки» больше нет —
+   * общий IP у мобильного оператора или офиса не повод закрывать дверь:
+   * скорость лишь добавляет баллы к остальным сигналам.
+   */
+  ipRegistrations24h?: number;
 }
+
+/** B760: пороги скорости с одного IP за сутки → баллы. Сама по себе скорость не блокирует. */
+export const IP_VELOCITY_TIERS: ReadonlyArray<{ from: number; flag: string; score: number }> = [
+  { from: 11, flag: "ip_velocity_high", score: 45 },
+  { from: 7, flag: "ip_velocity_elevated", score: 30 },
+  { from: 4, flag: "ip_velocity", score: 15 },
+];
 
 export function scoreRegistration(input: RegistrationRiskInput): RegistrationRiskResult {
   const signals: RegistrationRiskSignal[] = [];
@@ -131,6 +145,11 @@ export function scoreRegistration(input: RegistrationRiskInput): RegistrationRis
 
   if (input.aliasDuplicate) {
     signals.push({ flag: "gmail_alias_duplicate", score: 45 });
+  }
+
+  const tier = IP_VELOCITY_TIERS.find((item) => (input.ipRegistrations24h ?? 0) >= item.from);
+  if (tier) {
+    signals.push({ flag: tier.flag, score: tier.score, detail: `${input.ipRegistrations24h} регистраций с IP за 24 ч` });
   }
 
   const score = Math.min(100, signals.reduce((sum, s) => sum + s.score, 0));

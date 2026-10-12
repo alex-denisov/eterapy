@@ -45,7 +45,9 @@
  *     ([[feedback_demo_stats_become_fabrication]]).
  */
 
+import { NO_DUTY, ONE_LINK, TEXT_ONLY } from "@/lib/marketing/format-rules";
 import type { ContentClass } from "@/lib/marketing/publish-windows";
+import { THREADS_CLUSTER_FORMATS, heroRuleFor, type HeroKind } from "@/lib/marketing/threads-clusters";
 
 /** Нужна ли формату картинка и какая. */
 export type FormatMedia = "none" | "chat_mockup" | "art";
@@ -87,24 +89,11 @@ export interface PostFormat {
   rules: readonly string[];
   /** Живой образец конструкции — не для копирования, а чтобы задать форму. */
   example: string;
+  /** B759: код кластера каталога (K1…K27) — по нему считается замер. */
+  cluster?: string;
+  /** B759: чьи герои «библии» рассказчика уместны в этом формате. */
+  heroes?: HeroKind;
 }
-
-/** Формат без пользы и призыва — общая часть требований, чтобы не расходилась. */
-const NO_DUTY = [
-  "Самостоятельная польза этому формату НЕ нужна: оценка value ставится по применимости, а не по отсутствию вывода.",
-  "Призыв и ссылка НЕ нужны: оценка cta = 5 («требования нет — соблюдено»), а вставленный призыв — дефект.",
-  "Мягкая мораль, «берегите себя» и вывод-обобщение в конце ЗАПРЕЩЕНЫ: они убивают конструкцию.",
-] as const;
-
-/** Формат с одной ссылкой в конце — как противоположность `NO_DUTY`. */
-const ONE_LINK = [
-  "Ссылка из плана — ровно одна и в самом конце, после призыва словами. В середине текста ссылок нет.",
-] as const;
-
-/** Формат без картинки — чтобы автор не писал «на картинке…». */
-const TEXT_ONLY = [
-  "Пост выходит ТЕКСТОМ, без картинки: mediaBrief оставь пустым, на изображение в тексте не ссылайся.",
-] as const;
 
 /**
  * Знаки зодиака по кругу — для форматов-серий.
@@ -130,7 +119,7 @@ export const ZODIAC_CALLOUT_LABEL = "оклик по знаку с прогно�
 /* THREADS                                                                   */
 /* ------------------------------------------------------------------------ */
 
-export const THREADS_FORMATS: readonly PostFormat[] = [
+const THREADS_BASE_FORMATS: readonly PostFormat[] = [
   {
     /**
      * B746 — образец владельца 2026-09-15 (threads.com/share/BAmlNrdx9h,
@@ -146,6 +135,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
      * работает форма.
      */
     label: ZODIAC_CALLOUT_LABEL,
+    cluster: "K1p",
     construction:
       "Пост — оклик знака по имени с вызовом и обещанием со сроком, и в конце «Забирайте прогноз:» "
       + "с двоеточием. Больше в посте НИЧЕГО нет: сам прогноз идёт ОТВЕТОМ на этот пост (поле replyText). "
@@ -153,7 +143,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
       + "которая вернётся, и одна фраза, которая переворачивает это из угрозы в «последний круг». "
       + "Ни дат, ни планет, ни домов — только то, что читатель узнает про себя.",
     contentClass: "discussion",
-    weight: 4,
+    weight: 6,
     media: "none",
     link: false,
     reply: "forecast",
@@ -170,6 +160,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "сатира над индустрией",
+    cluster: "K4",
     construction:
       "Сетап одной строкой + панчлайн второй. Высмеивается ИНДУСТРИЯ — тарологи, "
       + "астрологи, нумерологи, коучи, ИИ-психологи, мы сами, — а не человек, который к ним пошёл. "
@@ -189,6 +180,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "я и мой психолог",
+    cluster: "K4",
     construction:
       "Диалог ровно из двух реплик: моя — банальная или защитная, его — бьющая в цель. "
       + "Формат подписи «я:» / «мой психолог:» с новой строки, без кавычек и без описания сцены.",
@@ -206,6 +198,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "непопулярное мнение",
+    cluster: "K14",
     construction:
       "Одно спорное утверждение от первого лица, без смягчения и без «но это только моё мнение». "
       + "Не оправдываться и не уравновешивать: пост существует ради несогласия в комментариях.",
@@ -223,6 +216,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "острый вопрос",
+    cluster: "K15",
     construction:
       "Один вопрос — и всё. Ни подводки, ни своего ответа, ни объяснения, зачем спрашиваем. "
       + "Вопрос должен быть таким, что ответ на него хочется написать, а не поставить лайк.",
@@ -240,6 +234,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "вброс-наблюдение",
+    cluster: "K3",
     construction:
       "Наблюдение об узнаваемой сцене, поданное как факт, а не как рассуждение. "
       + "Одна-две строки, сухо, без «а вы замечали».",
@@ -256,6 +251,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "скриншот переписки",
+    cluster: "K7",
     construction:
       "Скриншот чужой переписки + одна строка подводки над ним. Подводка НЕ пересказывает "
       + "скриншот и не объясняет его: она задаёт угол, под которым его читать.",
@@ -273,6 +269,8 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "микро-история",
+    cluster: "K9",
+    heroes: "core",
     construction:
       "Три-четыре предложения от первого лица с открытым концом. Без морали и без вывода: "
       + "последняя строка — деталь, а не урок.",
@@ -290,6 +288,7 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
   },
   {
     label: "список абсурдных советов",
+    cluster: "K5",
     construction:
       "Список из 3–5 пунктов, которые «дают» в интернете по теме, поданный без комментария. "
       + "Комизм в самом перечислении, поэтому итоговой строки-вывода в списке нет.",
@@ -307,6 +306,15 @@ export const THREADS_FORMATS: readonly PostFormat[] = [
       "как пережить расставание (советы из интернета):\n— просто отпусти\n— займись собой\n— он не стоит твоих слёз\n— сходи на маникюр",
   },
 ] as const;
+
+/**
+ * B759: базовые форматы + кластеры каталога. Вес оклика с прогнозом поднят с 4 до 6:
+ * надежда/«коснись» — около четверти ленты по раскладке владельца.
+ */
+export const THREADS_FORMATS: readonly PostFormat[] = [
+  ...THREADS_BASE_FORMATS,
+  ...THREADS_CLUSTER_FORMATS,
+];
 
 /* ------------------------------------------------------------------------ */
 /* TELEGRAM (и Max — зеркало Telegram, B722)                                  */
@@ -772,8 +780,9 @@ export function threadsFormatFor(day: number, sequence: number): PostFormat {
  * обязан назвать знак, и знак должен быть один и тот же при каждом пересчёте
  * плана (от номера суток, не от позиции в окне).
  */
-export function formatRulesFor(format: PostFormat, day: number): readonly string[] {
-  if (format.label !== ZODIAC_CALLOUT_LABEL) return format.rules;
+export function formatRulesFor(format: PostFormat, day: number, sequence = 0): readonly string[] {
+  const hero = format.heroes ? [heroRuleFor(format.heroes, day, sequence)] : [];
+  if (format.label !== ZODIAC_CALLOUT_LABEL) return hero.length > 0 ? [...hero, ...format.rules] : format.rules;
   const sign = zodiacSignFor(day);
   return [
     `Знак этого поста — ${sign}. Обращение к знаку по имени в первой строке обязательно; другие знаки не упоминаются.`,

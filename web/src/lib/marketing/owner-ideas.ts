@@ -25,13 +25,50 @@ const SLOT_STEP_MS = 25 * 60_000;
 const WINDOW_START_MINUTE = 10 * 60;
 const WINDOW_END_MINUTE = 23 * 60;
 
-const PREFIX = /^\s*(?:идея|идеи)\s*[:：\-–—]\s*/i;
+/**
+ * B761: команда — слово в начале сообщения с любым регистром и с двоеточием/
+ * тире ИЛИ без них («идея <url>»). Граница слова — по буквам Unicode: `\b` с
+ * кириллицей не работает, а «идеальный»/«комментировать» командой быть не должны.
+ */
+const COMMAND = /^\s*(идея|идеи|комментарий|коммент)(?![\p{L}\p{N}])\s*[:：\-–—]?\s*/iu;
 const ITEM_START = /^\s*(?:\d{1,2}[.)]|[-•*])\s+/;
+
+export interface OwnerCommand {
+  kind: "idea" | "comment";
+  items: string[];
+}
+
+/** Комментарий — одно задание на сообщение: пост-образец и пожелания идут вместе. */
+const MIN_COMMENT_LENGTH = 10;
+
+/** Чистый разбор команды «идея»/«комментарий»; `null` — сообщение не команда. */
+export function parseOwnerCommand(text: string): OwnerCommand | null {
+  const match = COMMAND.exec(text);
+  if (!match) return null;
+  const isComment = match[1].toLowerCase().startsWith("коммент");
+  if (isComment) {
+    const body = text.slice(match[0].length).replace(/\s+/g, " ").trim();
+    // Без разделителя («комментарий по отчёту…») это реплика оркестратору, а не
+    // команда: без двоеточия нужна ссылка на пост.
+    const hasSeparator = /[:：\-–—]/.test(match[0]);
+    if (!hasSeparator && !/https?:\/\//i.test(body)) return null;
+    return body.length >= MIN_COMMENT_LENGTH ? { kind: "comment", items: [body] } : null;
+  }
+  const rest = text.slice(match[0].length);
+  // Без разделителя («идея хорошая, но…») это реплика, а не команда: нужна ссылка на пост.
+  if (!/[:：\-–—]/.test(match[0]) && !/https?:\/\//i.test(rest)) return null;
+  const ideas = splitIdeas(rest);
+  return ideas ? { kind: "idea", items: ideas } : null;
+}
 
 /** Чистый разбор: `null` — сообщение не про идеи. */
 export function parseOwnerIdeas(text: string): string[] | null {
-  if (!PREFIX.test(text)) return null;
-  const body = text.replace(PREFIX, "").trim();
+  const command = parseOwnerCommand(text);
+  return command?.kind === "idea" ? command.items : null;
+}
+
+function splitIdeas(raw: string): string[] | null {
+  const body = raw.trim();
   const blocks: string[] = [];
   let current: string[] = [];
   const flush = () => {

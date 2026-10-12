@@ -8,7 +8,8 @@ import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { trackServerEvent } from "@/lib/analytics";
 import db from "@/lib/db";
 
-export const WELCOME_CREDIT_AMOUNT = 3;
+export { WELCOME_CREDIT_AMOUNT } from "@/lib/welcome-credit-copy";
+import { WELCOME_CREDIT_AMOUNT } from "@/lib/welcome-credit-copy";
 const WELCOME_SOURCE_EVENT_PREFIX = "welcome:";
 const WELCOME_DEVICE_WINDOW_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;

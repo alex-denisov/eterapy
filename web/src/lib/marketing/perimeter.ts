@@ -34,6 +34,13 @@ export const ALLOWED_MARKETING_ACTIONS: readonly MarketingAction[] = [
  */
 export const INBOUND_REPLY_CONTENT_TYPE = "INBOUND_REPLY";
 
+/**
+ * B761 — текст комментария под чужим постом, который владелец публикует РУКАМИ.
+ * Намеренно НЕ разговорный тип: у него нет конвейера автора и публикатора, нет
+ * дороги наружу, и ни одна очередь агента его не подбирает.
+ */
+export const OWNER_COMMENT_CONTENT_TYPE = "OWNER_COMMENT";
+
 export const CONVERSATIONAL_CONTENT_TYPES: readonly string[] = [
   "COMMENT",
   INBOUND_REPLY_CONTENT_TYPE,

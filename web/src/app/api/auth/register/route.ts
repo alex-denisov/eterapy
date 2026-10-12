@@ -5,6 +5,7 @@ import { sendVerificationEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
 import { log } from "@/lib/logger";
 import { validateName, validateEmail } from "@/lib/validation";
+import { getSafeRedirectPath } from "@/lib/auth-return";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import { attachReferralToRegisteredUser } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
@@ -25,10 +26,9 @@ export async function POST(req: NextRequest) {
     const ipLimit = checkRequestAuthRateLimit(req, "register", 10, 15 * 60_000);
     if (!ipLimit.allowed) return authRateLimitResponse(ipLimit);
 
-    const dailyIpLimit = checkRequestAuthRateLimit(req, "register:daily:ip", 3, 24 * 60 * 60_000);
-    if (!dailyIpLimit.allowed) return authRateLimitResponse(dailyIpLimit);
-
-    const { email, password, name, acceptContract, acceptPdn } = await req.json();
+    // B760: жёсткого «3 в сутки с IP» нет — скорость с IP считается в скоринге
+    // (`ipRegistrations24h`), краткий всплеск выше остаётся защитой от автомата.
+    const { email, password, name, acceptContract, acceptPdn, next } = await req.json();
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: "Заполните все поля" }, { status: 400 });
@@ -69,8 +69,17 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       }).catch(() => null)
       : null;
-    const risk = scoreRegistration({ name, email, aliasDuplicate: Boolean(aliasTwin) });
     const fp = requestFingerprint(req);
+    const ipRegistrations24h = fp.ipHash
+      ? await db.fraudEvent.count({
+        where: {
+          action: "register_risk_scored",
+          ipHash: fp.ipHash,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) },
+        },
+      }).catch(() => 0)
+      : 0;
+    const risk = scoreRegistration({ name, email, aliasDuplicate: Boolean(aliasTwin), ipRegistrations24h });
 
     if (risk.block) {
       await logFraudEvent(db, {
@@ -143,7 +152,7 @@ export async function POST(req: NextRequest) {
     // иначе экран «мы отправили письмо» врёт человеку, который его не получит.
     let emailSent = true;
     try {
-      await sendVerificationEmail(email, name, user.verificationToken!);
+      await sendVerificationEmail(email, name, user.verificationToken!, getSafeRedirectPath(typeof next === "string" ? next : null));
     } catch (emailErr) {
       emailSent = false;
       log.error("register.email_send_failed", { err: emailErr });

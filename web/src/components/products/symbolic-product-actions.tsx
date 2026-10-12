@@ -381,6 +381,26 @@ export function SymbolicProductActions({
     { active: !result },
   );
 
+  // B760: гость вытянул карты, ушёл на вход/регистрацию и вернулся — расклад
+  // детерминирован (`tarotDrawId` + вопрос + тема + схема), поэтому после
+  // восстановления черновика карты пересчитываются те же самые, а не «с нуля».
+  const previewRestoredRef = useRef(false);
+  useEffect(() => {
+    if (productKey !== "tarot" || previewRestoredRef.current) return;
+    if (!tarotDrawId || !userInput.trim() || previewTarotCards || result) return;
+    previewRestoredRef.current = true;
+    const spread = TAROT_SPREAD_OPTIONS.find((option) => option.key === tarotSpread) ?? TAROT_SPREAD_OPTIONS[1];
+    requestCalculatedPreview<TarotCalculatedPreview>({
+      productKey: "tarot",
+      userInput,
+      tarotSpread: spread.key,
+      tarotTheme,
+      tarotDrawId,
+    })
+      .then((preview) => setPreviewTarotCards(preview.cards))
+      .catch(() => undefined);
+  }, [productKey, tarotDrawId, userInput, tarotTheme, tarotSpread, previewTarotCards, result]);
+
   // #6: после готового расклада подтягиваем рекомендации (повтор услуги под тему
   // + смежная услуга + специалист-эзотерик). Best-effort; setState только из
   // колбэков (then/микротаск), чтобы не дёргать рендер синхронно из эффекта.

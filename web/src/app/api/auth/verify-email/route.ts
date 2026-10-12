@@ -20,8 +20,10 @@ export async function POST(req: NextRequest) {
       emailVerified: true,
     });
 
-    void grantWelcomeCredits({ request: req, userId: user.id }).catch((error) => {
+    // B760: ждём начисления, чтобы страница могла честно показать «Баланс: 3 балла».
+    const welcome = await grantWelcomeCredits({ request: req, userId: user.id }).catch((error) => {
       log.warn("welcome_credits.grant_failed", { userId: user.id, errorName: error instanceof Error ? error.name : "unknown" });
+      return null;
     });
     // B464: the verified-email referral gate must finish before the request
     // ends or a serverless/runtime boundary could discard the transaction.
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     });
 
     await logAudit(user.id, "EMAIL_VERIFY", undefined, "Email подтверждён");
-    return NextResponse.json({ ok: true, email: user.email });
+    return NextResponse.json({ ok: true, email: user.email, welcomeGranted: welcome?.status === "granted" });
   } catch (err) {
     log.error("verify_email.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });

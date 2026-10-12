@@ -122,7 +122,7 @@ describe("B746 §1 — библиотеки форматов всех площа
         seen.set(label, (seen.get(label) ?? 0) + 1);
       }
     }
-    expect(seen.get(ZODIAC_CALLOUT_LABEL)! / 180).toBeGreaterThan(0.15);
+    expect(seen.get(ZODIAC_CALLOUT_LABEL)! / 180).toBeGreaterThan(0.08); // B759: лента расширена до ~50 весов кластеров, доля оклика ~10%
   });
 });
 

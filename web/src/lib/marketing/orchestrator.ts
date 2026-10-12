@@ -22,6 +22,7 @@
  * это не автономия, а отсутствие управления.
  */
 
+import { describeOwnerReviewQuality, ownerReviewQuality } from "@/lib/marketing/owner-review-state";
 import db from "@/lib/db";
 import { kpiPressure, qualityBlocksGrowth, type KpiVerdict } from "@/lib/marketing/kpi";
 import { arbitrateDirectives } from "@/lib/marketing/orchestrator-arbiter";
@@ -582,7 +583,14 @@ async function deliverBrief(input: CycleBase & {
     : "";
   const parts: Array<{ kind: ReportKind; text: string; digestKey: string; digest: string; same: boolean }> = [];
   for (const kind of ["seo", "smm"] as const) {
-    const text = kind === "seo" ? buildSeoReport(reportInput) : buildSmmReport(reportInput);
+    const baseText = kind === "seo" ? buildSeoReport(reportInput) : buildSmmReport(reportInput);
+    // B761: оценки владельца — внутренняя метрика качества SMM-агента.
+    const quality = kind === "smm"
+      ? await ownerReviewQuality(now).catch(() => null)
+      : null;
+    const text = quality && quality.decisions > 0
+      ? `${baseText}\n\n${escapeHtml(describeOwnerReviewQuality(quality))}`
+      : baseText;
     const digestKey = `${REPORT_DIGEST_PREFIX}${kind}`;
     const digest = reportFingerprint(text);
     // Совпавший со вчерашним отчёт заменяется одной строкой, но не при просьбе владельца.

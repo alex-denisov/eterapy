@@ -5,10 +5,13 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+import { authLink, readAuthReturn } from "@/lib/auth-return";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const returnContext = readAuthReturn(searchParams);
+  const [welcomeGranted, setWelcomeGranted] = useState(false);
   const [status, setStatus] = useState<"loading" | "success" | "error">(!token ? "error" : "loading");
   const [message, setMessage] = useState(!token ? "Ссылка недействительна." : "");
 
@@ -23,6 +26,7 @@ export default function VerifyEmailPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
+          setWelcomeGranted(data.welcomeGranted === true);
           setStatus("success");
         } else {
           setStatus("error");
@@ -48,9 +52,12 @@ export default function VerifyEmailPage() {
         <>
           <div className="text-5xl">✅</div>
           <h1 className="mt-4 font-heading text-2xl font-bold">Email подтверждён!</h1>
-          <p className="mt-2 text-muted-foreground">Теперь вы можете войти в аккаунт.</p>
-          <Link href="/login" className={cn(buttonVariants(), "mt-6")}>
-            Войти
+          <p className="mt-2 text-muted-foreground">
+            {welcomeGranted ? "Баланс: 3 балла в подарок. " : ""}
+            {returnContext.next ? "Войдите, и вернём вас к услуге." : "Теперь вы можете войти в аккаунт."}
+          </p>
+          <Link href={authLink("/login", returnContext)} className={cn(buttonVariants(), "mt-6")} data-testid="verify-continue">
+            {returnContext.next ? "Продолжить" : "Войти"}
           </Link>
         </>
       )}

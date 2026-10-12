@@ -13,6 +13,8 @@ import { sanitizeName, sanitizeEmail, getNameError, getEmailError } from "@/lib/
 import { appUrl, homeUrlForRole } from "@/lib/subdomain";
 import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 import { reportAnalyticsGoal, SIGNUP_GOAL } from "@/lib/analytics-events";
+import { authLink, readAuthReturn } from "@/lib/auth-return";
+import { WelcomeGiftNote } from "@/components/auth/welcome-gift-note";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -29,15 +31,18 @@ export default function RegisterPage() {
   const consentGiven = acceptContract && acceptPdn;
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-  const intent = searchParams.get("intent");
+  const returnContext = readAuthReturn(searchParams);
+  const intent = returnContext.intent;
   const isSavingResult = intent === "save-result";
 
   // Редирект, если уже залогинен
   useEffect(() => {
-    if (status === "authenticated") {
-      window.location.replace(homeUrlForRole(session?.user?.role));
+    // B760: после регистрации человек видит экран «подтвердите почту» с кнопкой
+    // возврата; уже вошедшего гостя сразу ведём туда, откуда он пришёл.
+    if (status === "authenticated" && !registered) {
+      window.location.replace(returnContext.next ?? homeUrlForRole(session?.user?.role));
     }
-  }, [session?.user?.role, status]);
+  }, [session?.user?.role, status, registered, returnContext.next]);
 
   // #13: пришли сюда после клика «Войти через ВКонтакте» для нового аккаунта —
   // через ВКонтакте регистрация возможна только с активным согласием.
@@ -69,7 +74,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name, acceptContract, acceptPdn }),
+        body: JSON.stringify({ email, password, name, acceptContract, acceptPdn, next: returnContext.next }),
       });
       const data = await res.json();
 
@@ -119,6 +124,14 @@ export default function RegisterPage() {
           <p className="text-sm text-[var(--soft-ink-faint)]">
             Не получили? Проверьте папку «Спам».
           </p>
+          <p className="text-sm font-medium text-[var(--soft-bordeaux)]">
+            Подтвердите почту — тогда откроется подарок: 3 балла.
+          </p>
+          {returnContext.next ? (
+            <a href={returnContext.next} className="soft-button soft-button-primary block w-full justify-center" data-testid="register-return-to-service">
+              Вернуться к услуге
+            </a>
+          ) : null}
           <Link href={appUrl("")} className="block text-sm font-semibold text-[var(--soft-terracotta-dark)] hover:underline">
             Перейти в кабинет →
           </Link>
@@ -141,6 +154,7 @@ export default function RegisterPage() {
           <p className="text-sm text-[var(--soft-ink-soft)]">
             {isSavingResult ? "Сохраните уже полученный ответ и вернитесь к нему позже" : "Регистрация после первого полезного шага"}
           </p>
+          <WelcomeGiftNote />
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -175,7 +189,7 @@ export default function RegisterPage() {
                 <div className="mt-2 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-ink-soft)]" data-testid="duplicate-email-state">
                   <p className="font-medium text-[var(--soft-bordeaux)]">Аккаунт с этим email уже есть.</p>
                   <div className="mt-2 flex flex-wrap gap-3">
-                    <Link href={`/login?email=${encodeURIComponent(email)}${isSavingResult ? "&intent=save-result" : ""}`} className="text-[var(--soft-terracotta-dark)] hover:underline">
+                    <Link href={authLink("/login", returnContext, { email })} className="text-[var(--soft-terracotta-dark)] hover:underline">
                       Войти
                     </Link>
                     <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} className="text-[var(--soft-terracotta-dark)] hover:underline">
@@ -249,7 +263,7 @@ export default function RegisterPage() {
           </form>
           <p className="mt-4 text-center text-sm text-[var(--soft-ink-soft)]">
             Уже есть аккаунт?{" "}
-            <Link href="/login" className="font-medium text-[var(--soft-terracotta-dark)] hover:underline">
+            <Link href={authLink("/login", returnContext)} className="font-medium text-[var(--soft-terracotta-dark)] hover:underline">
               Войти
             </Link>
           </p>

@@ -21,9 +21,11 @@ jest.mock("@/lib/marketing/owner-task-intake", () => ({ acceptOwnerTask: jest.fn
 jest.mock("@/lib/marketing/threads-manual-card", () => ({
   extractThreadsPostUrl: () => null,
   parseCardMark: () => null,
-  buildThreadsCard: jest.fn(),
   markLatestCard: jest.fn(),
 }));
+
+jest.mock("@/lib/marketing/owner-review", () => ({ handleOwnerReason: jest.fn(async () => null) }));
+jest.mock("@/lib/marketing/owner-comment", () => ({ queueOwnerComment: jest.fn() }));
 
 import { handleOwnerMessage } from "@/lib/marketing/orchestrator-dialogue";
 
