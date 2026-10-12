@@ -19,6 +19,17 @@ import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { draftOwnerComment, type CommentFeedback } from "@/lib/marketing/owner-comment";
 import { parseOwnerCommand } from "@/lib/marketing/owner-ideas";
 import { parseCardMark } from "@/lib/marketing/threads-manual-card";
+import { notesOf, threadsVerdictOf } from "@/lib/marketing/moderation";
+import {
+  dropPending,
+  pickPending,
+  readPending,
+  readOwnerRating,
+  recordThreadsVerdict,
+  rejectTagLabel,
+  type PendingReason,
+} from "@/lib/marketing/threads-verdicts";
+import { isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
 import {
   MAX_REJECTION_ROUNDS,
   clearAwaitingReason,
@@ -103,8 +114,16 @@ function modeLabel(mode: RevisionMode): string {
  * причина (нет ожидания, ожидание просрочено, либо пришла новая команда
  * «идея»/«комментарий»): диалог продолжает обычным путём.
  */
-export async function handleOwnerReason(input: { text: string; chatId: string; now: Date }): Promise<string | null> {
+export async function handleOwnerReason(input: {
+  text: string;
+  chatId: string;
+  now: Date;
+  /** B764: id сообщения, на которое владелец ответил (reply) — карточка или подсказка бота. */
+  replyToMessageId?: number | null;
+}): Promise<string | null> {
   const reason = input.text.replace(/\[приложено фото\]/g, "").trim();
+  const threads = await handleThreadsReasonMessage({ ...input, reason });
+  if (threads !== undefined) return threads;
   if (!reason || parseOwnerCommand(reason) || parseCardMark(reason)) return null;
   const awaiting = await readAwaitingReason(input.chatId, input.now);
   if (!awaiting) return null;
@@ -185,4 +204,90 @@ export async function handleOwnerReason(input: { text: string; chatId: string; n
     },
   });
   return `Принял причину: ${modeLabel(decision.mode)}. Новая версия придёт на одобрение сюда же.`;
+}
+
+function matchedByReply(entry: PendingReason, replyTo: number | null | undefined): boolean {
+  return replyTo != null && (entry.cardMessageId === replyTo || entry.promptMessageId === replyTo);
+}
+
+/**
+ * B764: сообщение владельца как комментарий к карточке поста Threads.
+ * `undefined` — это не про посты, дальше идёт прежний путь B761; `null` — про
+ * посты, но не причина (обычный диалог продолжается).
+ */
+async function handleThreadsReasonMessage(input: {
+  reason: string;
+  chatId: string;
+  now: Date;
+  replyToMessageId?: number | null;
+}): Promise<string | null | undefined> {
+  if (!input.reason) return undefined;
+  const lookup = pickPending(await readPending(input.now), input.chatId, input.replyToMessageId ?? null, input.now);
+  if (lookup.kind === "none") return undefined;
+  if (lookup.kind === "ambiguous") {
+    // Несколько карточек ждут комментарий, а сообщение не reply: гадать нельзя.
+    return input.replyToMessageId != null && !parseOwnerCommand(input.reason)
+      ? `Ждут комментария ${lookup.count} карточек. Ответьте (reply) на карточку или на подсказку под ней, к которой он относится.`
+      : undefined;
+  }
+  const byReply = matchedByReply(lookup.entry, input.replyToMessageId);
+  if (!byReply && (parseOwnerCommand(input.reason) || parseCardMark(input.reason))) return undefined;
+  return reworkThreadsPost({ entry: lookup.entry, comment: input.reason, now: input.now });
+}
+
+/**
+ * Завершает «Доработать»/«Отказать» поста: пишет вердикт и возвращает строку
+ * автору новым кругом. Строка НИКОГДА не архивируется: после трёх кругов пост
+ * остаётся в очереди ждать решения или текста владельца.
+ */
+export async function reworkThreadsPost(input: {
+  entry: PendingReason;
+  comment: string | null;
+  now: Date;
+}): Promise<string | null> {
+  const { entry, now } = input;
+  const row = await db.externalPublication.findUnique({ where: { id: entry.publicationId } });
+  if (!row || row.status !== "REVIEW" || !isThreadsPlanPost(row)) {
+    await dropPending(entry.publicationId, now);
+    return null;
+  }
+  const notes = notesOf(row.notes) as ReviewNotes;
+  const round = (notes.rounds ?? 0) + 1;
+  const tagText = entry.tags.map(rejectTagLabel).join(", ");
+  const reason = [tagText ? `Причины: ${tagText}.` : "", input.comment ?? ""].filter(Boolean).join(" ").trim();
+  const rating = await readOwnerRating(row.id);
+  await dropPending(row.id, now);
+  if (round > MAX_REJECTION_ROUNDS) {
+    await recordThreadsVerdict(threadsVerdictOf(row, entry.action, entry.tags, input.comment, now, rating));
+    return "Три круга правок не помогли. Пост остаётся в очереди и ждёт вас: пришлите свой текст «идея: …» или нажмите «Убрать» на карточке.";
+  }
+
+  const decision = entry.action === "reject"
+    ? { mode: "rewrite" as const, instructions: reason || "Владелец отказал без пояснений: напиши другой пост." }
+    : await classify("пост", row.body ?? "", reason);
+  const history = [
+    ...(notes.history ?? []),
+    { at: now.toISOString(), action: entry.action, mode: decision.mode, reason: reason.slice(0, 300) },
+  ];
+  const baseAngle = notes.baseAngle ?? notes.editorialAngle ?? "";
+  const block = decision.mode === "patch"
+    ? `\n\nПРАВКА ВЛАДЕЛЬЦА (точечно). Текущий текст:\n${row.body ?? ""}\nИзмени ТОЛЬКО названное, остальное оставь как есть:\n${decision.instructions}`
+    : `\n\nВЛАДЕЛЕЦ ОТКАЗАЛ ПРЕЖНЕМУ ТЕКСТУ (контрпример, не повторяй; напиши заново, по-другому):\n${row.body ?? ""}\nПричина и ограничения:\n${decision.instructions}`;
+  const moved = await db.externalPublication.updateMany({
+    where: { id: row.id, status: "REVIEW" },
+    data: {
+      status: "DRAFT",
+      agentReviewedAt: null,
+      agentWriterDraft: Prisma.DbNull,
+      agentWrittenAt: null,
+      lastError: null,
+      notes: JSON.stringify({ ...notes, baseAngle, editorialAngle: `${baseAngle}${block}`, rounds: round, history }),
+      moderationDecisionBy: "telegram:owner",
+      moderationDecisionAt: now,
+    },
+  });
+  // Двойное нажатие: второй вызов не нашёл REVIEW — вердикт и «Принял» были бы ложью.
+  if (moved.count !== 1) return null;
+  await recordThreadsVerdict(threadsVerdictOf(row, entry.action, entry.tags, input.comment, now, rating));
+  return `Принял: ${modeLabel(decision.mode)}. Новая версия придёт на одобрение сюда же.`;
 }

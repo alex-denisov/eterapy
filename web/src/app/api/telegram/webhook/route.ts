@@ -15,6 +15,7 @@ import { enableAllTelegramNotifications } from "@/lib/notifications";
 import { bindTelegramToUser, findUserByTelegramSubject, unbindTelegramFromUser } from "@/lib/telegram-binding";
 import { sendTelegram } from "@/lib/telegram";
 import { handleOwnerMessage } from "@/lib/marketing/orchestrator-dialogue";
+import { handleThreadsCallback } from "@/lib/marketing/threads-owner-flow";
 import {
   formatTelegramGrowthMessage,
   getTrackedTelegramMiniAppUrl,
@@ -116,6 +117,17 @@ export async function POST(req: NextRequest) {
     claimedEventId = claim.event.id;
 
     if (update.callback_query?.data && update.callback_query.message) {
+      // B764: оценка и теги причин у поста Threads — свои подписанные кнопки.
+      const threads = await handleThreadsCallback({
+        data: update.callback_query.data,
+        chatId: String(update.callback_query.message.chat.id),
+        callbackQueryId: update.callback_query.id,
+        messageId: update.callback_query.message.message_id,
+      });
+      if (threads) {
+        await completeWebhookEvent(claim.event.id, { result: threads.result });
+        return NextResponse.json({ ok: true, result: threads.result });
+      }
       const parsed = parseMarketingModerationCallback(update.callback_query.data);
       if (!parsed) {
         await completeWebhookEvent(claim.event.id, { result: "unknown-callback" });
@@ -151,6 +163,7 @@ export async function POST(req: NextRequest) {
         photoFileId,
         chatId: String(dialogueMsg.chat.id),
         messageId: dialogueMsg.message_id ?? null,
+        replyToMessageId: dialogueMsg.reply_to_message?.message_id ?? null,
         fromBot: Boolean(dialogueMsg.from?.is_bot),
         chatType: dialogueMsg.chat.type,
         now: new Date(),
@@ -359,6 +372,7 @@ interface TelegramUpdate {
     message_id?: number;
     chat: { id: number; type?: string; username?: string };
     from?: { is_bot?: boolean };
+    reply_to_message?: { message_id?: number };
   };
   message?: {
     text?: string;

@@ -30,6 +30,27 @@ export function ownerReviewKind(contentType: string | null): "comment" | "idea" 
   return (contentType ?? "").toUpperCase() === OWNER_COMMENT_CONTENT_TYPE ? "comment" : "idea";
 }
 
+/** B764 — плановый пост Threads (не идея владельца, не разговор): его выпуск решает только владелец. */
+export function isThreadsPlanPost(row: { platform: string | null; contentType: string | null; source: string | null }): boolean {
+  return (row.platform ?? "").toLowerCase() === "threads"
+    && (row.contentType ?? "").toUpperCase() === "POST"
+    && row.source !== OWNER_IDEA_SOURCE;
+}
+
+/**
+ * B764 — строка, которую гигиена очереди не вправе ни снять, ни перенести, ни
+ * архивировать: пост Threads, написанный и ждущий кнопки владельца. Слот при
+ * этом пуст, пока нет решения; «просрочка» тут вина очереди, а не текста.
+ */
+export function isAwaitingThreadsOwner(row: {
+  platform: string | null;
+  contentType: string | null;
+  source: string | null;
+  status: string;
+}): boolean {
+  return row.status === "REVIEW" && isThreadsPlanPost(row);
+}
+
 export interface AwaitingReason {
   publicationId: string;
   action: "revise" | "reject";
@@ -70,7 +91,7 @@ export async function readAwaitingReason(chatId: string, now: Date): Promise<Awa
 export interface OwnerReviewLogEntry {
   at: string;
   publicationId: string;
-  kind: "comment" | "idea";
+  kind: "comment" | "idea" | "post";
   action: OwnerReviewAction;
   cluster: string | null;
   technique: string | null;
@@ -87,7 +108,7 @@ export interface OwnerReviewQuality {
   approved: number;
   /** Доля «Принять» среди решений: чем выше, тем лучше работает агент. */
   approvalRate: number | null;
-  byKind: Record<"comment" | "idea", { decisions: number; approved: number }>;
+  byKind: Record<"comment" | "idea" | "post", { decisions: number; approved: number }>;
   topRejectionReasons: string[];
 }
 
@@ -102,12 +123,13 @@ export function summarizeOwnerReview(
   const byKind = {
     comment: { decisions: 0, approved: 0 },
     idea: { decisions: 0, approved: 0 },
+    post: { decisions: 0, approved: 0 },
   };
   for (const entry of recent) {
     byKind[entry.kind].decisions += 1;
     if (entry.action === "approve") byKind[entry.kind].approved += 1;
   }
-  const approved = byKind.comment.approved + byKind.idea.approved;
+  const approved = byKind.comment.approved + byKind.idea.approved + byKind.post.approved;
   return {
     decisions: recent.length,
     approved,
@@ -129,7 +151,7 @@ export function describeOwnerReviewQuality(quality: OwnerReviewQuality): string 
   const pct = Math.round((quality.approvalRate ?? 0) * 100);
   return [
     `Качество агента по оценкам владельца за неделю: принято ${quality.approved} из ${quality.decisions} (${pct}%).`,
-    `Идеи: ${quality.byKind.idea.approved}/${quality.byKind.idea.decisions}; комментарии: ${quality.byKind.comment.approved}/${quality.byKind.comment.decisions}.`,
+    `Идеи: ${quality.byKind.idea.approved}/${quality.byKind.idea.decisions}; комментарии: ${quality.byKind.comment.approved}/${quality.byKind.comment.decisions}; посты Threads: ${quality.byKind.post.approved}/${quality.byKind.post.decisions}.`,
     quality.topRejectionReasons.length > 0 ? `Последние причины отказа: ${quality.topRejectionReasons.join(" | ")}` : "",
   ].filter(Boolean).join("\n");
 }

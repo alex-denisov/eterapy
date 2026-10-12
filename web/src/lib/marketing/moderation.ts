@@ -9,11 +9,13 @@ import {
 import { ownerIdeaSlot } from "@/lib/marketing/owner-ideas";
 import {
   isOwnerReviewed,
+  isThreadsPlanPost,
   ownerReviewKind,
   recordOwnerDecision,
   setAwaitingReason,
   REASON_WINDOW_MS,
 } from "@/lib/marketing/owner-review-state";
+import { REJECT_TAGS, dropPending, putPending, readOwnerRating, recordThreadsVerdict, rejectTagLabel } from "@/lib/marketing/threads-verdicts";
 import { marketingDeliveryTargets, moderationChatIds, resolveMarketingChannel } from "@/lib/ops-notification-channel";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
@@ -34,7 +36,7 @@ function secret() {
   return value;
 }
 
-function signature(action: ModerationAction, publicationId: string) {
+function signature(action: string, publicationId: string) {
   return createHmac("sha256", secret())
     .update(`${action}:${publicationId}`)
     .digest("base64url")
@@ -43,6 +45,18 @@ function signature(action: ModerationAction, publicationId: string) {
 
 export function marketingModerationCallback(action: ModerationAction, publicationId: string) {
   return `smm:${action}:${publicationId}:${signature(action, publicationId)}`;
+}
+
+/** B764: подписанные кнопки поста Threads — оценка `smr` и причины `smt`. */
+export function threadsCallback(prefix: "smr" | "smt", arg: string, publicationId: string): string {
+  return `${prefix}:${arg}:${publicationId}:${signature(`${prefix}${arg}`, publicationId)}`;
+}
+
+export function parseThreadsCallback(value: string): { prefix: "smr" | "smt"; arg: string; publicationId: string } | null {
+  const match = /^(smr|smt):([a-z0-9]{1,8}):([a-z0-9_-]{8,40}):([A-Za-z0-9_-]{12})$/.exec(value);
+  if (!match) return null;
+  if (!safeEqual(match[4], signature(`${match[1]}${match[2]}`, match[3]))) return null;
+  return { prefix: match[1] as "smr" | "smt", arg: match[2], publicationId: match[3] };
 }
 
 function safeEqual(left: string, right: string) {
@@ -63,6 +77,15 @@ export function parseMarketingModerationCallback(value: string): {
   return { action, publicationId };
 }
 
+/** Материал, который проходит владельца: идея, комментарий или (B764) плановый пост Threads. */
+function passesOwner(row: { platform: string | null; contentType: string | null; source: string | null }): boolean {
+  return isOwnerReviewed(row) || isThreadsPlanPost(row);
+}
+
+function reviewKindOf(row: { platform: string | null; contentType: string | null; source: string | null }): "comment" | "idea" | "post" {
+  return isThreadsPlanPost(row) ? "post" : ownerReviewKind(row.contentType);
+}
+
 function html(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
@@ -72,9 +95,19 @@ function short(value: string | null, limit: number) {
   return value.length <= limit ? value : `${value.slice(0, limit - 1)}…`;
 }
 
-function notesOf(raw: string | null): { format?: string; technique?: string } {
+export interface CardNotes {
+  format?: string;
+  technique?: string;
+  lifeArea?: string;
+  fact?: string;
+  instructionVersion?: string;
+  ownerRating?: number;
+  rounds?: number;
+}
+
+export function notesOf(raw: string | null): CardNotes {
   try {
-    return raw ? JSON.parse(raw) as { format?: string; technique?: string } : {};
+    return raw ? JSON.parse(raw) as CardNotes : {};
   } catch {
     return {};
   }
@@ -92,7 +125,7 @@ function ownerReviewMessage(
     agentReviewerProvider: string | null;
     agentReviewerModel: string | null;
   },
-  kind: "comment" | "idea",
+  kind: "comment" | "idea" | "post",
   planned: string,
 ): string {
   const notes = notesOf(publication.notes);
@@ -114,6 +147,24 @@ function ownerReviewMessage(
         + "«Отклонить»/«Доработать» — следом напишите причину, агент сам решит, переписать целиком или поправить.",
     ].join("\n");
   }
+  if (kind === "post") {
+    return [
+      "<b>Пост Threads на одобрение</b>",
+      "",
+      `<b>Слот:</b> ${html(planned)} МСК`,
+      ...tags,
+      ...(notes.fact ? [`<b>Факт:</b> ${html(short(notes.fact, 200))}`] : []),
+      "",
+      "<b>Текст поста:</b>",
+      html(short(publication.body, 2_400)),
+      "",
+      `<b>Автор:</b> ${html(publication.agentWriterProvider ?? "—")} / ${html(publication.agentWriterModel ?? "—")}`,
+      `<b>Проверяющий:</b> ${html(publication.agentReviewerProvider ?? "—")} / ${html(publication.agentReviewerModel ?? "—")}`,
+      "",
+      "Без «Публиковать» пост не выйдет и не пропадёт: слот ждёт вашего решения. "
+        + "«Доработать» и «Отказать» — комментарий пришлёт ответом на ЭТУ карточку. Оценка 1–10 — по желанию.",
+    ].join("\n");
+  }
   return [
     "<b>Премодерация идеи: новый пост</b>",
     "",
@@ -131,7 +182,42 @@ function ownerReviewMessage(
   ].join("\n");
 }
 
-function ownerReviewKeyboard(publicationId: string, kind: "comment" | "idea") {
+const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+export function threadsCardKeyboard(publicationId: string, rating: number | null = null) {
+  const rateButton = (n: number) => ({
+    text: rating === n ? `● ${n}` : String(n),
+    callback_data: threadsCallback("smr", String(n), publicationId),
+  });
+  return {
+    inline_keyboard: [
+      [
+        { text: "✅ Публиковать", callback_data: marketingModerationCallback("approve", publicationId) },
+        { text: "✍️ Доработать", callback_data: marketingModerationCallback("revise", publicationId) },
+        { text: "⛔ Отказать", callback_data: marketingModerationCallback("reject", publicationId) },
+      ],
+      RATINGS.slice(0, 5).map(rateButton),
+      RATINGS.slice(5).map(rateButton),
+      [{ text: "🗑 Убрать", callback_data: marketingModerationCallback("remove", publicationId) }],
+    ],
+  };
+}
+
+/** Теги причин отказа: нажатие переключает, «Отправить» завершает (текст — ответом на подсказку). */
+export function rejectTagsKeyboard(publicationId: string, chosen: readonly string[]) {
+  const rows = [];
+  for (let i = 0; i < REJECT_TAGS.length; i += 2) {
+    rows.push(REJECT_TAGS.slice(i, i + 2).map((tag, j) => ({
+      text: `${chosen.includes(tag.id) ? "✓ " : ""}${tag.label}`,
+      callback_data: threadsCallback("smt", String(i + j), publicationId),
+    })));
+  }
+  rows.push([{ text: "📨 Отправить отказ", callback_data: threadsCallback("smt", "go", publicationId) }]);
+  return { inline_keyboard: rows };
+}
+
+function ownerReviewKeyboard(publicationId: string, kind: "comment" | "idea" | "post") {
+  if (kind === "post") return threadsCardKeyboard(publicationId);
   return {
     inline_keyboard: [
       [
@@ -151,12 +237,12 @@ export async function requestMarketingModeration(publicationId: string) {
   const publication = await db.externalPublication.findUnique({ where: { id: publicationId } });
   if (
     !publication
-    || !(isConversationalContentType(publication.contentType) || isOwnerReviewed(publication))
+    || !(isConversationalContentType(publication.contentType) || passesOwner(publication))
     || publication.status !== "REVIEW"
   ) {
     return { sent: false, reason: "not-reviewable" };
   }
-  const ownerKind = isOwnerReviewed(publication) ? ownerReviewKind(publication.contentType) : null;
+  const ownerKind = passesOwner(publication) ? reviewKindOf(publication) : null;
   const isInboundReply = publication.contentType === INBOUND_REPLY_CONTENT_TYPE;
   const channel = await resolveMarketingChannel();
   if (channel.chatIds.length === 0) throw new Error("Marketing Telegram channel is not configured");
@@ -247,6 +333,31 @@ async function moveFromReview(id: string, data: Record<string, unknown>): Promis
   return result.count === 1;
 }
 
+/**
+ * B764 — слот, который не сгорает. Будущий слот строки сохраняется; если окно
+ * закрылось, пока пост ждал владельца, пост встаёт на ближайший свободный слот,
+ * не ближе 20 минут к уже занятым.
+ */
+export async function threadsApprovalSlot(
+  publication: { platform: string; scheduledFor: Date | null },
+  now: Date,
+): Promise<Date> {
+  if (publication.scheduledFor && publication.scheduledFor.getTime() - now.getTime() > 10 * 60_000) {
+    return publication.scheduledFor;
+  }
+  const taken = await db.externalPublication.findMany({
+    where: { platform: publication.platform, status: { in: ["SCHEDULED", "MANUAL"] }, scheduledFor: { gte: now } },
+    select: { scheduledFor: true },
+  });
+  for (let i = 0; i < 24; i++) {
+    const candidate = ownerIdeaSlot(now, i);
+    if (!taken.some((row) => row.scheduledFor && Math.abs(row.scheduledFor.getTime() - candidate.getTime()) < 20 * 60_000)) {
+      return candidate;
+    }
+  }
+  return ownerIdeaSlot(now, 0);
+}
+
 async function ownerDecisionAlreadyTaken(callbackQueryId: string, status: string) {
   await callTelegramApi("answerCallbackQuery", {
     callback_query_id: callbackQueryId,
@@ -265,7 +376,7 @@ async function applyOwnerReviewDecision(input: {
   publication: NonNullable<Awaited<ReturnType<typeof db.externalPublication.findUnique>>>;
 }) {
   const { publication, now, action } = input;
-  const kind = ownerReviewKind(publication.contentType);
+  const kind = reviewKindOf(publication);
   const notes = notesOf(publication.notes);
   const entry = {
     at: now.toISOString(),
@@ -287,9 +398,11 @@ async function applyOwnerReviewDecision(input: {
       status = "ARCHIVED";
       answer = "Записал: опубликовано. Учту как удачный комментарий агента.";
     } else {
-      const slot = publication.scheduledFor && publication.scheduledFor > now
-        ? publication.scheduledFor
-        : ownerIdeaSlot(now, 0);
+      const slot = kind === "post"
+        ? await threadsApprovalSlot(publication, now)
+        : publication.scheduledFor && publication.scheduledFor > now
+          ? publication.scheduledFor
+          : ownerIdeaSlot(now, 0);
       if (!(await moveFromReview(publication.id, { status: "SCHEDULED", autoPublish: true, scheduledFor: slot, lastError: null, ...decided }))) {
         return ownerDecisionAlreadyTaken(input.callbackQueryId, publication.status);
       }
@@ -297,13 +410,20 @@ async function applyOwnerReviewDecision(input: {
       answer = "Принято: пост встал в очередь выхода.";
     }
     await recordOwnerDecision({ ...entry, action: "approve", reason: null });
+    if (kind === "post") {
+      await recordThreadsVerdict(threadsVerdictOf(publication, "approve", [], null, now, await readOwnerRating(publication.id)));
+      await dropPending(publication.id);
+    }
   } else if (action === "remove") {
-    if (!(await moveFromReview(publication.id, { status: "ARCHIVED", archiveReason: "REMOVED_BY_OWNER", lastError: "REJECTED_BY_MODERATOR", ...decided }))) {
+    if (!(await moveFromReview(publication.id, { status: "ARCHIVED", archiveReason: "REMOVED_BY_OWNER", lastError: "REJECTED_BY_MODERATOR", ...(kind === "post" ? { planSlot: null } : {}), ...decided }))) {
       return ownerDecisionAlreadyTaken(input.callbackQueryId, publication.status);
     }
     status = "ARCHIVED";
     await recordOwnerDecision({ ...entry, action: "remove", reason: null });
+    if (kind === "post") await dropPending(publication.id);
     answer = "Убрано без замены.";
+  } else if (kind === "post") {
+    answer = await promptThreadsReason({ ...input, publication, action: action === "revise" ? "revise" : "reject" });
   } else {
     // «Отклонить» и «Доработать» значат «переделай с учётом причины»: причина
     // приходит следующим сообщением (чат-канал не даёт «ответить» на карточку).
@@ -336,6 +456,82 @@ async function applyOwnerReviewDecision(input: {
   return { status, duplicate: false };
 }
 
+/** Вердикт по строке: всё, из чего собран пост, чтобы потом считать связки. */
+export function threadsVerdictOf(
+  publication: {
+    id: string;
+    notes: string | null;
+    cluster: string | null;
+    agentWriterProvider: string | null;
+    agentWriterModel: string | null;
+  },
+  decision: "approve" | "revise" | "reject",
+  tags: readonly string[],
+  comment: string | null,
+  now: Date,
+  rating: number | null = null,
+) {
+  const notes = notesOf(publication.notes);
+  return {
+    at: now.toISOString(),
+    publicationId: publication.id,
+    decision,
+    rating,
+    tags: [...tags],
+    comment,
+    writerProvider: publication.agentWriterProvider,
+    writerModel: publication.agentWriterModel,
+    format: notes.format ?? null,
+    cluster: publication.cluster,
+    technique: notes.technique ?? null,
+    lifeArea: notes.lifeArea ?? null,
+    fact: notes.fact ?? null,
+    instructionVersion: notes.instructionVersion ?? null,
+    round: (notes.rounds ?? 0) + 1,
+  };
+}
+
+/**
+ * B764 — «Доработать»/«Отказать» у поста: бот отвечает (reply) на ЭТУ карточку и
+ * ждёт комментарий именно в её треде; ожидание хранится по карточке, поэтому
+ * соседние карточки пачки не путаются.
+ */
+async function promptThreadsReason(input: {
+  action: "revise" | "reject";
+  chatId: string;
+  messageId?: number;
+  now: Date;
+  publication: { id: string };
+}): Promise<string> {
+  const cardMessageId = input.messageId ?? null;
+  const text = input.action === "revise"
+    ? "✍️ Ответьте на ЭТО сообщение комментарием: что поправить. Агент перепишет или поправит точечно."
+    : "⛔ Отметьте причины тегами и/или ответьте на ЭТО сообщение текстом, затем «Отправить отказ».";
+  let promptMessageId: number | null = null;
+  try {
+    promptMessageId = await sendTelegram(input.chatId, text, {
+      ...(cardMessageId ? { replyToMessageId: cardMessageId } : {}),
+      ...(input.action === "reject" ? { replyMarkup: rejectTagsKeyboard(input.publication.id, []) } : {}),
+    });
+  } catch (error) {
+    log.warn("marketing-moderation.reason_prompt_failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+  await putPending({
+    publicationId: input.publication.id,
+    action: input.action,
+    chatId: input.chatId,
+    cardMessageId,
+    promptMessageId,
+    tags: [],
+    at: input.now.toISOString(),
+  }, input.now);
+  return input.action === "revise"
+    ? "Ответьте комментарием на подсказку под карточкой."
+    : "Выберите причины и/или ответьте текстом на подсказку.";
+}
+
+export { rejectTagLabel };
+
 export async function applyMarketingModeration(input: {
   action: ModerationAction;
   publicationId: string;
@@ -352,7 +548,7 @@ export async function applyMarketingModeration(input: {
   const publication = await db.externalPublication.findUnique({
     where: { id: input.publicationId },
   });
-  if (!publication || !(isConversationalContentType(publication.contentType) || isOwnerReviewed(publication))) {
+  if (!publication || !(isConversationalContentType(publication.contentType) || passesOwner(publication))) {
     throw new Error("Comment proposal not found");
   }
   if (publication.status !== "REVIEW") {
@@ -364,7 +560,7 @@ export async function applyMarketingModeration(input: {
   }
 
   const now = new Date();
-  if (isOwnerReviewed(publication)) {
+  if (passesOwner(publication)) {
     return applyOwnerReviewDecision({ ...input, publication, now });
   }
   // Approving early must not collapse the day's pacing into one burst: a slot

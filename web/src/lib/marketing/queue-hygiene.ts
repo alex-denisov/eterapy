@@ -28,7 +28,7 @@
  * внутри цикла с базой, проверяется только на проде.
  */
 
-import { isOwnerReviewed } from "@/lib/marketing/owner-review-state";
+import { isAwaitingThreadsOwner, isOwnerReviewed } from "@/lib/marketing/owner-review-state";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { PLAN_HORIZON_DAYS, isPlanChannelPaused, type ContentPlanSlot, type PlanChannel } from "@/lib/marketing/content-plan";
@@ -381,7 +381,9 @@ export async function runQueueHygiene(input: {
     plan: input.plan,
     // B761: идея и комментарий владельца ждут решения человека без слота плана и
     // без срока — сторож не вправе ни переносить их, ни снимать как «бездомные».
-    rows: rows.filter((row) => !(isOwnerReviewed(row) && ["DRAFT", "REVIEW"].includes(row.status))).map((row) => ({
+    // B764: пост Threads, ждущий кнопки владельца, сторожу тоже недоступен: ни
+    // снять, ни перенести, ни «просрочить» — слот пуст, пока нет решения.
+    rows: rows.filter((row) => !(isOwnerReviewed(row) && ["DRAFT", "REVIEW"].includes(row.status)) && !isAwaitingThreadsOwner(row)).map((row) => ({
       id: row.id,
       platform: row.platform,
       status: row.status,

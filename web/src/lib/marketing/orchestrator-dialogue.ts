@@ -211,6 +211,8 @@ export interface OwnerMessageInput {
   chatId: string;
   now: Date;
   messageId?: number | null;
+  /** B764: id сообщения, на которое владелец ответил (reply). */
+  replyToMessageId?: number | null;
   fromBot?: boolean;
   /** Тип чата Telegram. Личные чаты и неизвестный тип диалог не перехватывает. */
   chatType?: string;
@@ -268,7 +270,7 @@ export async function handleOwnerMessage(input: OwnerMessageInput): Promise<Owne
 
   // B761: сообщение после «Отклонить»/«Доработать» — это причина, а не новая заметка.
   try {
-    const reasonReply = await handleOwnerReason({ text: input.text, chatId: input.chatId, now: input.now });
+    const reasonReply = await handleOwnerReason({ text: input.text, chatId: input.chatId, now: input.now, replyToMessageId: input.replyToMessageId ?? null });
     if (reasonReply) {
       await replyToOwner(input, reasonReply);
       return { handled: true, intent: "note" };

@@ -21,7 +21,8 @@ import {
   engagementToneById,
 } from "@/lib/marketing/engagement-tone";
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
-import { isOwnerReviewed } from "@/lib/marketing/owner-review-state";
+import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
+import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
 import {
   INBOUND_REPLY_CONTENT_TYPE,
   isConversationalContentType,
@@ -2239,7 +2240,9 @@ export async function processMarketingDraft(publicationId: string) {
     // B654: у площадки без автоматического выпуска утверждённый материал ждёт
     // человека, а не встаёт в очередь, которой для неё не существует.
     // B761: идея владельца после редактора ждёт владельца, а не слота.
-    const needsOwnerReview = isOwnerReviewed(publication);
+    // B764: каждый плановый пост Threads сначала идёт владельцу (режим `off` — аварийный выход).
+    const needsOwnerReview = isOwnerReviewed(publication)
+      || (isThreadsPlanPost(publication) && (await readPremoderationMode()) !== "off");
     const nextStatus = isConversational || needsOwnerReview
       ? "REVIEW"
       : approvedStatusForPlatform(platform);
