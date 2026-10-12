@@ -2320,12 +2320,13 @@ export async function processMarketingDraft(publicationId: string) {
         // B746: продолжение ответом на свой пост едет в notes и уходит на
         // площадку публикатором сразу после выпуска (см. `publish.ts`).
         // B766: факт едет вместе с постом — владелец видит его на карточке, вердикт хранит.
-        ...(parsedNotes && (approvedDraft.replyText?.trim() || threadsContext?.fact)
+        ...(parsedNotes && (approvedDraft.replyText?.trim() || threadsContext?.fact || threadsContext?.scene?.area)
           ? {
             notes: JSON.stringify({
               ...parsedNotes,
               ...(approvedDraft.replyText?.trim() ? { replyText: approvedDraft.replyText.trim() } : {}),
               ...(threadsContext?.fact ? { fact: threadsContext.fact.statement } : {}),
+              ...(threadsContext?.scene?.area ? { lifeArea: threadsContext.scene.area } : {}),
             }),
           }
           : {}),

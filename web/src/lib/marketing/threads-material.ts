@@ -28,6 +28,17 @@ import { marketingPlatformValue } from "@/lib/marketing/platform-settings";
 import { MARKETING_TOPIC_RADAR_FEATURE, marketingProviderOrder } from "@/lib/marketing/model-pool";
 import { marketingPoolAvailability } from "@/lib/marketing/pool-capacity";
 import {
+  approvedAreaNames,
+  areaWeights,
+  chooseArea,
+  matchApprovedArea,
+  readAreas,
+  recordSightings,
+  writeAreas,
+  type LifeArea,
+} from "@/lib/marketing/threads-life-areas";
+import { readThreadsVerdicts } from "@/lib/marketing/threads-verdicts";
+import {
   TELEGRAM_TREND_TIMEOUT_MS,
   parseChannelPosts,
   telegramChannelPageRequest,
@@ -60,6 +71,8 @@ export interface ThreadsScene {
   reaction: string;
   /** Почему люди об этом пишут и что ответили бы под постом. */
   why: string;
+  /** B767: область жизни из утверждённого списка; нет — сцена вне списка. */
+  area?: string;
   foundAt: string;
   usedBy?: string;
   usedAt?: string;
@@ -74,8 +87,13 @@ const SceneSchema = z.object({
   scene: z.string().min(10).max(400),
   reaction: z.string().min(3).max(80),
   why: z.string().min(5).max(300),
+  area: z.string().max(80).optional(),
 });
 const ScoutResponseSchema = z.object({ scenes: z.array(SceneSchema).min(1) });
+/** Окно повтора сцены: сцену прошлой недели повторять можно (решение владельца 2026-10-12). */
+export const SCENE_REPEAT_WINDOW_MS = 7 * 86_400_000;
+const SHINGLE = 3;
+const SIMILAR = 0.5;
 
 export function parsePool(raw: string | null | undefined): ThreadsMaterialPool {
   if (!raw) return { scoutedAt: null, scenes: [] };
@@ -114,13 +132,34 @@ function normalizedScene(text: string): string {
 }
 
 /** Новые сцены в пул: без дублей, старые использованные уходят первыми. */
+function shingles(text: string): Set<string> {
+  const words = normalizedScene(text).split(" ").filter(Boolean);
+  const out = new Set<string>();
+  for (let i = 0; i + SHINGLE <= words.length; i++) out.add(words.slice(i, i + SHINGLE).join(" "));
+  return out;
+}
+
+/** Две сцены об одном: доля общих трёхсловных шинглов не меньше половины меньшей. */
+export function scenesSimilar(left: string, right: string): boolean {
+  const a = shingles(left);
+  const b = shingles(right);
+  if (a.size === 0 || b.size === 0) return normalizedScene(left) === normalizedScene(right);
+  let common = 0;
+  for (const item of a) if (b.has(item)) common += 1;
+  return common / Math.min(a.size, b.size) >= SIMILAR;
+}
+
 export function mergeScenes(pool: ThreadsMaterialPool, found: readonly Omit<ThreadsScene, "id" | "foundAt">[], now: Date): ThreadsMaterialPool {
-  const known = new Set(pool.scenes.map((scene) => normalizedScene(scene.scene)));
+  // Блокирует только повтор за последние 7 суток: сцена прошлой недели снова годится.
+  const windowStart = now.getTime() - SCENE_REPEAT_WINDOW_MS;
+  const recentTexts = pool.scenes
+    .filter((scene) => Date.parse(scene.usedAt ?? scene.foundAt) >= windowStart)
+    .map((scene) => scene.scene);
   const fresh: ThreadsScene[] = [];
   found.forEach((scene, index) => {
     const key = normalizedScene(scene.scene);
-    if (!key || known.has(key)) return;
-    known.add(key);
+    if (!key || recentTexts.some((text) => scenesSimilar(text, scene.scene))) return;
+    recentTexts.push(scene.scene);
     fresh.push({ ...scene, id: `s${now.getTime().toString(36)}-${index}`, foundAt: now.toISOString() });
   });
   const merged = [...pool.scenes, ...fresh];
@@ -132,12 +171,27 @@ export function mergeScenes(pool: ThreadsMaterialPool, found: readonly Omit<Thre
 }
 
 /** Сцена для поста: самая старая из свежих неиспользованных. Чистая функция. */
-export function takeScene(pool: ThreadsMaterialPool, publicationId: string, now: Date): { pool: ThreadsMaterialPool; scene: ThreadsScene | null; claimed: boolean } {
+export function takeScene(
+  pool: ThreadsMaterialPool,
+  publicationId: string,
+  now: Date,
+  weights?: Readonly<Record<string, number>>,
+): { pool: ThreadsMaterialPool; scene: ThreadsScene | null; claimed: boolean } {
   const already = pool.scenes.find((scene) => scene.usedBy === publicationId);
   if (already) return { pool, scene: already, claimed: false };
-  const candidate = pool.scenes
+  const fresh = pool.scenes
     .filter((scene) => !scene.usedAt && now.getTime() - Date.parse(scene.foundAt) <= SCENE_FRESH_MS)
-    .sort((left, right) => Date.parse(left.foundAt) - Date.parse(right.foundAt))[0];
+    .sort((left, right) => Date.parse(left.foundAt) - Date.parse(right.foundAt));
+  // B767: область выбирает квота недели (вес по вердиктам владельца, минимум на пробу).
+  const usedThisWeek: Record<string, number> = {};
+  for (const scene of pool.scenes) {
+    if (scene.usedAt && scene.area && now.getTime() - Date.parse(scene.usedAt) <= SCENE_REPEAT_WINDOW_MS) {
+      usedThisWeek[scene.area] = (usedThisWeek[scene.area] ?? 0) + 1;
+    }
+  }
+  const areas = [...new Set(fresh.map((scene) => scene.area).filter((area): area is string => Boolean(area)))];
+  const chosen = chooseArea({ candidates: areas, usedThisWeek, weights });
+  const candidate = (chosen ? fresh.find((scene) => scene.area === chosen) : null) ?? fresh[0];
   if (!candidate) return { pool, scene: null, claimed: false };
   const taken: ThreadsScene = { ...candidate, usedBy: publicationId, usedAt: now.toISOString() };
   return {
@@ -150,7 +204,8 @@ export function takeScene(pool: ThreadsMaterialPool, publicationId: string, now:
 /** Сцена для поста Threads; отказ хранилища поста не валит — пишем на свободную тему. */
 export async function claimThreadsScene(publicationId: string, now = new Date()): Promise<ThreadsScene | null> {
   try {
-    const { pool, scene, claimed } = takeScene(await readPool(), publicationId, now);
+    const weights = areaWeights(await readThreadsVerdicts().catch(() => []));
+    const { pool, scene, claimed } = takeScene(await readPool(), publicationId, now, weights);
     if (claimed) await writePool(pool);
     return scene;
   } catch (error) {
@@ -159,7 +214,7 @@ export async function claimThreadsScene(publicationId: string, now = new Date())
   }
 }
 
-export function scoutPrompt(posts: readonly string[]): string {
+export function scoutPrompt(posts: readonly string[], areas: readonly string[] = []): string {
   // По кодовым точкам, а не по UTF-16: обрезка посреди эмодзи оставляла
   // одинокий суррогат, и журнал запросов (jsonb) отвергал весь вызов модели.
   const sample = posts.slice(0, 40)
@@ -182,11 +237,48 @@ export function scoutPrompt(posts: readonly string[]): string {
 - Разные сферы и разные реакции: не больше четверти сцен про бывших, не больше трети смешных, «умилиться» — не больше трёх.
 - Без рекламы, без медицины и диагнозов, без насилия и кризисных историй.
 
+${areas.length > 0 ? `Для каждой сцены укажи область жизни ТОЧНО как в списке: ${areas.join("; ")}. Распредели сцены по областям широко, не копи в одной. Если сцена не подходит ни под одну область, назови новую область коротко (1–3 слова) в поле area — владелец утвердит её.\n\n` : ""}Сцены с поворотом и физически возможные: человек не может одновременно быть в двух местах и делать несовместимое. Ориентир планки — посты, которые владелец оценил на 9–10: узнаваемая деталь и жало, а не открытка.
+
 Верни СТРОГО JSON без markdown:
-{"scenes":[{"scene":"...","reaction":"...","why":"..."}]}
+{"scenes":[{"scene":"...","reaction":"...","why":"..."${areas.length > 0 ? ',"area":"..."' : ""}}]}
 
 Посты:
 ${sample}`;
+}
+
+export const GOOGLE_CSE_KEY = "GOOGLE_CSE_API_KEY";
+export const GOOGLE_CSE_CX = "GOOGLE_CSE_CX";
+const GOOGLE_QUERIES_PER_PASS = 5;
+
+/**
+ * B767: тренды Threads через Google Programmable Search (`site:threads.com`).
+ * Работает, только если заданы ключ и поисковая система; отказ — не ошибка прохода.
+ * ⚠ Что поисковая система отдаёт ТЕКСТЫ постов, а не заглушки, не проверено —
+ * пока ключа нет, источник молчит; проверка на живом вызове — шаг выкатки.
+ */
+export async function fetchGoogleTrendTexts(input: {
+  topics: readonly string[];
+  fetchImpl?: typeof fetch;
+  key?: string | null;
+  cx?: string | null;
+}): Promise<string[]> {
+  const key = input.key ?? await marketingPlatformValue(GOOGLE_CSE_KEY).catch(() => null);
+  const cx = input.cx ?? await marketingPlatformValue(GOOGLE_CSE_CX).catch(() => null);
+  if (!key || !cx) return [];
+  const call = input.fetchImpl ?? fetch;
+  const results = await Promise.allSettled(input.topics.slice(0, GOOGLE_QUERIES_PER_PASS).map(async (topic) => {
+    const url = new URL("https://www.googleapis.com/customsearch/v1");
+    url.searchParams.set("key", key);
+    url.searchParams.set("cx", cx);
+    url.searchParams.set("q", `site:threads.com ${topic}`);
+    url.searchParams.set("num", "10");
+    url.searchParams.set("lr", "lang_ru");
+    const response = await call(url, { signal: AbortSignal.timeout(TELEGRAM_TREND_TIMEOUT_MS) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json() as { items?: Array<{ title?: string; snippet?: string }> };
+    return (payload.items ?? []).map((item) => [item.title, item.snippet].filter(Boolean).join(". ")).filter((text) => text.length > 40);
+  }));
+  return results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
 }
 
 function stripJsonFence(text: string): string {
@@ -218,7 +310,12 @@ export async function runThreadsMaterialScout(input: {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return parseChannelPosts(await response.text());
   }));
-  const posts = pages.flatMap((page) => (page.status === "fulfilled" ? page.value : []));
+  const areas = await readAreas().catch(() => [] as LifeArea[]);
+  const googleTexts = await fetchGoogleTrendTexts({
+    topics: approvedAreaNames(areas).sort(() => Math.random() - 0.5),
+    fetchImpl: input.fetchImpl,
+  }).catch(() => [] as string[]);
+  const posts = [...pages.flatMap((page) => (page.status === "fulfilled" ? page.value : [])), ...googleTexts];
   if (posts.length === 0) {
     log.warn("marketing.threads_scout_no_posts", { channels: channels.length });
     return { ran: true, added: 0, posts: 0, reason: "no-posts" };
@@ -236,14 +333,20 @@ export async function runThreadsMaterialScout(input: {
       maxTokens: 16000,
       temperature: 0.7,
       requestId: `marketing-threads-scout:${now.getTime()}`,
-      messages: [{ role: "user", content: scoutPrompt(posts) }],
+      messages: [{ role: "user", content: scoutPrompt(posts, approvedAreaNames(areas)) }],
     });
     const parsed = ScoutResponseSchema.safeParse(JSON.parse(stripJsonFence(response.text ?? "")));
     if (!parsed.success) {
       log.warn("marketing.threads_scout_schema_invalid", { error: parsed.error.message.slice(0, 300) });
       return { ran: true, added: 0, posts: posts.length, reason: "schema-invalid" };
     }
-    const merged = mergeScenes(pool, parsed.data.scenes, now);
+    // B767: область — только из утверждённого списка; названное моделью новое уходит в предложения.
+    const proposed = parsed.data.scenes
+      .filter((scene) => scene.area && !matchApprovedArea(areas, scene.area))
+      .map((scene) => scene.area as string);
+    if (areas.length > 0) await writeAreas(recordSightings(areas, proposed, now)).catch(() => undefined);
+    const tagged = parsed.data.scenes.map((scene) => ({ ...scene, area: matchApprovedArea(areas, scene.area) ?? undefined }));
+    const merged = mergeScenes(pool, tagged, now);
     await writePool(merged);
     const added = merged.scenes.length - pool.scenes.length;
     log.info("marketing.threads_scout_done", { posts: posts.length, added, pool: merged.scenes.length });

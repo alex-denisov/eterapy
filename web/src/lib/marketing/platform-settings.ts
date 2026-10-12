@@ -63,6 +63,8 @@ export const MARKETING_PLATFORM_FIELDS = [
   // администраторов чужих каналов не о чем.
   { platform: "Research", key: "MARKETING_TREND_TELEGRAM_CHANNELS", label: "Открытые Telegram-каналы для поиска тем: имена через запятую или с новой строки", secret: false, multiline: true, requirement: "optional" },
   { platform: "Research", key: "THREADS_SCOUT_TELEGRAM_CHANNELS", label: "Открытые Telegram-каналы для разведчика живых сцен Threads (раз в двое суток): имена через запятую или с новой строки", secret: false, multiline: true, requirement: "optional" },
+  { platform: "Research", key: "GOOGLE_CSE_API_KEY", label: "Ключ Google Programmable Search (JSON API) для тренд-разведки Threads через site:threads.com", secret: true, multiline: false, requirement: "optional" },
+  { platform: "Research", key: "GOOGLE_CSE_CX", label: "Идентификатор поисковой системы Google Programmable Search (cx) для тренд-разведки Threads", secret: false, multiline: false, requirement: "optional" },
 ] as const;
 
 export type MarketingPlatform = typeof MARKETING_PLATFORM_FIELDS[number]["platform"];
