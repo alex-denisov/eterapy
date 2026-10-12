@@ -34,6 +34,7 @@ import {
   publishToDzenBrowser,
 } from "@/lib/marketing/browser-publisher";
 import { dzenFeedGuid, dzenFeedPublishingEnabled } from "@/lib/marketing/dzen-feed";
+import { PAUSED_PLAN_CHANNELS } from "@/lib/marketing/content-plan";
 import {
   metaEndpoint,
   metaFetchableMediaUrl,
@@ -663,6 +664,12 @@ export async function publishScheduledMarketing(input: {
       // человек уже нажал «Принять» по конкретному тексту.
       ...(enabled ? {} : { contentType: { in: [...CONVERSATIONAL_CONTENT_TYPES] } }),
       OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
+      // B763: плановый пост канала на паузе не выходит, даже если сторож очереди
+      // ещё не успел снять его в архив. Ответы людям пауза не трогает.
+      NOT: {
+        platform: { in: [...PAUSED_PLAN_CHANNELS], mode: "insensitive" },
+        contentType: { notIn: [...CONVERSATIONAL_CONTENT_TYPES] },
+      },
     },
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
     take: 10,

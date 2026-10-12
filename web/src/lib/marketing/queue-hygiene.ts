@@ -31,7 +31,7 @@
 import { isOwnerReviewed } from "@/lib/marketing/owner-review-state";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
-import { PLAN_HORIZON_DAYS, type ContentPlanSlot, type PlanChannel } from "@/lib/marketing/content-plan";
+import { PLAN_HORIZON_DAYS, isPlanChannelPaused, type ContentPlanSlot, type PlanChannel } from "@/lib/marketing/content-plan";
 
 /** Строки, которые ещё могут поехать. Остальное сторож не трогает. */
 const LIVE_STATUSES = ["DRAFT", "REVIEW", "SCHEDULED", "MANUAL"] as const;
@@ -56,6 +56,13 @@ export const PREMODERATION_STALE_MS = 48 * 60 * 60_000;
  * переноса уже не дошло, и опрашивать его каждый проход бессмысленно.
  */
 export const STALE_SCHEDULE_MS = 48 * 60 * 60_000;
+
+/**
+ * B763 — причина снятия строки канала на паузе. Строка уходит в архив, а не
+ * удаляется: владелец велел убрать готовое из пула, и архив делает ровно это,
+ * оставляя возможность вернуть материал при снятии паузы.
+ */
+export const CHANNEL_PAUSED_REASON = "CHANNEL_PAUSED_BY_OWNER: канал на паузе по решению владельца 2026-10-12 (B763).";
 
 export interface QueueRow {
   id: string;
@@ -163,7 +170,17 @@ export function planQueueHygiene(input: {
     });
   }
 
-  const expired = new Set(actions.filter((a) => a.kind === "expireModeration").map((a) => a.id));
+  // B763: плановые строки канала на паузе уходят из пула целиком — и пустые,
+  // и написанные, и утверждённые. Разговор с людьми пауза не трогает.
+  for (const row of rows) {
+    if (!isLive(row) || isConversational(row) || !isPlanChannelPaused(row.platform)) continue;
+    if (actions.some((action) => action.id === row.id)) continue;
+    actions.push({ kind: "retire", id: row.id, reason: CHANNEL_PAUSED_REASON, releaseSlot: true });
+  }
+
+  const expired = new Set(actions
+    .filter((a) => a.kind === "expireModeration" || (a.kind === "retire" && a.reason === CHANNEL_PAUSED_REASON))
+    .map((a) => a.id));
 
   /**
    * B713 §6 — ПРОСРОЧЕННАЯ СТРОКА: своя болезнь, своё правило.

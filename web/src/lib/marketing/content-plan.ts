@@ -324,7 +324,24 @@ function slotReserve(channel: PlanChannel, date: string, sequence: number): Slot
  * площадок Дзен → VK → Telegram → Instagram → Threads → Reddit. Сумма ниже —
  * около 6,5 в сутки, из них один тяжёлый.
  */
+/**
+ * B763 — КАНАЛЫ НА ПАУЗЕ.
+ *
+ * Решение владельца 2026-10-12: Instagram за месяц собрал 3 просмотра — постинг
+ * остановить, будущие публикации снять, готовые посты убрать из пула, ёмкость
+ * моделей отдать живым лентам. Пауза — свойство КАНАЛА, а не удаление кода:
+ * темп Instagram (`every(2)`) ниже не тронут, и снятие паузы — это удаление
+ * канала из этого списка. Снятые строки лежат в архиве с причиной
+ * `CHANNEL_PAUSED_BY_OWNER` и восстанавливаются.
+ */
+export const PAUSED_PLAN_CHANNELS: ReadonlySet<PlanChannel> = new Set<PlanChannel>(["instagram"]);
+
+export function isPlanChannelPaused(platform: string): boolean {
+  return (PAUSED_PLAN_CHANNELS as ReadonlySet<string>).has(platform.trim().toLowerCase());
+}
+
 function slotsPerDay(channel: PlanChannel, date: string): number {
+  if (PAUSED_PLAN_CHANNELS.has(channel)) return 0;
   const day = dayNumber(date);
   const every = (n: number) => (((day % n) + n) % n === 0 ? 1 : 0);
   switch (channel) {

@@ -80,7 +80,8 @@ describe("B746 §1 — библиотеки форматов всех площа
 
   it("формат — поле слота у ВСЕХ площадок, лента каждой идёт несколькими форматами", () => {
     const plan = contentPlanFor(new Date("2026-09-16T09:00:00+03:00"));
-    for (const channel of ["telegram", "vk", "instagram", "dzen", "threads"] as const) {
+    // B763: Instagram на паузе — слотов в плане у него нет вовсе.
+    for (const channel of ["telegram", "vk", "dzen", "threads"] as const) {
       const slots = plan.filter((slot) => slot.channel === channel);
       expect(slots.length).toBeGreaterThan(2);
       const used = new Set<string>();
