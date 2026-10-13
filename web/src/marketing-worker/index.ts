@@ -15,6 +15,8 @@ import {
   queueInboundReplies,
 } from "@/lib/marketing/inbound";
 import { sweepOwnPublicationComments } from "@/lib/marketing/engagement-sweep";
+import { reformatUnwrittenRows } from "@/lib/marketing/threads-series-start";
+import { loadSeriesConfig } from "@/lib/marketing/threads-series-store";
 import { publishScheduledMarketing } from "@/lib/marketing/publish";
 import { collectDuePublicationMetrics } from "@/lib/marketing/metrics";
 import { runSeoAudit } from "@/lib/marketing/seo-monitor";
@@ -150,6 +152,9 @@ async function main() {
         lastPlanSync = now;
         await guarded("plan", () => generateMarketingDrafts({ now: new Date(now) }));
         await guarded("registry-audit", () => auditStalledPublications({ now: new Date(now) }));
+        // B777: ступень лесенки и роли слотов — функция даты. Строки Threads, в которых
+        // автор ещё не начинал писать, приводятся к актуальному плану (формат, правила, призыв).
+        await guarded("threads-reformat", async () => reformatUnwrittenRows(await loadSeriesConfig(), new Date(now)));
         // B762: разведчик живых сцен Threads. Сам решает, пора ли (раз в двое
         // суток, отметка в базе), — здесь только заглядываем раз в 6 часов.
         await guarded("threads-scout", () => runThreadsMaterialScout({ now: new Date(now) }));
