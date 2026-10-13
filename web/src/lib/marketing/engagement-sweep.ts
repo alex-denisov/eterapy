@@ -28,8 +28,16 @@ import {
 
 /** Ветка старше двух недель живой не бывает: там уже никто не ждёт ответа. */
 export const SWEEP_LOOKBACK_MS = 14 * 24 * 60 * 60_000;
-/** Сколько публикаций опрашивать за один обход — свежие важнее старых. */
+/** Сколько публикаций опрашивать за один быстрый обход — свежие важнее старых. */
 export const SWEEP_PUBLICATION_LIMIT = 20;
+/** B777: полный обход (14 суток) берёт больше: при 4–8 постах в сутки двадцати хватало на 2–5 суток. */
+export const SWEEP_FULL_PUBLICATION_LIMIT = 60;
+/** Окно «быстрого» обхода: больше него — полный. */
+const FAST_SWEEP_LOOKBACK_MS = 48 * 60 * 60_000;
+/** Ответы моложе этого срока сторож сверяет с базой: ответ есть у площадки, а у нас ни одного входящего. */
+export const INBOUND_GAP_WINDOW_MS = 24 * 60 * 60_000;
+/** Пост, которого у площадки нет (удалён или недоступен), не опрашиваем снова столько времени. */
+export const GONE_TARGET_TTL_MS = 12 * 60 * 60_000;
 const VK_API_VERSION = "5.199";
 
 export type SweepPlatform = "vk" | "threads" | "instagram";
@@ -62,6 +70,10 @@ export interface SweepOutcome {
   error?: string;
   /** B690: площадка доставляет комментарии push’ем — опрос не выполнялся. */
   deliveredByPush?: boolean;
+  /** B777: постов, которые площадка не отдала по ошибке (не считая удалённых). */
+  failedTargets?: number;
+  /** B777: постов, которых у площадки больше нет (удалены): пропущены. */
+  goneTargets?: number;
 }
 
 interface SweepTarget {
@@ -83,7 +95,7 @@ async function publishedTargets(
       publishedAt: { gte: new Date(now.getTime() - lookbackMs) },
     },
     orderBy: { publishedAt: "desc" },
-    take: SWEEP_PUBLICATION_LIMIT,
+    take: lookbackMs > FAST_SWEEP_LOOKBACK_MS ? SWEEP_FULL_PUBLICATION_LIMIT : SWEEP_PUBLICATION_LIMIT,
     select: { id: true, externalPostId: true, publicUrl: true },
   });
   return rows.flatMap((row) => (row.externalPostId
@@ -176,6 +188,24 @@ async function sweepVk(target: SweepTarget): Promise<SweptComment[]> {
   });
 }
 
+/**
+ * B777: пост, которого у площадки больше нет. Один такой пост (владелец удалил
+ * его руками) валил весь обход Threads с 12.10: ошибка первой же цели обрывала
+ * цикл, и ни один ответ под остальными постами не читался.
+ */
+export function isGoneTargetError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /does not exist|cannot be loaded due to missing permissions|unsupported get request/i.test(message);
+}
+
+/** Удалённые у площадки цели: id публикации → когда увидели. Память процесса: после рестарта проверим снова. */
+const goneTargets = new Map<string, number>();
+
+/** Для тестов. */
+export function resetGoneTargets(): void {
+  goneTargets.clear();
+}
+
 async function metaJson(url: string): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
     headers: metaRequestHeaders(),
@@ -208,23 +238,41 @@ async function threadsOwnUsername(token: string): Promise<string | null> {
   }
 }
 
+interface ThreadsReplyItem {
+  id?: string;
+  text?: string;
+  username?: string;
+  permalink?: string;
+  timestamp?: string;
+  from?: { id?: string };
+}
+
+const THREADS_REPLY_FIELDS = "id,text,username,permalink,timestamp,from";
+
+/**
+ * B777: `/conversation` отдаёт ВСЕ ответы ветки, в том числе ответы на ответы и
+ * на части нашего же продолжения; `/replies` — только прямые. Если `/conversation`
+ * не отвечает, берём прямые ответы, чем остаться без обоих.
+ */
+async function threadsReplyItems(postId: string, token: string): Promise<ThreadsReplyItem[]> {
+  const base = `${metaEndpoint("threads")}/v1.0/${encodeURIComponent(postId)}`;
+  const query = `?fields=${THREADS_REPLY_FIELDS}&access_token=${encodeURIComponent(token)}`;
+  try {
+    const payload = await metaJson(`${base}/conversation${query}`);
+    return (payload.data as ThreadsReplyItem[] | undefined) ?? [];
+  } catch (conversationError) {
+    if (isGoneTargetError(conversationError)) throw conversationError;
+    const payload = await metaJson(`${base}/replies${query}`);
+    return (payload.data as ThreadsReplyItem[] | undefined) ?? [];
+  }
+}
+
 async function sweepThreads(target: SweepTarget): Promise<SweptComment[]> {
   const token = await marketingPlatformValue("THREADS_ACCESS_TOKEN");
   const userId = await marketingPlatformValue("THREADS_USER_ID");
   if (!token) return [];
-  const url = `${metaEndpoint("threads")}/v1.0/${encodeURIComponent(target.externalPostId)}/replies`
-    + `?fields=id,text,username,permalink,timestamp,from`
-    + `&access_token=${encodeURIComponent(token)}`;
   const ownName = await threadsOwnUsername(token);
-  const payload = await metaJson(url);
-  const items = (payload.data as Array<{
-    id?: string;
-    text?: string;
-    username?: string;
-    permalink?: string;
-    timestamp?: string;
-    from?: { id?: string };
-  }> | undefined) ?? [];
+  const items = await threadsReplyItems(target.externalPostId, token);
   return items.flatMap((item) => {
     if (!item.id || !(item.text ?? "").trim()) return [];
     return [{
@@ -296,6 +344,36 @@ export function vkCommentsArriveByPush(input: {
 }
 
 /**
+ * B777 — СТОРОЖ РАЗРЫВА: у площадки под нашими постами за сутки есть чужие
+ * ответы, а в нашей базе за те же сутки ни одного входящего. Так выглядело
+ * молчание с 12.10: журнал чист, сигнала нет, потому что ничего не падало
+ * громко. Сигнал — в служебный канал, снимается, когда входящие снова идут.
+ */
+async function auditInboundGap(platform: SweepPlatform, now: Date, recentReplies: number): Promise<void> {
+  const key = `inbound-gap:${platform}`;
+  if (recentReplies === 0) {
+    await resolveMarketingSignal(key).catch(() => undefined);
+    return;
+  }
+  const stored = await db.marketingInboundMessage.count({
+    where: { platform, receivedAt: { gte: new Date(now.getTime() - INBOUND_GAP_WINDOW_MS) } },
+  });
+  if (stored > 0) {
+    await resolveMarketingSignal(key).catch(() => undefined);
+    return;
+  }
+  await upsertMarketingSignal({
+    key,
+    kind: "INBOUND",
+    severity: "WARNING",
+    title: `${platform}: ответы под нашими постами есть, входящих в базе нет`,
+    summary: `Площадка отдаёт ${recentReplies} чужих ответов за сутки, а в marketing_inbound_messages за те же сутки пусто. `
+      + "Приём ответов не работает: смотреть журнал обхода и подписку webhook на поле replies.",
+    evidence: { platform, recentReplies, windowHours: INBOUND_GAP_WINDOW_MS / 3_600_000 },
+  }).catch(() => undefined);
+}
+
+/**
  * Один обход. Возвращает по площадке: сколько публикаций опрошено, сколько
  * комментариев увидено и сколько попало в очередь. Ноль найденных и отказ
  * площадки — разные строки, и это намеренно: молчание, неотличимое от «нет
@@ -327,14 +405,43 @@ export async function sweepOwnPublicationComments(
       let found = 0;
       let ingested = 0;
       let skippedOwn = 0;
+      let failedTargets = 0;
+      let goneCount = 0;
+      let recentReplies = 0;
+      let succeeded = 0;
+      let firstError: unknown = null;
       for (const target of targets) {
-        const comments = await SWEEPERS[platform](target);
+        const goneAt = goneTargets.get(target.id);
+        if (goneAt !== undefined && now.getTime() - goneAt < GONE_TARGET_TTL_MS) {
+          goneCount += 1;
+          continue;
+        }
+        let comments: SweptComment[];
+        try {
+          comments = await SWEEPERS[platform](target);
+          succeeded += 1;
+        } catch (error) {
+          // Платформенное ограничение (VK) и общий сбой (токен, сеть) — вопрос всего
+          // обхода: пусть его увидит обработчик ниже. Сбой одной цели им не является.
+          if ((error as PlatformLimitedError).platformLimited) throw error;
+          if (isGoneTargetError(error)) {
+            goneTargets.set(target.id, now.getTime());
+            goneCount += 1;
+            log.info("marketing-sweep.target_gone", { platform, publicationId: target.id });
+          } else {
+            failedTargets += 1;
+            firstError ??= error;
+            log.warn("marketing-sweep.target_failed", { platform, publicationId: target.id, error: serializeError(error) });
+          }
+          continue;
+        }
         for (const comment of comments) {
           found += 1;
           if (comment.own) {
             skippedOwn += 1;
             continue;
           }
+          if (comment.createdAt && now.getTime() - comment.createdAt.getTime() < INBOUND_GAP_WINDOW_MS) recentReplies += 1;
           const result = await ingestInboundMessage({
             platform,
             kind: "COMMENT",
@@ -348,8 +455,15 @@ export async function sweepOwnPublicationComments(
           if (result?.created) ingested += 1;
         }
       }
+      // Ни одна цель не прочиталась из-за настоящих ошибок (токен, сеть) — это сбой обхода.
+      if (failedTargets > 0 && succeeded === 0) throw firstError;
+      await auditInboundGap(platform, now, recentReplies).catch(() => undefined);
       await resolveMarketingSignal(`sweep:${platform}`).catch(() => undefined);
-      outcomes.push({ platform, publications: targets.length, found, ingested, skippedOwn });
+      outcomes.push({
+        platform, publications: targets.length, found, ingested, skippedOwn,
+        ...(failedTargets > 0 ? { failedTargets } : {}),
+        ...(goneCount > 0 ? { goneTargets: goneCount } : {}),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // B677: «площадка так не умеет» и «обход упал» — разные вещи. Первое не

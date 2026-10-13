@@ -33,14 +33,15 @@ describe("B610 · rolling marketing automation", () => {
     // за две недели (выходил дважды за 21 день), поэтому 59 → 57.
     // B763: Instagram на паузе по решению владельца — 57 → 54.
     // B762: Threads 8 постов в сутки — 12 → 56 за неделю, 54 → 98.
-    expect(plan).toHaveLength(98);
+    // B777: до 31.10 Threads 4 поста в сутки — 28 за неделю, 98 → 70.
+    expect(plan).toHaveLength(70);
     // B742: Reddit удалён, и окно плана сузилось до самого дальнего из
     // оставшихся горизонтов — четырнадцати суток Дзена. Пятнадцатая дата была
     // его и ушла вместе с ним.
     expect(dates.size).toBe(14);
     expect(counts).toEqual({
       telegram: 21,
-      threads: 56,
+      threads: 28,
       vk: 7,
       dzen: 14,
     });

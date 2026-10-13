@@ -60,6 +60,8 @@ export interface ThreadsVerdict {
   cluster: string | null;
   technique: string | null;
   lifeArea: string | null;
+  /** B777: намерение хука, выбранного из пула (результат, боль, интрига…). */
+  hookIntent?: string | null;
   fact: string | null;
   instructionVersion: string | null;
   round: number;
@@ -200,7 +202,7 @@ export interface VerdictGroup {
   avgRating: number | null;
 }
 
-export type VerdictGroupBy = "writerModel" | "format" | "cluster" | "technique" | "lifeArea";
+export type VerdictGroupBy = "writerModel" | "format" | "cluster" | "technique" | "lifeArea" | "hookIntent";
 
 /** Чистая выгрузка: какие модели/форматы/темы/приёмы заходят владельцу лучше. */
 export function groupVerdicts(
@@ -245,6 +247,7 @@ const REPORT_AXES: ReadonlyArray<{ by: VerdictGroupBy; title: string }> = [
   { by: "cluster", title: "Кластер" },
   { by: "technique", title: "Приём" },
   { by: "lifeArea", title: "Область жизни" },
+  { by: "hookIntent", title: "Намерение хука" },
 ];
 
 /** Текстовая выгрузка вердиктов за окно: что заходит владельцу по моделям, форматам, темам. */

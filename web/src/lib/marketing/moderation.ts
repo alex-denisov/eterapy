@@ -100,6 +100,7 @@ export interface CardNotes {
   format?: string;
   technique?: string;
   lifeArea?: string;
+  hookIntent?: string;
   fact?: string;
   instructionVersion?: string;
   ownerRating?: number;
@@ -518,6 +519,7 @@ export function threadsVerdictOf(
     cluster: publication.cluster,
     technique: notes.technique ?? null,
     lifeArea: notes.lifeArea ?? null,
+    ...(notes.hookIntent ? { hookIntent: notes.hookIntent } : {}),
     fact: notes.fact ?? null,
     instructionVersion: notes.instructionVersion ?? null,
     round: (notes.rounds ?? 0) + 1,

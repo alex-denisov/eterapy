@@ -27,6 +27,9 @@ import { threadsConcretenessFindings, threadsStopFindings } from "@/lib/marketin
 import { ctaPartFor, ctaWriterInstructions, stripModelUrls } from "@/lib/marketing/threads-cta";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
+import { chooseThreadsHook } from "@/lib/marketing/threads-hook-select";
+import { recentHookIntents } from "@/lib/marketing/threads-hook-memory";
+import { chosenHookTask, hookPoolApplies, type HookIntentCode } from "@/lib/marketing/threads-hook-pool";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
 import {
   INBOUND_REPLY_CONTENT_TYPE,
@@ -1609,6 +1612,14 @@ export async function processMarketingDraft(publicationId: string) {
     formatCta?: boolean;
     /** B777 — место призыва для замера A/B. */
     formatCtaPlace?: "mid" | "end";
+    /** B777 — выбранный из пула хук, его намерение и баллы редактора; пишутся в `notes` и считаются с вердиктами. */
+    formatCluster?: string;
+    hookText?: string;
+    hookIntent?: string;
+    hookTotal?: number;
+    hookStrong?: number;
+    hookPassed?: boolean;
+    hookPool?: number;
   } | null = null;
   if (publication.notes) {
     try {
@@ -1650,7 +1661,7 @@ export async function processMarketingDraft(publicationId: string) {
     ? await threadsWriterContext(publication).catch(() => null)
     : null;
 
-  const task = {
+  const baseTask = {
     kind: isInboundReply ? "INBOUND_REPLY" : isConversational ? "COMMENT" : "OWNED_POST",
     platform,
     title: threadsContext ? null : publication.title,
@@ -1863,6 +1874,76 @@ export async function processMarketingDraft(publicationId: string) {
         });
       });
     };
+
+    /**
+     * B777 — ПУЛ ХУКОВ. Один вызов автора даёт 8–10 зачинов, редактор оценивает
+     * их по пяти элементам, код выбирает лучший; автор пишет пост на него.
+     * Выбор делается один раз на материал (хук лежит в `notes`) и только для
+     * форматов со свободной первой строкой. Сбой выбора материал не убивает:
+     * пост пишется как раньше, без предвыбранного зачина.
+     */
+    let hookTaskFields: Record<string, unknown> = {};
+    if (parsedNotes?.hookText && parsedNotes.hookIntent) {
+      hookTaskFields = chosenHookTask({
+        text: parsedNotes.hookText,
+        intent: parsedNotes.hookIntent as HookIntentCode,
+        total: parsedNotes.hookTotal ?? 0,
+        strong: parsedNotes.hookStrong ?? 0,
+        passed: Boolean(parsedNotes.hookPassed),
+        poolSize: parsedNotes.hookPool ?? 0,
+      });
+    } else if (threadsContext && !isConversational && !carried && hookPoolApplies(parsedNotes?.formatCluster)) {
+      try {
+        const hookAttempts = { used: 0 };
+        const choice = await chooseThreadsHook({
+          task: {
+            format: parsedNotes?.format ?? null,
+            construction: parsedNotes?.editorialAngle ?? null,
+            scene: threadsContext.scene?.scene ?? null,
+            nicheBrief: threadsNicheBrief(suggestPole(threadsContext.recent.map((post) => post.text))),
+            formatRules: parsedNotes?.formatRules ?? null,
+            recentHooks: threadsContext.recentHooks,
+            recentIntents: await recentHookIntents(publication.id),
+          },
+          recent: threadsContext.recent,
+          now: publication.scheduledFor ?? new Date(),
+          complete: async ({ role, messages, parse, excludeModel }) => {
+            const result = await completeWithValidStructure({
+              feature: role === "writer" ? "marketing-agent-writer" : "marketing-agent-reviewer",
+              providerOrder: marketingProviderOrder(
+                `hook-${role}:${cycleSeed}`,
+                [...capacityRefused, ...paidRoutesOverBudget],
+                availability.providers,
+                role === "writer" ? { paidFallback: marketingPaidFallbackEnabled(), role: "writer" } : { role: "reviewer" },
+              ),
+              excludeModel,
+              maxTokens: role === "writer" ? MARKETING_WRITER_MAX_TOKENS : MARKETING_REVIEWER_MAX_TOKENS,
+              temperature: role === "writer" ? 0.9 : 0.05,
+              paidRemaining: paidBudget.remaining,
+              attempts: hookAttempts,
+              capacityRefused,
+              requestId: `marketing-hook-${role}:${publication.id}:${publication.attemptCount + 1}`,
+              messages,
+              parse,
+            });
+            return { value: result.value, model: result.response.model };
+          },
+        });
+        const fields = {
+          hookText: choice.text, hookIntent: choice.intent, hookTotal: choice.total,
+          hookStrong: choice.strong, hookPassed: choice.passed, hookPool: choice.poolSize,
+        };
+        parsedNotes = { ...(parsedNotes ?? {}), ...fields };
+        hookTaskFields = chosenHookTask(choice);
+        await db.externalPublication.update({
+          where: { id: publication.id },
+          data: { notes: JSON.stringify(parsedNotes) },
+        }).catch((error) => log.warn("marketing.hook_choice_not_saved", { publicationId: publication.id, error: serializeError(error) }));
+      } catch (error) {
+        log.warn("marketing.hook_pool_failed", { publicationId: publication.id, error: serializeError(error) });
+      }
+    }
+    const task = { ...baseTask, ...hookTaskFields };
 
     for (let round = carried?.round ?? 1; round <= EDITORIAL_ROUND_LIMIT; round += 1) {
       let writer: RoleStamp;
