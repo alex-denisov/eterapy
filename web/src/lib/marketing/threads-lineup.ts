@@ -23,10 +23,27 @@ import { THREADS_FORMATS, ZODIAC_SIGNS, type PostFormat } from "@/lib/marketing/
 import { CORE_HEROES, TECHNIQUES, type Technique } from "@/lib/marketing/threads-clusters";
 import { reorderByDaypart } from "@/lib/marketing/threads-daypart";
 import { isCtaEligibleLabel } from "@/lib/marketing/threads-cta";
-import { SERIES_FORMAT, SERIES_SLOT_INDEX, type SeriesDayInfo } from "@/lib/marketing/threads-series";
+import { SERIES_FORMAT, seriesSlotIndex, type SeriesDayInfo } from "@/lib/marketing/threads-series";
+import {
+  dateOfDayNumber, THREADS_MAX_POSTS_PER_DAY, threadsPostsPerDay, threadsSlotRoles, type ThreadsRole,
+} from "@/lib/marketing/threads-ladder";
+import { usefulFormatForWeekday, weekdayOfDayNumber } from "@/lib/marketing/threads-useful-formats";
 
-/** Слотов Threads в сутки (решение владельца 2026-10-12); длина сетки в `publish-windows.ts`. */
-export const THREADS_SLOTS_PER_DAY = 8;
+/**
+ * Максимум слотов Threads в сутки (потолок лесенки B777). Число постов в
+ * конкретные сутки — `threadsPostsPerDay(date)`: 4 до 31.10, с 1.11 по ступеням до 8.
+ */
+export const THREADS_SLOTS_PER_DAY = THREADS_MAX_POSTS_PER_DAY;
+
+/** Сколько постов в сутки с номером `day` (по лесенке B777). */
+export function threadsCountForDay(day: number): number {
+  return threadsPostsPerDay(dateOfDayNumber(day));
+}
+
+/** Во сколько суток подряд призыв не повторяется: не больше одного в сутки, при 8 постах — двух. */
+const MAX_CTA_PER_DAY = 1;
+const MAX_CTA_PER_DAY_FULL = 2;
+const MIN_CTA_GAP = 3;
 
 /** Кластеры, пост которых начинается обращением к знаку зодиака. */
 export const ZODIAC_FAMILY_CLUSTERS: ReadonlySet<string> = new Set(["K1p", "K1", "K2"]);
@@ -42,8 +59,10 @@ export interface LineupEntry {
   technique?: Technique;
   /** B776: сутки серии «День N/30» — только у вечернего слота. */
   series?: SeriesDayInfo;
-  /** B776: в этом слоте последняя часть цепочки несёт призыв (не больше одного в сутки). */
+  /** B776: в этом слоте цепочка несёт призыв (не больше одного в сутки, при 8 постах — двух). */
   cta?: boolean;
+  /** B777: место призыва для замера A/B — `mid` (перед закрывающей частью) или `end` (последней частью). */
+  ctaPlace?: "mid" | "end";
 }
 
 export interface LineupOptions {
@@ -73,6 +92,7 @@ const isZodiac = (format: PostFormat | undefined) => Boolean(format && ZODIAC_FA
 
 /** Только форматы, без знаков, героев и приёмов: нужен соседним суткам для стыка. */
 function dayFormats(day: number, previousLast: PostFormat | undefined): PostFormat[] {
+  const slotCount = threadsCountForDay(day);
   const chosen: PostFormat[] = [];
   const used = new Set<string>();
   const fits = (format: PostFormat, strict: boolean) => {
@@ -85,7 +105,7 @@ function dayFormats(day: number, previousLast: PostFormat | undefined): PostForm
     return true;
   };
   for (const strict of [true, false]) {
-    for (let draw = 0; chosen.length < THREADS_SLOTS_PER_DAY && draw < LANE.length * 4; draw += 1) {
+    for (let draw = 0; chosen.length < slotCount && draw < LANE.length * 4; draw += 1) {
       const format = LANE[mix(day * 131 + draw) % LANE.length];
       if (!fits(format, strict)) continue;
       chosen.push(format);
@@ -115,9 +135,10 @@ function validOrder(order: readonly PostFormat[], previousLast: PostFormat | und
 /** B776: перестановка по времени суток поверх выбранного состава; соседство окликов проверяется. */
 function orderedDayFormats(day: number, previousLast: PostFormat | undefined, noZodiacLast: boolean): PostFormat[] {
   const natural = dayFormats(day, previousLast);
+  const roles: ThreadsRole[] = threadsSlotRoles(natural.length).map((slot) => slot.role);
   const last = natural.length - 1;
   const forbiddenAt = (slot: number, format: PostFormat) => noZodiacLast && slot === last && isZodiac(format);
-  const ordered = reorderByDaypart(natural, previousLast, zodiacConflict, forbiddenAt);
+  const ordered = reorderByDaypart(natural, roles, previousLast, zodiacConflict, forbiddenAt);
   if (validOrder(ordered, previousLast, noZodiacLast)) return ordered;
   if (validOrder(natural, previousLast, noZodiacLast)) return natural;
   // Крайний случай: меняем последний пост с каждым из прочих, пока ряд не станет допустимым.
@@ -164,10 +185,35 @@ const SIGN_EPOCH_DAY = 20_720;
 const MAX_EPOCH_SPAN_DAYS = 3_650;
 const zodiacBeforeCache = new Map<number, number>();
 
-/** B776: серия занимает вечерний прайм-слот; сосед-оклик не страдает — серия не оклик. */
-function withSeries(formats: readonly PostFormat[], series: SeriesDayInfo | null | undefined): PostFormat[] {
-  if (!series) return [...formats];
-  return formats.map((format, index) => (index === SERIES_SLOT_INDEX ? SERIES_FORMAT : format));
+/**
+ * B776/B777: серия занимает последний слот суток (поздний вечер), а в будни
+ * главный вечерний слот (19:30) отдан полезному формату дня недели. Ни серия, ни
+ * полезные форматы — не оклик знака, соседство окликов от замены не страдает.
+ */
+function withScheduledFormats(
+  formats: readonly PostFormat[],
+  day: number,
+  series: SeriesDayInfo | null | undefined,
+): PostFormat[] {
+  const slots = threadsSlotRoles(formats.length);
+  const useful = usefulFormatForWeekday(weekdayOfDayNumber(day));
+  return formats.map((format, index) => {
+    if (series && index === seriesSlotIndex(formats.length)) return SERIES_FORMAT;
+    if (useful && slots[index]?.main) return useful;
+    return format;
+  });
+}
+
+/** Индексы слотов с призывом: первый подходящий формат; при восьми постах — второй не ближе MIN_CTA_GAP. */
+function ctaIndexes(formats: readonly PostFormat[]): number[] {
+  const eligible = formats.flatMap((format, index) => (isCtaEligibleLabel(format.label) ? [index] : []));
+  const limit = formats.length >= THREADS_MAX_POSTS_PER_DAY ? MAX_CTA_PER_DAY_FULL : MAX_CTA_PER_DAY;
+  const chosen: number[] = [];
+  for (const index of eligible) {
+    if (chosen.length >= limit) break;
+    if (chosen.every((other) => Math.abs(other - index) >= MIN_CTA_GAP)) chosen.push(index);
+  }
+  return chosen;
 }
 
 function zodiacCountBefore(day: number): number | null {
@@ -184,8 +230,10 @@ function zodiacCountBefore(day: number): number | null {
 }
 
 export function threadsDayLineup(day: number, options: LineupOptions = {}): LineupEntry[] {
-  const formats = withSeries(fullDayFormats(day), options.series);
-  const ctaIndex = formats.findIndex((format) => isCtaEligibleLabel(format.label));
+  const formats = withScheduledFormats(fullDayFormats(day), day, options.series);
+  const ctaAt = new Set(ctaIndexes(formats));
+  // A/B места призыва: чётные сутки — перед закрывающей частью, нечётные — последней частью.
+  const ctaPlace: "mid" | "end" = mod(day, 2) === 0 ? "mid" : "end";
   const before = zodiacCountBefore(day);
   let zodiacSeen = 0;
   const heroSeen = new Map<string, number>();
@@ -198,7 +246,7 @@ export function threadsDayLineup(day: number, options: LineupOptions = {}): Line
       format,
       technique: techniqueFor(day, cluster, clusterOccurrence),
       ...(format === SERIES_FORMAT && options.series ? { series: options.series } : {}),
-      ...(index === ctaIndex ? { cta: true } : {}),
+      ...(ctaAt.has(index) ? { cta: true, ctaPlace } : {}),
     };
     if (isZodiac(format)) {
       // Сквозной номер оклика от эпохи: двенадцать окликов подряд — двенадцать

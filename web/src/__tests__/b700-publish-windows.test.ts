@@ -32,10 +32,10 @@ describe("B700 фаза 4 · окно выводится из класса и п
     expect(timeOf({ platform: "telegram", contentClass: "card", weekday: WEDNESDAY })).toBe("08:30");
     expect(timeOf({ platform: "telegram", contentClass: "practice", weekday: WEDNESDAY })).toBe("13:00");
     expect(timeOf({ platform: "telegram", contentClass: "story", weekday: WEDNESDAY })).toBe("20:30");
-    // B762: у Threads вместо времён суток сетка из 8 слотов с 07:30 — первый
-    // слот любого класса встаёт на начало окна.
-    expect(timeOf({ platform: "threads", contentClass: "card", weekday: WEDNESDAY })).toBe("07:30");
-    expect(timeOf({ platform: "threads", contentClass: "discussion", weekday: WEDNESDAY })).toBe("07:30");
+    // B762/B777: у Threads вместо времён суток сетка (первое время — 08:00) —
+    // первый слот любого класса встаёт на начало сетки.
+    expect(timeOf({ platform: "threads", contentClass: "card", weekday: WEDNESDAY })).toBe("08:00");
+    expect(timeOf({ platform: "threads", contentClass: "discussion", weekday: WEDNESDAY })).toBe("08:00");
     expect(timeOf({ platform: "vk", contentClass: "explainer", weekday: WEDNESDAY })).toBe("11:30");
     expect(timeOf({ platform: "vk", contentClass: "discussion", weekday: WEDNESDAY })).toBe("19:15");
     expect(timeOf({ platform: "instagram", contentClass: "card", weekday: WEDNESDAY })).toBe("12:15");
@@ -112,7 +112,8 @@ describe("B700 фаза 4 · план собирается из окон", () =>
     // B763: Instagram на паузе по решению владельца — его 3 слота за неделю
     // ушли из плана, 57 → 54.
     // B762: Threads 8 постов в сутки вместо 1–2 (12 за неделю → 56), 54 → 98.
-    expect(plan.length).toBe(98);
+    // B777: до 31.10 Threads 4 поста в сутки (28 за неделю), 98 → 70.
+    expect(plan.length).toBe(70);
   });
 
   it("у каждого слота есть класс, время суток и своя ширина окна", () => {

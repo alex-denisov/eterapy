@@ -8,7 +8,7 @@
  * сообщениями: кнопки — под последним, чтобы они стояли под всем текстом.
  */
 
-import { splitThreadsChain } from "@/lib/marketing/threads-chain";
+import { chainWithCta } from "@/lib/marketing/threads-cta";
 
 /** Предел Telegram — 4096 знаков; запас под теги разметки. */
 export const TELEGRAM_CARD_LIMIT = 3800;
@@ -19,8 +19,13 @@ const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g,
 export function replyPartsOf(notes: string | null | undefined): string[] {
   if (!notes) return [];
   try {
-    const parsed = JSON.parse(notes) as { replyText?: unknown };
-    return typeof parsed.replyText === "string" ? splitThreadsChain(parsed.replyText) : [];
+    const parsed = JSON.parse(notes) as { replyText?: unknown; ctaLine?: unknown; ctaPlace?: unknown };
+    if (typeof parsed.replyText !== "string") return [];
+    return chainWithCta(
+      parsed.replyText,
+      typeof parsed.ctaLine === "string" ? parsed.ctaLine : null,
+      parsed.ctaPlace === "mid" ? "mid" : "end",
+    );
   } catch {
     return [];
   }

@@ -17,7 +17,7 @@ import {
 
 const REFORMAT_KEYS = [
   "format", "editorialAngle", "contentClass", "formatRules", "formatMedia", "formatLink",
-  "formatReply", "formatCluster", "technique", "formatSeries", "formatCta",
+  "formatReply", "formatCluster", "technique", "formatSeries", "formatCta", "formatCtaPlace",
 ] as const;
 
 function slotNotes(slot: ContentPlanSlot): Record<string, unknown> {

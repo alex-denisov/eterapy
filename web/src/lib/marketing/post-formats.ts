@@ -48,7 +48,8 @@
 import { NO_DUTY, ONE_LINK, TEXT_ONLY } from "@/lib/marketing/format-rules";
 import type { ContentClass } from "@/lib/marketing/publish-windows";
 import { THREADS_CLUSTER_FORMATS, heroRuleFor, type HeroKind } from "@/lib/marketing/threads-clusters";
-import { SERIES_FORMAT } from "@/lib/marketing/threads-series";
+import { LEGACY_SERIES_LABEL, SERIES_FORMAT } from "@/lib/marketing/threads-series";
+import { USEFUL_FORMATS } from "@/lib/marketing/threads-useful-formats";
 
 /** Нужна ли формату картинка и какая. */
 export type FormatMedia = "none" | "chat_mockup" | "art";
@@ -717,6 +718,11 @@ const FORMATS_BY_LABEL = new Map<string, PostFormat>([
   // B776: формат серии не входит в общую ротацию (вес 0), но по названию находится.
   [`threads:${SERIES_FORMAT.label}`, SERIES_FORMAT],
   [SERIES_FORMAT.label, SERIES_FORMAT],
+  // B777: строки, заведённые до переименования серии, находят тот же формат.
+  [`threads:${LEGACY_SERIES_LABEL}`, SERIES_FORMAT],
+  [LEGACY_SERIES_LABEL, SERIES_FORMAT],
+  // B777: полезные форматы по дням недели — вес 0, по названию находятся.
+  ...USEFUL_FORMATS.flatMap((format): [string, PostFormat][] => [[`threads:${format.label}`, format], [format.label, format]]),
 ]);
 for (const platform of Object.keys(LIBRARIES) as FormatPlatform[]) {
   for (const format of LIBRARIES[platform]) {

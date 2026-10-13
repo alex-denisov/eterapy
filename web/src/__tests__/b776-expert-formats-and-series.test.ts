@@ -64,13 +64,13 @@ describe("B776 F3: серия «День N/30»", () => {
   });
   it("правила дня: объявление и запреты", () => {
     const first = seriesRules({ day: 1, total: 30, isAnnouncement: true }).join("\n");
-    expect(first).toMatch(/День 1\/30/);
+    expect(first).toMatch(/Паттерн дня 1\/30/);
     expect(first).toMatch(/Подпишись, чтобы не пропустить/);
     expect(first).toMatch(/30 дней/);
     const later = seriesRules({ day: 7, total: 30, isAnnouncement: false }).join("\n");
-    expect(later).toMatch(/День 7\/30/);
+    expect(later).toMatch(/Паттерн дня 7\/30/);
     expect(later).toMatch(/не называй людей, места, даты, диагнозы и суммы/i);
-    expect(later).toMatch(/не говори, что история реальная или выдуманная/i);
+    expect(later).toMatch(/не говори «из практики», «ко мне пришла», что сцена реальная или выдуманная/i);
     expect(later).toMatch(/не представляй eTerapy как источник результата/i);
   });
   it("команды владельца «серия старт» и «серия стоп»", () => {

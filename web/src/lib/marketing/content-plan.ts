@@ -20,6 +20,7 @@ import {
   isProfanityArm,
 } from "@/lib/marketing/threads-clusters";
 import { THREADS_SLOTS_PER_DAY, threadsDayLineup, type LineupEntry } from "@/lib/marketing/threads-lineup";
+import { threadsPostsPerDay } from "@/lib/marketing/threads-ladder";
 import { ctaWriterInstructions } from "@/lib/marketing/threads-cta";
 import { seriesDayFor, seriesRules, type SeriesConfig, type SeriesDayInfo } from "@/lib/marketing/threads-series";
 import {
@@ -102,6 +103,8 @@ export interface ContentPlanSlot {
   formatSeries?: SeriesDayInfo;
   /** B776 — последняя часть цепочки несёт призыв (не больше одного слота в сутки). */
   formatCta?: boolean;
+  /** B777 — место призыва для замера A/B: перед закрывающей частью или последней частью. */
+  formatCtaPlace?: "mid" | "end";
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -361,12 +364,12 @@ function slotsPerDay(channel: PlanChannel, date: string): number {
     // больше, чем по любой другой причине. Решение владельца 2026-08-17.
     case "telegram": return 3;
     /**
-     * B762 — 8 постов в сутки (решение владельца 2026-10-12). Неровность
-     * расписания, ради которой B733 чередовал 1 и 2 поста, теперь держит
-     * джиттер сетки ±15 минут: при восьми постах «пропуск суток» был бы
+     * B762 — до 8 постов в сутки; B777 (решение владельца 2026-10-14) — 4 поста
+     * до 31.10, с 1.11 лесенка 5→6→7→8 (`threads-ladder.ts`). Неровность
+     * расписания держит джиттер сетки ±15 минут: «пропуск суток» был бы
      * провалом ленты, а не живостью.
      */
-    case "threads": return THREADS_SLOTS_PER_DAY;
+    case "threads": return threadsPostsPerDay(date);
     case "vk": return 1;
     case "dzen": return 1;
     case "instagram": return every(2);
@@ -424,6 +427,7 @@ function slot(input: {
   technique?: string;
   formatSeries?: SeriesDayInfo;
   formatCta?: boolean;
+  formatCtaPlace?: "mid" | "end";
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
@@ -449,6 +453,7 @@ function slot(input: {
     ...(input.technique ? { technique: input.technique } : {}),
     ...(input.formatSeries ? { formatSeries: input.formatSeries } : {}),
     ...(input.formatCta ? { formatCta: true } : {}),
+    ...(input.formatCta && input.formatCtaPlace ? { formatCtaPlace: input.formatCtaPlace } : {}),
   };
 }
 
@@ -499,6 +504,8 @@ function buildPlan(dates: readonly string[], series: SeriesConfig | null = null)
       // всегда «от завтра»), и час слота ездил бы туда-сюда — ровно тот дефект,
       // который B686 нашёл у выбора тем.
       jitterSeed: `${input.channel}:${input.date}`,
+      // B777: ступень лесенки Threads — сколько времён сетки включено в эти сутки.
+      ...(input.channel === "threads" ? { slotCount: threadsPostsPerDay(input.date) } : {}),
     });
     // У площадки не осталось свободного времени суток. Молчаливый второй пост
     // в тот же час читается как сбой, поэтому слот не создаётся вовсе — и это
@@ -547,7 +554,7 @@ function buildPlan(dates: readonly string[], series: SeriesConfig | null = null)
       ...(chosen.cluster ? { formatCluster: chosen.cluster } : {}),
       ...(threadsExtras ? { technique: threadsExtras.technique } : {}),
       ...(entry?.series ? { formatSeries: entry.series } : {}),
-      ...(entry?.cta ? { formatCta: true } : {}),
+      ...(entry?.cta ? { formatCta: true, ...(entry.ctaPlace ? { formatCtaPlace: entry.ctaPlace } : {}) } : {}),
     });
   };
 

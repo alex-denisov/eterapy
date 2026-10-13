@@ -35,6 +35,7 @@
  */
 
 import type { PlanChannel } from "@/lib/marketing/content-plan";
+import { THREADS_GRID_TIMES } from "@/lib/marketing/threads-ladder";
 
 /**
  * Класс материала — ЧТО это, а не когда. Список закрытый: класс определяет и
@@ -72,7 +73,7 @@ export interface AudienceProfile {
    * встаёт на n-е время сетки, а `dayparts` не используются.
    */
   grid?: {
-    times: readonly { weekday: string; weekend: string }[];
+    times: readonly { weekday: string; weekend: string; minCount?: number }[];
     /** Границы окна публикаций площадки, `HH:MM` МСК. Джиттер их не пересекает. */
     opensAt: string;
     closesAt: string;
@@ -126,10 +127,11 @@ const PLATFORM_AUDIENCE: Record<PlanChannel, AudienceProfile> = {
     },
   },
   /**
-   * B762 — 8 постов в сутки, окно 07:30–23:30 МСК (решение владельца
-   * 2026-10-12). Шаг ≈2 ч 15 мин, выходные сдвинуты позже: люди встают позже.
-   * Время суток («день», «вечер») здесь не годится — их четыре, а слотов
-   * восемь, и лишний слот молча пропадал бы в `publishWindow → null` (B713).
+   * B777 — 4 поста в сутки до 31.10, с 1 ноября лесенка 5→6→7→8 (решение
+   * владельца 2026-10-14). Полная сетка из восьми времён и ступени живут в
+   * `threads-ladder.ts`; здесь они только читаются. Время суток («день»,
+   * «вечер») не годится — их четыре, а слотов до восьми, и лишний слот молча
+   * пропадал бы в `publishWindow → null` (B713).
    */
   threads: {
     rhythm: "короткие заходы весь день: утро в дороге, перерывы, вечер и поздняя лента",
@@ -137,16 +139,7 @@ const PLATFORM_AUDIENCE: Record<PlanChannel, AudienceProfile> = {
     grid: {
       opensAt: "07:30",
       closesAt: "23:30",
-      times: [
-        { weekday: "07:30", weekend: "08:15" },
-        { weekday: "09:45", weekend: "10:25" },
-        { weekday: "12:00", weekend: "12:35" },
-        { weekday: "14:15", weekend: "14:45" },
-        { weekday: "16:30", weekend: "16:55" },
-        { weekday: "18:45", weekend: "19:05" },
-        { weekday: "21:00", weekend: "21:15" },
-        { weekday: "23:15", weekend: "23:15" },
-      ],
+      times: THREADS_GRID_TIMES,
     },
   },
   instagram: {
@@ -293,6 +286,8 @@ export function publishWindow(input: {
    * осмысленным: он и дальше меряет ТАБЛИЦУ, а не джиттер.
    */
   jitterSeed?: string | null;
+  /** B777 — сколько постов в сутки у площадки с сеткой: времена с большим `minCount` не включаются. */
+  slotCount?: number;
 }): PublishWindow | null {
   const audience = PLATFORM_AUDIENCE[input.platform];
   if (!audience) return null;
@@ -338,11 +333,13 @@ function minutesOf(time: string): number {
 
 function gridWindow(
   grid: NonNullable<AudienceProfile["grid"]>,
-  input: { contentClass: ContentClass; jitterSeed?: string | null },
+  input: { contentClass: ContentClass; jitterSeed?: string | null; slotCount?: number },
   taken: ReadonlySet<Daypart>,
   weekend: boolean,
 ): PublishWindow | null {
-  const index = grid.times.findIndex((_, position) => !taken.has(`slot-${position + 1}`));
+  // Номер `slot-N` — позиция в ПОЛНОЙ сетке: при шаге лесенки он не едет.
+  const count = input.slotCount ?? Number.POSITIVE_INFINITY;
+  const index = grid.times.findIndex((time, position) => (time.minCount ?? 0) <= count && !taken.has(`slot-${position + 1}`));
   if (index < 0) return null;
   const daypart: GridDaypart = `slot-${index + 1}`;
   const base = weekend ? grid.times[index].weekend : grid.times[index].weekday;

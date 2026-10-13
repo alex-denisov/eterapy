@@ -7,7 +7,7 @@
  */
 
 import { contentPlanFor, THREADS_SLOTS_PER_DAY } from "@/lib/marketing/content-plan";
-import { threadsDayLineup, ZODIAC_FAMILY_CLUSTERS } from "@/lib/marketing/threads-lineup";
+import { threadsCountForDay, threadsDayLineup, ZODIAC_FAMILY_CLUSTERS } from "@/lib/marketing/threads-lineup";
 
 const NOW = new Date("2026-10-12T03:00:00Z");
 const DAY0 = 20_740; // произвольные сутки эпохи; свойства не зависят от выбора
@@ -26,11 +26,11 @@ describe("B762 — расписание 8 слотов", () => {
     byDay.set(day, [...(byDay.get(day) ?? []), slot]);
   }
 
-  it("каждые сутки горизонта — ровно 8 слотов, у каждого окно", () => {
+  it("каждые сутки горизонта — ровно 4 слота (B777: до 31.10), у каждого окно; потолок лесенки — 8", () => {
     expect(THREADS_SLOTS_PER_DAY).toBe(8);
     expect(byDay.size).toBe(7);
     for (const slots of byDay.values()) {
-      expect(slots).toHaveLength(8);
+      expect(slots).toHaveLength(4);
       expect(slots.every((slot) => slot.toleranceMs > 0 && slot.daypart.startsWith("slot-"))).toBe(true);
     }
   });
@@ -59,10 +59,10 @@ describe("B762 — состав суток без копирки", () => {
   const lineups = days.map((day) => threadsDayLineup(day));
 
   it("внутри суток формат не повторяется", () => {
-    for (const lineup of lineups) {
-      expect(lineup).toHaveLength(THREADS_SLOTS_PER_DAY);
+    lineups.forEach((lineup, index) => {
+      expect(lineup).toHaveLength(threadsCountForDay(DAY0 + index));
       expect(new Set(lineup.map((entry) => entry.format.label)).size).toBe(lineup.length);
-    }
+    });
   });
 
   it("оклик знака не идёт подряд — ни внутри суток, ни через полночь, и не больше двух в сутки", () => {

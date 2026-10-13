@@ -7,7 +7,7 @@
  * «успешная» пустая публикация.
  */
 
-import { splitThreadsChain } from "@/lib/marketing/threads-chain";
+import { chainWithCta } from "@/lib/marketing/threads-cta";
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
 import { callTelegramApi, callTelegramApiWithPhoto } from "@/lib/telegram";
@@ -419,6 +419,22 @@ export function replyTextFromNotes(notes: string | null | undefined): string | n
     return typeof parsed.replyText === "string" && parsed.replyText.trim() ? parsed.replyText.trim() : null;
   } catch {
     return null;
+  }
+}
+
+/** B777: части продолжения с призывом отдельной частью (`ctaLine`, место `ctaPlace`) в порядке выхода. */
+export function replyPartsFromNotes(notes: string | null | undefined): string[] {
+  if (!notes) return [];
+  try {
+    const parsed = JSON.parse(notes) as { replyText?: unknown; ctaLine?: unknown; ctaPlace?: unknown };
+    if (typeof parsed.replyText !== "string" || !parsed.replyText.trim()) return [];
+    return chainWithCta(
+      parsed.replyText.trim(),
+      typeof parsed.ctaLine === "string" ? parsed.ctaLine : null,
+      parsed.ctaPlace === "mid" ? "mid" : "end",
+    );
+  } catch {
+    return [];
   }
 }
 
@@ -973,8 +989,8 @@ export async function publishScheduledMarketing(input: {
        * — заметка и предупреждение в логе, а не FAILED (то же правило, что у
        * зеркала MAX ниже и у уведомлений B694).
        */
-      const replyText = replyTextFromNotes(publication.notes);
-      if (replyText && normalizedPlatform === "threads" && published.externalPostId) {
+      const replyParts = replyPartsFromNotes(publication.notes);
+      if (replyParts.length > 0 && normalizedPlatform === "threads" && published.externalPostId) {
         const replyAdapter = input.replyAdapters?.threads ?? publishThreadsReply;
         /**
          * B750 — продолжение уходит ЦЕПОЧКОЙ: Threads берёт ≤500 символов на
@@ -982,7 +998,7 @@ export async function publishScheduledMarketing(input: {
          * предыдущую. Сбой части не отменяет выпуск, но больше не молчит:
          * строка `REPLY_FAILED` в заметке видна оркестратору и панели.
          */
-        const parts = splitThreadsChain(replyText);
+        const parts = replyParts;
         const urls: string[] = [];
         let targetId = published.externalPostId;
         let failure: string | null = null;

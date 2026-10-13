@@ -6,17 +6,17 @@ import { marketingRole } from "@/lib/marketing/agent-roles";
 import { buildMarketingResearchBrief } from "@/lib/marketing/research";
 
 describe("B723: Anya Persona, Few-Shot Hooks, Token Optimization & Anti-Slop", () => {
-  it("роль автора названа от лица Ани, основательницы eTerapy", () => {
+  it("роль автора названа от лица Ани, сооснователя eTerapy", () => {
     const role = marketingRole("writer");
     expect(role.title).toContain("Аня");
-    expect(role.title).toContain("основательница");
+    expect(role.title).toContain("сооснователь");
     expect(role.mission).toContain("Ани");
     expect(role.mission).not.toContain("28–32");
   });
 
   it("системный промпт автора содержит живую персону Ани (редакция B759)", () => {
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Голос и персона: Аня, eTerapy");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("автора и основательницы eTerapy");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("автора и сооснователя eTerapy");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("кот Котлета");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("бывший Никита");
     // Прежний баланс 70/20/10 владелец отменил.

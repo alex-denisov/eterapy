@@ -83,6 +83,10 @@ export const CONCRETENESS_LABELS: ReadonlySet<string> = new Set([
   "миф и правда",
   "Если бы ко мне пришёл запрос",
   "серия «День N/30»",
+  "серия «Паттерн дня N/30»",
+  "миф и правда: разбор",
+  "мини-практика: пример и шаги",
+  "чек-лист цепочкой",
 ]);
 
 const VAGUE_ADVICE = new RegExp(

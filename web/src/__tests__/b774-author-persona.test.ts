@@ -21,9 +21,9 @@ const SAFETY_PROMPTS = [
 ];
 
 describe("B774: единая персона автора (решение владельца 2026-10-13)", () => {
-  it.each(Object.keys(PERSONA_PROMPTS))("персона %s: основательница, два инструмента", (k) => {
+  it.each(Object.keys(PERSONA_PROMPTS))("персона %s: сооснователь, два инструмента", (k) => {
     const p = PERSONA_PROMPTS[k];
-    expect(p).toContain("автора и основательницы eTerapy");
+    expect(p).toContain("автора и сооснователя eTerapy");
     expect(p).toContain("психологию и мягкие практики");
     expect(p).toContain("астрология, нумерология, дизайн человека, таро");
     expect(p).toContain("как язык, а не вердикт");
@@ -50,12 +50,26 @@ describe("B774: единая персона автора (решение вла�
     expect(p).toContain("Не называй себя психологом, психотерапевтом или врачом");
     expect(p).toContain("не заявляй дипломы, лицензии, сертификаты и годы квалификации");
     expect(p).toContain("не выдавай себя за клиента или независимого автора");
-    expect(p).toContain("я основательница ETerapy");
+    expect(p).toContain("я сооснователь ETerapy");
     expect(p).toContain("я из команды ETerapy");
-    expect(p).toContain("«одна женщина пришла с вопросом…»");
+    expect(p).toContain("«представим девушку, которая…»");
     expect(p).toContain("«невыдуманная»");
     expect(p).toContain("Личный опыт и истории не выдумывай в ответах людям и комментариях");
     expect(p).toContain("Тебя ждёт любовь в октябре");
     expect(p).not.toContain("Никогда не выдавай себя за клиента, психолога");
+    expect(p).not.toContain("одна женщина пришла с вопросом");
+    expect(p).not.toContain("из работы автора с людьми");
+  });
+
+  it("B777: в персоне и защите нет «основательницы» и историй «из работы с людьми» как разрешённых", () => {
+    for (const raw of [...Object.values(PERSONA_PROMPTS), ...SAFETY_PROMPTS]) {
+      const p = raw.replace(/\s+/g, " ");
+      expect(p).not.toMatch(/основательниц/);
+      expect(p).not.toContain("Разрешены и истории от первого лица");
+      expect(p).not.toContain("разговоров с людьми");
+    }
+    for (const profile of Object.values(PLATFORM_PROFILES)) {
+      expect(`${profile.tagline} ${profile.bio}`).not.toMatch(/основательниц/);
+    }
   });
 });

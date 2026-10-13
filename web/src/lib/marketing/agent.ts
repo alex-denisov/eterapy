@@ -24,7 +24,7 @@ import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
 import { nicheFindings, suggestPole, threadsNicheBrief } from "@/lib/marketing/threads-niche";
 import { threadsConcretenessFindings, threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
-import { appendCtaPart, ctaWriterInstructions, stripModelUrls } from "@/lib/marketing/threads-cta";
+import { ctaPartFor, ctaWriterInstructions, stripModelUrls } from "@/lib/marketing/threads-cta";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
@@ -630,13 +630,20 @@ export function expertChainTask(notes: {
   };
 }
 
-/** B776: призыв дописывает код — только у слота с признаком и без ссылок модели. */
-export function replyWithCta(draft: Pick<WriterOutput, "text" | "replyText" | "ctaTarget">, notes: { formatCta?: boolean } | null): string {
+/**
+ * B776/B777: поля продолжения для `notes`. Призыв — отдельная короткая часть,
+ * которую код хранит рядом (`ctaLine`, `ctaPlace`) и вставляет при выпуске; из
+ * текста модели адреса и свои призывы снимаются всегда.
+ */
+export function replyNotesWithCta(
+  draft: Pick<WriterOutput, "text" | "replyText" | "ctaTarget">,
+  notes: { formatCta?: boolean; formatCtaPlace?: "mid" | "end" } | null,
+): { replyText: string; ctaLine?: string; ctaPlace?: "mid" | "end" } {
   const reply = draft.replyText?.trim() ?? "";
-  // Без признака призыва в продолжении нет ни одного адреса; со своим призывом модели — тоже.
-  if (!notes?.formatCta) return stripModelUrls(reply);
-  if (!reply) return reply;
-  return appendCtaPart(reply, { ctaTarget: draft.ctaTarget, postText: draft.text ?? "" });
+  if (!notes?.formatCta || !reply) return { replyText: stripModelUrls(reply) };
+  const place = notes.formatCtaPlace ?? "end";
+  const { replyText, ctaLine } = ctaPartFor(reply, { ctaTarget: draft.ctaTarget, postText: draft.text ?? "", place });
+  return { replyText, ctaLine, ctaPlace: place };
 }
 
 /**
@@ -1108,7 +1115,7 @@ function repairPublishableDraftCore(input: {
 /**
  * B776 — формат без ссылки (все форматы Threads): адреса, написанные моделью, снимаются
  * и с поста, и с продолжения. Единственная ссылка цепочки — строка призыва, которую
- * позже строит код (`replyWithCta`).
+ * позже строит код (`replyNotesWithCta`).
  */
 export function repairPublishableDraft(input: Parameters<typeof repairPublishableDraftCore>[0]): ReturnType<typeof repairPublishableDraftCore> {
   if (input.isConversational || input.format?.link !== false) return repairPublishableDraftCore(input);
@@ -1600,6 +1607,8 @@ export async function processMarketingDraft(publicationId: string) {
     /** B776 — сутки серии и признак призыва в последней части цепочки. */
     formatSeries?: { day: number; total: number; isAnnouncement: boolean };
     formatCta?: boolean;
+    /** B777 — место призыва для замера A/B. */
+    formatCtaPlace?: "mid" | "end";
   } | null = null;
   if (publication.notes) {
     try {
@@ -2392,7 +2401,7 @@ export async function processMarketingDraft(publicationId: string) {
           ? {
             notes: JSON.stringify({
               ...parsedNotes,
-              ...(approvedDraft.replyText?.trim() ? { replyText: replyWithCta(approvedDraft, parsedNotes) } : {}),
+              ...(approvedDraft.replyText?.trim() ? replyNotesWithCta(approvedDraft, parsedNotes) : {}),
               ...(threadsContext?.fact ? { fact: threadsContext.fact.statement } : {}),
               ...(threadsContext?.scene?.area ? { lifeArea: threadsContext.scene.area } : {}),
             }),

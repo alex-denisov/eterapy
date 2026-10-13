@@ -564,6 +564,7 @@ export async function generateMarketingDrafts(input: {
             // B776: сутки серии и призыв в последней части цепочки.
             formatSeries: slot.formatSeries,
             formatCta: slot.formatCta,
+            formatCtaPlace: slot.formatCtaPlace,
           }),
           source: "CRON_B589",
           autoPublish: false,

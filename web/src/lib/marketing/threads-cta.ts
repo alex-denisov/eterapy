@@ -8,6 +8,8 @@
  * должно: библиотека — не продающая посадка.
  */
 
+import { splitThreadsChain } from "@/lib/marketing/threads-chain";
+
 const SITE = "https://eterapy.com";
 const B = "(?<![а-яё])";
 
@@ -48,6 +50,10 @@ const CTA_PREFIX = "Если у вас похожая ситуация — ";
 export const CTA_ELIGIBLE_LABELS: ReadonlySet<string> = new Set([
   "Если бы ко мне пришёл запрос",
   "серия «День N/30»",
+  "серия «Паттерн дня N/30»",
+  "миф и правда: разбор",
+  "мини-практика: пример и шаги",
+  "чек-лист цепочкой",
 ]);
 
 export function isCtaEligibleLabel(label: string | null | undefined): boolean {
@@ -66,18 +72,21 @@ export function resolveCtaTarget(raw: string | undefined, postText: string): Cta
     ?? targetBySlug(CTA_FALLBACK_SLUG)!;
 }
 
-export function buildCtaUrl(target: CtaTarget): string {
+/** B777: место призыва в цепочке — для замера A/B по `utm_content=<услуга>-mid|end`. */
+export type CtaPlace = "mid" | "end";
+
+export function buildCtaUrl(target: CtaTarget, place?: CtaPlace): string {
   const query = new URLSearchParams({
     utm_source: CTA_UTM.source,
     utm_medium: CTA_UTM.medium,
     utm_campaign: CTA_UTM.campaign,
-    utm_content: target.slug,
+    utm_content: place ? `${target.slug}-${place}` : target.slug,
   });
   return `${SITE}${target.path}?${query.toString()}`;
 }
 
-export function buildCtaLine(target: CtaTarget): string {
-  return `${CTA_PREFIX}${target.phrase}: ${buildCtaUrl(target)}`;
+export function buildCtaLine(target: CtaTarget, place?: CtaPlace): string {
+  return `${CTA_PREFIX}${target.phrase}: ${buildCtaUrl(target, place)}`;
 }
 
 const TLDS = "com|ru|org|net|io|me|app|ai|su|рф|info|co|tv|ly|xyz|site|online|pro";
@@ -106,10 +115,36 @@ export function appendCtaPart(replyText: string, input: { ctaTarget?: string; po
   return body ? `${body}\n\n${buildCtaLine(target)}` : buildCtaLine(target);
 }
 
+/**
+ * B777: призыв — ОТДЕЛЬНАЯ короткая часть цепочки, а не хвост последней. Модель
+ * пишет только пользу; код снимает из неё любые адреса и свои призывы, а строку
+ * призыва хранит отдельно и вставляет при выпуске (`chainWithCta`).
+ */
+export function ctaPartFor(
+  replyText: string,
+  input: { ctaTarget?: string; postText: string; place: CtaPlace },
+): { replyText: string; ctaLine: string } {
+  const body = stripModelUrls(replyText.split("\n").filter((line) => !line.includes(CTA_PREFIX)).join("\n"));
+  const target = resolveCtaTarget(input.ctaTarget, `${input.postText}\n${body}`);
+  return { replyText: body, ctaLine: buildCtaLine(target, input.place) };
+}
+
+/**
+ * Части продолжения в порядке выхода. `end` — призыв последней частью; `mid` —
+ * перед закрывающей частью (последняя часть — короткая строка после ссылки).
+ * Если часть одна, призыв идёт после неё в обоих вариантах.
+ */
+export function chainWithCta(replyText: string, ctaLine?: string | null, place: CtaPlace = "end"): string[] {
+  const parts = splitThreadsChain(replyText);
+  if (!ctaLine?.trim()) return parts;
+  if (place === "end" || parts.length < 2) return [...parts, ctaLine.trim()];
+  return [...parts.slice(0, -1), ctaLine.trim(), parts[parts.length - 1]];
+}
+
 /** Инструкция автору: только список целей, строку строит код. */
 export function ctaWriterInstructions(): { ctaTargets: string[]; rule: string } {
   return {
     ctaTargets: CTA_TARGETS.map((target) => target.slug),
-    rule: "В этом материале есть призыв: верни в поле ctaTarget ОДИН слаг из ctaTargets, ближайший к теме (если ничего не подходит — checkin). Адрес, UTM и фразу призыва строит код: в text и replyText ссылок и призывов не пиши.",
+    rule: "В этом материале есть призыв: верни в поле ctaTarget ОДИН слаг из ctaTargets, ближайший к теме (если ничего не подходит — checkin). Адрес, UTM и фразу призыва строит код отдельной короткой частью после пользы: в text и replyText ссылок и призывов не пиши, польза должна быть выдана целиком до призыва.",
   };
 }
