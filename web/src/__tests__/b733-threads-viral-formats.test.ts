@@ -104,7 +104,8 @@ describe("B733 — форматы постов Threads", () => {
 
   it("выбор формата детерминирован и распределён по весам", () => {
     const seen = new Map<string, number>();
-    for (let day = 0; day < 60; day += 1) {
+    // B776: библиотека выросла до 30 форматов (K28), окно выборки расширено с 60 до 150 суток.
+    for (let day = 0; day < 150; day += 1) {
       for (let sequence = 0; sequence < 2; sequence += 1) {
         const format = threadsFormatFor(day, sequence);
         expect(threadsFormatFor(day, sequence).label).toBe(format.label);

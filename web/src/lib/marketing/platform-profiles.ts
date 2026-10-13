@@ -21,8 +21,8 @@ export const PLATFORM_PROFILES: Record<string, PlatformProfile> = {
     platform: "telegram",
     displayName: "Аня · eTerapy",
     handleOrChannel: "@eterapy",
-    tagline: "Куратор eTerapy. Помогаю находить ясность в переписках и отношениях.",
-    bio: "Куратор eTerapy Аня (28 лет). Разбираем реальные жизненные ситуации, молчание в диалогах и сложные выборы. Без белого пальто, менторства и эзотерики.",
+    tagline: "Автор eTerapy. Помогаю находить ясность в переписках и отношениях.",
+    bio: "Аня, автор и основательница eTerapy. Психология и мягкие практики как два языка. Разбираем реальные жизненные ситуации, молчание в диалогах и сложные выборы. Без белого пальто, менторства и эзотерики.",
     targetLink: "https://t.me/eterapy_bot/app?startapp=pair",
     formatSummary: "Хук ситуации (<50 знаков) -> Скрытый мотив -> Зеркало -> Telegram Mini App",
     guidelines: [
@@ -50,7 +50,7 @@ export const PLATFORM_PROFILES: Record<string, PlatformProfile> = {
     displayName: "Аня · eTerapy",
     handleOrChannel: "@eterapy",
     tagline: "О том, что люди не решаются сказать прямо в переписках.",
-    bio: "Куратор eTerapy Аня (28 лет). Говорю о том, что люди не решаются сказать прямо в переписках. Вопросы и разборы без белого пальто.",
+    bio: "Аня, автор и основательница eTerapy. Психология и мягкие практики как два языка. Говорю о том, что люди не решаются сказать прямо в переписках. Вопросы и разборы без белого пальто.",
     targetLink: "https://eterapy.com/s/threads/pair",
     formatSummary: "Короткие треды до 480 знаков, без рекламного CTA, максимальный фокус на шер-способность",
     guidelines: [
@@ -90,7 +90,7 @@ export const PLATFORM_PROFILES: Record<string, PlatformProfile> = {
     displayName: "eTerapy: Психология диалога",
     handleOrChannel: "dzen.ru/eterapy",
     tagline: "Глубокие разборы коммуникации и отношений.",
-    bio: "Глубокие разборы коммуникации, проективные методики и поиск ясности в отношениях от команды eTerapy.",
+    bio: "Глубокие разборы коммуникации, проективные методики и поиск ясности в отношениях от автора и основательницы eTerapy.",
     targetLink: "https://eterapy.com/s/dzen/pair",
     formatSummary: "Статьи 3000-6000 знаков с подзаголовками каждые 900 знаков",
     guidelines: [

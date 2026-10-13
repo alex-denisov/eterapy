@@ -14,6 +14,7 @@
 
 import db from "@/lib/db";
 import { log } from "@/lib/logger";
+import { loadSeriesConfig } from "@/lib/marketing/threads-series-store";
 import {
   CONTENT_PLAN,
   contentPlanFor,
@@ -233,7 +234,7 @@ export async function generateMarketingDrafts(input: {
   target?: number;
 } = {}): Promise<GenerateDraftsResult> {
   const now = input.now ?? new Date();
-  const activePlan = contentPlanFor(now);
+  const activePlan = contentPlanFor(now, await loadSeriesConfig());
   const target = input.target ?? activePlan.length;
   const firstVkSlot = activePlan.find((entry) => entry.channel === "vk");
 
@@ -560,6 +561,9 @@ export async function generateMarketingDrafts(input: {
             // B759: теги замера — кластер каталога и приём пишутся в строку.
             formatCluster: slot.formatCluster,
             technique: slot.technique,
+            // B776: сутки серии и призыв в последней части цепочки.
+            formatSeries: slot.formatSeries,
+            formatCta: slot.formatCta,
           }),
           source: "CRON_B589",
           autoPublish: false,

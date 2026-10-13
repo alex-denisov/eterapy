@@ -6,6 +6,7 @@
  * исполняется и не попадает в SQL/код.
  */
 import db from "@/lib/db";
+import { startSeriesCommand, stopSeriesCommand } from "@/lib/marketing/threads-series-start";
 import { log, serializeError } from "@/lib/logger";
 import { moderationChatIds } from "@/lib/ops-notification-channel";
 import { sendTelegram } from "@/lib/telegram";
@@ -49,6 +50,8 @@ export type OwnerIntent =
   | { kind: "hold" }
   | { kind: "resume" }
   | { kind: "report_now" }
+  | { kind: "series_start" }
+  | { kind: "series_stop" }
   | { kind: "retire_page"; slug: string }
   | { kind: "restore_page"; slug: string }
   | { kind: "note"; text: string };
@@ -68,6 +71,9 @@ const DONE_RE = re(`${L}(?:созда|готов|сделан|наполнен|�
 
 const RESUME_RE = re(`^(?:${L}(?:продолжай|продолжить|возобнов|сними\\s+паузу|снять\\s+паузу|работай))`);
 const HOLD_RE = re(`^(?:стоп|${L}пауза|${L}приостанов|${L}заморозь|не\\s+вноси\\s+правки|не\\s+меняй\\s+ничего)`);
+// B776: «серия старт» / «серия стоп» — запуск и остановка серии «День N/30».
+const SERIES_START_RE = re(`^серия[\\s,:\\-—]+(?:старт|начни|начать|запусти|запустить)[\\s.!]*$`);
+const SERIES_STOP_RE = re(`^серия[\\s,:\\-—]+(?:стоп|останови|остановить|хватит|конец)[\\s.!]*$`);
 const REPORT_RE = re(`(?:${L}отч[её]т|что\\s+нов)`);
 
 const RETIRE_RE = re(`^(?:сними|убери|снять|убрать)\\s+страниц\\S*\\s+(\\S+)\\s*$`);
@@ -111,6 +117,8 @@ export function interpretOwnerMessage(rawText: string): OwnerIntent {
   }
 
   if (text.length <= MAX_COMMAND_LENGTH) {
+    if (SERIES_START_RE.test(lower)) return { kind: "series_start" };
+    if (SERIES_STOP_RE.test(lower)) return { kind: "series_stop" };
     if (RESUME_RE.test(lower)) return { kind: "resume" };
     if (HOLD_RE.test(lower)) return { kind: "hold" };
     if (REPORT_RE.test(lower)) return { kind: "report_now" };
@@ -188,6 +196,10 @@ async function applyIntent(intent: OwnerIntent, now: Date): Promise<string> {
     case "report_now":
       await writeSetting(ORCHESTRATOR_REPORT_NOW_KEY, "true");
       return "Принял: внеочередной отчёт соберу на ближайшем шаге.";
+    case "series_start":
+      return (await startSeriesCommand(now)).reply;
+    case "series_stop":
+      return (await stopSeriesCommand(now)).reply;
     case "note": {
       await appendNote(intent.text, now);
       return "Принял к сведению: записал, учту в следующем отчёте.";

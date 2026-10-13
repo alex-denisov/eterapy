@@ -23,7 +23,8 @@ import {
 import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
 import { nicheFindings, suggestPole, threadsNicheBrief } from "@/lib/marketing/threads-niche";
-import { threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
+import { threadsConcretenessFindings, threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
+import { appendCtaPart, ctaWriterInstructions, stripModelUrls } from "@/lib/marketing/threads-cta";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
@@ -444,6 +445,8 @@ type WriterOutput = {
    * незавершённый материал, и это замечание редактору (см. `repairPublishableDraft`).
    */
   replyText?: string;
+  /** B776 — цель призыва из белого списка `threads-cta.ts`; адрес и фразу строит код. */
+  ctaTarget?: string;
   researchUsed: string[];
   safetyFlags: string[];
 };
@@ -603,9 +606,37 @@ function normalizeWriterOutput(value: WriterOutput, fallbackTitle: string): Writ
     cta: contractString(value.cta),
     mediaBrief: contractString(value.mediaBrief),
     replyText: contractString(value.replyText),
+    ctaTarget: contractString(value.ctaTarget),
     researchUsed: contractStringList(value.researchUsed),
     safetyFlags: contractStringList(value.safetyFlags),
   };
+}
+
+/** B776: задача автора для экспертной цепочки — серия, призыв и пояснение формы. */
+export function expertChainTask(notes: {
+  formatReply?: "forecast" | "continuation";
+  formatSeries?: { day: number; total: number; isAnnouncement: boolean };
+  formatCta?: boolean;
+} | null): Record<string, unknown> {
+  if (notes?.formatReply !== "continuation") return {};
+  return {
+    expertChain: "Материал — цепочка: text (до 480 знаков, без ссылки) и replyText (1–3 части до 480 знаков через пустую строку).",
+    ...(notes.formatSeries ? {
+      seriesDay: notes.formatSeries.day,
+      seriesTotal: notes.formatSeries.total,
+      isAnnouncement: notes.formatSeries.isAnnouncement,
+    } : {}),
+    ...(notes.formatCta ? { cta: ctaWriterInstructions() } : {}),
+  };
+}
+
+/** B776: призыв дописывает код — только у слота с признаком и без ссылок модели. */
+export function replyWithCta(draft: Pick<WriterOutput, "text" | "replyText" | "ctaTarget">, notes: { formatCta?: boolean } | null): string {
+  const reply = draft.replyText?.trim() ?? "";
+  // Без признака призыва в продолжении нет ни одного адреса; со своим призывом модели — тоже.
+  if (!notes?.formatCta) return stripModelUrls(reply);
+  if (!reply) return reply;
+  return appendCtaPart(reply, { ctaTarget: draft.ctaTarget, postText: draft.text ?? "" });
 }
 
 /**
@@ -659,6 +690,7 @@ export function writerObject(raw: string, fallbackTitle: string): WriterOutput {
       cta: jsonStringField(raw, "cta") || "",
       mediaBrief: jsonStringField(raw, "mediaBrief") || "",
       replyText: jsonStringField(raw, "replyText") || "",
+      ctaTarget: jsonStringField(raw, "ctaTarget") || "",
       researchUsed: [],
       safetyFlags: [],
     });
@@ -754,7 +786,7 @@ export function stripPlanLink(text: string, destinationUrl: string | null): stri
   return stripped.length > 0 ? stripped : text.replace(new RegExp(`${escaped}\\S*`, "gu"), "").trim();
 }
 
-export function repairPublishableDraft(input: {
+function repairPublishableDraftCore(input: {
   draft: WriterOutput;
   isConversational: boolean;
   destinationUrl: string | null;
@@ -790,7 +822,7 @@ export function repairPublishableDraft(input: {
    *
    * `reply: "forecast"` — у поста обязано быть продолжение `replyText`.
    */
-  format?: { link?: boolean; reply?: "forecast" | null; media?: "none" | "chat_mockup" | "art" } | null;
+  format?: { link?: boolean; reply?: "forecast" | "continuation" | null; media?: "none" | "chat_mockup" | "art" } | null;
 }): {
   draft: WriterOutput;
   repairs: DraftRepair[];
@@ -999,7 +1031,9 @@ export function repairPublishableDraft(input: {
       issue: replyText.length === 0
         ? "Формат требует продолжение ответом: поле replyText пустое."
         : `Продолжение ответом слишком короткое: ${replyText.length} символов, нужно от 120.`,
-      brief: "Напиши в поле replyText сам прогноз — 4–6 предложений от второго лица, без дат и терминов.",
+      brief: input.format.reply === "continuation"
+        ? "Напиши в поле replyText продолжение цепочки: 1–3 части до 480 знаков, через пустую строку, с точным действием и фразой слово в слово."
+        : "Напиши в поле replyText сам прогноз — 4–6 предложений от второго лица, без дат и терминов.",
     }]
     : [];
 
@@ -1068,6 +1102,27 @@ export function repairPublishableDraft(input: {
     repairs,
     violations: [],
     contractDefects: [],
+  };
+}
+
+/**
+ * B776 — формат без ссылки (все форматы Threads): адреса, написанные моделью, снимаются
+ * и с поста, и с продолжения. Единственная ссылка цепочки — строка призыва, которую
+ * позже строит код (`replyWithCta`).
+ */
+export function repairPublishableDraft(input: Parameters<typeof repairPublishableDraftCore>[0]): ReturnType<typeof repairPublishableDraftCore> {
+  if (input.isConversational || input.format?.link !== false) return repairPublishableDraftCore(input);
+  const reply = input.draft.replyText;
+  const cleanReply = reply ? stripModelUrls(reply) : reply;
+  const result = repairPublishableDraftCore({ ...input, draft: { ...input.draft, replyText: cleanReply } });
+  const text = stripModelUrls(result.draft.text);
+  const urlStripped = text !== result.draft.text || cleanReply !== reply;
+  return {
+    ...result,
+    draft: { ...result.draft, text },
+    repairs: urlStripped
+      ? [...result.repairs, { field: "destinationUrl", note: "Формат без ссылки: адреса, написанные автором в посте или продолжении, сняты системой." }]
+      : result.repairs,
   };
 }
 
@@ -1541,7 +1596,10 @@ export async function processMarketingDraft(publicationId: string) {
     formatMedia?: "none" | "chat_mockup" | "art";
     /** B746 — ссылка/призыв и продолжение ответом — решения формата. */
     formatLink?: boolean;
-    formatReply?: "forecast";
+    formatReply?: "forecast" | "continuation";
+    /** B776 — сутки серии и признак призыва в последней части цепочки. */
+    formatSeries?: { day: number; total: number; isAnnouncement: boolean };
+    formatCta?: boolean;
   } | null = null;
   if (publication.notes) {
     try {
@@ -1618,6 +1676,7 @@ export async function processMarketingDraft(publicationId: string) {
     // B746: формат без ссылки не получает адрес вовсе — иначе автор вставит
     // его «на всякий случай», а редактор снимет материал за это.
     formatReply: parsedNotes?.formatReply ?? null,
+    ...expertChainTask(parsedNotes),
     destinationUrl: isConversational || parsedNotes?.formatLink === false ? null : publication.destinationUrl,
     // Для ответа на входящее это НАШ разговор: человек написал нам сам, и его
     // текст — адресат ответа, а не свидетельство спроса.
@@ -2093,6 +2152,9 @@ export async function processMarketingDraft(publicationId: string) {
       const copyFindings = [
         ...hookCopyVerdict(threadsContext, draft.text ?? ""),
         ...(threadsContext ? threadsStopFindings(draft.text ?? "") : []),
+        ...(threadsContext
+          ? threadsConcretenessFindings({ text: `${draft.text ?? ""}\n${draft.replyText ?? ""}`, format: parsedNotes?.format ?? null })
+          : []),
         ...(threadsContext ? nicheFindings(draft.text ?? "") : []),
         ...(threadsContext ? endingQuestionFindings({ text: draft.text ?? "", format: parsedNotes?.format ?? null, wanted: wantsEndingQuestion(publication.id) }) : []),
       ];
@@ -2330,7 +2392,7 @@ export async function processMarketingDraft(publicationId: string) {
           ? {
             notes: JSON.stringify({
               ...parsedNotes,
-              ...(approvedDraft.replyText?.trim() ? { replyText: approvedDraft.replyText.trim() } : {}),
+              ...(approvedDraft.replyText?.trim() ? { replyText: replyWithCta(approvedDraft, parsedNotes) } : {}),
               ...(threadsContext?.fact ? { fact: threadsContext.fact.statement } : {}),
               ...(threadsContext?.scene?.area ? { lifeArea: threadsContext.scene.area } : {}),
             }),

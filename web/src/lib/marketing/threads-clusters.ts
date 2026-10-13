@@ -12,7 +12,8 @@
  */
 
 import { NO_DUTY, TEXT_ONLY } from "@/lib/marketing/format-rules";
-import type { PostFormat } from "@/lib/marketing/post-formats";
+import type { FormatReply, PostFormat } from "@/lib/marketing/post-formats";
+import { EXPERT_CHAIN_RULES, EXPERT_PERSONA_RULES } from "@/lib/marketing/threads-expert-rules";
 
 /** Каким героям «библии» рада тема: ядро серии, начальники, подруги/друзья, клиенты. */
 export type HeroKind = "core" | "boss" | "friend" | "client";
@@ -170,6 +171,7 @@ interface ClusterSpec {
   example: string;
   rules?: readonly string[];
   heroes?: HeroKind;
+  reply?: FormatReply;
 }
 
 function textCluster(spec: ClusterSpec): PostFormat {
@@ -184,6 +186,7 @@ function textCluster(spec: ClusterSpec): PostFormat {
     example: spec.example,
     cluster: spec.cluster,
     ...(spec.heroes ? { heroes: spec.heroes } : {}),
+    ...(spec.reply ? { reply: spec.reply } : {}),
   };
 }
 
@@ -234,7 +237,7 @@ export const THREADS_CLUSTER_FORMATS: readonly PostFormat[] = [
     contentClass: "story",
     heroes: "core",
     rules: [
-      "История вымышленная, рассказчик — Аня; её нельзя выдавать за кейс клиента платформы.",
+      "Рассказчик — Аня, от первого лица; историю нельзя выдавать за кейс клиента платформы, а в тексте не утверждай ни что она реальная, ни что вымышленная.",
       "Удар — поворот или деталь, которая бьёт: смешно, больно или «вот гад». Не урок и не затухание. Если в задаче endingRule просит вопрос — он идёт одной строкой после удара.",
     ],
     example: "Никита вчера написал «привет, как ты». Первое сообщение за 8 месяцев. Заблокировала и дочитала сериал",
@@ -371,6 +374,23 @@ export const THREADS_CLUSTER_FORMATS: readonly PostFormat[] = [
     weight: 1,
     contentClass: "discussion",
     example: "Люди не меняются от разговоров. Они меняются от последствий",
+  }),
+  textCluster({
+    cluster: "K28",
+    label: "Если бы ко мне пришёл запрос",
+    construction:
+      "Экспертный разбор от Ани: ПРОБЛЕМА (безымянный архетип клиента и его запрос) → МОЙ ПЛАН (2–3 конкретных шага) → ОБЪЯСНЕНИЕ (почему так) → приглашение к размышлению. "
+      + "Пост (до 480 знаков) начинается «Если бы ко мне пришёл(а) …» и ведёт к первому шагу; план и объяснение — в продолжении, 1–2 части.",
+    weight: 2,
+    contentClass: "explainer",
+    reply: "continuation",
+    rules: [
+      ...EXPERT_PERSONA_RULES,
+      ...EXPERT_CHAIN_RULES,
+      "Порядок: ПРОБЛЕМА → МОЙ ПЛАН → ОБЪЯСНЕНИЕ → приглашение к размышлению (вопрос к себе, не к аудитории-подписчикам). Не обещай возврата партнёра или любого исхода.",
+    ],
+    example:
+      "Если бы ко мне пришла девушка с вопросом «он вернётся?», я бы начала не с карт. Первое: спросила бы, что она получит, если он вернётся. Обычно ответ не «он», а «чтобы меня выбрали». Второе: разложила бы таро на неё, а не на него: что держит, чего боится, что готова отпустить. Третье: спросила бы, сколько раз за неделю она открывала его сторис. С этой цифрой можно работать. Карты потом. Сначала вопрос: что я делаю, пока жду.",
   }),
 ];
 

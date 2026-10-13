@@ -73,6 +73,8 @@ export interface PendingReason {
   cardMessageId: number | null;
   /** Подсказка бота — reply на карточку; ответ владельца может быть reply на любую из двух. */
   promptMessageId: number | null;
+  /** B776: id всех частей длинной карточки — reply на любую из них привязывается к ней. */
+  chunkMessageIds?: number[];
   tags: string[];
   at: string;
 }
@@ -140,6 +142,18 @@ export async function dropPending(publicationId: string, _now?: Date): Promise<v
   await db.platformSetting.deleteMany({ where: { key: `${PENDING_PREFIX}${publicationId}` } });
 }
 
+const CARD_CHUNKS_PREFIX = "marketing.moderation.card_chunks.";
+
+export async function saveCardChunks(publicationId: string, ids: readonly number[]): Promise<void> {
+  if (ids.length < 2) return;
+  await writeJson(`${CARD_CHUNKS_PREFIX}${publicationId}`, ids);
+}
+
+export async function readCardChunks(publicationId: string): Promise<number[]> {
+  const ids = await readJson<unknown>(`${CARD_CHUNKS_PREFIX}${publicationId}`, []);
+  return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === "number") : [];
+}
+
 export type PendingLookup =
   | { kind: "found"; entry: PendingReason }
   | { kind: "ambiguous"; count: number }
@@ -159,7 +173,9 @@ export function pickPending(
   const inChat = pending.filter((entry) => entry.chatId === chatId);
   if (replyToMessageId !== null) {
     // Reply на постороннее сообщение — не наш комментарий: диалог идёт прежним путём.
-    const hit = inChat.find((entry) => entry.cardMessageId === replyToMessageId || entry.promptMessageId === replyToMessageId);
+    const hit = inChat.find((entry) => entry.cardMessageId === replyToMessageId
+      || entry.promptMessageId === replyToMessageId
+      || entry.chunkMessageIds?.includes(replyToMessageId));
     return hit ? { kind: "found", entry: hit } : { kind: "none" };
   }
   // Без reply комментарий привязывается только к недавнему единственному ожиданию:

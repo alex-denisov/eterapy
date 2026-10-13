@@ -48,12 +48,14 @@
 import { NO_DUTY, ONE_LINK, TEXT_ONLY } from "@/lib/marketing/format-rules";
 import type { ContentClass } from "@/lib/marketing/publish-windows";
 import { THREADS_CLUSTER_FORMATS, heroRuleFor, type HeroKind } from "@/lib/marketing/threads-clusters";
+import { SERIES_FORMAT } from "@/lib/marketing/threads-series";
 
 /** Нужна ли формату картинка и какая. */
 export type FormatMedia = "none" | "chat_mockup" | "art";
 
 /** Продолжение поста ответом на самого себя. */
-export type FormatReply = "forecast";
+/** `forecast` — прогноз под оклик знака; `continuation` — экспертное продолжение (1–3 части по ≤480). */
+export type FormatReply = "forecast" | "continuation";
 
 export type FormatPlatform = "threads" | "telegram" | "vk" | "instagram" | "dzen";
 
@@ -711,7 +713,11 @@ export function formatsFor(platform: FormatPlatform): readonly PostFormat[] {
   return LIBRARIES[platform];
 }
 
-const FORMATS_BY_LABEL = new Map<string, PostFormat>();
+const FORMATS_BY_LABEL = new Map<string, PostFormat>([
+  // B776: формат серии не входит в общую ротацию (вес 0), но по названию находится.
+  [`threads:${SERIES_FORMAT.label}`, SERIES_FORMAT],
+  [SERIES_FORMAT.label, SERIES_FORMAT],
+]);
 for (const platform of Object.keys(LIBRARIES) as FormatPlatform[]) {
   for (const format of LIBRARIES[platform]) {
     FORMATS_BY_LABEL.set(`${platform}:${format.label}`, format);

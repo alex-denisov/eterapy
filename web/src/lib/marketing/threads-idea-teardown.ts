@@ -118,7 +118,9 @@ const TeardownSchema = z.object({
 type Teardown = z.infer<typeof TeardownSchema>;
 
 export function teardownPrompt(sourceText: string, areas: readonly string[] = []): string {
-  const quoted = Array.from(sourceText.replace(/[\uD800-\uDFFF]/gu, "")).slice(0, SOURCE_MAX).join("");
+  // Маркеры границы цитаты внутри чужого текста нейтрализуем: иначе пост «закрывает» данные и пишет указания.
+  const quoted = Array.from(sourceText.replace(/[\uD800-\uDFFF]/gu, "").replace(/<<<|>>>/g, "‹‹‹").replace(/ЦИТАТА/giu, "ЦИТ-ата"))
+    .slice(0, SOURCE_MAX).join("");
   return `Ты — аналитик ленты Threads (русскоязычная аудитория 20–35 лет). Владелец прислал чужой пост с большим охватом. Разбери, ПОЧЕМУ он сработал, и предложи 2–3 сцены для НАШЕЙ ленты.
 
 НАША ТЕМА: отношения и самопознание — через психологию И мягкие практики (астрология, нумерология, дизайн человека, таро).

@@ -207,7 +207,8 @@ export async function handleOwnerReason(input: {
 }
 
 function matchedByReply(entry: PendingReason, replyTo: number | null | undefined): boolean {
-  return replyTo != null && (entry.cardMessageId === replyTo || entry.promptMessageId === replyTo);
+  return replyTo != null
+    && (entry.cardMessageId === replyTo || entry.promptMessageId === replyTo || Boolean(entry.chunkMessageIds?.includes(replyTo)));
 }
 
 /**

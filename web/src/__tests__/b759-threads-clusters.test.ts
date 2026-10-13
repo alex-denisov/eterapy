@@ -99,8 +99,8 @@ describe("план и промты", () => {
     }
   });
 
-  it("промт: развлекательные истории рассказчика разрешены, отзывы и статистика — нет", () => {
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("развлекательные");
+  it("промт: истории рассказчика разрешены, отзывы и статистика — нет", () => {
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("истории рассказчика");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Не выдумывай отзывы, результаты клиентов, статистику");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Формат сильнее пунктов 1–2");
   });

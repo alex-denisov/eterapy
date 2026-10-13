@@ -71,3 +71,39 @@ export function threadsStopFindings(text: string): LimitViolation[] {
   }
   return findings;
 }
+
+/* ------------------------------------------------------------------------ */
+/* B776 F1 — конкретность полезных и экспертных форматов                      */
+/* ------------------------------------------------------------------------ */
+
+/** Форматы, где расплывчатый совет — брак. Юмор не проверяется. */
+export const CONCRETENESS_LABELS: ReadonlySet<string> = new Set([
+  "мини-практика на две минуты",
+  "чек-лист",
+  "миф и правда",
+  "Если бы ко мне пришёл запрос",
+  "серия «День N/30»",
+]);
+
+const VAGUE_ADVICE = new RegExp(
+  `${B}(?:важно|следите\\s+за|старайтесь|будьте\\s+осознанн[а-яё]*|научитесь|берегите|помните,?\\s+что)${E}`,
+  "iu",
+);
+
+/** Опора: цифра, готовая фраза в «ёлочках» или слово часов и дней. */
+const CONCRETE_ANCHOR = new RegExp(
+  `\\d|«[^»]{4,}»|${B}(?:сегодня|завтра|сейчас|утром|вечером|ночью|понедельник|вторник|сред[ауы]|четверг|пятниц[ауы]|суббот[ау]|воскресень[ея]|недел[юиею]|минут[а-яё]*|час(?:а|ов|у|е)?)${E}`,
+  "iu",
+);
+
+export function threadsConcretenessFindings(input: { text: string; format: string | null | undefined }): LimitViolation[] {
+  if (!input.format || !CONCRETENESS_LABELS.has(input.format) || !input.text.trim()) return [];
+  const vague = VAGUE_ADVICE.exec(input.text);
+  if (!vague || CONCRETE_ANCHOR.test(input.text)) return [];
+  return [{
+    kind: "contract",
+    rule: "threads-vague-advice",
+    issue: `Расплывчатый совет «${vague[0]}» без опоры: ни цифры, ни готовой фразы, ни срока.`,
+    brief: "Замени общие слова на точное действие + фразу слово в слово в «ёлочках» + число или срок (например: «Три фразы на сегодня: 1) «Не получится, но спасибо, что спросила»…»).",
+  }];
+}

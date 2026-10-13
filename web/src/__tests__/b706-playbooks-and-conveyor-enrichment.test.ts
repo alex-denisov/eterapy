@@ -191,7 +191,7 @@ describe("B700 phases 9–10: Structured slot briefs and key points", () => {
     const keyPoints = defaultSlotKeyPoints("расставание", "вернется ли бывший");
     expect(keyPoints.length).toBe(3);
     expect(keyPoints[0]).toContain("вернется ли бывший");
-    expect(keyPoints[1]).toContain("куратора");
+    expect(keyPoints[1]).toContain("автора");
   });
 
   test("CONTENT_PLAN slots have outline and keyPoints populated", () => {

@@ -12,7 +12,7 @@
  * него ищется час, когда его аудитория к нему готова, — а не наоборот.
  */
 
-import { formatFor, formatRulesFor, type FormatReply, type PostFormat } from "@/lib/marketing/post-formats";
+import { formatFor, formatRulesFor, type FormatReply } from "@/lib/marketing/post-formats";
 import {
   PROFANITY_ARM_RULE,
   PROFANITY_TECHNIQUE_CODE,
@@ -20,6 +20,8 @@ import {
   isProfanityArm,
 } from "@/lib/marketing/threads-clusters";
 import { THREADS_SLOTS_PER_DAY, threadsDayLineup, type LineupEntry } from "@/lib/marketing/threads-lineup";
+import { ctaWriterInstructions } from "@/lib/marketing/threads-cta";
+import { seriesDayFor, seriesRules, type SeriesConfig, type SeriesDayInfo } from "@/lib/marketing/threads-series";
 import {
   publishWindow,
   type ContentClass,
@@ -96,6 +98,10 @@ export interface ContentPlanSlot {
   formatCluster?: string;
   /** B759 — код приёма (P1…P32): пара «кластер × приём» тоже меряется. */
   technique?: string;
+  /** B776 — сутки серии «День N/30»: автор получает {seriesDay, seriesTotal, isAnnouncement}. */
+  formatSeries?: SeriesDayInfo;
+  /** B776 — последняя часть цепочки несёт призыв (не больше одного слота в сутки). */
+  formatCta?: boolean;
 }
 
 export type SlotReserve = "planned" | "reactive";
@@ -392,7 +398,7 @@ export function defaultSlotOutline(cluster: string, format: string): readonly st
 export function defaultSlotKeyPoints(cluster: string, targetQuery: string): readonly string[] {
   return [
     `Фокус на запросе «${targetQuery}» из темы «${cluster}».`,
-    "Живая человеческая интонация куратора без штампов («разложим по полочкам», «давайте разберемся»).",
+    "Живая человеческая интонация автора без штампов («разложим по полочкам», «давайте разберемся»).",
     "Ясный переход к самостоятельной рефлексии без навязывания продажи.",
   ];
 }
@@ -416,6 +422,8 @@ function slot(input: {
   formatReply?: FormatReply;
   formatCluster?: string;
   technique?: string;
+  formatSeries?: SeriesDayInfo;
+  formatCta?: boolean;
 }): ContentPlanSlot {
   return {
     key: `b610-2w-${input.channel}-${keyDate(input.date)}-${String(input.sequence).padStart(2, "0")}`,
@@ -439,6 +447,8 @@ function slot(input: {
     ...(input.formatReply ? { formatReply: input.formatReply } : {}),
     ...(input.formatCluster ? { formatCluster: input.formatCluster } : {}),
     ...(input.technique ? { technique: input.technique } : {}),
+    ...(input.formatSeries ? { formatSeries: input.formatSeries } : {}),
+    ...(input.formatCta ? { formatCta: true } : {}),
   };
 }
 
@@ -452,7 +462,9 @@ function threadsSlotRules(entry: LineupEntry, day: number, sequence: number): { 
     ? [`Знак этого поста — ${entry.sign}. Обращение к знаку по имени в первой строке; другие знаки — только если этого прямо требует формат.`]
     : [];
   const hero = format.heroes && entry.heroIndex !== undefined ? [heroRuleFor(format.heroes, entry.heroIndex, 0)] : [];
-  const base = [...sign, ...hero, ...format.rules];
+  const seriesRulesList = entry.series ? seriesRules(entry.series) : [];
+  const ctaRules = entry.cta ? [ctaWriterInstructions().rule] : [];
+  const base = [...sign, ...hero, ...format.rules, ...seriesRulesList, ...ctaRules];
   if (isProfanityArm(day, sequence)) {
     return { technique: PROFANITY_TECHNIQUE_CODE, rules: [...base, PROFANITY_ARM_RULE] };
   }
@@ -463,7 +475,7 @@ function threadsSlotRules(entry: LineupEntry, day: number, sequence: number): { 
   };
 }
 
-function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
+function buildPlan(dates: readonly string[], series: SeriesConfig | null = null): ContentPlanSlot[] {
   const result: ContentPlanSlot[] = [];
   let order = 1;
 
@@ -517,7 +529,7 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
     const day = dayNumber(date);
     // B762: у Threads формат, знак, герой и приём даёт состав суток целиком —
     // независимый выбор по слоту ставил два оклика одного знака подряд.
-    const entry = channel === "threads" ? threadsDayLineup(day)[sequence] : null;
+    const entry = channel === "threads" ? threadsDayLineup(day, { series: seriesDayFor(series, date) })[sequence] : null;
     const chosen = entry ? entry.format : formatFor(channel, day, sequence);
     const threadsExtras = entry ? threadsSlotRules(entry, day, sequence) : null;
     push({
@@ -534,6 +546,8 @@ function buildPlan(dates: readonly string[]): ContentPlanSlot[] {
       ...(chosen.reply ? { formatReply: chosen.reply } : {}),
       ...(chosen.cluster ? { formatCluster: chosen.cluster } : {}),
       ...(threadsExtras ? { technique: threadsExtras.technique } : {}),
+      ...(entry?.series ? { formatSeries: entry.series } : {}),
+      ...(entry?.cta ? { formatCta: true } : {}),
     });
   };
 
@@ -623,15 +637,20 @@ function moscowIsoDate(value: Date) {
  * B705 §7: длина окна — самый дальний горизонт (три недели у Reddit), но
  * каждая лента получает слоты только внутри СВОЕГО горизонта.
  */
-export function contentPlanFor(now: Date): readonly ContentPlanSlot[] {
+export function contentPlanFor(
+  now: Date,
+  series: SeriesConfig | null = null,
+  options: { includeToday?: boolean } = {},
+): readonly ContentPlanSlot[] {
   const tomorrowMoscow = new Date(`${moscowIsoDate(now)}T09:00:00.000Z`);
-  tomorrowMoscow.setUTCDate(tomorrowMoscow.getUTCDate() + 1);
+  // B776: окно «от сегодня» нужно только пересборке строк серии; обычный план — от завтра.
+  tomorrowMoscow.setUTCDate(tomorrowMoscow.getUTCDate() + (options.includeToday ? 0 : 1));
   const dates = Array.from({ length: PLAN_MAX_HORIZON_DAYS }, (_, index) => {
     const date = new Date(tomorrowMoscow);
     date.setUTCDate(tomorrowMoscow.getUTCDate() + index);
     return date.toISOString().slice(0, 10);
   });
-  return buildPlan(dates);
+  return buildPlan(dates, series);
 }
 
 export function plannedAtFor(slot: Pick<ContentPlanSlot, "scheduledAt">): Date {

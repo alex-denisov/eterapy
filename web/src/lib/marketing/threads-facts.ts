@@ -16,11 +16,13 @@ import { MoonPhase, MakeTime } from "astronomy-engine";
 import { z } from "zod";
 
 import { longitudeOfPlanet, norm360 } from "@/lib/astro/ecliptic";
+import { gateLineFromLongitude } from "@/lib/human-design";
+import { NUMBER_KEYWORD, computeNumerology } from "@/lib/numerology";
 import { planetSignAt, signTransits } from "@/lib/astro/sign-transits";
 import { TAROT_DECK } from "@/lib/tarot-deck";
 import type { LimitViolation } from "@/lib/marketing/platform-limits";
 
-export const FACT_MECHANICS = ["moon_sign", "moon_phase", "retrograde", "sun_season", "tarot_card"] as const;
+export const FACT_MECHANICS = ["moon_sign", "moon_phase", "retrograde", "sun_season", "tarot_card", "day_number", "hd_sun_gate"] as const;
 
 export const threadsFactSchema = z.object({
   mechanic: z.enum(FACT_MECHANICS),
@@ -35,6 +37,9 @@ export const threadsFactSchema = z.object({
     phase: z.enum(["new", "waxing", "full", "waning"]).optional(),
     retrograde: z.boolean().optional(),
     card: z.string().optional(),
+    /** Число дня (нумерология) и ворота Солнца (дизайн человека) — общие для всех, без даты рождения. */
+    number: z.number().int().optional(),
+    gate: z.number().int().optional(),
   }),
   validUntil: z.string().datetime().nullable(),
 });
@@ -157,6 +162,45 @@ export function tarotCardFact(at: Date): ThreadsFact {
   });
 }
 
+const MSK_MS = 3 * 3_600_000;
+
+/** Число дня: нумерология даты слота по Москве, общее для всей аудитории (без даты рождения читателя). */
+export function dayNumberFact(at: Date): ThreadsFact {
+  const msk = new Date(at.getTime() + MSK_MS);
+  const dd = String(msk.getUTCDate()).padStart(2, "0");
+  const mm = String(msk.getUTCMonth() + 1).padStart(2, "0");
+  const number = computeNumerology(`${dd}.${mm}.${msk.getUTCFullYear()}`).lifePath;
+  const endOfDay = new Date(Math.floor(msk.getTime() / DAY_MS) * DAY_MS + DAY_MS - MSK_MS);
+  return freeze({
+    mechanic: "day_number",
+    statement: `Число дня — ${number}${NUMBER_KEYWORD[number] ? `: ${NUMBER_KEYWORD[number]}` : ""}`,
+    source: "numerology.ts · computeNumerology (дата слота по Москве)",
+    subject: { number },
+    validUntil: endOfDay.toISOString(),
+  });
+}
+
+function sunGateAt(at: Date): number {
+  return gateLineFromLongitude(longitudeOfPlanet("sun", MakeTime(at))).gate;
+}
+
+/** Ворота дизайна человека, через которые идёт Солнце в момент слота; смена ворот — раз в ~6 суток. */
+export function sunGateFact(at: Date): ThreadsFact {
+  const gate = sunGateAt(at);
+  let until: Date | null = null;
+  for (let hours = 6; hours <= 8 * 24; hours += 6) {
+    const probe = new Date(at.getTime() + hours * 3_600_000);
+    if (sunGateAt(probe) !== gate) { until = probe; break; }
+  }
+  return freeze({
+    mechanic: "hd_sun_gate",
+    statement: `Солнце сейчас проходит ворота ${gate} в дизайне человека${until ? `, примерно до ${ruDate(until)}` : ""}`,
+    source: "human-design.ts · gateLineFromLongitude (долгота Солнца)",
+    subject: { planet: "sun", gate },
+    validUntil: until ? until.toISOString() : null,
+  });
+}
+
 export function gatherThreadsFacts(at: Date): ThreadsFact[] {
   return [moonSignFact(at), moonPhaseFact(at), retrogradeFact(at), sunSeasonFact(at), tarotCardFact(at)]
     .filter((fact): fact is ThreadsFact => fact !== null);
@@ -165,6 +209,8 @@ export function gatherThreadsFacts(at: Date): ThreadsFact[] {
 const B = "(?<![а-яё])";
 const E = "(?![а-яё])";
 const TAROT_HINT = /таро|аркан|расклад|карт[аыуе]\s+дня/i;
+const NUMEROLOGY_HINT = /нумеролог|число\s+(?:дня|судьбы)|цифр[аыуе]\s+дня/i;
+const HD_HINT = /дизайн\s+человека|ворота|генератор|проектор|рефлектор/i;
 const ASTRO_HINT = new RegExp(
   "знак|зодиак|астро|гороскоп|лун[аыуе]|лунн|ретроград|планет|овен|овн[аеуы]|тельц|близнец|скорпион|стрел[её]ц|козерог|водоле"
   + `|${B}(?:рак|лев|льв[аеуы]?|дев[аеуы]|весы|весах|рыбы|рыбах)${E}`,
@@ -174,7 +220,7 @@ const ASTRO_HINT = new RegExp(
 /** Нужен ли посту факт: тема про знаки, Луну, планеты или Таро. Остальным он только мешает. */
 export function needsThreadsFact(input: { cluster: string | null; scene: string | null }): boolean {
   const haystack = `${input.cluster ?? ""} ${input.scene ?? ""}`;
-  return TAROT_HINT.test(haystack) || ASTRO_HINT.test(haystack);
+  return TAROT_HINT.test(haystack) || NUMEROLOGY_HINT.test(haystack) || HD_HINT.test(haystack) || ASTRO_HINT.test(haystack);
 }
 
 /**
@@ -191,6 +237,8 @@ export function pickThreadsFact(input: {
   if (!needsThreadsFact(input)) return null;
   const haystack = `${input.cluster ?? ""} ${input.scene ?? ""}`;
   if (TAROT_HINT.test(haystack)) return tarotCardFact(input.at);
+  if (NUMEROLOGY_HINT.test(haystack)) return dayNumberFact(input.at);
+  if (HD_HINT.test(haystack)) return sunGateFact(input.at);
   const facts = gatherThreadsFacts(input.at).filter((fact) => fact.mechanic !== "tarot_card");
   let hash = 0;
   for (const ch of input.seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
@@ -241,6 +289,13 @@ export function factFindings(fact: ThreadsFact | null, text: string): LimitViola
 
   if (/ретроград/.test(flat) && fact.subject.retrograde !== true) {
     add("fact-retrograde", "В посте ретроград, которого нет среди фактов.", `Убери ретроград: данный факт — «${fact.statement}».`);
+  }
+  for (const match of text.matchAll(/число\s+дня\s*[—–:-]?\s*(\d{1,2})/gi)) {
+    if (fact.mechanic !== "day_number") {
+      add("fact-day-number", `В посте «${match[0]}», а такого факта нет.`, `Убери число дня: данный факт — «${fact.statement}».`);
+    } else if (Number(match[1]) !== fact.subject.number) {
+      add("fact-day-number", `Пост называет «${match[0]}», а верно «${fact.statement}».`, `Исправь на факт: «${fact.statement}».`);
+    }
   }
   const claimsFull = /полнолуни/.test(flat);
   const claimsNew = /новолуни/.test(flat);

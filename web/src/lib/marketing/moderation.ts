@@ -15,8 +15,9 @@ import {
   setAwaitingReason,
   REASON_WINDOW_MS,
 } from "@/lib/marketing/owner-review-state";
-import { REJECT_TAGS, dropPending, putPending, readOwnerRating, recordThreadsVerdict, rejectTagLabel } from "@/lib/marketing/threads-verdicts";
+import { REJECT_TAGS, dropPending, putPending, readCardChunks, saveCardChunks, readOwnerRating, recordThreadsVerdict, rejectTagLabel } from "@/lib/marketing/threads-verdicts";
 import { marketingDeliveryTargets, moderationChatIds, resolveMarketingChannel } from "@/lib/ops-notification-channel";
+import { chunkCardMessage, partsBlock, replyPartsOf } from "@/lib/marketing/moderation-card";
 import { callTelegramApi, sendTelegram } from "@/lib/telegram";
 
 /**
@@ -129,6 +130,8 @@ function ownerReviewMessage(
   planned: string,
 ): string {
   const notes = notesOf(publication.notes);
+  // B773: продолжение поста (ответы под ним) — часть того, что утверждает владелец.
+  const parts = partsBlock(replyPartsOf(publication.notes));
   const tags = [
     `<b>Кластер:</b> ${html(short(publication.cluster, 80))}`,
     `<b>Приём:</b> ${html(notes.technique ?? notes.format ?? "—")}`,
@@ -156,7 +159,8 @@ function ownerReviewMessage(
       ...(notes.fact ? [`<b>Факт:</b> ${html(short(notes.fact, 200))}`] : []),
       "",
       "<b>Текст поста:</b>",
-      html(short(publication.body, 2_400)),
+      html(publication.body ?? ""),
+      ...(parts ? ["", parts] : []),
       "",
       `<b>Автор:</b> ${html(publication.agentWriterProvider ?? "—")} / ${html(publication.agentWriterModel ?? "—")}`,
       `<b>Проверяющий:</b> ${html(publication.agentReviewerProvider ?? "—")} / ${html(publication.agentReviewerModel ?? "—")}`,
@@ -173,7 +177,8 @@ function ownerReviewMessage(
     `<b>Ваша идея:</b> ${html(short(publication.engagementExcerpt, 300))}`,
     "",
     "<b>Текст поста:</b>",
-    html(short(publication.body, 2_400)),
+    html(publication.body ?? ""),
+    ...(parts ? ["", parts] : []),
     "",
     `<b>Writer:</b> ${html(publication.agentWriterProvider ?? "—")} / ${html(publication.agentWriterModel ?? "—")}`,
     `<b>Reviewer:</b> ${html(publication.agentReviewerProvider ?? "—")} / ${html(publication.agentReviewerModel ?? "—")}`,
@@ -280,14 +285,9 @@ export async function requestMarketingModeration(publicationId: string) {
   // Доставка идёт по списку адресов до первого успеха: маркетинговый канал,
   // затем служебный. Ненастроенный канал (бот не добавлен → `chat not found`)
   // не должен убивать материал — вызывающий код помечает исключение `FAILED`.
-  const targets = await marketingDeliveryTargets();
-  let firstMessageId: number | null = null;
-  let delivered: string | null = null;
-  let lastError: unknown = null;
-  for (const chatId of targets) {
-    try {
-      firstMessageId = await sendTelegram(chatId, message, {
-        replyMarkup: ownerKind ? ownerReviewKeyboard(publication.id, ownerKind) : {
+  const targets = [...new Set(await marketingDeliveryTargets())];
+  const chunks = chunkCardMessage(message);
+  const replyMarkup = ownerKind ? ownerReviewKeyboard(publication.id, ownerKind) : {
           inline_keyboard: [
             [
               { text: "✅ Принять", callback_data: marketingModerationCallback("approve", publication.id) },
@@ -303,8 +303,13 @@ export async function requestMarketingModeration(publicationId: string) {
               }]]
               : []),
           ],
-        },
-      });
+        };
+  let chunkIds: number[] = [];
+  let delivered: string | null = null;
+  let lastError: unknown = null;
+  for (const chatId of targets) {
+    try {
+      chunkIds = await deliverChunks(chatId, chunks, replyMarkup);
       delivered = chatId;
       break;
     } catch (error) {
@@ -319,12 +324,40 @@ export async function requestMarketingModeration(publicationId: string) {
   if (delivered !== channel.chatIds[0]) {
     log.warn("marketing-moderation.delivered_to_fallback", { intended: channel.chatIds[0], delivered });
   }
+  // Кнопки стоят под последним сообщением — оно и «карточка»; id остальных
+  // частей хранится, чтобы reply на любую часть привязывался к той же карточке.
+  const firstMessageId = chunkIds[chunkIds.length - 1] || null;
+  await saveCardChunks(publication.id, chunkIds.filter((id) => id > 0)).catch((error) => {
+    log.warn("marketing-moderation.chunks_not_saved", { error: error instanceof Error ? error.message : String(error) });
+  });
 
   await db.externalPublication.update({
     where: { id: publication.id },
     data: { telegramReviewMessageId: firstMessageId },
   });
   return { sent: true, messageId: firstMessageId, channel: channel.source, delivered };
+}
+
+/**
+ * Все части карточки уходят в ОДИН чат. Сбой на части N не отправляет карточку
+ * в запасной чат с нуля, пока в этом чате не доотправлены оставшиеся части:
+ * вторая попытка продолжает с места сбоя, а не дублирует уже доставленное.
+ */
+async function deliverChunks(chatId: string, chunks: readonly string[], replyMarkup: NonNullable<Parameters<typeof sendTelegram>[2]>["replyMarkup"]): Promise<number[]> {
+  const ids: number[] = [];
+  let failure: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      for (let index = ids.length; index < chunks.length; index += 1) {
+        const isLast = index === chunks.length - 1;
+        ids.push((await sendTelegram(chatId, chunks[index], isLast ? { replyMarkup } : undefined)) ?? 0);
+      }
+      return ids;
+    } catch (error) {
+      failure = error;
+    }
+  }
+  throw failure instanceof Error ? failure : new Error("card chunk delivery failed");
 }
 
 /** Переход из REVIEW только если строка всё ещё там: двойной тап не применит решение дважды. */
@@ -522,6 +555,7 @@ async function promptThreadsReason(input: {
     chatId: input.chatId,
     cardMessageId,
     promptMessageId,
+    chunkMessageIds: await readCardChunks(input.publication.id).catch(() => []),
     tags: [],
     at: input.now.toISOString(),
   }, input.now);

@@ -21,6 +21,9 @@
 
 import { THREADS_FORMATS, ZODIAC_SIGNS, type PostFormat } from "@/lib/marketing/post-formats";
 import { CORE_HEROES, TECHNIQUES, type Technique } from "@/lib/marketing/threads-clusters";
+import { reorderByDaypart } from "@/lib/marketing/threads-daypart";
+import { isCtaEligibleLabel } from "@/lib/marketing/threads-cta";
+import { SERIES_FORMAT, SERIES_SLOT_INDEX, type SeriesDayInfo } from "@/lib/marketing/threads-series";
 
 /** Слотов Threads в сутки (решение владельца 2026-10-12); длина сетки в `publish-windows.ts`. */
 export const THREADS_SLOTS_PER_DAY = 8;
@@ -37,6 +40,15 @@ export interface LineupEntry {
   heroIndex?: number;
   /** Приём поста; у тестового плеча крепкой лексики его задаёт план. */
   technique?: Technique;
+  /** B776: сутки серии «День N/30» — только у вечернего слота. */
+  series?: SeriesDayInfo;
+  /** B776: в этом слоте последняя часть цепочки несёт призыв (не больше одного в сутки). */
+  cta?: boolean;
+}
+
+export interface LineupOptions {
+  /** Сутки серии для этой даты; без него серии в составе нет. */
+  series?: SeriesDayInfo | null;
 }
 
 function mix(value: number): number {
@@ -83,11 +95,52 @@ function dayFormats(day: number, previousLast: PostFormat | undefined): PostForm
   return chosen;
 }
 
-function lastFormatOf(day: number): PostFormat | undefined {
-  // Стык суток считается от «голого» ряда предыдущих суток: рекурсия на одну
-  // глубину, иначе каждые сутки тянули бы за собой всю историю эпохи.
-  const formats = dayFormats(day, undefined);
-  return formats[formats.length - 1];
+/**
+ * Сутки подряд идут блоками по 16: на стыке блоков последний пост суток — не оклик
+ * знака, а следующий блок начинается «с чистого листа». Внутри блока состав каждых
+ * суток считается от НАСТОЯЩЕГО последнего поста вчерашних (а не от «голого»
+ * ряда — тот расходился с настоящим, и на стыке суток вставали два оклика подряд).
+ */
+const BLOCK_DAYS = 16;
+const realDayCache = new Map<number, PostFormat[]>();
+
+const mod = (value: number, size: number) => ((value % size) + size) % size;
+const zodiacConflict = (left: PostFormat | undefined, right: PostFormat) => isZodiac(left) && isZodiac(right);
+
+function validOrder(order: readonly PostFormat[], previousLast: PostFormat | undefined, noZodiacLast: boolean): boolean {
+  if (noZodiacLast && isZodiac(order[order.length - 1])) return false;
+  return order.every((format, index) => !zodiacConflict(index === 0 ? previousLast : order[index - 1], format));
+}
+
+/** B776: перестановка по времени суток поверх выбранного состава; соседство окликов проверяется. */
+function orderedDayFormats(day: number, previousLast: PostFormat | undefined, noZodiacLast: boolean): PostFormat[] {
+  const natural = dayFormats(day, previousLast);
+  const last = natural.length - 1;
+  const forbiddenAt = (slot: number, format: PostFormat) => noZodiacLast && slot === last && isZodiac(format);
+  const ordered = reorderByDaypart(natural, previousLast, zodiacConflict, forbiddenAt);
+  if (validOrder(ordered, previousLast, noZodiacLast)) return ordered;
+  if (validOrder(natural, previousLast, noZodiacLast)) return natural;
+  // Крайний случай: меняем последний пост с каждым из прочих, пока ряд не станет допустимым.
+  for (let index = 0; index < last; index += 1) {
+    const swapped = natural.map((format, at) => (at === index ? natural[last] : at === last ? natural[index] : format));
+    if (validOrder(swapped, previousLast, noZodiacLast)) return swapped;
+  }
+  return natural;
+}
+
+function fullDayFormats(day: number): PostFormat[] {
+  const cached = realDayCache.get(day);
+  if (cached) return cached;
+  let previousLast: PostFormat | undefined;
+  for (let current = day - mod(day, BLOCK_DAYS); current <= day; current += 1) {
+    let formats = realDayCache.get(current);
+    if (!formats) {
+      formats = orderedDayFormats(current, previousLast, mod(current + 1, BLOCK_DAYS) === 0);
+      realDayCache.set(current, formats);
+    }
+    previousLast = formats[formats.length - 1];
+  }
+  return realDayCache.get(day)!;
 }
 
 /**
@@ -111,8 +164,10 @@ const SIGN_EPOCH_DAY = 20_720;
 const MAX_EPOCH_SPAN_DAYS = 3_650;
 const zodiacBeforeCache = new Map<number, number>();
 
-function fullDayFormats(day: number): PostFormat[] {
-  return dayFormats(day, lastFormatOf(day - 1));
+/** B776: серия занимает вечерний прайм-слот; сосед-оклик не страдает — серия не оклик. */
+function withSeries(formats: readonly PostFormat[], series: SeriesDayInfo | null | undefined): PostFormat[] {
+  if (!series) return [...formats];
+  return formats.map((format, index) => (index === SERIES_SLOT_INDEX ? SERIES_FORMAT : format));
 }
 
 function zodiacCountBefore(day: number): number | null {
@@ -128,17 +183,23 @@ function zodiacCountBefore(day: number): number | null {
   return count;
 }
 
-export function threadsDayLineup(day: number): LineupEntry[] {
-  const formats = fullDayFormats(day);
+export function threadsDayLineup(day: number, options: LineupOptions = {}): LineupEntry[] {
+  const formats = withSeries(fullDayFormats(day), options.series);
+  const ctaIndex = formats.findIndex((format) => isCtaEligibleLabel(format.label));
   const before = zodiacCountBefore(day);
   let zodiacSeen = 0;
   const heroSeen = new Map<string, number>();
   const clusterSeen = new Map<string, number>();
-  return formats.map((format) => {
+  return formats.map((format, index) => {
     const cluster = format.cluster ?? format.label;
     const clusterOccurrence = clusterSeen.get(cluster) ?? 0;
     clusterSeen.set(cluster, clusterOccurrence + 1);
-    const entry: LineupEntry = { format, technique: techniqueFor(day, cluster, clusterOccurrence) };
+    const entry: LineupEntry = {
+      format,
+      technique: techniqueFor(day, cluster, clusterOccurrence),
+      ...(format === SERIES_FORMAT && options.series ? { series: options.series } : {}),
+      ...(index === ctaIndex ? { cta: true } : {}),
+    };
     if (isZodiac(format)) {
       // Сквозной номер оклика от эпохи: двенадцать окликов подряд — двенадцать
       // разных знаков, сколько бы окликов ни выпало на сутки.
