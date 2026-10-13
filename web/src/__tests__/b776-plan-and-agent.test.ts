@@ -54,7 +54,10 @@ describe("B776: план и задача автора", () => {
     expect(end.replyText).toBe("Первое: спроси. Таро потом.");
     expect(end.ctaPlace).toBe("end");
     expect(end.ctaLine).toMatch(/products\/tarot\?utm_source=threads&utm_medium=social&utm_campaign=expert-chain&utm_content=tarot-end$/);
-    expect(replyNotesWithCta(draft, { formatCta: true, formatCtaPlace: "mid" }).ctaLine).toMatch(/utm_content=tarot-mid$/);
+    // одна часть продолжения: «середины» нет, метка честно `end`
+    expect(replyNotesWithCta(draft, { formatCta: true, formatCtaPlace: "mid" }).ctaLine).toMatch(/utm_content=tarot-end$/);
+    const long = { ...draft, replyText: `${"а".repeat(300)}.\n\n${"б".repeat(300)}.` };
+    expect(replyNotesWithCta(long, { formatCta: true, formatCtaPlace: "mid" }).ctaLine).toMatch(/utm_content=tarot-mid$/);
     expect(draft.text).not.toMatch(/https?:/);
     expect(replyNotesWithCta(draft, { formatCta: false })).toEqual({ replyText: "Первое: спроси. Таро потом." });
     expect(replyNotesWithCta({ ...draft, ctaTarget: "https://x.example" }, { formatCta: true }).ctaLine).toMatch(/products\/tarot/);

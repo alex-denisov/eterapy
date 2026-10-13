@@ -457,6 +457,10 @@ export async function sweepOwnPublicationComments(
       }
       // Ни одна цель не прочиталась из-за настоящих ошибок (токен, сеть) — это сбой обхода.
       if (failedTargets > 0 && succeeded === 0) throw firstError;
+      // Все посты «удалены» разом — это не удаления, а чужой токен или права: сбой, а не тишина.
+      if (targets.length >= 3 && goneCount === targets.length) {
+        throw new Error("Все опрошенные посты недоступны (токен другого аккаунта или нет прав)");
+      }
       await auditInboundGap(platform, now, recentReplies).catch(() => undefined);
       await resolveMarketingSignal(`sweep:${platform}`).catch(() => undefined);
       outcomes.push({

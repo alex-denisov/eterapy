@@ -28,3 +28,16 @@ export async function recentHookIntents(excludePublicationId: string, limit = 6)
     return [];
   }
 }
+
+/** Дописывает поля хука в СВЕЖИЕ notes (не перезаписывает снимком, прочитанным до вызовов моделей). */
+export async function saveHookFields(publicationId: string, fields: Record<string, unknown>): Promise<void> {
+  const row = await db.externalPublication.findUnique({ where: { id: publicationId }, select: { notes: true } });
+  let current: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(row?.notes ?? "{}");
+    if (parsed && typeof parsed === "object") current = parsed as Record<string, unknown>;
+  } catch {
+    return; // notes не JSON (дописаны строки выпуска) — не трогаем
+  }
+  await db.externalPublication.update({ where: { id: publicationId }, data: { notes: JSON.stringify({ ...current, ...fields }) } });
+}

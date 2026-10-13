@@ -24,11 +24,12 @@ import { requestMarketingModeration } from "@/lib/marketing/moderation";
 import { isOwnerReviewed, isThreadsPlanPost } from "@/lib/marketing/owner-review-state";
 import { nicheFindings, suggestPole, threadsNicheBrief } from "@/lib/marketing/threads-niche";
 import { threadsConcretenessFindings, threadsStopFindings } from "@/lib/marketing/threads-stop-checks";
+import { splitThreadsChain } from "@/lib/marketing/threads-chain";
 import { ctaPartFor, ctaWriterInstructions, stripModelUrls } from "@/lib/marketing/threads-cta";
 import { ENDING_QUESTION_RULE, NO_QUESTION_RULE, endingQuestionFindings, wantsEndingQuestion } from "@/lib/marketing/threads-engagement";
 import { factForWriter } from "@/lib/marketing/threads-facts";
 import { chooseThreadsHook } from "@/lib/marketing/threads-hook-select";
-import { recentHookIntents } from "@/lib/marketing/threads-hook-memory";
+import { recentHookIntents, saveHookFields } from "@/lib/marketing/threads-hook-memory";
 import { chosenHookTask, hookPoolApplies, type HookIntentCode } from "@/lib/marketing/threads-hook-pool";
 import { readPremoderationMode } from "@/lib/marketing/threads-verdicts";
 import {
@@ -644,7 +645,8 @@ export function replyNotesWithCta(
 ): { replyText: string; ctaLine?: string; ctaPlace?: "mid" | "end" } {
   const reply = draft.replyText?.trim() ?? "";
   if (!notes?.formatCta || !reply) return { replyText: stripModelUrls(reply) };
-  const place = notes.formatCtaPlace ?? "end";
+  // Одна часть продолжения: «в середине» невозможно, метка честно говорит `end`.
+  const place = splitThreadsChain(reply).length < 2 ? "end" : (notes.formatCtaPlace ?? "end");
   const { replyText, ctaLine } = ctaPartFor(reply, { ctaTarget: draft.ctaTarget, postText: draft.text ?? "", place });
   return { replyText, ctaLine, ctaPlace: place };
 }
@@ -1620,6 +1622,7 @@ export async function processMarketingDraft(publicationId: string) {
     hookStrong?: number;
     hookPassed?: boolean;
     hookPool?: number;
+    hookPoolFailed?: boolean;
   } | null = null;
   if (publication.notes) {
     try {
@@ -1892,7 +1895,7 @@ export async function processMarketingDraft(publicationId: string) {
         passed: Boolean(parsedNotes.hookPassed),
         poolSize: parsedNotes.hookPool ?? 0,
       });
-    } else if (threadsContext && !isConversational && !carried && hookPoolApplies(parsedNotes?.formatCluster)) {
+    } else if (threadsContext && !isConversational && !carried && !parsedNotes?.hookPoolFailed && hookPoolApplies(parsedNotes?.formatCluster)) {
       try {
         const hookAttempts = { used: 0 };
         const choice = await chooseThreadsHook({
@@ -1935,12 +1938,11 @@ export async function processMarketingDraft(publicationId: string) {
         };
         parsedNotes = { ...(parsedNotes ?? {}), ...fields };
         hookTaskFields = chosenHookTask(choice);
-        await db.externalPublication.update({
-          where: { id: publication.id },
-          data: { notes: JSON.stringify(parsedNotes) },
-        }).catch((error) => log.warn("marketing.hook_choice_not_saved", { publicationId: publication.id, error: serializeError(error) }));
+        await saveHookFields(publication.id, fields).catch((error) => log.warn("marketing.hook_choice_not_saved", { publicationId: publication.id, error: serializeError(error) }));
       } catch (error) {
         log.warn("marketing.hook_pool_failed", { publicationId: publication.id, error: serializeError(error) });
+        parsedNotes = { ...(parsedNotes ?? {}), hookPoolFailed: true };
+        await saveHookFields(publication.id, { hookPoolFailed: true }).catch(() => undefined);
       }
     }
     const task = { ...baseTask, ...hookTaskFields };
