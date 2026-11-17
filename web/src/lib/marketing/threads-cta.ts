@@ -39,7 +39,7 @@ export const CTA_TARGETS: readonly CtaTarget[] = [
   service("human-design", "дизайн\\s+человека|генератор|проектор", "можно узнать свой дизайн человека"),
   service("surname-origin", "фамили|род[ау]\\s+предк|предк", "можно узнать происхождение фамилии"),
   { slug: "ai-psychologist", path: "/ai-psychologist", keywords: /(?!)/u, phrase: "можно спокойно обсудить её с ИИ-собеседником, бесплатно" },
-  { slug: "checkin", path: "/checkin", keywords: /(?!)/u, phrase: "начните с короткого чек-ина" },
+  { slug: "checkin", path: "/checkin", keywords: /(?!)/u, phrase: "можно начать первый разбор бесплатно, без регистрации" },
 ];
 
 export const CTA_FALLBACK_SLUG = "checkin";
@@ -51,6 +51,7 @@ export const CTA_ELIGIBLE_LABELS: ReadonlySet<string> = new Set([
   "Если бы ко мне пришёл запрос",
   "серия «День N/30»",
   "серия «Паттерн дня N/30»",
+  "сооснователь: ситуация и продукт",
   "миф и правда: разбор",
   "мини-практика: пример и шаги",
   "чек-лист цепочкой",
@@ -145,6 +146,6 @@ export function chainWithCta(replyText: string, ctaLine?: string | null, place: 
 export function ctaWriterInstructions(): { ctaTargets: string[]; rule: string } {
   return {
     ctaTargets: CTA_TARGETS.map((target) => target.slug),
-    rule: "В этом материале есть призыв: верни в поле ctaTarget ОДИН слаг из ctaTargets, ближайший к теме (если ничего не подходит — checkin). Адрес, UTM и фразу призыва строит код отдельной короткой частью после пользы: в text и replyText ссылок и призывов не пиши, польза должна быть выдана целиком до призыва.",
+    rule: "В этом материале есть призыв: верни в поле ctaTarget ОДИН слаг из ctaTargets, ближайший к теме (если ничего не подходит — checkin). Адрес, UTM и фразу призыва строит код отдельной короткой частью после пользы: в text и replyText не пиши ссылку или призыв перейти в продукт; польза должна быть выдана целиком до продуктового призыва. Если правила формата предлагают подписаться на аккаунт, это допустимо отдельной фразой.",
   };
 }
