@@ -641,13 +641,14 @@ export function expertChainTask(notes: {
  */
 export function replyNotesWithCta(
   draft: Pick<WriterOutput, "text" | "replyText" | "ctaTarget">,
-  notes: { formatCta?: boolean; formatCtaPlace?: "mid" | "end" } | null,
+  notes: { format?: string; formatCta?: boolean; formatCtaPlace?: "mid" | "end" } | null,
 ): { replyText: string; ctaLine?: string; ctaPlace?: "mid" | "end" } {
   const reply = draft.replyText?.trim() ?? "";
   if (!notes?.formatCta || !reply) return { replyText: stripModelUrls(reply) };
   // Одна часть продолжения: «в середине» невозможно, метка честно говорит `end`.
   const place = splitThreadsChain(reply).length < 2 ? "end" : (notes.formatCtaPlace ?? "end");
-  const { replyText, ctaLine } = ctaPartFor(reply, { ctaTarget: draft.ctaTarget, postText: draft.text ?? "", place });
+  const ctaTarget = notes.format === "сооснователь: ситуация и продукт" ? "checkin" : draft.ctaTarget;
+  const { replyText, ctaLine } = ctaPartFor(reply, { ctaTarget, postText: draft.text ?? "", place });
   return { replyText, ctaLine, ctaPlace: place };
 }
 

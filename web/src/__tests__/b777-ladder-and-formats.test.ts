@@ -8,7 +8,7 @@ import {
 import { threadsDayLineup } from "@/lib/marketing/threads-lineup";
 import { SERIES_FORMAT } from "@/lib/marketing/threads-series";
 import {
-  CHECKLIST_CHAIN_FORMAT, MINI_PRACTICE_FORMAT, MYTH_TRUTH_FORMAT, usefulFormatForWeekday, weekdayOfDayNumber,
+  CHECKLIST_CHAIN_FORMAT, FOUNDER_PRODUCT_FORMAT, MINI_PRACTICE_FORMAT, MYTH_TRUTH_FORMAT, usefulFormatForWeekday, weekdayOfDayNumber,
 } from "@/lib/marketing/threads-useful-formats";
 
 const dayOf = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
@@ -98,7 +98,8 @@ describe("B777: полезные форматы по дням недели и с
     expect(usefulFormatForWeekday(1)).toBe(MYTH_TRUTH_FORMAT);
     expect(usefulFormatForWeekday(3)).toBe(MINI_PRACTICE_FORMAT);
     expect(usefulFormatForWeekday(5)).toBe(CHECKLIST_CHAIN_FORMAT);
-    for (const weekday of [0, 2, 4, 6]) expect(usefulFormatForWeekday(weekday)).toBeNull();
+    expect(usefulFormatForWeekday(2)).toBe(FOUNDER_PRODUCT_FORMAT);
+    for (const weekday of [0, 4, 6]) expect(usefulFormatForWeekday(weekday)).toBeNull();
     expect(weekdayOfDayNumber(dayOf("2026-10-14"))).toBe(3); // среда
     expect(weekdayOfDayNumber(dayOf("2026-10-19"))).toBe(1); // понедельник
     expect(dateOfDayNumber(dayOf("2026-10-19"))).toBe("2026-10-19");
@@ -112,7 +113,10 @@ describe("B777: полезные форматы по дням недели и с
       expect(expected.reply).toBe("continuation");
       expect(expected.link).toBe(false);
     }
-    expect(threadsDayLineup(dayOf("2026-10-20"))[2].format.cluster).not.toMatch(/^K3[0-2]$/);
+    const founder = threadsDayLineup(dayOf("2026-10-20"))[2];
+    expect(founder.format).toBe(FOUNDER_PRODUCT_FORMAT);
+    expect(founder.cta).toBe(true);
+    expect(founder.format.rules.join(" ")).toMatch(/бесплатно без регистрации/);
   });
 
   it("серия «Паттерн дня» — в последнем слоте суток; полезный формат вечера остаётся", () => {
