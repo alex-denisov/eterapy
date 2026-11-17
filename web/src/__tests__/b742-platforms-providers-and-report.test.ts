@@ -7,6 +7,8 @@
  * словом «ничего» и отдавать владельцу английский абзац.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { AIProvider } from "@prisma/client";
 import { CONTENT_PLAN, contentPlanFor } from "@/lib/marketing/content-plan";
 import { PLATFORM_PLAYBOOKS } from "@/lib/marketing/platform-playbook";
@@ -151,8 +153,8 @@ describe("B742 §6 — мёртвые провайдеры выключаютс�
     // Требование владельца дословно: «выключив физически чтобы они не мешали
     // пайплайну никак». Выключатель в базе — единственное, что видят и
     // суперадминка, и сторожевая проба, и НЕмаркетинговые маршруты.
-    const source = require("fs").readFileSync(
-      require("path").join(process.cwd(), "src/lib/ai-gateway/free-tier-bootstrap.ts"),
+    const source = readFileSync(
+      join(process.cwd(), "src/lib/ai-gateway/free-tier-bootstrap.ts"),
       "utf8",
     ) as string;
     expect(source).toContain("MARKETING_RETIRED_PROVIDERS");
