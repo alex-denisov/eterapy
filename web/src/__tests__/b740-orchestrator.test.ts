@@ -103,6 +103,15 @@ describe("B740 — диагноз ставится кодом и воспрои�
     expect(diagnose(stateWith())).toEqual([]);
   });
 
+  it("не выводит долю индексации и причину исключения из несопоставимых общих чисел", () => {
+    const base = stateWith();
+    const findings = diagnose(stateWith({ sources: { ...base.sources, webmaster: { searchablePages: 10, excludedPages: 30, sitemapUrls: 100, recrawlRemaining: 0 } } }));
+    expect(findings.some((item) => item.code === "search.coverage")).toBe(false);
+    const excluded = findings.find((item) => item.code === "search.excluded");
+    expect(excluded?.detail).toContain("Причины исключения");
+    expect(excluded?.detail).not.toContain("Единственное");
+  });
+
   it("один и тот же снимок даёт один и тот же диагноз", () => {
     const state = stateWith({ stalledIds: ["a", "b", "c", "d"] });
     expect(diagnose(state)).toEqual(diagnose(state));
