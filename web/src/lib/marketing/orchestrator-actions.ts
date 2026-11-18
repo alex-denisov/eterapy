@@ -23,6 +23,7 @@ import { log, serializeError } from "@/lib/logger";
 import { updateAIPromptConfig } from "@/lib/ai-gateway/prompts";
 import { AIProvider, Prisma } from "@prisma/client";
 import { runRightsAction } from "@/lib/marketing/orchestrator-rights";
+import { isRecoverablePublicationError } from "@/lib/marketing/registry-recovery";
 
 export type DirectiveRisk = "reversible" | "monetary" | "irreversible";
 
@@ -247,15 +248,20 @@ export async function applyDirective(directive: OrchestratorDirective): Promise<
           ? directive.payload.ids.filter((id): id is string => typeof id === "string")
           : [];
         if (ids.length === 0) return { applied: false, previous: null, error: "нечего возвращать в работу" };
+        const now = new Date();
         const rows = await db.externalPublication.findMany({
-          where: { id: { in: ids } },
-          select: { id: true, status: true },
+          where: { id: { in: ids }, status: { in: ["FAILED", "ARCHIVED"] }, planSlot: { not: null }, scheduledFor: { gt: now } },
+          select: { id: true, status: true, planSlot: true, scheduledFor: true, lastError: true, archiveReason: true },
         });
+        const eligible = rows.filter((row) => row.planSlot && row.scheduledFor && row.scheduledFor > now
+          && ["FAILED", "ARCHIVED"].includes(row.status)
+          && isRecoverablePublicationError(`${row.archiveReason ?? ""} ${row.lastError ?? ""}`));
+        if (eligible.length === 0) return { applied: false, previous: { rows: [] }, error: "нет будущих материалов с технической ошибкой и сохранённым слотом" };
         await db.externalPublication.updateMany({
-          where: { id: { in: ids } },
+          where: { id: { in: eligible.map((row) => row.id) }, status: { in: ["FAILED", "ARCHIVED"] }, planSlot: { not: null }, scheduledFor: { gt: now } },
           data: { status: "PLANNED", lastError: null, archiveReason: null },
         });
-        return { applied: true, previous: { rows } };
+        return { applied: true, previous: { rows: eligible } };
       }
 
       case "retire_duplicate_drafts": {

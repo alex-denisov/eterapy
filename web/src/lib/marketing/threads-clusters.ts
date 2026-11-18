@@ -81,16 +81,13 @@ function pick<T>(list: readonly T[], index: number): T {
  */
 export function heroRuleFor(kind: HeroKind, day: number, sequence: number): string {
   const slot = day * 5 + sequence;
-  switch (kind) {
-    case "core":
-      return `Герой поста — ${pick(CORE_HEROES, slot)}. Вымышленный: без реальных адресов, мест работы, болезней. НЕ ДАЁМ ИМЁН: читатель не знает героев, поэтому только роль («бывший», «мой парень», «сестра», «кот»). Пост обязан быть понятен человеку, который видит канал впервые.`;
-    case "boss":
-      return `Начальник/начальница поста — ${pick(BOSSES, slot)} (форму имени можно менять; компанию не называем). Мишень шутки — поведение, а не человек.`;
-    case "friend":
-      return `Подруга поста — ${pick(FRIENDS_F, slot)}, друг — ${pick(FRIENDS_M, slot)}; используй одного-двух, не обязательно обоих.`;
-    case "client":
-      return `Образ клиента (безымянный, придуманный, не отзыв): ${pick(CLIENT_ARCHETYPES, slot)}.`;
-  }
+  const context = {
+    core: pick(CORE_HEROES, slot),
+    boss: "начальник или начальница",
+    friend: "подруга или друг",
+    client: pick(CLIENT_ARCHETYPES, slot),
+  }[kind];
+  return `Если персонаж нужен теме, используй условный пример: ${context}. Не выдавай вымысел за личный опыт Ани, реального клиента или отзыв; не добавляй имена и узнаваемые детали.`;
 }
 
 /* ------------------------------------------------------------------------ */
