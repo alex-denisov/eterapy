@@ -99,7 +99,9 @@ describe("B777: полезные форматы по дням недели и с
     expect(usefulFormatForWeekday(3)).toBe(MINI_PRACTICE_FORMAT);
     expect(usefulFormatForWeekday(5)).toBe(CHECKLIST_CHAIN_FORMAT);
     expect(usefulFormatForWeekday(2)).toBe(FOUNDER_PRODUCT_FORMAT);
-    for (const weekday of [0, 4, 6]) expect(usefulFormatForWeekday(weekday)).toBeNull();
+    expect(usefulFormatForWeekday(4)).toBe(FOUNDER_PRODUCT_FORMAT);
+    expect(usefulFormatForWeekday(6)).toBe(FOUNDER_PRODUCT_FORMAT);
+    expect(usefulFormatForWeekday(0)).toBeNull();
     expect(weekdayOfDayNumber(dayOf("2026-10-14"))).toBe(3); // среда
     expect(weekdayOfDayNumber(dayOf("2026-10-19"))).toBe(1); // понедельник
     expect(dateOfDayNumber(dayOf("2026-10-19"))).toBe("2026-10-19");

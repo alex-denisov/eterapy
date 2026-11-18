@@ -57,7 +57,7 @@ describe("герои и приёмы", () => {
 
   it("правила формата с героями получают строку героя, без героев — те же правила", () => {
     const withHeroes = THREADS_FORMATS.find((format) => format.heroes === "core")!;
-    expect(formatRulesFor(withHeroes, 5, 1)[0]).toMatch(/Герой поста/);
+    expect(formatRulesFor(withHeroes, 5, 1)[0]).toMatch(/условный пример/);
     const plain = THREADS_FORMATS.find((format) => !format.heroes && format.label !== "оклик по знаку с прогнозом в ответе")!;
     expect(formatRulesFor(plain, 5, 1)).toBe(plain.rules);
   });

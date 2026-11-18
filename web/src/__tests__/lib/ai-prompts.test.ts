@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { marketingWriterSystemPrompt } from "@/lib/marketing/agent-prompt";
 import {
   applyAIPromptOverride,
   defaultPromptTextForFeature,
@@ -50,6 +51,17 @@ describe("AI prompt configs", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     }));
+  });
+
+  it("passes current Threads instructions through the actual database override path", async () => {
+    (mockDb.aIPromptConfig.findUnique as jest.Mock).mockResolvedValue({ enabled: true, promptText: "Legacy customized marketing prompt" });
+    const messages = await applyAIPromptOverride("marketing-agent-writer", [
+      { role: "system", content: marketingWriterSystemPrompt("threads") },
+      { role: "user", content: "task" },
+    ]);
+    expect(messages[0].content).toContain("Legacy customized marketing prompt");
+    expect(messages[0].content).toContain("достоверный личный опыт используй только если он явно передан");
+    expect(messages[0].content).toContain("КОНТРАКТ ТВОЕЙ ПЛОЩАДКИ — threads");
   });
 
   it("lists editable default prompts for product features", async () => {
