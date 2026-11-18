@@ -17,8 +17,8 @@ describe("B723: Anya Persona, Few-Shot Hooks, Token Optimization & Anti-Slop", (
   it("системный промпт автора содержит живую персону Ани (редакция B759)", () => {
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Голос и персона: Аня, eTerapy");
     expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("автора и сооснователя eTerapy");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("кот Котлета");
-    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("бывший Никита");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("не выдавай придуманные события за биографию Ани");
+    expect(MARKETING_AGENT_SYSTEM_PROMPT).toContain("Реальный личный опыт допустим лишь когда он явно передан");
     // Прежний баланс 70/20/10 владелец отменил.
     expect(MARKETING_AGENT_SYSTEM_PROMPT).not.toContain("70 / 20 / 10");
   });
