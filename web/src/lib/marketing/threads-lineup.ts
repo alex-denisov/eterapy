@@ -27,7 +27,7 @@ import { SERIES_FORMAT, seriesSlotIndex, type SeriesDayInfo } from "@/lib/market
 import {
   dateOfDayNumber, THREADS_MAX_POSTS_PER_DAY, threadsPostsPerDay, threadsSlotRoles, type ThreadsRole,
 } from "@/lib/marketing/threads-ladder";
-import { usefulFormatForWeekday, weekdayOfDayNumber } from "@/lib/marketing/threads-useful-formats";
+import { FOUNDER_PRODUCT_FORMAT, usefulFormatForWeekday, weekdayOfDayNumber } from "@/lib/marketing/threads-useful-formats";
 
 /**
  * Максимум слотов Threads в сутки (потолок лесенки B777). Число постов в
@@ -207,6 +207,8 @@ function withScheduledFormats(
 /** Индексы слотов с призывом: первый подходящий формат; при восьми постах — второй не ближе MIN_CTA_GAP. */
 function ctaIndexes(formats: readonly PostFormat[]): number[] {
   const eligible = formats.flatMap((format, index) => (isCtaEligibleLabel(format.label) ? [index] : []));
+  // Product introductions promise a check-in CTA; assign their slot first.
+  eligible.sort((a, b) => Number(formats[b].label === FOUNDER_PRODUCT_FORMAT.label) - Number(formats[a].label === FOUNDER_PRODUCT_FORMAT.label));
   const limit = formats.length >= THREADS_MAX_POSTS_PER_DAY ? MAX_CTA_PER_DAY_FULL : MAX_CTA_PER_DAY;
   const chosen: number[] = [];
   for (const index of eligible) {
