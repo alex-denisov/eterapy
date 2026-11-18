@@ -10,14 +10,14 @@
  *
  *   собрать состояние → поставить диагноз → ОТЧИТАТЬСЯ → применить.
  *
- * ⚠ ОТЧЁТ УХОДИТ РАНЬШЕ ПРАВКИ, И ЭТО ПРОВЕРЯЕМО. Строка директивы пишется в
+ * Отчёт уходит раньше правки, и это проверяемо. Строка директивы пишется в
  * базу ДО отправки, отметка `reportedAt` ставится ПОСЛЕ доставки, а применение
  * смотрит на эту отметку. Поэтому недоставленный отчёт виден как директива без
  * `reportedAt` — и такая директива не применяется вовсе. Это не осторожность
  * ради осторожности: автономия, о которой владелец узнаёт постфактум, — не то,
  * о чём договаривались.
  *
- * ⚠ ВЫКЛЮЧАТЕЛЬ У ВЛАДЕЛЬЦА ЕСТЬ ВСЕГДА. Настройка `marketing.orchestrator.hold`
+ * Выключатель у владельца есть всегда. Настройка `marketing.orchestrator.hold`
  * = `true` оставляет отчёты, но запрещает правки. Автономия без стоп-крана —
  * это не автономия, а отсутствие управления.
  */
@@ -49,6 +49,7 @@ import {
   type OrchestratorDirective,
 } from "@/lib/marketing/orchestrator-actions";
 import { diagnose, type OrchestratorFinding } from "@/lib/marketing/orchestrator-diagnosis";
+import { notifyResolvedSignals, trackAlertedSignals } from "@/lib/marketing/orchestrator-recovery";
 import { collectOrchestratorState, type OrchestratorState } from "@/lib/marketing/orchestrator-state";
 import { promptAmendmentDirective } from "@/lib/marketing/orchestrator-prompt-amendment";
 import { clip, escapeHtml } from "@/lib/marketing/orchestrator-brief";
@@ -167,7 +168,8 @@ export interface OrchestratorCycleResult {
  * а не является его условием.
  */
 async function trendChartBytes(trend: TrendState, now: Date): Promise<{ bytes: ArrayBuffer; filename: string; contentType: string } | null> {
-  if (trend.days.length === 0) return null;
+  // The chart sums each panel; omit it rather than label partial data as a total.
+  if (trend.days.length === 0 || trend.days.some((day) => day.views === null || day.impressions === null || day.clicks === null)) return null;
   const signed = signTrendPayload({
     at: now.toISOString(),
     days: trend.days.map((day) => ({
@@ -220,7 +222,7 @@ async function deliver(message: string, chart?: { bytes: ArrayBuffer; filename: 
       for (const part of splitForTelegram(message)) await sendTelegram(chatId, part);
       // Картинка — вторым сообщением и без права уронить доставку текста.
       if (chart) {
-        await sendTelegramPhoto(chatId, "📈 Тренд за 14 дней: постов и разных заголовков, просмотров, страниц Библиотеки, показов и кликов в поиске", chart)
+        await sendTelegramPhoto(chatId, "Тренд за 14 дней: посты и разнообразие, просмотры, страницы Библиотеки, показы и клики в поиске", chart)
           .catch((error) => log.warn("orchestrator.trend_photo_failed", { error: serializeError(error) }));
       }
       return true;
@@ -256,6 +258,9 @@ export async function runOrchestratorCycle(
 
   const state = await collectOrchestratorState({ now });
   const diagnosed = diagnose(state);
+  await notifyResolvedSignals(now, (message) => deliver(message)).catch((error: unknown) => {
+    log.warn("orchestrator.recovery_check_failed", { error: serializeError(error) });
+  });
   const incidents = diagnosed.filter((finding) => finding.severity === "incident").length;
 
   const kpiVerdicts = await readKpiVerdicts({ period: "month", now }).catch((error: unknown) => {
@@ -452,7 +457,7 @@ async function applyStored(
   }
   // Второе сообщение — ТОЛЬКО при отказе: успех уже описан в отчёте.
   if (failures.length > 0) {
-    await deliver(`⚠️ <b>Не удалось внедрить</b>\n${failures.map((line) => `• ${escapeHtml(clip(line, 300))}`).join("\n")}`)
+    await deliver(`<b>Не удалось внедрить</b>\n${failures.map((line) => `• ${escapeHtml(clip(line, 300))}`).join("\n")}`)
       .catch(() => false);
   }
   return { applied, failed, failures };
@@ -499,6 +504,9 @@ async function deliverIncidentAlert(input: CycleBase & {
     log.error("orchestrator.alert_undelivered", { incidents: alerted.length });
     return result({ planned: stored.length, silentReason: "алерт не доставлен — правки не применяю" });
   }
+  await trackAlertedSignals(alerted, input.now).catch((error: unknown) => {
+    log.warn("orchestrator.recovery_tracking_failed", { error: serializeError(error) });
+  });
   const { applied, failed } = await applyStored(stored);
   log.info("orchestrator.incident_alert", { incidents: alerted.length, planned: stored.length, applied, failed });
   return result({ planned: stored.length, applied, failed, reported: true });
@@ -579,7 +587,7 @@ async function deliverBrief(input: CycleBase & {
   };
   const noteLines = ownerNotes.slice(-2).map((note) => `<i>Учёл ваше: ${escapeHtml(clip(note.text, 110))}</i>`);
   const holdNote = onHold && input.candidates.length > 0
-    ? `\n\n⏸ <b>Правки на удержании</b>: <code>${ORCHESTRATOR_HOLD_KEY}</code> = true, ничего не меняю.`
+    ? `\n\n<b>Правки на удержании</b>: <code>${ORCHESTRATOR_HOLD_KEY}</code> = true, ничего не меняю.`
     : "";
   const parts: Array<{ kind: ReportKind; text: string; digestKey: string; digest: string; same: boolean }> = [];
   for (const kind of ["seo", "smm"] as const) {
@@ -598,16 +606,13 @@ async function deliverBrief(input: CycleBase & {
     parts.push({ kind, text, digestKey, digest, same });
   }
   const chart = await trendChartBytes(input.state.trend, now);
-  let delivered = false;
+  let delivered = true;
   for (const [index, part] of parts.entries()) {
     const body = part.same ? unchangedLine(part.kind, now) : part.text;
     const prefix = index === 0 && noteLines.length > 0 ? `${noteLines.join("\n")}\n\n` : "";
     const suffix = index === 0 ? holdNote : "";
     const sent = await deliver(`${prefix}${body}${suffix}`, index === parts.length - 1 && !part.same ? chart : null);
-    if (sent) {
-      delivered = true;
-      await writeSetting(part.digestKey, part.digest).catch(() => undefined);
-    }
+    if (!sent) delivered = false;
   }
 
   if (!delivered) {
@@ -619,6 +624,9 @@ async function deliverBrief(input: CycleBase & {
     return result({ planned: stored.length, silentReason: "отчёт не доставлен — правки не применяю" });
   }
 
+  // Запоминаем оба отпечатка только после доставки всего комплекта. Иначе
+  // повтор после сбоя второй части ошибочно скроет первую за «без изменений».
+  await Promise.all(parts.map((part) => writeSetting(part.digestKey, part.digest).catch(() => undefined)));
   // Отметки после доставки — побочные: их сбой не отменяет вышедший отчёт.
   if (decision.ownerRequested && !decision.daily) {
     await writeSetting(LAST_BRIEF_KEY, now.toISOString()).catch(() => undefined);

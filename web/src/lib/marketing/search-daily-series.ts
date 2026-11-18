@@ -67,7 +67,8 @@ export function parseWebmasterDailySeries(payload: unknown): Map<string, { impre
   const indicators = record(record(payload)?.indicators) ?? {};
   const shows = readIndicator(indicators, "TOTAL_SHOWS");
   const clicks = readIndicator(indicators, "TOTAL_CLICKS");
-  const days = new Set([...shows.keys(), ...clicks.keys()]);
+  // A missing indicator is not a measured zero; retain only complete days.
+  const days = [...shows.keys()].filter((day) => clicks.has(day));
   const result = new Map<string, { impressions: number; clicks: number }>();
   for (const day of days) {
     result.set(day, {

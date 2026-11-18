@@ -93,6 +93,11 @@ describe("разбор посуточных рядов", () => {
     expect(series.get("2026-07-24")).toEqual({ impressions: 1, clicks: 0 });
   });
 
+  it("не подставляет ноль, когда один поисковый показатель отсутствует", () => {
+    const series = parseWebmasterDailySeries({ indicators: { TOTAL_SHOWS: [{ date: "2026-07-24", value: 7 }], TOTAL_CLICKS: [] } });
+    expect(series.has("2026-07-24")).toBe(false);
+  });
+
   it("сводит ряд Метрики по позиции значения в totals, а не по строкам data", () => {
     // При нулевом трафике `data` пуст, но ряд в `totals` есть — и это ответ
     // источника, а не его молчание.
@@ -146,6 +151,13 @@ describe("снятие среза", () => {
       "2026-08-06",
       "2026-08-07",
     ]);
+  });
+
+  it("отказ Вебмастера при работающей Метрике не записывает нули поиска", async () => {
+    fetchWebmasterDailySeries.mockRejectedValue(new Error("HTTP 502"));
+    fetchMetrikaDailyVisits.mockResolvedValue(new Map([["2026-08-22", 9]]));
+    await expect(captureMarketingDailySnapshot({ now: NOW })).resolves.toBeNull();
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("отказ обоих источников не записывается как ноль", async () => {

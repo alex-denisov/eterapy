@@ -362,6 +362,6 @@ describe("B742 — отчёт собирается целиком и остаё�
     expect(report).toContain("ЧТО НУЖНО ОТ ВАС");
     expect(report).not.toContain("ничего\n");
     // Отчёт существует без модели: связующее предложение необязательно по построению.
-    expect(report.startsWith("🧭")).toBe(true);
+    expect(report.startsWith("<b>Отчёт оркестратора · ")).toBe(true);
   });
 });

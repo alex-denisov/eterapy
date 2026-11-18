@@ -16,7 +16,7 @@
 import db from "@/lib/db";
 import { APP_URL } from "@/lib/env";
 import { log, serializeError } from "@/lib/logger";
-import { resolveMarketingSignal, upsertMarketingSignal } from "@/lib/marketing/agent";
+import { resolveMarketingSignal } from "@/lib/marketing/agent";
 
 const WEBMASTER_BASE = "https://api.webmaster.yandex.net/v4";
 const DEFAULT_USER_ID = "253574184";
@@ -26,7 +26,8 @@ export interface SeoCoverageSnapshot {
   searchablePages: number;
   excludedPages: number;
   sitemapUrls: number;
-  coverageRatio: number;
+  /** Unavailable until sitemap URLs are checked individually against the index. */
+  coverageRatio: number | null;
   recrawlQuota: number;
   recrawlRemaining: number;
   submitted: string[];
@@ -240,27 +241,11 @@ export async function runSeoCoverageCycle(
   }
   await rememberSubmitted(submitted, now).catch(() => undefined);
 
-  const coverageRatio = sitemap.length > 0 ? searchablePages / sitemap.length : 0;
-  if (sitemap.length > 0 && coverageRatio < 0.5) {
-    await upsertMarketingSignal({
-      key: "seo:coverage",
-      kind: "SEO_AUDIT",
-      severity: "WARNING",
-      title: `Индексация отстаёт: ${searchablePages} из ${sitemap.length} страниц в поиске`,
-      summary: excludedPages === 0
-        ? `Исключённых страниц нет — обход просто не дошёл. За цикл отправлено на переобход: ${submitted.length}, остаток суточной квоты ${quotaRemaining - submitted.length}.`
-        : `Исключено ${excludedPages} страниц — нужна причина исключения, а не только переобход.`,
-      evidence: {
-        searchablePages,
-        excludedPages,
-        sitemapUrls: sitemap.length,
-        submitted: submitted.length,
-        checkedAt: now.toISOString(),
-      },
-    }).catch(() => undefined);
-  } else {
-    await resolveMarketingSignal("seo:coverage").catch(() => undefined);
-  }
+  // The search index includes URLs outside the sitemap. A ratio of these two
+  // aggregate counts is not coverage. Retire the old invalid signal; this does
+  // not assert that sitemap pages are indexed.
+  const coverageRatio = null;
+  await resolveMarketingSignal("seo:coverage").catch(() => undefined);
 
   return {
     searchablePages,

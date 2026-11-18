@@ -107,6 +107,8 @@ export interface OrchestratorState {
   conveyor: ConveyorSnapshot;
   providers: ProviderState[];
   platforms: PlatformOutcome[];
+  /** False when the publications query failed; an empty result alone means zero. */
+  platformsAvailable?: boolean;
   signals: SignalState[];
   seo: SeoState;
   search: SearchState;
@@ -178,6 +180,7 @@ export interface OrchestratorState {
   backlinks: BacklinkTargetState[];
   recentDirectives: Array<{
     key: string;
+    target?: string;
     action: string;
     problem: string;
     appliedAt: Date | null;
@@ -294,13 +297,14 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
         id: true,
         platform: true,
         status: true,
+        publishedAt: true,
         lastError: true,
         archiveReason: true,
         attemptCount: true,
         agentReviewedAt: true,
         agentWrittenAt: true,
       },
-    }).catch(() => []),
+    }).catch(() => null),
     db.marketingAutomationSignal.findMany({
       where: { status: "OPEN" },
       orderBy: [{ severity: "asc" }, { lastSeenAt: "desc" }],
@@ -345,7 +349,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       where: { createdAt: { gte: weekAgo } },
       orderBy: { createdAt: "desc" },
       take: 20,
-      select: { key: true, action: true, problem: true, appliedAt: true, status: true },
+      select: { key: true, target: true, action: true, problem: true, appliedAt: true, status: true },
     }).catch(() => []),
     collectTrend({ now }).catch((error: unknown) => {
       log.warn("orchestrator.trend_failed", { error: serializeError(error) });
@@ -428,10 +432,10 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
   const byPlatform = new Map<string, { published: number; stalled: number; reasons: string[] }>();
   const causeTally = new Map<string, number>();
   const stalledIds: string[] = [];
-  for (const row of publications) {
+  for (const row of publications ?? []) {
     const platform = row.platform.trim().toLowerCase();
     const bucket = byPlatform.get(platform) ?? { published: 0, stalled: 0, reasons: [] };
-    if (row.status === "PUBLISHED") bucket.published += 1;
+    if (row.status === "PUBLISHED" && row.publishedAt && row.publishedAt >= dayAgo && row.publishedAt <= now) bucket.published += 1;
     // B747: пустая оболочка, снятая уборкой очереди (ни автора, ни редактора,
     // ни попытки выпуска), — не отказ материала. Посчитанная как отказ, она
     // становится «повторяющейся причиной», и 15.09 оркестратор предложил
@@ -462,6 +466,7 @@ export async function collectOrchestratorState(input: { now?: Date } = {}): Prom
       stalled: bucket.stalled,
       topReason: topReasonOf(bucket.reasons),
     })),
+    platformsAvailable: publications !== null,
     signals,
     seo: {
       publishedToday: seoPublishedToday,

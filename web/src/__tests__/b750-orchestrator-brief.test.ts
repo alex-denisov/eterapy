@@ -211,7 +211,7 @@ describe("B750 — презентация: формат", () => {
   });
 
   it("титул и секции идут в заданном порядке", () => {
-    expect(text.startsWith("🧭 <b>Отчёт оркестратора · 05.10.2026</b>")).toBe(true);
+    expect(text.startsWith("<b>Отчёт оркестратора · 05.10.2026</b>")).toBe(true);
     const positions = SECTION_ORDER.map((s) => text.indexOf(`<b>${s}</b>`));
     expect(positions.every((p) => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
@@ -319,6 +319,14 @@ describe("B750 — аварийное сообщение", () => {
     expect(text.split("\n").length).toBeLessThanOrEqual(6);
     expect(text).toContain("Инцидент 0");
     expect(text).toMatch(/ещё 3/);
+  });
+
+  it("сворачивает страницы с одинаковым симптомом в одну группу", () => {
+    const incidents = Array.from({ length: 12 }, (_, i) => finding({ code: `signal.seo:page:${i}`, severity: "incident", title: `страница ${i}`, detail: "noindex" }));
+    const text = buildIncidentAlert({ now: AT_0900, incidents });
+    expect(text).toContain("одинаковой проблемой — 12");
+    expect(text).toContain("Причина уточняется");
+    expect(text).not.toContain("ещё 10");
   });
 
   it("называет правку, которую сделает после доставки", () => {

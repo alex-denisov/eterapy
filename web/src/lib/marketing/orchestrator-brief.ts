@@ -11,7 +11,7 @@
  *   — аварийное сообщение: инцидент не ждёт утра, но короткое и без повторов;
  *   — отчёт по просьбе владельца (`report_now`).
  *
- * ⚠ ВСЕ ЧИСЛА — ИЗ СНИМКА СОСТОЯНИЯ, СЛОВО ВЕРДИКТА — ИЗ КОДА. Модель может
+ * Все числа — из снимка состояния, слово вердикта — из кода. Модель может
  * дописать одно предложение к итогу, но отчёт существует и без неё, а молчащий
  * источник (Яндекс, Google) называется словом, а не пропадает из строки.
  */
@@ -238,7 +238,7 @@ export function buildDailyBrief(input: BriefInput): string {
   const sentence = input.narrative ? firstSentence(input.narrative) : "";
 
   const render = (width: number, withNotes: boolean, withSentence: boolean): string => {
-    const lines: string[] = [`🧭 <b>Отчёт оркестратора · ${moscowDate(input.state.now)}</b>`];
+    const lines: string[] = [`<b>Отчёт оркестратора · ${moscowDate(input.state.now)}</b>`];
     if (withNotes) {
       for (const note of notes) lines.push(`<i>Учёл ваше: ${escapeHtml(clip(note.text, Math.min(width, 110)))}</i>`);
     }
@@ -289,17 +289,28 @@ export function buildDailyBrief(input: BriefInput): string {
  * (суть и что делаю / чем грозит), хвост со счётчиком остальных.
  */
 export function buildIncidentAlert(input: { now: Date; incidents: readonly OrchestratorFinding[] }): string {
-  const shown = input.incidents.slice(0, 2);
-  const lines = [`🔴 <b>Инцидент · ${moscowDateTime(input.now)} МСК</b>`];
-  for (const incident of shown) {
-    lines.push(`• <b>${escapeHtml(clip(incident.title, 150))}</b>`);
+  const grouped = new Map<string, { finding: OrchestratorFinding; count: number }>();
+  for (const finding of input.incidents) {
+    // Group page-level SEO checks with the same observed symptom.
+    const group = finding.code.startsWith("signal.seo:page:") && !finding.directive
+      ? `seo-page:${finding.detail}` : finding.code;
+    const prior = grouped.get(group);
+    if (prior) prior.count += 1;
+    else grouped.set(group, { finding, count: 1 });
+  }
+  const groups = [...grouped.values()];
+  const shown = groups.slice(0, 2);
+  const lines = [`<b>Инцидент · ${moscowDateTime(input.now)} МСК</b>`];
+  for (const { finding: incident, count } of shown) {
+    const title = count > 1 ? `SEO-контроль: страниц с одинаковой проблемой — ${count}` : incident.title;
+    lines.push(`• <b>${escapeHtml(clip(title, 150))}</b>`);
     lines.push(
       incident.directive
         ? `Делаю: ${escapeHtml(clip(describeDirective(incident.directive), 150))}`
-        : escapeHtml(clip(incident.detail, 150)),
+        : `${escapeHtml(clip(incident.detail, 120))}. Причина уточняется; повторная проверка — в следующем цикле.`,
     );
   }
-  const rest = input.incidents.length - shown.length;
+  const rest = groups.length - shown.length;
   lines.push(
     `${rest > 0 ? `ещё ${rest} — в утреннем отчёте. ` : "Подробности — в утреннем отчёте. "}Ответьте сообщением — учту.`,
   );

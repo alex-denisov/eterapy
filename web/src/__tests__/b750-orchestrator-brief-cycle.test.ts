@@ -138,6 +138,14 @@ describe("B750 — суточная презентация в проходе", (
     expect(store.has("marketing.orchestrator.last_brief_at")).toBe(false);
   });
 
+  it("отказ второго отчёта не считается полной доставкой", async () => {
+    onSend = () => { sendFails = true; };
+    const result = await runOrchestratorCycle({ now: AT_0900 });
+    expect(result.reported).toBe(false);
+    expect(events.some((event) => event.startsWith("apply:"))).toBe(false);
+    expect(store.has("marketing.orchestrator.last_brief_at")).toBe(false);
+  });
+
   it("вторая нода в тот же час молчит", async () => {
     await runOrchestratorCycle({ now: AT_0900 });
     events.length = 0;

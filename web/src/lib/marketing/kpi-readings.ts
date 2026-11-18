@@ -13,6 +13,7 @@
  */
 
 import db from "@/lib/db";
+import { verifiedImpressionsTotal } from "@/lib/marketing/search-snapshot-provenance";
 import { log, serializeError } from "@/lib/logger";
 import { libraryDepth } from "@/lib/library-depth";
 import { libraryEntriesWithBackfill } from "@/lib/seo/library-store";
@@ -37,8 +38,9 @@ async function seoActuals(period: KpiPeriod, now: Date) {
 
   const [snapshots, pages] = await Promise.all([
     db.marketingDailySnapshot.findMany({
-      where: { capturedAt: { gte: start, lte: now } },
-      select: { impressions: true, searchablePages: true },
+      where: { dayKey: { gte: new Date(start.getTime() + 3 * 3_600_000).toISOString().slice(0, 10), lte: new Date(now.getTime() + 3 * 3_600_000).toISOString().slice(0, 10) } },
+      orderBy: { dayKey: "asc" },
+      select: { dayKey: true, sources: true, impressions: true, searchablePages: true },
     }).catch(() => []),
     db.seoLibraryPage.findMany({
       where: { status: "PUBLISHED", publishedAt: { gte: start, lte: now } },
@@ -60,9 +62,7 @@ async function seoActuals(period: KpiPeriod, now: Date) {
   return {
     "seo.indexable_share": share(deep, entries.length),
     "seo.searchable_pages": searchable,
-    "seo.impressions": snapshots.length > 0
-      ? snapshots.reduce((sum, row) => sum + row.impressions, 0)
-      : null,
+    "seo.impressions": verifiedImpressionsTotal(snapshots, start, now),
     "seo.unique_share": withVerdict.length > 0 ? share(unique, withVerdict.length) : null,
   } satisfies Record<string, number | null>;
 }
