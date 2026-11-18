@@ -31,7 +31,7 @@ const state = {
   platforms: [{ platform: "telegram", published: 3, stalled: 1, topReason: "дубль темы" }],
   feeds: [{ platform: "telegram", lastPublishedAt: null, publishedFortnight: 20 }],
   backlinks: [],
-  recentDirectives: [{ key: "k", action: "update_prompt", problem: "однотипные заголовки", appliedAt: new Date(), status: "APPLIED" }],
+  recentDirectives: [{ key: "k", target: "smm", action: "update_prompt", problem: "однотипные заголовки", appliedAt: new Date(), status: "APPLIED" }],
 } as never;
 
 const verdict = (id: string, actual: number | null) =>
@@ -54,11 +54,29 @@ describe("B752 отчёты", () => {
     expect(text.length).toBeLessThanOrEqual(REPORT_HARD_CAP);
   });
 
+  it("SEO: период, источник и отсутствие поисковых данных указаны явно", () => {
+    const noSearch = { ...input, state: { ...(state as object), trend: { days: [], weeks: [], diversity: [] } } as never };
+    const text = buildSeoReport(noSearch);
+    expect(text).toContain("Поиск: недостаточно данных для сравнения");
+    expect(text).not.toContain("просадок нет");
+    expect(text).toContain("месяц");
+    expect(text).toContain("Источник:");
+  });
+
+  it("SEO: страницы в поиске и sitemap показаны как разные показатели", () => {
+    const text = buildSeoReport(input);
+    expect(text).toContain("в поиске Яндекса: 12");
+    expect(text).toContain("адресов в sitemap: 300");
+    expect(text).not.toContain("12 из 300");
+  });
+
   it("SMM: площадки и блок «гипотеза → результат»", () => {
     const text = buildSmmReport(input);
     expect(text).toContain("telegram");
     expect(text).toMatch(/Гипотеза: однотипные заголовки/);
-    expect(text).toContain("Результат:");
+    expect(text).toContain("Результат: причинный эффект не измерен");
+    expect(text).toContain("Источник:");
+    expect(text).toContain("замера нет");
     expect(text.length).toBeLessThanOrEqual(REPORT_HARD_CAP);
   });
 

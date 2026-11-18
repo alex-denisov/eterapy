@@ -40,7 +40,7 @@ export interface WebmasterIndexState {
   /** Исключённых страниц — это ДРУГАЯ проблема, чем «не обошли». */
   excludedPages: number;
   /** Сколько адресов в нашей карте сайта на момент замера. */
-  sitemapUrls: number;
+  sitemapUrls: number | null;
   /** Остаток суточной квоты переобхода. */
   recrawlRemaining: number | null;
 }
@@ -118,7 +118,7 @@ export async function readWebmasterIndexState(): Promise<{
     const [summary, quota, sitemapUrls] = await Promise.all([
       webmasterJson(`${config.base}/summary`, config.token),
       webmasterJson(`${config.base}/recrawl/quota`, config.token).catch(() => ({} as Record<string, unknown>)),
-      sitemapSize(origin).catch(() => 0),
+      sitemapSize(origin).catch(() => null),
     ]);
     return {
       state: {

@@ -24,6 +24,7 @@
  */
 
 import db from "@/lib/db";
+import { hasVerifiedSearchFlow } from "@/lib/marketing/search-snapshot-provenance";
 import { SEO_PAGE_STATUS } from "@/lib/seo/library-store";
 
 export const TREND_DAYS = 14;
@@ -39,7 +40,7 @@ export interface TrendDay {
   /** Постов с картинкой. */
   withMedia: number;
   /** Просмотры постов, вышедших в этот день (последний замер по каждому). */
-  views: number;
+  views: number | null;
   /** Страниц Библиотеки выпущено SEO-агентом. */
   seoPages: number;
   /** Показы и клики в поиске за сутки (`marketing_daily_snapshots`); `null` — не снимали. */
@@ -151,7 +152,7 @@ export function trendDaysFrom(input: {
   days?: number;
   publications: readonly PublicationRow[];
   seoPublishedAt: readonly Date[];
-  snapshots: readonly { dayKey: string; impressions: number; clicks: number }[];
+  snapshots: readonly { dayKey: string; impressions: number; clicks: number; sources?: unknown }[];
 }): TrendDay[] {
   const length = input.days ?? TREND_DAYS;
   const snapshotByDay = new Map(input.snapshots.map((row) => [row.dayKey, row]));
@@ -161,13 +162,14 @@ export function trendDaysFrom(input: {
     const posts = input.publications.filter(
       (row) => row.status === "PUBLISHED" && row.publishedAt && moscowDayKey(row.publishedAt) === day,
     );
-    const snapshot = snapshotByDay.get(day);
+    const row = snapshotByDay.get(day);
+    const snapshot = row && hasVerifiedSearchFlow(row.sources) ? row : undefined;
     result.push({
       day,
       posts: posts.length,
       distinctTitles: new Set(posts.map((row) => row.title.trim().toLowerCase())).size,
       withMedia: posts.filter((row) => row.mediaUrl).length,
-      views: posts.reduce((sum, row) => sum + (row.views ?? 0), 0),
+      views: posts.some((row) => row.views === null) ? null : posts.reduce((sum, row) => sum + (row.views ?? 0), 0),
       seoPages: input.seoPublishedAt.filter((value) => moscowDayKey(value) === day).length,
       impressions: snapshot?.impressions ?? null,
       clicks: snapshot?.clicks ?? null,
@@ -189,10 +191,13 @@ export function weekDeltasFrom(days: readonly TrendDay[]): WeekDelta[] {
   return [
     { metric: "posts", label: "Постов вышло", current: sum(current, (d) => d.posts), previous: sum(previous, (d) => d.posts), better: "up", unit: "" },
     { metric: "distinctShare", label: "Разных заголовков", current: distinctShare(current), previous: distinctShare(previous), better: "up", unit: "%" },
-    { metric: "views", label: "Просмотров", current: sum(current, (d) => d.views), previous: sum(previous, (d) => d.views), better: "up", unit: "" },
+    ...(current.length === 7 && previous.length === 7 && [...current, ...previous].every((day) => day.views !== null)
+      ? [{ metric: "views" as const, label: "Просмотров", current: sum(current, (d) => d.views), previous: sum(previous, (d) => d.views), better: "up" as const, unit: "" }] : []),
     { metric: "seoPages", label: "Страниц Библиотеки", current: sum(current, (d) => d.seoPages), previous: sum(previous, (d) => d.seoPages), better: "up", unit: "" },
-    { metric: "impressions", label: "Показов в поиске", current: sum(current, (d) => d.impressions), previous: sum(previous, (d) => d.impressions), better: "up", unit: "" },
-    { metric: "clicks", label: "Кликов из поиска", current: sum(current, (d) => d.clicks), previous: sum(previous, (d) => d.clicks), better: "up", unit: "" },
+    ...(current.length === 7 && previous.length === 7 && [...current, ...previous].every((day) => day.impressions !== null)
+      ? [{ metric: "impressions" as const, label: "Показов в поиске", current: sum(current, (d) => d.impressions), previous: sum(previous, (d) => d.impressions), better: "up" as const, unit: "" }] : []),
+    ...(current.length === 7 && previous.length === 7 && [...current, ...previous].every((day) => day.clicks !== null)
+      ? [{ metric: "clicks" as const, label: "Кликов из поиска", current: sum(current, (d) => d.clicks), previous: sum(previous, (d) => d.clicks), better: "up" as const, unit: "" }] : []),
   ];
 }
 
@@ -267,15 +272,15 @@ export async function collectTrend(input: { now?: Date } = {}): Promise<TrendSta
           select: { views: true, reach: true },
         },
       },
-    }).catch(() => []),
+    }),
     db.seoLibraryPage.findMany({
       where: { status: SEO_PAGE_STATUS.published, publishedAt: { gte: since } },
       select: { publishedAt: true },
-    }).catch(() => []),
+    }),
     db.marketingDailySnapshot.findMany({
       where: { dayKey: { gte: moscowDayKey(since) } },
-      select: { dayKey: true, impressions: true, clicks: true },
-    }).catch(() => []),
+      select: { dayKey: true, impressions: true, clicks: true, sources: true },
+    }),
   ]);
 
   const publications: PublicationRow[] = rows.map((row) => ({
