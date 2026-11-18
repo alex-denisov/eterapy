@@ -33,14 +33,6 @@ const SEVERITY_MARK: Record<OrchestratorFinding["severity"], string> = {
   observation: "⚪",
 };
 
-function moscowTime(now: Date): string {
-  return now.toLocaleString("ru-RU", {
-    timeZone: "Europe/Moscow",
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
-
 /** Блок «как сейчас» — одни числа, без выводов. */
 export function stateBlock(state: OrchestratorState): string[] {
   const lines = [
@@ -65,7 +57,7 @@ export function stateBlock(state: OrchestratorState): string[] {
   const webmaster = state.sources.webmaster;
   lines.push(
     webmaster
-      ? `Яндекс: в поиске ${webmaster.searchablePages} из ${webmaster.sitemapUrls} в карте сайта, `
+      ? `Яндекс: в поиске ${webmaster.searchablePages} страниц; в карте сайта ${webmaster.sitemapUrls ?? "нет данных"} адресов, `
         + `исключено ${webmaster.excludedPages}`
       : `Яндекс.Вебмастер: не ответил (${state.sources.webmasterError ?? "причина не названа"})`,
   );

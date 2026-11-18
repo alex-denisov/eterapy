@@ -81,8 +81,8 @@ function worse(delta: WeekDelta): boolean {
 }
 
 function deltaLine(delta: WeekDelta): string {
-  const mark = delta.current === delta.previous ? "▫️" : worse(delta) ? "🔻" : "🔺";
-  return `${mark} ${delta.label}: ${delta.previous}${delta.unit} → <b>${delta.current}${delta.unit}</b> (${change(delta)})`;
+  const status = delta.current === delta.previous ? "Без изменения" : worse(delta) ? "Ухудшение" : "Улучшение";
+  return `${status}: ${delta.label}: ${delta.previous}${delta.unit} → <b>${delta.current}${delta.unit}</b> (${change(delta)})`;
 }
 
 function kpiLines(verdicts: readonly KpiVerdict[], agent: ReportKind): string[] {
@@ -90,11 +90,12 @@ function kpiLines(verdicts: readonly KpiVerdict[], agent: ReportKind): string[] 
   const measured = own.filter((verdict) => verdict.actual !== null);
   const lines = measured.map(
     (verdict) =>
-      `${verdict.onTrack ? "🟢" : "🔴"} ${escapeHtml(clip(verdict.definition.title, 48))}: `
-      + `<b>${verdict.actual}</b> / цель ${verdict.target}`,
+      `${verdict.onTrack ? "План выполнен" : "Ниже цели"}: ${escapeHtml(clip(verdict.definition.title, 48))}: `
+      + `<b>${verdict.actual}${escapeHtml(verdict.definition.unit)}</b> / цель ${verdict.target}${escapeHtml(verdict.definition.unit)} · Источник: ${escapeHtml(clip(verdict.definition.source, 90))}`,
   );
-  const blind = own.length - measured.length;
-  if (blind > 0) lines.push(`<i>без замера: ${blind} (не засчитываю ни в какую сторону)</i>`);
+  for (const verdict of own.filter((item) => item.actual === null)) {
+    lines.push(`${escapeHtml(clip(verdict.definition.title, 48))}: замера нет · Источник: ${escapeHtml(clip(verdict.definition.source, 90))}`);
+  }
   return lines.length > 0 ? lines : ["<i>KPI этого направления не измерены</i>"];
 }
 
@@ -141,7 +142,13 @@ function ownerLines(input: ReportInput, kind: ReportKind): string[] {
 
 function finish(lines: string[]): string {
   const text = lines.join("\n");
-  return text.length <= REPORT_HARD_CAP ? text : `${text.slice(0, REPORT_HARD_CAP - 1).trimEnd()}…`;
+  if (text.length <= REPORT_HARD_CAP) return text;
+  const kept: string[] = [];
+  for (const line of lines) {
+    if ([...kept, line, "Остальное не поместилось в отчёт."].join("\n").length > REPORT_HARD_CAP) break;
+    kept.push(line);
+  }
+  return [...kept, "Остальное не поместилось в отчёт."].join("\n");
 }
 
 function dateOf(now: Date): string {
@@ -153,21 +160,30 @@ export function buildSeoReport(input: ReportInput): string {
   const { state } = input;
   const weeks = (state.trend?.weeks ?? []).filter((delta) => ["impressions", "clicks", "seoPages"].includes(delta.metric));
   const drops = weeks.filter(worse);
+  const searchComplete = ["impressions", "clicks"].every((metric) => weeks.some((delta) => delta.metric === metric));
   const { webmaster } = state.sources;
   const index = webmaster
-    ? `в поиске ${webmaster.searchablePages} из ${webmaster.sitemapUrls} · исключено ${webmaster.excludedPages}`
+    ? `в поиске Яндекса: ${webmaster.searchablePages} · адресов в sitemap: ${webmaster.sitemapUrls ?? "нет данных"} · исключено: ${webmaster.excludedPages}`
     : `Яндекс.Вебмастер не ответил: ${state.sources.webmasterError ?? "причина не названа"}`;
-  const position = state.search.averagePosition !== null ? ` · позиция ${state.search.averagePosition}` : "";
+  const gsc = state.sources.gsc;
+  const gscEnd = new Date(state.now.getTime() - 3 * 86_400_000);
+  const gscStart = new Date(gscEnd.getTime() - 7 * 86_400_000);
+  const gscLine = gsc
+    ? `Google Search Console (${gscStart.toISOString().slice(0, 10)}–${gscEnd.toISOString().slice(0, 10)}): показов ${gsc.totals.impressions}, кликов ${gsc.totals.clicks}`
+    : `Google Search Console: данных нет (${state.sources.gscError ?? "причина не названа"})`;
 
   const lines = [
-    `🔎 <b>SEO · ${dateOf(state.now)}</b>`,
+    `<b>SEO · ${dateOf(state.now)}</b>`,
     "",
-    `<b>ПРОСАДКИ</b> (неделя к неделе)`,
-    ...(drops.length > 0 ? drops.map(deltaLine) : ["▫️ просадок нет"]),
+    `<b>ПРОСАДКИ</b> (7 календарных дней к предыдущим 7, включая сегодня)`,
+    "Источник: журнал Библиотеки и суточные поисковые снимки.",
+    ...(drops.length > 0 ? drops.map(deltaLine) : searchComplete ? ["По измеренным показателям просадок нет"] : []),
+    ...(!searchComplete ? ["Поиск: недостаточно данных для сравнения"] : []),
     ...weeks.filter((delta) => !worse(delta)).slice(0, 2).map(deltaLine),
-    escapeHtml(`Индекс: ${index}${position}`),
+    escapeHtml(`Индекс: ${index}`),
+    escapeHtml(gscLine),
     "",
-    "<b>KPI</b>",
+    "<b>KPI</b> (текущий месяц)",
     ...kpiLines(input.verdicts, "seo"),
     "",
     "<b>СДЕЛАНО</b>",
@@ -201,24 +217,26 @@ export function buildSmmReport(input: ReportInput): string {
   const smmWeeks = (state.trend?.weeks ?? []).filter((delta) => ["posts", "distinctShare", "views"].includes(delta.metric));
   const smmApplied = (state.recentDirectives ?? [])
     .filter((row) => row.status === "APPLIED" && row.appliedAt)
-    .filter((row) => !/^set_setting$/.test(row.action) || !/seo\./.test(row.problem))
+    .filter((row) => row.target === "smm" || row.target === "conveyor")
     .slice(0, 2);
   const hypotheses = smmApplied.length > 0
     ? smmApplied.map(
       (row) =>
         `• Гипотеза: ${escapeHtml(clip(row.problem, 70))} (правка ${escapeHtml(clip(row.action, 24))}) → `
-        + `Результат: ${smmWeeks.length > 0 ? smmWeeks.map((d) => `${d.label} ${change(d)}`).join(", ") : "замера нет"}`,
+        + "Результат: причинный эффект не измерен; общая динамика показана выше.",
     )
-    : ["• Новых гипотез с прошлого отчёта нет"];
+    : ["• Связанных замеров гипотез пока нет"];
 
   const lines = [
-    `📣 <b>SMM · ${dateOf(state.now)}</b>`,
+    `<b>SMM · ${dateOf(state.now)}</b>`,
     "",
-    "<b>ПЛОЩАДКИ</b>",
-    ...(platformLines.length > 0 ? platformLines : ["• выпусков за сутки нет"]),
+    "<b>ПЛОЩАДКИ</b> (последние 24 часа)",
+    "Источник: журнал публикаций; просмотры — последние замеры постов за соответствующие 7 дней, включая сегодня.",
+    ...(state.platformsAvailable === false ? ["• Журнал публикаций недоступен: число выпусков не определено"] : platformLines.length > 0 ? platformLines : ["• выпусков за сутки нет"]),
     ...smmWeeks.map(deltaLine),
+    ...(!smmWeeks.some((delta) => delta.metric === "views") ? ["Просмотры: недостаточно замеров для сравнения"] : []),
     "",
-    "<b>KPI</b>",
+    "<b>KPI</b> (текущий месяц)",
     ...kpiLines(input.verdicts, "smm"),
     "",
     "<b>ГИПОТЕЗА → РЕЗУЛЬТАТ</b>",
@@ -240,13 +258,13 @@ export function buildSmmReport(input: ReportInput): string {
  * уходит одна строка «без изменений» с причиной.
  */
 export function reportFingerprint(text: string): string {
-  const body = text.replace(/^.*\n/, "").replace(/\s+/g, " ").trim();
+  const body = text.replace(/^.*\n/, "").replace(/Google Search Console \(\d{4}-\d{2}-\d{2}–\d{4}-\d{2}-\d{2}\)/g, "Google Search Console (период)").replace(/\s+/g, " ").trim();
   let hash = 5381;
   for (let i = 0; i < body.length; i += 1) hash = ((hash * 33) ^ body.charCodeAt(i)) >>> 0;
   return String(hash);
 }
 
 export function unchangedLine(kind: ReportKind, now: Date): string {
-  const title = kind === "seo" ? "🔎 SEO" : "📣 SMM";
+  const title = kind === "seo" ? "SEO" : "SMM";
   return `${title} · ${dateOf(now)}: без изменений с прошлого отчёта — показатели, правки и планы те же, повторять не буду.`;
 }

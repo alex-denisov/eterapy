@@ -545,35 +545,17 @@ export function diagnose(state: OrchestratorState): OrchestratorFinding[] {
         + "тоже не работает: он ходит тем же ключом.",
     });
   } else {
-    const { searchablePages, excludedPages, sitemapUrls } = state.sources.webmaster;
-    const coverage = sitemapUrls > 0 ? searchablePages / sitemapUrls : 0;
-    if (sitemapUrls > 0 && coverage < 0.5) {
-      findings.push({
-        code: "search.coverage",
-        severity: searchablePages === 0 ? "incident" : "warning",
-        title: `В поиске Яндекса ${searchablePages} страниц из ${sitemapUrls} в карте сайта`,
-        detail: excludedPages > searchablePages
-          ? `Исключено ${excludedPages} — это НЕ «не дошёл обход», это отказ по качеству. `
-            + "Переобход здесь не поможет: чинить надо содержание страниц."
-          : `Исключено ${excludedPages}. Обход просто не дошёл — расходуем квоту переобхода `
-            + "на недостающие адреса.",
-      });
-    }
+    // The search index is not a subset of the sitemap, so their quotient
+    // cannot measure indexing coverage or explain exclusions.
+    const { searchablePages, excludedPages } = state.sources.webmaster;
     if (searchablePages > 0 && excludedPages > searchablePages * 2) {
       findings.push({
         code: "search.excluded",
         severity: "incident",
         title: `Исключено ${excludedPages} страниц против ${searchablePages} в поиске`,
         detail:
-          "Хост профилируется как малоценный. Единственное, что это меняет, — глубина "
-          + "страниц: тонкие карточки надо дописывать, а не подавать на переобход снова.",
-        ownerAction: state.thinCards > 0
-          ? {
-            what: "подтвердить темп дописывания или поднять его настройкой seo.backfill_per_day",
-            expected: `при нынешних двух карточках в сутки корпус закроется за `
-              + `${Math.ceil(state.thinCards / 2)} дней; при трёх — за ${Math.ceil(state.thinCards / 3)}`,
-          }
-          : undefined,
+          "Причины исключения по этому показателю не определены. "
+          + "Проверить категории исключений в Яндекс.Вебмастере перед выбором действия.",
       });
     }
   }

@@ -27,6 +27,7 @@
 
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { withVerifiedSearchFlow } from "@/lib/marketing/search-snapshot-provenance";
 import { log, serializeError } from "@/lib/logger";
 import { getSearchMarketingData } from "@/lib/search-marketing-data";
 import {
@@ -78,18 +79,24 @@ async function loadDailyFlow(input: {
     fetchWebmasterDailySeries({ from: input.from, to: input.to }),
     fetchMetrikaDailyVisits({ from: input.from, to: input.to }),
   ]);
-  if (webmaster.status === "rejected" && metrika.status === "rejected") {
+  if (webmaster.status === "rejected") {
+    // Search columns are non-nullable. Do not replace them with zero when
+    // only Metrika responded; retry the snapshot when Webmaster is available.
     log.error("marketing.daily_series_failed", {
       webmaster: serializeError(webmaster.reason),
-      metrika: serializeError(metrika.reason),
+      ...(metrika.status === "rejected" ? { metrika: serializeError(metrika.reason) } : {}),
     });
     return null;
   }
-  return mergeDailyFlow({
+  const flow = mergeDailyFlow({
     days: input.days,
-    webmaster: webmaster.status === "fulfilled" ? webmaster.value : new Map(),
+    webmaster: webmaster.value,
     metrika: metrika.status === "fulfilled" ? metrika.value : new Map(),
   });
+  for (const day of flow.keys()) {
+    if (!webmaster.value.has(day)) flow.delete(day);
+  }
+  return flow;
 }
 
 /** Уровень на сегодня: сколько страниц и запросов есть СЕЙЧАС. */
@@ -133,7 +140,7 @@ export async function captureMarketingDailySnapshot(
 
   try {
     const flow = await loadDailyFlow({ from: days[0], to: today, days });
-    if (!flow) {
+    if (!flow || !flow.has(today)) {
       // Отказ источника не должен записывать нули как результат замера: «нам не
       // ответили» и «значение равно нулю» — разные факты, и подменять один
       // другим значит врать в истории.
@@ -141,6 +148,10 @@ export async function captureMarketingDailySnapshot(
       return null;
     }
     const level = await loadLevel({ now, start, days });
+    const previous = await db.marketingDailySnapshot.findMany({
+      where: { dayKey: { in: days } }, select: { dayKey: true, sources: true },
+    });
+    const previousSources = new Map(previous.map((row) => [row.dayKey, row.sources]));
 
     // Хвост окна: у прошедших суток обновляется ТОЛЬКО поток. Уровень на них —
     // это состояние того дня, и подменять его сегодняшним значило бы задним
@@ -148,18 +159,20 @@ export async function captureMarketingDailySnapshot(
     for (const day of days) {
       const values = flow.get(day);
       if (!values || day === today) continue;
+      const sources = withVerifiedSearchFlow(previousSources.get(day));
       await db.marketingDailySnapshot.upsert({
         where: { dayKey: day },
-        create: { dayKey: day, capturedAt: now, ...values },
-        update: { capturedAt: now, ...values },
+        create: { dayKey: day, capturedAt: now, ...values, sources },
+        update: { capturedAt: now, ...values, sources },
       });
     }
 
     const todayFlow = flow.get(today) ?? { impressions: 0, clicks: 0, organicVisits: 0 };
+    const sources = withVerifiedSearchFlow(level?.sources ?? previousSources.get(today));
     const row = await db.marketingDailySnapshot.upsert({
       where: { dayKey: today },
-      create: { dayKey: today, capturedAt: now, ...todayFlow, ...(level ?? {}) },
-      update: { capturedAt: now, ...todayFlow, ...(level ?? {}) },
+      create: { dayKey: today, capturedAt: now, ...todayFlow, ...(level ?? {}), sources },
+      update: { capturedAt: now, ...todayFlow, ...(level ?? {}), sources },
     });
     log.info("marketing.daily_snapshot", {
       dayKey: today,

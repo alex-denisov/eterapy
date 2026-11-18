@@ -114,13 +114,19 @@ describe("B746 §4 — ряд и разнообразие считаются о�
       now: NOW,
       publications: rows,
       seoPublishedAt: [day(0), day(0), day(8)],
-      snapshots: [{ dayKey: "2026-09-15", impressions: 40, clicks: 2 }],
+      snapshots: [{ dayKey: "2026-09-15", impressions: 40, clicks: 2, sources: [{ key: "webmaster_daily_verified" }] }],
     });
     expect(days).toHaveLength(14);
     expect(days.at(-1)).toMatchObject({ day: "2026-09-15", posts: 1, views: 5, seoPages: 2, impressions: 40, clicks: 2 });
     // День без среза — «не снимали», а не ноль.
     expect(days.at(-2)!.impressions).toBeNull();
+    const unverified = trendDaysFrom({ now: NOW, publications: [], seoPublishedAt: [], snapshots: [{ dayKey: "2026-09-15", impressions: 0, clicks: 0 }] });
+    expect(unverified.at(-1)!.impressions).toBeNull();
+    const missing = trendDaysFrom({ now: NOW, publications: [row({ id: "missing", views: null })], seoPublishedAt: [], snapshots: [] });
+    expect(missing.at(-1)!.views).toBeNull();
+    expect(weekDeltasFrom(missing).some((delta) => delta.metric === "views")).toBe(false);
     const weeks = weekDeltasFrom(days);
+    expect(weeks.some((delta) => delta.metric === "impressions" || delta.metric === "clicks")).toBe(false);
     const posts = weeks.find((delta) => delta.metric === "posts")!;
     expect(posts).toMatchObject({ current: 2, previous: 1 });
     const views = weeks.find((delta) => delta.metric === "views")!;
