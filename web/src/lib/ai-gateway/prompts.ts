@@ -600,9 +600,13 @@ export function mergeAIPromptOverride(
     // structure, calculated-fact rules or direct-answer contract. Legacy stage
     // rows predate {{defaultPrompt}}, so symbolic products compose the complete
     // runtime prompt after the configured overlay.
+    const isThreadsMarketing = ["marketing-agent-writer", "marketing-agent-reviewer"].includes(feature)
+      && runtimeSystemPrompt.includes("КОНТРАКТ ТВОЕЙ ПЛОЩАДКИ — threads");
     merged = isSymbolicProduct
       ? `${configuredPrompt}\n\n${runtimeSystemPrompt}`
-      : `${configuredPrompt}${runtimeSuffix}`;
+      : isThreadsMarketing && configuredPrompt !== codeDefault
+        ? `${configuredPrompt}\n\nАктуальные правила ниже имеют приоритет при противоречии с прежними настройками.\n\n${runtimeSystemPrompt}`
+        : `${configuredPrompt}${runtimeSuffix}`;
   }
   const symbolicContract = isSymbolicProduct
     ? [SYMBOLIC_BASE_RULES, DIRECT_SYMBOLIC_ANSWER_CONTRACT]
