@@ -660,6 +660,17 @@ export function contentPlanFor(
   return buildPlan(dates, series);
 }
 
+/** Include today's slots when validating existing queue entries, while keeping the full future horizon. */
+export function hygienePlanFor(
+  now: Date,
+  series: SeriesConfig | null = null,
+  futurePlan: readonly ContentPlanSlot[] = contentPlanFor(now, series),
+): readonly ContentPlanSlot[] {
+  const futureKeys = new Set(futurePlan.map((slot) => slot.key));
+  const today = contentPlanFor(now, series, { includeToday: true }).filter((slot) => !futureKeys.has(slot.key));
+  return [...today, ...futurePlan];
+}
+
 export function plannedAtFor(slot: Pick<ContentPlanSlot, "scheduledAt">): Date {
   return new Date(slot.scheduledAt);
 }
