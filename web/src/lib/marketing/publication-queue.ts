@@ -18,6 +18,7 @@ import { loadSeriesConfig } from "@/lib/marketing/threads-series-store";
 import {
   CONTENT_PLAN,
   contentPlanFor,
+  hygienePlanFor,
   nextPlanSlots,
   PLAN_MAX_HORIZON_DAYS,
   plannedAtFor,
@@ -234,7 +235,8 @@ export async function generateMarketingDrafts(input: {
   target?: number;
 } = {}): Promise<GenerateDraftsResult> {
   const now = input.now ?? new Date();
-  const activePlan = contentPlanFor(now, await loadSeriesConfig());
+  const series = await loadSeriesConfig();
+  const activePlan = contentPlanFor(now, series);
   const target = input.target ?? activePlan.length;
   const firstVkSlot = activePlan.find((entry) => entry.channel === "vk");
 
@@ -245,7 +247,7 @@ export async function generateMarketingDrafts(input: {
   // B705: сторож очереди работает ДО подсчёта нехватки. Пустые оболочки вне
   // действующего плана освобождают слоты, а готовый материал занимает ближние —
   // иначе проход засеет заново ровно те места, которые сейчас будут убраны.
-  const hygiene = await runQueueHygiene({ now, plan: activePlan })
+  const hygiene = await runQueueHygiene({ now, plan: hygienePlanFor(now, series, activePlan) })
     .catch(() => ({ scheduled: 0, retired: 0, expired: 0, aligned: 0, unplaced: 0 }));
 
   // INC-094: the launch post was entered before the autonomous editor existed
